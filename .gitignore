@@ -1,0 +1,8 @@
+node_modules/
+dist/
+.env
+.env.local
+*.local
+.DS_Store
+android/app/build/
+src-tauri/target/
