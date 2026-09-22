@@ -11,6 +11,11 @@ env:
   VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
   VITE_SUPABASE_PUBLISHABLE_KEY: ${{ secrets.VITE_SUPABASE_PUBLISHABLE_KEY }}
 
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
 jobs:
   web:
     name: Web
@@ -29,6 +34,31 @@ jobs:
       - run: npm run build
       - uses: actions/upload-artifact@v4
         with: { name: web, path: dist }
+
+  pages:
+    name: Deploy the web client
+    runs-on: ubuntu-latest
+    needs: web
+    environment:
+      name: github-pages
+      url: ${{ steps.deploy.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 22, cache: npm }
+      - run: npm ci
+      # A project site lives under /GetIt/, so the build is told where it will sit.
+      - run: npm run build
+        env:
+          VITE_BASE: /${{ github.event.repository.name }}/
+      # Without this GitHub serves 404 for a deep link, because a single-page
+      # app has no file at /plan.
+      - run: cp dist/index.html dist/404.html
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v3
+        with: { path: dist }
+      - id: deploy
+        uses: actions/deploy-pages@v4
 
   android:
     name: Android APK

@@ -25,7 +25,7 @@ const webChannel: Channel = {
   },
   async send(title, body) {
     if (typeof Notification === 'undefined' || Notification.permission !== 'granted') return
-    new Notification(title, { body, icon: '/favicon.svg' })
+    new Notification(title, { body, icon: import.meta.env.BASE_URL + 'favicon.svg' })
   },
 }
 
