@@ -1,0 +1,10 @@
+{
+  "name": "GetIt",
+  "short_name": "GetIt",
+  "description": "A modular planner that plans at every horizon.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#f8f4ed",
+  "theme_color": "#f8f4ed",
+  "icons": [{ "src": "/favicon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" }]
+}

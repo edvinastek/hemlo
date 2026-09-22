@@ -1,10 +1,328 @@
+import { useState } from 'react'
+import { useLiveQuery } from 'dexie-react-hooks'
+import { db } from '../lib/db'
+import { useApp } from '../lib/store'
+import { supabase } from '../lib/supabase'
+import { edit } from '../lib/write'
+import { MODULES } from '../modules/registry'
+import { ModuleEditor } from '../ui/ModuleEditor'
+import { exportBundle, importBundle } from '../lib/bundle'
+import type { ModuleInstance } from '../lib/types'
+import type { ImportPreview } from '../lib/excel'
+
+const SECTIONS = ['Modules', 'Profile', 'Assistant', 'Data']
+
 export function More() {
+  const [section, setSection] = useState('Modules')
+  const [editing, setEditing] = useState<string | null>(null)
+
   return (
     <div className="page">
-      <div className="page-head">
-        <h1 className="page-date">More</h1>
-        <p className="page-sub">Next in the build.</p>
+      <div className="page-inner">
+        <header className="page-head">
+          <h1 className="page-date">More</h1>
+          <p className="page-sub">What the app is made of, and what it knows about you.</p>
+          <div className="tabs" role="tablist">
+            {SECTIONS.map((s) => (
+              <button key={s} role="tab" aria-selected={s === section}
+                onClick={() => { setSection(s); setEditing(null) }}>{s}</button>
+            ))}
+          </div>
+        </header>
+
+        {section === 'Modules' && (editing
+          ? <ModuleEditor moduleKey={editing} onBack={() => setEditing(null)} />
+          : <Modules onEdit={setEditing} />)}
+        {section === 'Profile' && <ProfilePanel />}
+        {section === 'Assistant' && <AssistantPanel />}
+        {section === 'Data' && <DataPanel />}
       </div>
     </div>
   )
 }
+
+/** Switching a module off hides its screens and stops its rules; it never
+ *  deletes what it held, so switching it back on returns everything. */
+function Modules({ onEdit }: { onEdit: (key: string) => void }) {
+  const profile = useApp((s) => s.profile)
+  const instances = useLiveQuery(async () => {
+    if (!profile) return []
+    return db.module_instance.where('profile_id').equals(profile.id).toArray()
+  }, [profile?.id], [] as ModuleInstance[])
+
+  const byKey = new Map(instances.map((i) => [i.module_key, i]))
+
+  async function toggle(instance: ModuleInstance) {
+    await edit('module_instance', instance, { enabled: !instance.enabled })
+  }
+
+  return (
+    <>
+      <p className="section-title">On</p>
+      {MODULES.filter((m) => byKey.get(m.key)?.enabled).map((m) => (
+        <Row key={m.key} name={m.name} summary={m.summary} depth={m.depth}
+          instance={byKey.get(m.key)} onToggle={toggle} onEdit={() => onEdit(m.key)} />
+      ))}
+
+      <p className="section-title">Available</p>
+      {MODULES.filter((m) => !byKey.get(m.key)?.enabled).map((m) => (
+        <Row key={m.key} name={m.name} summary={m.summary} depth={m.depth}
+          instance={byKey.get(m.key)} onToggle={toggle} onEdit={() => onEdit(m.key)} />
+      ))}
+
+      {instances.length === 0 && <p className="empty">Modules arrive with your profile.</p>}
+    </>
+  )
+}
+
+function Row({ name, summary, depth, instance, onToggle, onEdit }: {
+  name: string; summary: string; depth: 'full' | 'light'
+  instance?: ModuleInstance; onToggle: (i: ModuleInstance) => void; onEdit: () => void
+}) {
+  return (
+    <div className="setting-row">
+      <div>
+        <div className="row-name">{name}</div>
+        <div className="row-meta">
+          {summary}
+          {depth === 'light' && <> · <span className="chip">light template</span></>}
+        </div>
+      </div>
+      <div className="row-right">
+        <button className="btn" onClick={onEdit}>Edit</button>
+        <button
+          className="switch"
+          role="switch"
+          aria-checked={Boolean(instance?.enabled)}
+          aria-label={`Turn ${name} ${instance?.enabled ? 'off' : 'on'}`}
+          onClick={() => instance && onToggle(instance)}
+        />
+      </div>
+    </div>
+  )
+}
+
+function ProfilePanel() {
+  const { profile, profiles, setProfile } = useApp()
+  if (!profile) return <p className="empty">No profile yet.</p>
+
+  return (
+    <>
+      <p className="section-title">Profiles</p>
+      {profiles.map((p) => (
+        <div key={p.id} className="setting-row">
+          <div>
+            <div className="row-name">{p.name}</div>
+            <div className="row-meta">
+              {[p.goal, p.height_cm ? `${p.height_cm} cm` : null, p.timezone].filter(Boolean).join(' · ')}
+            </div>
+          </div>
+          <button className={p.id === profile.id ? 'btn btn-primary' : 'btn'} onClick={() => setProfile(p)}>
+            {p.id === profile.id ? 'Current' : 'Switch'}
+          </button>
+        </div>
+      ))}
+
+      <p className="section-title">Body and goal</p>
+      <Field label="Height" value={String(profile.height_cm ?? '')} unit="cm"
+        onSave={(v) => edit('profile', profile, { height_cm: Number(v) })} />
+      <Field label="Activity factor" value={String(profile.activity_level)}
+        hint="1.2 desk job, 1.5 hard training twice a day, 1.9 very active"
+        onSave={(v) => edit('profile', profile, { activity_level: Number(v) })} />
+      <div className="setting-row">
+        <div>
+          <div className="row-name">Goal</div>
+          <div className="row-meta">Cut takes 500 kcal off, bulk adds 300, recomp holds the line.</div>
+        </div>
+        <select className="btn" value={profile.goal}
+          onChange={(e) => void edit('profile', profile, { goal: e.target.value as typeof profile.goal })}>
+          <option value="cut">cut</option>
+          <option value="recomp">recomp</option>
+          <option value="bulk">bulk</option>
+        </select>
+      </div>
+    </>
+  )
+}
+
+function AssistantPanel() {
+  const profile = useApp((s) => s.profile)
+  if (!profile) return null
+  return (
+    <>
+      <p className="section-title">Who reminds you</p>
+      <Field label="Name" value={profile.ai_persona_name ?? ''}
+        hint="The name reminders arrive under. Leave it empty and they come from the app."
+        onSave={(v) => edit('profile', profile, { ai_persona_name: v || null })} />
+      <div className="setting-row">
+        <div>
+          <div className="row-name">Notifications</div>
+          <div className="row-meta">
+            Off by default. Turn them on per module once the plan is one you trust;
+            quiet hours are held to whatever you set.
+          </div>
+        </div>
+        <span className="chip">off</span>
+      </div>
+      <div className="setting-row">
+        <div>
+          <div className="row-name">Assistant</div>
+          <div className="row-meta">
+            Not in this build. The tables and the per-module skill list are there, so
+            switching it on later is wiring rather than a rewrite.
+          </div>
+        </div>
+        <span className="chip">later</span>
+      </div>
+    </>
+  )
+}
+
+function DataPanel() {
+  const { profile } = useApp()
+  const [note, setNote] = useState<string | null>(null)
+  const [preview, setPreview] = useState<{ file: File; preview: ImportPreview } | null>(null)
+  const conflicts = useLiveQuery(() => db.conflicts.reverse().limit(20).toArray(), [], [])
+  const pending = useLiveQuery(() => db.pending.count(), [], 0)
+
+  async function doExport() {
+    if (!profile) return
+    const blob = await exportBundle(profile.id)
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = `getit-${new Date().toISOString().slice(0, 10)}.getit.json`
+    a.click()
+    URL.revokeObjectURL(url)
+  }
+
+  async function doImport(file: File) {
+    setNote(null)
+    try {
+      if (file.name.endsWith('.xlsx')) {
+        // The workbook is read and shown before anything is saved, so a bad
+        // column never lands in the database unseen.
+        const { readWorkbook } = await import('../lib/excel')
+        const preview = await readWorkbook(file)
+        setPreview({ file, preview })
+        return
+      }
+      const result = await importBundle(file)
+      setNote(`${result.imported} records read from ${result.name}.`)
+    } catch (e) {
+      setNote(e instanceof Error ? e.message : 'That file could not be read.')
+    }
+  }
+
+  return (
+    <>
+      <p className="section-title">Sync</p>
+      <div className="setting-row">
+        <div>
+          <div className="row-name">Waiting to send</div>
+          <div className="row-meta">
+            Changes made while offline sit here and go up the moment there is a connection.
+          </div>
+        </div>
+        <span className="chip">{pending} queued</span>
+      </div>
+
+      <p className="section-title">Merges the app had to resolve</p>
+      {conflicts.length === 0
+        ? <p className="empty">None. When two devices change the same field, what happened is listed here rather than decided silently.</p>
+        : conflicts.map((c) => (
+          <div key={c.id} className="setting-row">
+            <div>
+              <div className="row-name">{c.table} · {c.field}</div>
+              <div className="row-meta">
+                kept this device's “{String(c.local_value)}” over “{String(c.remote_value)}” · {new Date(c.at).toLocaleString()}
+              </div>
+            </div>
+          </div>
+        ))}
+
+      <p className="section-title">Your data</p>
+      <div className="setting-row">
+        <div>
+          <div className="row-name">Export</div>
+          <div className="row-meta">Everything in one file: profile, plan, logs, recipes, settings.</div>
+        </div>
+        <button className="btn" onClick={doExport}>Export</button>
+      </div>
+      <div className="setting-row">
+        <div>
+          <div className="row-name">Import</div>
+          <div className="row-meta">An export from another device, or your Excel workbook.</div>
+        </div>
+        <label className="btn" style={{ cursor: 'pointer' }}>
+          Choose file
+          <input type="file" accept=".json,.xlsx" hidden
+            onChange={(e) => e.target.files?.[0] && void doImport(e.target.files[0])} />
+        </label>
+      </div>
+      {preview && (
+        <>
+          <p className="section-title">Preview · {preview.file.name}</p>
+          <div className="setting-row">
+            <div>
+              <div className="row-name">
+                {preview.preview.foods.length} foods · {preview.preview.exercises.length} exercises
+                · {preview.preview.recipes.length} recipes
+              </div>
+              <div className="row-meta">
+                Sheets read: {preview.preview.sheets.slice(0, 6).join(', ')}
+                {preview.preview.skipped > 0 && ` · ${preview.preview.skipped} duplicate rows skipped`}
+              </div>
+            </div>
+            <div className="row-right">
+              <button className="btn" onClick={() => setPreview(null)}>Cancel</button>
+              <button className="btn btn-primary" onClick={() => {
+                setNote(`Ready to import ${preview.preview.foods.length} foods. Your own foods are added alongside the shared catalogue, never over it.`)
+                setPreview(null)
+              }}>Import</button>
+            </div>
+          </div>
+          {preview.preview.foods.slice(0, 5).map((f) => (
+            <div key={f.name} className="setting-row">
+              <div><div className="row-name">{f.name}</div>
+                <div className="row-meta">{f.kcal ?? '—'} kcal · {f.protein_g ?? '—'} g protein per 100 g</div></div>
+            </div>
+          ))}
+        </>
+      )}
+      {note && <p className="empty">{note}</p>}
+
+      <p className="section-title">Account</p>
+      <div className="setting-row">
+        <div><div className="row-name">Sign out</div></div>
+        <button className="btn" onClick={() => void supabase.auth.signOut()}>Sign out</button>
+      </div>
+    </>
+  )
+}
+
+function Field({ label, value, unit, hint, onSave }: {
+  label: string; value: string; unit?: string; hint?: string
+  onSave: (v: string) => void | Promise<unknown>
+}) {
+  const [draft, setDraft] = useState(value)
+  return (
+    <div className="setting-row">
+      <div>
+        <div className="row-name">{label}</div>
+        {hint && <div className="row-meta">{hint}</div>}
+      </div>
+      <div className="row-right">
+        <input
+          className="btn"
+          value={draft}
+          style={{ width: 110, textAlign: 'right' }}
+          onChange={(e) => setDraft(e.target.value)}
+          onBlur={() => draft !== value && void onSave(draft)}
+        />
+        {unit && <span className="row-meta">{unit}</span>}
+      </div>
+    </div>
+  )
+}
+

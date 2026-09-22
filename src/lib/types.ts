@@ -124,6 +124,18 @@ export interface FoodLogEntry {
   planned: boolean
 }
 
+export interface MealPlanSlot {
+  id: UUID
+  profile_id: UUID
+  slot_date: string
+  slot: string
+  recipe_id: UUID | null
+  portion_multiplier: number
+  status: 'planned' | 'eaten' | 'skipped'
+  updated_at: string
+  deleted_at: string | null
+}
+
 export interface ModuleInstance {
   id: UUID
   profile_id: UUID

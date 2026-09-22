@@ -1,4 +1,4 @@
-import { useEffect } from 'react'
+import { useEffect, useState } from 'react'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { Route, Routes } from 'react-router-dom'
 import { supabase, hasCredentials } from './lib/supabase'
@@ -12,6 +12,7 @@ import { Plan } from './screens/Plan'
 import { Food } from './screens/Food'
 import { Shop } from './screens/Shop'
 import { More } from './screens/More'
+import { Onboarding } from './screens/Onboarding'
 
 export default function App() {
   const { session, profile, setSession, setProfile, setProfiles } = useApp()
@@ -45,12 +46,27 @@ export default function App() {
     })()
   }, [session?.user.id])
 
+  // Setup is complete once a target exists: that is the first thing in the app
+  // that cannot exist without a height, a weight and a goal.
+  const [setupDone, setSetupDone] = useState(false)
+  const needsSetup = useLiveQuery(async () => {
+    if (!profile || setupDone) return false
+    const targets = await db.target.where('profile_id').equals(profile.id).count()
+    return targets === 0 && !profile.height_cm
+  }, [profile?.id, setupDone], undefined)
+
   useEffect(() => watchConnection(() => useApp.getState().profiles.map((p) => p.id)), [])
 
   if (!hasCredentials) {
     return <div className="empty">No Supabase credentials. Copy .env.example to .env and fill it in.</div>
   }
   if (!session) return <Auth />
+
+  // The first run asks for the few things nothing can be calculated without,
+  // and the nav stays away until it is done.
+  if (profile && needsSetup === true) {
+    return <Onboarding onDone={() => setSetupDone(true)} />
+  }
 
   return (
     <div className="app">

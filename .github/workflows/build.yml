@@ -1,0 +1,75 @@
+name: Build
+
+# Builds all three clients on GitHub's runners, so no toolchain has to be
+# installed anywhere. Download the results from the run's Artifacts section.
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+env:
+  VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
+  VITE_SUPABASE_PUBLISHABLE_KEY: ${{ secrets.VITE_SUPABASE_PUBLISHABLE_KEY }}
+
+jobs:
+  web:
+    name: Web
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 22, cache: npm }
+      - run: npm ci
+      - run: npx tsc -b
+      - name: Check the calculations against the spec
+        run: |
+          node --experimental-strip-types src/test/calc.check.mjs
+          node --experimental-strip-types src/test/formula.check.mjs
+          node --experimental-strip-types src/test/notify.check.mjs
+      - run: npm run build
+      - uses: actions/upload-artifact@v4
+        with: { name: web, path: dist }
+
+  android:
+    name: Android APK
+    runs-on: ubuntu-latest
+    needs: web
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 22, cache: npm }
+      - uses: actions/setup-java@v4
+        with: { distribution: temurin, java-version: 21 }
+      - run: npm ci
+      - run: npm run build
+      - name: Add the Android project if it is not committed yet
+        run: |
+          npm i -D @capacitor/cli @capacitor/core @capacitor/android @capacitor/local-notifications
+          [ -d android ] || npx cap add android
+          npx cap sync android
+      - run: cd android && ./gradlew assembleDebug
+      - uses: actions/upload-artifact@v4
+        with:
+          name: getit-android
+          path: android/app/build/outputs/apk/debug/*.apk
+
+  windows:
+    name: Windows installer
+    runs-on: windows-latest
+    needs: web
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 22, cache: npm }
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: swatinem/rust-cache@v2
+        with: { workspaces: src-tauri }
+      - run: npm ci
+      - run: npm i -D @tauri-apps/cli
+      - run: npx tauri build
+      - uses: actions/upload-artifact@v4
+        with:
+          name: getit-windows
+          path: |
+            src-tauri/target/release/bundle/nsis/*.exe
+            src-tauri/target/release/bundle/msi/*.msi

@@ -4,7 +4,7 @@ import { useApp } from './store'
 
 /** Tables the app keeps a full local copy of. Catalogue tables (food, recipe,
  *  recipe_line) are shared read-only reference data: pulled, never pushed. */
-const SYNCED = ['profile', 'task', 'target', 'body_log', 'food_log', 'module_instance'] as const
+const SYNCED = ['profile', 'task', 'target', 'body_log', 'food_log', 'meal_plan_slot', 'module_instance'] as const
 const CATALOGUE = ['food', 'recipe', 'recipe_line'] as const
 
 type Row = { id: string; updated_at?: string } & Record<string, unknown>

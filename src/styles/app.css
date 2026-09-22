@@ -278,3 +278,121 @@ hr, .rule { border: 0; border-top: 1px solid var(--e-rule); margin: 0; }
   .page { grid-row: 1; padding-bottom: 0; }
   .page-inner { max-width: 1180px; }
 }
+
+/* ---------- sheet tables -------------------------------------------------- */
+/* Carried over from the Excel files: editable cells look different from
+   calculated ones, totals sit above the table, and a dropdown appears wherever
+   a database is referenced so nothing is ever typed twice. */
+.sheet-wrap { overflow-x: auto; padding: 0 var(--space-4); }
+
+.sheet { border-collapse: collapse; width: 100%; font-family: var(--font-sans); font-size: 13px; }
+
+.sheet th {
+  text-align: left;
+  font-weight: 500;
+  color: var(--e-ink-soft);
+  padding: 6px var(--space-2);
+  border-bottom: 1px solid var(--e-rule);
+  white-space: nowrap;
+}
+
+.sheet td {
+  padding: 0;
+  border-bottom: 1px solid var(--e-rule);
+  height: var(--row-d);
+}
+
+.sheet td.text-cell { padding: 6px var(--space-2); font-family: var(--font-serif); font-size: 14px; line-height: 1.3; }
+
+.sheet td input, .sheet td select {
+  width: 100%;
+  height: var(--row-d);
+  padding: 0 var(--space-2);
+  border: 0;
+  background: transparent;
+  color: var(--e-ink);
+  font: inherit;
+}
+
+.sheet td input:focus, .sheet td select:focus { outline: 2px solid var(--e-accent); outline-offset: -2px; }
+
+/* A calculated cell is not typed into, and says so by looking different. */
+.sheet td.calc {
+  padding: 0 var(--space-2);
+  color: var(--e-ink-soft);
+  background: var(--e-tint);
+  text-align: right;
+}
+
+.sheet td.num input { text-align: right; }
+.sheet tr.total td { font-weight: 600; color: var(--e-ink); border-bottom: 2px solid var(--e-rule); }
+.sheet-name { font-family: var(--font-serif); font-size: 15px; }
+
+.totals {
+  display: flex; flex-wrap: wrap; gap: var(--space-4);
+  padding: var(--space-3) var(--space-4) var(--space-2);
+  font-family: var(--font-sans); font-size: 13px; color: var(--e-ink-soft);
+}
+.totals b { color: var(--e-ink); font-weight: 600; }
+
+/* ---------- settings and module rows -------------------------------------- */
+.setting-row {
+  display: grid; grid-template-columns: 1fr auto; gap: var(--space-3);
+  align-items: center; padding: var(--space-3) var(--space-4);
+  border-bottom: 1px solid var(--e-rule);
+}
+.setting-row .row-meta { max-width: 52ch; }
+
+.switch {
+  width: 40px; height: 22px; border-radius: var(--radius-pill);
+  background: var(--e-rule); position: relative; transition: background 120ms;
+}
+.switch[aria-checked="true"] { background: var(--e-accent); }
+.switch::after {
+  content: ""; position: absolute; top: 2px; left: 2px;
+  width: 18px; height: 18px; border-radius: var(--radius-pill);
+  background: var(--e-paper); transition: transform 120ms;
+}
+.switch[aria-checked="true"]::after { transform: translateX(18px); }
+
+.section-title {
+  font-family: var(--font-sans); font-size: 12px; letter-spacing: 0.04em;
+  text-transform: uppercase; color: var(--e-ink-soft);
+  padding: var(--space-6) var(--space-4) var(--space-2);
+}
+
+.chip {
+  font-family: var(--font-sans); font-size: 12px;
+  background: var(--e-tint); color: var(--e-ink-soft);
+  border-radius: var(--radius-pill); padding: 3px 9px;
+}
+
+.btn {
+  font-family: var(--font-sans); font-size: 14px;
+  border: 1px solid var(--e-rule); border-radius: var(--radius-md);
+  padding: 8px 12px;
+}
+.btn-primary { background: var(--e-accent); color: var(--e-paper); border-color: var(--e-accent); }
+
+/* ---------- week, month, year --------------------------------------------- */
+.week-grid { display: grid; grid-template-columns: repeat(7, minmax(92px, 1fr)); gap: 1px; background: var(--e-rule); }
+.week-col { background: var(--e-paper); min-height: 200px; padding: var(--space-2); }
+.week-col h3 { font-family: var(--font-sans); font-size: 12px; color: var(--e-ink-soft); font-weight: 500; margin-bottom: var(--space-2); }
+.week-col.is-today h3 { color: var(--e-accent); }
+.week-item { font-size: 13px; padding: 3px 0; border-bottom: 1px solid var(--e-rule); }
+.week-item .t { font-family: var(--font-sans); font-size: 11px; color: var(--e-ink-soft); }
+
+.month-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 1px; background: var(--e-rule); margin: 0 var(--space-4); }
+.month-cell { background: var(--e-paper); min-height: 62px; padding: 4px 6px; font-family: var(--font-sans); font-size: 11px; }
+.month-cell .d { color: var(--e-ink-soft); }
+.month-cell .load { display: block; height: 4px; border-radius: var(--radius-sm); margin-top: 4px; }
+
+.legend { display: flex; gap: var(--space-3); align-items: center; padding: var(--space-2) var(--space-4); font-family: var(--font-sans); font-size: 12px; color: var(--e-ink-soft); }
+.legend i { width: 14px; height: 8px; border-radius: 2px; display: inline-block; }
+
+.year-grid { display: grid; grid-template-columns: repeat(53, 9px); gap: 2px; padding: 0 var(--space-4); overflow-x: auto; }
+.year-cell { width: 9px; height: 9px; border-radius: 2px; }
+
+.goal-bar { display: grid; grid-template-columns: 160px 1fr; gap: var(--space-3); align-items: center; padding: var(--space-2) var(--space-4); font-size: 14px; }
+.goal-track { height: 8px; background: var(--e-tint); border-radius: var(--radius-sm); overflow: hidden; }
+.goal-fill { height: 100%; background: var(--e-goal); }
