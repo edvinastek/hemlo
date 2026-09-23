@@ -6,3 +6,7 @@ dist/
 .DS_Store
 android/app/build/
 src-tauri/target/
+
+# Reference material lives in the GETIT folder, not the repo: its sample
+# screens carry personal figures.
+design-kit/

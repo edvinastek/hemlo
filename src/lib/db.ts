@@ -52,3 +52,17 @@ export async function getMeta<T>(key: string, fallback: T): Promise<T> {
 export async function setMeta(key: string, value: unknown) {
   await db.meta.put({ key, value })
 }
+
+/** Forget everything this device holds. Called on sign-out and whenever a
+ *  different account signs in, so one person's health data is never shown to
+ *  the next person who uses the same browser or phone. */
+export async function resetLocal(): Promise<void> {
+  await db.transaction('rw', db.tables, async () => {
+    await Promise.all(db.tables.map((t) => t.clear()))
+  })
+}
+
+/** The account this device's copy belongs to. */
+export async function localOwner(): Promise<string | null> {
+  return getMeta<string | null>('owner', null)
+}

@@ -2,13 +2,18 @@ import { db, setMeta, getMeta } from './db'
 import { supabase } from './supabase'
 import { useApp } from './store'
 
-/** Tables the app keeps a full local copy of. Catalogue tables (food, recipe,
- *  recipe_line) are shared read-only reference data: pulled, never pushed. */
-const SYNCED = ['profile', 'task', 'target', 'body_log', 'food_log', 'meal_plan_slot', 'module_instance'] as const
+/** Tables the app keeps a full local copy of. Catalogue tables are shared
+ *  reference data: pulled, never pushed, except rows a person owns. */
+const SYNCED = ['task', 'target', 'body_log', 'food_log', 'meal_plan_slot', 'module_instance'] as const
 const CATALOGUE = ['food', 'recipe', 'recipe_line'] as const
 
 type Row = { id: string; updated_at?: string } & Record<string, unknown>
 type Syncable = { id: string }
+type Store = {
+  get: (id: string) => Promise<Row | undefined>
+  put: (r: Row) => Promise<unknown>
+}
+const store = (table: string) => (db as unknown as Record<string, Store>)[table]
 
 /** Record an edit made on this device. The fields list is what makes the merge
  *  field-level: two devices editing different fields of the same row both win. */
@@ -24,41 +29,68 @@ export async function queueChange<T extends Syncable>(table: string, row: T, fie
   if (navigator.onLine) void push()
 }
 
-/** Send everything waiting. Runs on reconnect and after each edit. */
+/** Postgres refused it for a reason retrying will not change. */
+function isPermanent(code: string | undefined): boolean {
+  return code === '42501' || code === '23503' || code === '23505' || code === '23514' || code === '22P02'
+}
+
+/** Send everything waiting. Runs on reconnect and after each edit.
+ *
+ *  An edit is sent as an update of just the fields that changed. If no row came
+ *  back, the row does not exist on the server yet — it was created on this
+ *  device while offline — so the whole local row is inserted instead. Before
+ *  this, new rows were "sent" as updates that matched nothing, counted as a
+ *  success, and silently dropped. */
 export async function push(): Promise<number> {
   const pending = await db.pending.toArray()
   if (pending.length === 0) return 0
 
-  // Collapse several edits to the same row into one write.
-  const byRow = new Map<string, { table: string; id: string; patch: Record<string, unknown>; fields: Set<string>; ids: number[] }>()
+  const byRow = new Map<string, { table: string; id: string; patch: Record<string, unknown>; ids: number[] }>()
   for (const p of pending) {
     const key = `${p.table}:${p.row_id}`
-    const entry = byRow.get(key) ?? { table: p.table, id: p.row_id, patch: {}, fields: new Set<string>(), ids: [] }
+    const entry = byRow.get(key) ?? { table: p.table, id: p.row_id, patch: {}, ids: [] }
     Object.assign(entry.patch, p.payload)
-    p.fields.forEach((f) => entry.fields.add(f))
     entry.ids.push(p.id!)
     byRow.set(key, entry)
   }
 
   let sent = 0
   for (const entry of byRow.values()) {
-    const { error } = await supabase
-      .from(entry.table)
-      .update({ ...entry.patch, updated_at: new Date().toISOString() })
-      .eq('id', entry.id)
-    if (error) continue            // stays queued; retried on the next attempt
-    await db.pending.bulkDelete(entry.ids)
-    sent++
+    const { updated_at: _ignored, ...patch } = entry.patch
+    const updated = await supabase.from(entry.table).update(patch).eq('id', entry.id).select('id')
+
+    let error = updated.error
+    if (!error && (updated.data?.length ?? 0) === 0) {
+      const local = await store(entry.table)?.get(entry.id)
+      if (local) {
+        const { updated_at: _u, ...row } = local
+        error = (await supabase.from(entry.table).insert(row)).error
+      }
+    }
+
+    if (!error) {
+      await db.pending.bulkDelete(entry.ids)
+      sent++
+      continue
+    }
+    if (isPermanent(error.code)) {
+      // Kept where the person can read it, rather than retried forever or lost.
+      await db.conflicts.add({
+        table: entry.table, row_id: entry.id, field: Object.keys(patch).join(', '),
+        local_value: patch, remote_value: error.message, kept: 'rejected', at: new Date().toISOString(),
+      })
+      await db.pending.bulkDelete(entry.ids)
+    }
+    // Anything else (no connection, a timeout) stays queued for the next attempt.
   }
   return sent
 }
 
-/** Fetch the account's rows. Anything this device has queued wins for the
- *  fields it touched; a field changed on both sides is resolved in favour of
- *  the local edit and written to the conflict log, which the user can read. */
+/** Fetch what changed. The cursor per table is the newest updated_at the
+ *  server has sent, never this device's clock: a phone running three minutes
+ *  fast would otherwise skip every row written in those three minutes. */
 export async function pull(ids: string[]): Promise<number> {
   let profileIds = ids
-  const since = await getMeta<string>('last_pull', '1970-01-01T00:00:00Z')
   const pending = await db.pending.toArray()
   const claimed = new Map<string, Set<string>>()
   for (const p of pending) {
@@ -68,38 +100,39 @@ export async function pull(ids: string[]): Promise<number> {
     claimed.set(key, set)
   }
 
-  // Profiles come first: on a fresh device there are none locally yet, and
-  // every other table is filtered by profile id. Pulling them in the same
-  // loop would ask for "rows belonging to no profile" and get nothing back.
+  // Profiles first: on a fresh device there are none locally yet, and every
+  // other table is filtered by profile id.
   const { data: remoteProfiles } = await supabase.from('profile').select('*')
   if (remoteProfiles) {
     for (const row of remoteProfiles as Row[]) await db.profile.put(row as never)
     profileIds = (remoteProfiles as Row[]).map((p) => p.id)
   }
+  if (profileIds.length === 0) return 0
 
   let count = remoteProfiles?.length ?? 0
   for (const table of [...SYNCED, ...CATALOGUE]) {
-    if (table === 'profile') continue
+    const incremental = (SYNCED as readonly string[]).includes(table)
+    const cursorKey = `cursor:${table}`
+    const cursor = incremental ? await getMeta<string | null>(cursorKey, null) : null
+
     let query = supabase.from(table).select('*')
-    if ((SYNCED as readonly string[]).includes(table)) {
-      query = query.in('profile_id', profileIds)
-    }
-    if ((SYNCED as readonly string[]).includes(table)) {
-      query = query.gt('updated_at', since)
-    }
+    if (incremental) query = query.in('profile_id', profileIds)
+    if (cursor) query = query.gt('updated_at', cursor)
     const { data, error } = await query
     if (error || !data) continue
 
-    const store = (db as unknown as Record<string, { get: (id: string) => Promise<Row | undefined>; put: (r: Row) => Promise<unknown> }>)[table]
+    let newest = cursor
     for (const remote of data as Row[]) {
-      const key = `${table}:${remote.id}`
-      const mine = claimed.get(key)
+      if (remote.updated_at && (!newest || remote.updated_at > newest)) newest = remote.updated_at
+      const mine = claimed.get(`${table}:${remote.id}`)
       if (!mine || mine.size === 0) {
-        await store.put(remote)
+        await store(table).put(remote)
         count++
         continue
       }
-      const local = await store.get(remote.id)
+      // This device has unsent edits to the row: its fields win, and any field
+      // that also changed on the server is written down rather than decided silently.
+      const local = await store(table).get(remote.id)
       const merged: Row = { ...remote }
       for (const field of mine) {
         if (local && local[field] !== remote[field]) {
@@ -111,11 +144,11 @@ export async function pull(ids: string[]): Promise<number> {
         }
         if (local) merged[field] = local[field]
       }
-      await store.put(merged)
+      await store(table).put(merged)
       count++
     }
+    if (incremental && newest) await setMeta(cursorKey, newest)
   }
-  await setMeta('last_pull', new Date().toISOString())
   return count
 }
 

@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useLiveQuery } from 'dexie-react-hooks'
-import { db } from '../lib/db'
+import { db, resetLocal } from '../lib/db'
 import { useApp } from '../lib/store'
 import { supabase } from '../lib/supabase'
 import { edit } from '../lib/write'
@@ -263,6 +263,10 @@ function DataPanel() {
       {preview && (
         <>
           <p className="section-title">Preview · {preview.file.name}</p>
+          <p className="empty">
+            This shows what GetIt reads from the workbook. Saving it into your account is not
+            built yet, so nothing below has been imported.
+          </p>
           <div className="setting-row">
             <div>
               <div className="row-name">
@@ -274,13 +278,7 @@ function DataPanel() {
                 {preview.preview.skipped > 0 && ` · ${preview.preview.skipped} duplicate rows skipped`}
               </div>
             </div>
-            <div className="row-right">
-              <button className="btn" onClick={() => setPreview(null)}>Cancel</button>
-              <button className="btn btn-primary" onClick={() => {
-                setNote(`Ready to import ${preview.preview.foods.length} foods. Your own foods are added alongside the shared catalogue, never over it.`)
-                setPreview(null)
-              }}>Import</button>
-            </div>
+            <button className="btn" onClick={() => setPreview(null)}>Close</button>
           </div>
           {preview.preview.foods.slice(0, 5).map((f) => (
             <div key={f.name} className="setting-row">
@@ -294,9 +292,13 @@ function DataPanel() {
 
       <p className="section-title">Account</p>
       <div className="setting-row">
-        <div><div className="row-name">Sign out</div></div>
+        <div>
+          <div className="row-name">Sign out</div>
+          <div className="row-meta">Also clears everything GetIt stored on this device.</div>
+        </div>
         <button className="btn" onClick={() => void supabase.auth.signOut()}>Sign out</button>
       </div>
+      <DeleteAccount />
     </>
   )
 }
@@ -326,3 +328,56 @@ function Field({ label, value, unit, hint, onSave }: {
   )
 }
 
+
+/** Deleting an account is permanent, so it asks for the word rather than a
+ *  click, and says exactly what goes. Export first if you want a copy. */
+function DeleteAccount() {
+  const online = useApp((s) => s.online)
+  const [open, setOpen] = useState(false)
+  const [typed, setTyped] = useState('')
+  const [busy, setBusy] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+
+  async function remove() {
+    setBusy(true); setError(null)
+    const { error } = await supabase.rpc('delete_my_account')
+    if (error) {
+      setBusy(false)
+      setError('The account could not be deleted. Nothing was removed. ' + error.message)
+      return
+    }
+    await resetLocal()
+    await supabase.auth.signOut()
+  }
+
+  return (
+    <div className="setting-row" style={{ alignItems: 'start' }}>
+      <div>
+        <div className="row-name">Delete account</div>
+        <div className="row-meta">
+          Removes your account, your profiles, plan, logs, recipes and settings from the server
+          and from this device. A household you share passes to the other member.
+          This cannot be undone.
+        </div>
+        {open && (
+          <div style={{ marginTop: 'var(--space-3)', display: 'grid', gap: 'var(--space-2)' }}>
+            <label className="row-meta">
+              Type <b>delete</b> to confirm
+              <input className="btn" style={{ display: 'block', marginTop: 4, width: 200 }}
+                value={typed} onChange={(e) => setTyped(e.target.value)} autoComplete="off" />
+            </label>
+            {!online && <div className="row-meta" style={{ color: 'var(--e-warn)' }}>Needs a connection.</div>}
+            {error && <div className="row-meta" style={{ color: 'var(--e-warn)' }}>{error}</div>}
+          </div>
+        )}
+      </div>
+      {!open
+        ? <button className="btn" onClick={() => setOpen(true)}>Delete</button>
+        : <div className="row-right">
+            <button className="btn" onClick={() => { setOpen(false); setTyped('') }}>Cancel</button>
+            <button className="btn btn-primary" disabled={typed !== 'delete' || busy || !online}
+              onClick={() => void remove()}>{busy ? 'Deleting…' : 'Delete for good'}</button>
+          </div>}
+    </div>
+  )
+}

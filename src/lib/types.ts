@@ -165,6 +165,6 @@ export interface ConflictEntry {
   field: string
   local_value: unknown
   remote_value: unknown
-  kept: 'local' | 'remote'
+  kept: 'local' | 'remote' | 'rejected'
   at: string
 }

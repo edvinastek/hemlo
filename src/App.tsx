@@ -1,9 +1,10 @@
 import { useEffect, useState } from 'react'
 import { useLiveQuery } from 'dexie-react-hooks'
+import type { Session } from '@supabase/supabase-js'
 import { Route, Routes } from 'react-router-dom'
 import { supabase, hasCredentials } from './lib/supabase'
 import { useApp } from './lib/store'
-import { db } from './lib/db'
+import { db, resetLocal, localOwner, setMeta } from './lib/db'
 import { sync, watchConnection } from './lib/sync'
 import { Nav } from './ui/Nav'
 import { Today } from './screens/Today'
@@ -18,10 +19,33 @@ export default function App() {
   const { session, profile, setSession, setProfile, setProfiles } = useApp()
 
   // Session first: the app opens signed in wherever it was left.
+  //
+  // The local copy belongs to exactly one account. Signing out forgets it, and
+  // a different account signing in on the same device starts from nothing —
+  // otherwise the next person on a shared laptop would open the app to someone
+  // else's weight log.
   useEffect(() => {
     if (!hasCredentials) return
-    supabase.auth.getSession().then(({ data }) => setSession(data.session))
-    const { data: sub } = supabase.auth.onAuthStateChange((_e, s) => setSession(s))
+    const adopt = async (s: Session | null) => {
+      if (s) {
+        const owner = await localOwner()
+        if (owner && owner !== s.user.id) {
+          await resetLocal()
+          setProfile(null)
+          setProfiles([])
+        }
+        await setMeta('owner', s.user.id)
+      }
+      setSession(s)
+    }
+    supabase.auth.getSession().then(({ data }) => void adopt(data.session))
+    const { data: sub } = supabase.auth.onAuthStateChange((event, s) => {
+      if (event === 'SIGNED_OUT') {
+        void resetLocal().then(() => { setProfile(null); setProfiles([]); setSession(null) })
+        return
+      }
+      void adopt(s)
+    })
     return () => sub.subscription.unsubscribe()
   }, [])
 

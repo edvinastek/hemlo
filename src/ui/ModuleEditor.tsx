@@ -63,7 +63,7 @@ export function ModuleEditor({ moduleKey, onBack }: { moduleKey: string; onBack:
               />
               <div className="row-meta" style={{ marginTop: 6, color: error ? 'var(--e-warn)' : undefined }}>
                 {error ?? (draft
-                  ? 'That formula parses. It can reach this module’s fields and the built-in functions, and nothing else.'
+                  ? 'That formula parses. Saving new fields comes with the editor build; for now this only checks it.'
                   : `Fields you can use: ${fieldNames.slice(0, 8).join(', ')}${fieldNames.length > 8 ? '…' : ''}`)}
               </div>
             </div>
@@ -94,15 +94,13 @@ export function ModuleEditor({ moduleKey, onBack }: { moduleKey: string; onBack:
                 <div className="row-name">{r.sentence}</div>
                 <div className="row-meta">when {r.when} → {r.then}</div>
               </div>
-              {r.locked
-                ? <span className="chip">locked</span>
-                : <button className="switch" role="switch" aria-checked="true" aria-label={`Turn off ${r.name}`} />}
+              <span className="chip">{r.locked ? 'locked' : 'on'}</span>
             </div>
           ))}
           {mod.rules.length === 0 && <p className="empty">No rules. This module only holds records.</p>}
           <p className="empty">
             A locked rule is one the planner may never work around — sleep and shopping days
-            stay where you put them.
+            stay where you put them. Rules are read-only in this build.
           </p>
         </>
       )}

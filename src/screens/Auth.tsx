@@ -1,6 +1,8 @@
 import { useState } from 'react'
 import { supabase } from '../lib/supabase'
 
+const GOOGLE_ENABLED = import.meta.env.VITE_ENABLE_GOOGLE === 'true'
+
 /** Email and password, Google, or a passkey. Whichever you use, the session
  *  persists, so the app opens signed in. */
 export function Auth() {
@@ -16,8 +18,14 @@ export function Auth() {
     const fn = mode === 'in' ? supabase.auth.signInWithPassword : supabase.auth.signUp
     const { error } = await fn.call(supabase.auth, { email, password })
     setBusy(false)
-    if (error) setNote(error.message)
-    else if (mode === 'up') setNote('Check your email to confirm the address.')
+    if (error) {
+      // The database refuses addresses that are not on the invite list; the
+      // auth service reports that as a generic database error.
+      const invite = /invite-only|saving new user/i.test(error.message)
+      setNote(invite ? 'GetIt is invite-only for now. Ask to have your address added.' : error.message)
+    } else if (mode === 'up') {
+      setNote('Check your email to confirm the address.')
+    }
   }
 
   async function google() {
@@ -32,7 +40,7 @@ export function Auth() {
       <div style={{ maxWidth: 360, margin: '0 auto', padding: 'var(--space-6) var(--space-4)' }}>
         <h1 className="page-date" style={{ marginBottom: 4 }}>GetIt</h1>
         <p className="page-sub" style={{ marginBottom: 'var(--space-6)' }}>
-          {mode === 'in' ? 'Sign in to your planner.' : 'Create an account.'}
+          {mode === 'in' ? 'Sign in to your planner.' : 'Create an account. Passwords are at least 10 characters.'}
         </p>
 
         <form onSubmit={submit} style={{ display: 'grid', gap: 'var(--space-3)' }}>
@@ -42,16 +50,20 @@ export function Auth() {
           </label>
           <label className="label" style={{ display: 'grid', gap: 4, fontSize: 13, color: 'var(--e-ink-soft)' }}>
             Password
-            <input type="password" required minLength={8} value={password} onChange={(e) => setPassword(e.target.value)} style={field} />
+            <input type="password" required minLength={10} value={password} onChange={(e) => setPassword(e.target.value)} style={field} />
           </label>
           <button type="submit" disabled={busy} style={primary}>
             {busy ? 'Working…' : mode === 'in' ? 'Sign in' : 'Create account'}
           </button>
         </form>
 
-        <button onClick={google} style={{ ...primary, background: 'transparent', color: 'var(--e-ink)', border: '1px solid var(--e-rule)', marginTop: 'var(--space-3)' }}>
-          Continue with Google
-        </button>
+        {/* Shown only once Google is set up in Supabase, rather than as a
+            button that fails when pressed. */}
+        {GOOGLE_ENABLED && (
+          <button onClick={google} style={{ ...primary, background: 'transparent', color: 'var(--e-ink)', border: '1px solid var(--e-rule)', marginTop: 'var(--space-3)' }}>
+            Continue with Google
+          </button>
+        )}
 
         {note && <p className="page-sub" style={{ marginTop: 'var(--space-3)', color: 'var(--e-warn)' }}>{note}</p>}
 

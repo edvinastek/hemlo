@@ -25,6 +25,8 @@ jobs:
       - uses: actions/setup-node@v4
         with: { node-version: 22, cache: npm }
       - run: npm ci
+      - name: Refuse to build with a known vulnerability
+        run: npm audit --omit=dev --audit-level=high
       - run: npx tsc -b
       - name: Check the calculations against the spec
         run: |
@@ -37,6 +39,10 @@ jobs:
 
   pages:
     name: Deploy the web client
+    # Off unless the repository variable ENABLE_PAGES is "true". GitHub Pages on a
+    # private repository needs a paid plan, and on a public one the whole
+    # codebase is published; either is a decision, not a default.
+    if: vars.ENABLE_PAGES == 'true'
     runs-on: ubuntu-latest
     needs: web
     environment:
@@ -74,7 +80,7 @@ jobs:
       - run: npm run build
       - name: Add the Android project if it is not committed yet
         run: |
-          npm i -D @capacitor/cli @capacitor/core @capacitor/android @capacitor/local-notifications
+          npm i -D @capacitor/cli@8.5.2 @capacitor/core@8.5.2 @capacitor/android@8.5.2 @capacitor/local-notifications@8.3.1
           [ -d android ] || npx cap add android
           npx cap sync android
       - run: cd android && ./gradlew assembleDebug
@@ -95,7 +101,7 @@ jobs:
       - uses: swatinem/rust-cache@v2
         with: { workspaces: src-tauri }
       - run: npm ci
-      - run: npm i -D @tauri-apps/cli
+      - run: npm i -D @tauri-apps/cli@2.11.5
       - run: npx tauri build
       - uses: actions/upload-artifact@v4
         with:

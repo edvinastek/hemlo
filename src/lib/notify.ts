@@ -37,14 +37,21 @@ async function capacitorChannel(): Promise<Channel | null> {
     const mod = await import(/* @vite-ignore */ '@capacitor/local-notifications' as string)
     const LocalNotifications = (mod as { LocalNotifications: {
       requestPermissions: () => Promise<{ display: string }>
+      createChannel: (c: unknown) => Promise<unknown>
       schedule: (o: unknown) => Promise<unknown>
     } }).LocalNotifications
+    // A reminder can name a meal, a weigh-in or a supplement. On a locked phone
+    // Android shows only "Contents hidden" for a private channel, so none of
+    // that is readable by whoever picks it up.
+    await LocalNotifications.createChannel({
+      id: 'reminders', name: 'Reminders', importance: 4, visibility: 0,
+    })
     return {
       available: true,
       async request() { return (await LocalNotifications.requestPermissions()).display === 'granted' },
       async send(title, body) {
         await LocalNotifications.schedule({
-          notifications: [{ id: Date.now() % 2147483647, title, body }],
+          notifications: [{ id: Date.now() % 2147483647, title, body, channelId: 'reminders' }],
         })
       },
     }
