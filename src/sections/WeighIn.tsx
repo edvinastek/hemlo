@@ -2,11 +2,12 @@ import { useEffect, useState, type FormEvent } from 'react'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { format, parseISO } from 'date-fns'
 import { useApp } from '../lib/store'
-import { retarget, saveWeighIn, targetsOn, weighIns } from '../lib/body'
+import { completeProfile, retarget, saveWeighIn, targetsOn, weighIns } from '../lib/body'
 import {
-  formatChange, isFutureDay, missingForTargets, movingAverage,
-  parseWaist, parseWeight, trendPoints, withChanges,
+  formatChange, isFutureDay, missingFields, missingForTargets, movingAverage,
+  parseBirthDate, parseHeight, parseWaist, pickProfile, parseWeight, trendPoints, withChanges,
 } from '../lib/body-rules'
+import type { Profile } from '../lib/types'
 import './weighin.css'
 
 const SHOWN = 8
@@ -21,10 +22,9 @@ const kg = (n: number) => `${n.toFixed(1)} kg`
  *  printed under them so no number looks like it came from nowhere. */
 export function WeighIn({ profileId, day }: { profileId: string; day: string }) {
   const { profile: active, profiles } = useApp()
-  // The tab is drawn for one profile id. Another profile's height and age
-  // must never feed this one's targets, so there is no fallback to the
-  // active profile when the id is not found.
-  const profile = active?.id === profileId ? active : profiles.find((p) => p.id === profileId) ?? null
+  // Another profile's height and age must never feed this one's targets,
+  // and the store's active profile can be an old copy; pickProfile says why.
+  const profile = pickProfile(profiles, active, profileId)
 
   const history = useLiveQuery(() => weighIns(profileId), [profileId])
   const target = useLiveQuery(() => targetsOn(profileId, day), [profileId, day])
@@ -65,7 +65,14 @@ export function WeighIn({ profileId, day }: { profileId: string; day: string }) 
       if (profile) {
         const result = await retarget(profile, day, w.value!)
         setNote('missing' in result ? 'Weight saved. Targets were not recalculated.' : 'Weight saved and targets recalculated.')
+      } else {
+        setNote('Weight saved. Targets were not recalculated because this profile is not loaded yet.')
       }
+    } catch {
+      // A local write only fails when the browser refuses storage, for
+      // example when the phone is out of space. Say so rather than leave the
+      // button looking as if it did nothing.
+      setError('This could not be saved on the phone. Check there is free space and try again.')
     } finally {
       setSaving(false)
     }
@@ -109,7 +116,9 @@ export function WeighIn({ profileId, day }: { profileId: string; day: string }) 
       )}
 
       <p className="section-title">Targets</p>
-      {missing && <p className="weighin-missing">{missing}</p>}
+      {missing && profile && (
+        <ProfileGaps key={profile.id} profile={profile} day={day} hasWeighIn={all.some((r) => r.log_date <= day)} message={missing} />
+      )}
       {target ? (
         <div className="weighin-targets">
           <div className="totals">
@@ -164,3 +173,72 @@ export function WeighIn({ profileId, day }: { profileId: string; day: string }) 
   )
 }
 
+
+/** Asks for the height or date of birth the targets are waiting for, right
+ *  where the gap shows. More has no date of birth field, so without this a
+ *  profile made without one could never get targets. */
+function ProfileGaps({ profile, day, hasWeighIn, message }: {
+  profile: Profile; day: string; hasWeighIn: boolean; message: string
+}) {
+  const gaps = missingFields(profile)
+  const [height, setHeight] = useState('')
+  const [birth, setBirth] = useState('')
+  const [error, setError] = useState<string | null>(null)
+  const [saving, setSaving] = useState(false)
+
+  async function save(e: FormEvent) {
+    e.preventDefault()
+    const today = format(new Date(), 'yyyy-MM-dd')
+    const fields: Partial<Pick<Profile, 'height_cm' | 'birth_date'>> = {}
+    if (gaps.includes('height')) {
+      const h = parseHeight(height)
+      if (!h.ok) return setError(h.message)
+      fields.height_cm = h.value
+    }
+    if (gaps.includes('birth_date')) {
+      const b = parseBirthDate(birth, today)
+      if (!b.ok) return setError(b.message)
+      fields.birth_date = b.value
+    }
+    setError(null)
+    setSaving(true)
+    try {
+      await completeProfile(profile, fields, day)
+    } catch {
+      setError('This could not be saved on the phone. Check there is free space and try again.')
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  return (
+    <form className="form-grid weighin-form weighin-gaps" onSubmit={save} noValidate>
+      <p className="weighin-missing">
+        {message} Add {gaps.length > 1 ? 'them' : 'it'} here{hasWeighIn
+          ? ' and the targets are worked out from your latest weigh-in.'
+          : ', then save a weigh-in to work the targets out.'}
+      </p>
+      <div className={gaps.length > 1 ? 'two' : undefined}>
+        {gaps.includes('height') && (
+          <label>
+            Height, cm
+            <input inputMode="decimal" autoComplete="off" value={height} placeholder="180"
+              onChange={(e) => setHeight(e.target.value)} />
+          </label>
+        )}
+        {gaps.includes('birth_date') && (
+          <label>
+            Date of birth
+            <input type="date" value={birth} max={format(new Date(), 'yyyy-MM-dd')}
+              onChange={(e) => setBirth(e.target.value)} />
+          </label>
+        )}
+      </div>
+      {error && <p className="weighin-warn" role="alert">{error}</p>}
+      <div className="weighin-actions">
+        <span />
+        <button className="btn btn-primary" type="submit" disabled={saving}>Save</button>
+      </div>
+    </form>
+  )
+}

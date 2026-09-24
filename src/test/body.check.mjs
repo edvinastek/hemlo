@@ -2,6 +2,7 @@
 import {
   parseWeight, parseWaist, isFutureDay, dayNumber, newestFirst, withChanges,
   movingAverage, trendPoints, formatChange, missingForTargets,
+  missingFields, parseHeight, parseBirthDate, latestOnOrBefore, pickProfile,
 } from '../lib/body-rules.ts'
 
 let fail = 0
@@ -80,9 +81,53 @@ is('change first', formatChange(null), 'first entry')
 // What the targets still need.
 is('profile complete', missingForTargets({ height_cm: 180, birth_date: '1996-02-01' }), null)
 is('height missing', missingForTargets({ height_cm: null, birth_date: '1996-02-01' }),
-  'Targets need your height. Add it under More, then save a weigh-in to work them out.')
+  'Targets need your height.')
 is('both missing', missingForTargets({ height_cm: 0, birth_date: null }),
-  'Targets need your height and date of birth. Add them under More, then save a weigh-in to work them out.')
+  'Targets need your height and date of birth.')
+// More saves Number(text), so an emptied height box arrives as 0 or NaN.
+is('NaN height is missing', missingFields({ height_cm: NaN, birth_date: '1996-02-01' }), ['height'])
+is('height from the server as text is fine', missingFields({ height_cm: '180.0', birth_date: '1996-02-01' }), [])
+is('birth date missing field', missingFields({ height_cm: 180, birth_date: null }), ['birth_date'])
+
+// Filling in the profile from the weigh-in.
+is('height 180', parseHeight('180'), { ok: true, value: 180 })
+is('height with comma', parseHeight('172,5'), { ok: true, value: 172.5 })
+is('height in metres is refused', parseHeight('1.80').ok, false)
+is('height empty is refused', parseHeight('').ok, false)
+is('birth date', parseBirthDate('1996-02-01', '2026-09-24'), { ok: true, value: '1996-02-01' })
+is('31 February is refused', parseBirthDate('1996-02-31', '2026-09-24').ok, false)
+is('birth date after today is refused', parseBirthDate('2026-09-25', '2026-09-24').ok, false)
+is('birth date today is allowed', parseBirthDate('2026-09-24', '2026-09-24').ok, true)
+is('birth date 121 years back is refused', parseBirthDate('1905-01-01', '2026-09-24').ok, false)
+is('birth date in another format is refused', parseBirthDate('01-02-1996', '2026-09-24').ok, false)
+is('latest on the day', latestOnOrBefore(logs, '2026-09-21')?.log_date, '2026-09-21')
+is('latest before the day', latestOnOrBefore(logs, '2026-09-19')?.log_date, '2026-09-13')
+is('nothing before the first', latestOnOrBefore(logs, '2026-09-01'), null)
+
+// Which profile: the live list wins over an old active copy, and another
+// profile is never used in its place.
+const stale = { id: 'a', height_cm: null }
+const fresh = { id: 'a', height_cm: 180 }
+is('live list beats a stale active profile', pickProfile([fresh], stale, 'a'), fresh)
+is('active used before the list loads', pickProfile([], stale, 'a'), stale)
+is('no other profile stands in', pickProfile([{ id: 'b' }], { id: 'b' }, 'a'), null)
+
+// The sliding moving average agrees with a plain count over the window, on a
+// long history with gaps.
+const long = []
+for (let i = 0, n = 0; i < 400; i++) {
+  n += 1 + ((i * 7) % 5 === 0 ? 3 : 0)
+  // Built from UTC parts on purpose: these are counters, not a person's day.
+  const d = new Date(Date.UTC(2025, 0, 1 + n))
+  const iso = `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, '0')}-${String(d.getUTCDate()).padStart(2, '0')}`
+  long.push({ log_date: iso, weight_kg: 80 + ((i * 13) % 17) / 10 })
+}
+const slow = long.map((r) => {
+  const end = dayNumber(r.log_date)
+  const w = long.filter((o) => dayNumber(o.log_date) <= end && dayNumber(o.log_date) > end - 7)
+  return { log_date: r.log_date, avg: Math.round((w.reduce((s, o) => s + o.weight_kg, 0) / w.length) * 100) / 100 }
+})
+is('sliding average matches the plain count', JSON.stringify(movingAverage(long)) === JSON.stringify(slow), true)
 
 console.log(fail ? `\n${fail} check(s) failed` : '\nall checks passed')
 process.exit(fail ? 1 : 0)

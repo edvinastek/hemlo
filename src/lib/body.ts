@@ -2,7 +2,7 @@ import { db } from './db'
 import { queueChange } from './sync'
 import { edit } from './write'
 import { targetsFor } from './calc'
-import { missingForTargets } from './body-rules'
+import { latestOnOrBefore, missingForTargets } from './body-rules'
 import type { BodyLog, Profile, Target } from './types'
 
 /** The row for a profile's day, deleted or not. The server keeps one body_log
@@ -94,4 +94,20 @@ export async function weighIns(profileId: string): Promise<(BodyLog & { weight_k
   return rows
     .filter((r) => !r.deleted_at && r.weight_kg !== null && r.weight_kg !== undefined)
     .map((r) => ({ ...r, weight_kg: Number(r.weight_kg), waist_cm: r.waist_cm == null ? null : Number(r.waist_cm) }))
+}
+
+/** Fill in the height or date of birth the targets were waiting for, then
+ *  work the targets out from the weigh-in on or before the day, starting on
+ *  that weigh-in's own day. Only the fields given are written, so a value
+ *  another device set for the other field is not overwritten. */
+export async function completeProfile(
+  profile: Profile,
+  fields: Partial<Pick<Profile, 'height_cm' | 'birth_date'>>,
+  day: string,
+): Promise<{ retargeted: boolean }> {
+  const next = await edit<Profile>('profile', profile, fields)
+  const latest = latestOnOrBefore(await weighIns(profile.id), day)
+  if (!latest) return { retargeted: false }
+  const result = await retarget(next, latest.log_date, latest.weight_kg)
+  return { retargeted: 'target' in result }
 }

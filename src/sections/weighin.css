@@ -13,12 +13,16 @@
 .weighin-warn {
   margin: 0; font-family: var(--font-sans); font-size: 13px; color: var(--e-warn);
 }
-.form-grid input[aria-invalid="true"] { border-color: var(--e-warn); }
+/* Scoped to this form so other screens' forms are not restyled. */
+.weighin-form input[aria-invalid="true"] { border-color: var(--e-warn); }
 
 .weighin-missing {
   margin: 0; padding: 0 var(--space-4) var(--space-2);
   font-family: var(--font-sans); font-size: 14px; color: var(--e-ink-soft);
 }
+
+.weighin-gaps { padding-bottom: var(--space-3); }
+.weighin-gaps .weighin-missing { padding: 0; }
 
 .weighin-targets .totals { padding-top: 0; }
 .weighin-explain {

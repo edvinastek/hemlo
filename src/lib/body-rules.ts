@@ -82,16 +82,21 @@ export function withChanges<T extends WeighInPoint>(rows: T[]): (T & { change: n
  *  entries, because people skip days and eight entries can span a month.
  *  Returned oldest first, the order a line is drawn in. */
 export function movingAverage(rows: WeighInPoint[], windowDays = 7): { log_date: string; avg: number }[] {
+  // Day numbers are worked out once and the window's start only moves
+  // forward, because this runs on every render over the whole history, which
+  // grows by one row a day for years. The window is summed afresh each time
+  // (it holds at most one entry a day) so rounding cannot build up.
   const asc = newestFirst(rows).reverse()
-  return asc.map((r) => {
-    const end = dayNumber(r.log_date)
-    const inWindow = asc.filter((o) => {
-      const n = dayNumber(o.log_date)
-      return n <= end && n > end - windowDays
-    })
-    const sum = inWindow.reduce((s, o) => s + o.weight_kg, 0)
-    return { log_date: r.log_date, avg: Math.round((sum / inWindow.length) * 100) / 100 }
-  })
+  const days = asc.map((r) => dayNumber(r.log_date))
+  const out: { log_date: string; avg: number }[] = []
+  let start = 0
+  for (let i = 0; i < asc.length; i++) {
+    while (days[start] <= days[i] - windowDays) start++
+    let sum = 0
+    for (let j = start; j <= i; j++) sum += asc[j].weight_kg
+    out.push({ log_date: asc[i].log_date, avg: Math.round((sum / (i - start + 1)) * 100) / 100 })
+  }
+  return out
 }
 
 /** SVG polyline points for a series, x spaced by calendar day so a gap in the
@@ -130,9 +135,67 @@ export function formatChange(change: number | null): string {
  *  words. The calculation would otherwise fall back to a guessed height and
  *  age and show numbers that look precise and are not. */
 export function missingForTargets(p: { height_cm: number | null; birth_date: string | null }): string | null {
-  const missing: string[] = []
-  if (!p.height_cm || Number(p.height_cm) <= 0) missing.push('height')
-  if (!p.birth_date) missing.push('date of birth')
+  const missing = missingFields(p).map((f) => (f === 'height' ? 'height' : 'date of birth'))
   if (missing.length === 0) return null
-  return `Targets need your ${missing.join(' and ')}. Add ${missing.length > 1 ? 'them' : 'it'} under More, then save a weigh-in to work them out.`
+  return `Targets need your ${missing.join(' and ')}.`
+}
+
+/** The same check as a list, so the form can ask for exactly what is absent.
+ *  A height of 0 or one that is not a number counts as absent: More saves
+ *  Number(text), which turns an empty box into 0. */
+export function missingFields(p: { height_cm: number | null; birth_date: string | null }): ('height' | 'birth_date')[] {
+  const out: ('height' | 'birth_date')[] = []
+  const h = Number(p.height_cm)
+  if (!p.height_cm || !Number.isFinite(h) || h <= 0) out.push('height')
+  if (!p.birth_date) out.push('birth_date')
+  return out
+}
+
+export const HEIGHT_MIN = 100
+export const HEIGHT_MAX = 250
+
+/** Height in cm, for filling in a profile that has none. Like weight, the
+ *  range only catches a slip such as 1.80 typed in metres. */
+export function parseHeight(input: string): Parsed {
+  if (input.trim() === '') return { ok: false, message: 'Put in a height in cm.' }
+  const n = toNumber(input)
+  if (n === null) return { ok: false, message: 'Height should be a number, like 180.' }
+  if (n < HEIGHT_MIN || n > HEIGHT_MAX) {
+    return { ok: false, message: `Height should be between ${HEIGHT_MIN} and ${HEIGHT_MAX} cm.` }
+  }
+  return { ok: true, value: Math.round(n * 10) / 10 }
+}
+
+export type ParsedDay = { ok: true; value: string } | { ok: false; message: string }
+
+/** A date of birth as 'yyyy-MM-dd', the form a date input gives. It has to be
+ *  a real calendar day (not 31 February), not after today and not more than
+ *  120 years back, or the age in the calculation would be nonsense. */
+export function parseBirthDate(input: string, today: string): ParsedDay {
+  const s = input.trim()
+  if (s === '') return { ok: false, message: 'Put in a date of birth.' }
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(s)
+  if (!m) return { ok: false, message: 'Date of birth should be a date, like 1996-02-01.' }
+  const [y, mo, d] = [Number(m[1]), Number(m[2]), Number(m[3])]
+  const back = new Date(Date.UTC(y, mo - 1, d))
+  if (back.getUTCFullYear() !== y || back.getUTCMonth() !== mo - 1 || back.getUTCDate() !== d) {
+    return { ok: false, message: 'That date does not exist.' }
+  }
+  if (s > today) return { ok: false, message: 'Date of birth cannot be after today.' }
+  if (y < Number(today.slice(0, 4)) - 120) return { ok: false, message: 'Date of birth is more than 120 years ago.' }
+  return { ok: true, value: s }
+}
+
+/** The weigh-in the targets should come from when they are worked out
+ *  without a new save: the one on the day, else the latest before it. */
+export function latestOnOrBefore<T extends WeighInPoint>(rows: T[], day: string): T | null {
+  return newestFirst(rows).find((r) => r.log_date <= day) ?? null
+}
+
+/** Which copy of the profile the weigh-in works from. The list is preferred
+ *  because it follows the local rows live, while the active profile in the
+ *  store is only replaced on a switch and keeps an old height after an edit.
+ *  Another profile is never used in its place. */
+export function pickProfile<T extends { id: string }>(profiles: T[], active: T | null, id: string): T | null {
+  return profiles.find((p) => p.id === id) ?? (active?.id === id ? active : null)
 }
