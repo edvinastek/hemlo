@@ -25,3 +25,7 @@ src-tauri/gen/
 
 # TypeScript build cache
 *.tsbuildinfo
+# Tester lists are friends' email addresses: they go into the Supabase
+# allowlist via scripts/allowlist.mjs and never into the repository.
+store/testers/*.txt
+store/testers/*.csv
