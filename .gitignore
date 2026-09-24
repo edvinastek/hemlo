@@ -22,3 +22,6 @@ dist-site/
 # Tauri build output and generated schemas
 src-tauri/target/
 src-tauri/gen/
+
+# TypeScript build cache
+*.tsbuildinfo
