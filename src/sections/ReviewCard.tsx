@@ -10,7 +10,7 @@ import { TaskSheet } from '../ui/TaskSheet'
 import type { Task } from '../lib/types'
 import './review.css'
 
-/** A clock that moves once a minute, so the compact line appears at the review
+/** A clock that moves twice a minute, so the compact line appears at the review
  *  time without the person having to leave and come back. */
 function useNow(): Date {
   const [now, setNow] = useState(() => new Date())

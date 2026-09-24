@@ -100,14 +100,16 @@ export function reviewOpen(day: string, now: Date, reviewTime: string): boolean 
   return localTime(now) >= cleanTime(reviewTime)
 }
 
-/** Where "Tomorrow" lands: the day after the later of the task's own day and
- *  the day being reviewed, and never a day that has already gone. For a task
- *  planned on the day being reviewed this is simply its day plus one; for one
- *  left over from last week it is the real tomorrow, not another past day. */
+/** Where "Tomorrow" lands: the day after the task's own day, as the brief
+ *  says, but measured from the day being reviewed when the task was carried
+ *  into it, and never a day that has already gone. Reviewing yesterday after
+ *  midnight sends yesterday's task to today, not past it; a task left from
+ *  last week goes to the next day that is still ahead rather than to another
+ *  past day, where it would only turn up in the review again. */
 export function tomorrowFor(task: Task, day: string, today: string): string {
   const own = isDay(task.planned_date) ? task.planned_date : day
-  const base = [own, day, today].sort().pop() as string
-  return addDays(base, 1)
+  const next = addDays(own > day ? own : day, 1)
+  return next < today ? today : next
 }
 
 /** The earliest day "Pick a day" accepts. Today is allowed: a task left over
@@ -176,11 +178,16 @@ export function carriedNote(task: Task, day: string, today: string): string | nu
   return `left from ${dayName(task.planned_date, today)}`
 }
 
-/** The note on a task that has been moved to the limit. */
+/** The note on a task flagged for a decision. The flag is also set on Today
+ *  when a task is pushed within the day too often, with no extension at all,
+ *  so the count names whichever kind of move put it there. */
 export function limitNote(task: Task): string | null {
   if (!task.needs_review) return null
-  const n = task.extension_count
-  return `moved ${n} ${n === 1 ? 'time' : 'times'} — keep it, make it smaller, or drop it?`
+  const ask = 'keep it, make it smaller, or drop it?'
+  const times = (n: number) => `${n} ${n === 1 ? 'time' : 'times'}`
+  if (task.extension_count > 0 && task.extension_count >= task.push_count) return `moved ${times(task.extension_count)} — ${ask}`
+  if (task.push_count > 0) return `pushed ${times(task.push_count)} — ${ask}`
+  return ask[0].toUpperCase() + ask.slice(1)
 }
 
 /** The one line at the top of Today. Two short sentences, ending on an offer

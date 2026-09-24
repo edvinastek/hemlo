@@ -98,7 +98,13 @@ is('tomorrow keeps an existing flag',
 
 const old = task({ planned_date: '2026-09-20' })
 is('tomorrow for a task left from last week is the real tomorrow', tomorrowFor(old, day, day), '2026-09-25')
-is('tomorrow while looking at a past day is still the real tomorrow', tomorrowFor(old, '2026-09-21', day), '2026-09-25')
+is('tomorrow while looking at a past day never lands on a day already gone', tomorrowFor(old, '2026-09-21', day), day)
+// Reviewing yesterday after midnight: "Tomorrow" for yesterday's task is today,
+// the day after its own, not the day after today.
+is('tomorrow for yesterday\'s task while looking at yesterday is today',
+  applyReview(task({ planned_date: '2026-09-23' }), { kind: 'tomorrow' }, { ...opts, day: '2026-09-23' }).task.planned_date, day)
+is('tomorrow for a task carried into today is the day after today',
+  tomorrowFor(task({ planned_date: '2026-09-23' }), day, day), '2026-09-25')
 is('tomorrow while looking ahead is the day after the one shown', tomorrowFor(task(), '2026-09-27', day), '2026-09-28')
 
 const flagged = task({ extension_count: 3, needs_review: true })
@@ -135,6 +141,11 @@ is('day name yesterday', dayName('2026-09-23', day), 'yesterday')
 is('day name earlier', dayName('2026-09-21', day), 'Mon 21 Sep')
 is('carried note for an older task', carriedNote(task({ planned_date: '2026-09-23' }), day, day), 'left from yesterday')
 is('no carried note for the day itself', carriedNote(task(), day, day), null)
+// Today flags a task pushed three times within the day, with no extension.
+is('the flag note for a task pushed within the day',
+  limitNote(task({ needs_review: true, push_count: 3 })), 'pushed 3 times — keep it, make it smaller, or drop it?')
+is('the flag note never says moved 0 times',
+  limitNote(task({ needs_review: true })), 'Keep it, make it smaller, or drop it?')
 is('no flag note without the flag', limitNote(task({ extension_count: 3 })), null)
 is('summary for three', summaryLine([task(), task(), task()], day, day), '3 tasks are left from today. Review them?')
 is('summary for one', summaryLine([task()], day, day), '1 task is left from today. Review it?')
