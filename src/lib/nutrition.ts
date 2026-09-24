@@ -9,7 +9,7 @@ const ZERO: Macros = { kcal: 0, carbs_g: 0, fiber_g: 0, fat_g: 0, protein_g: 0 }
  *  never disagree. */
 export async function dayTotals(profileId: string, day: string): Promise<Macros> {
   const logs = (await db.food_log.where('profile_id').equals(profileId).toArray())
-    .filter((l) => l.log_date === day)
+    .filter((l) => l.log_date === day && !l.deleted_at)
   if (logs.length === 0) return { ...ZERO }
 
   const foods = new Map<string, Food>((await db.food.toArray()).map((f) => [f.id, f]))

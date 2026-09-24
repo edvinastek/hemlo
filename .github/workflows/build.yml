@@ -1,98 +1,104 @@
 name: Build
 
-# Builds all three clients on GitHub's runners, so no toolchain has to be
-# installed anywhere. Download the results from the run's Artifacts section.
+# Every push to main builds all three clients from the same commit and the same
+# version number (package.json). Phones first: the Android job produces the
+# signed App Bundle Google Play takes, plus an APK for installing directly.
 on:
   push:
     branches: [main]
   workflow_dispatch:
 
+permissions:
+  contents: read
+
 env:
   VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
   VITE_SUPABASE_PUBLISHABLE_KEY: ${{ secrets.VITE_SUPABASE_PUBLISHABLE_KEY }}
-
-permissions:
-  contents: read
-  pages: write
-  id-token: write
+  VITE_CONTROLLER_NAME: ${{ secrets.VITE_CONTROLLER_NAME }}
+  VITE_CONTACT_EMAIL: ${{ secrets.VITE_CONTACT_EMAIL }}
 
 jobs:
-  web:
-    name: Web
-    runs-on: ubuntu-latest
+  checks:
+    name: Checks and web build
+    runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with: { node-version: 22, cache: npm }
       - run: npm ci
-      - name: Refuse to build with a known vulnerability
+      - name: Refuse to build with a known high-severity vulnerability
         run: npm audit --omit=dev --audit-level=high
       - run: npx tsc -b
-      - name: Check the calculations against the spec
+      - name: Calculations, formulas and reminder rules
         run: |
           node --experimental-strip-types src/test/calc.check.mjs
           node --experimental-strip-types src/test/formula.check.mjs
           node --experimental-strip-types src/test/notify.check.mjs
+      - name: Store listing fits Google Play's limits
+        run: |
+          node -e "
+            const d = require('./store/listing.json');
+            const limits = { title: 30, short_description: 80, full_description: 4000 };
+            for (const [k, n] of Object.entries(limits)) {
+              if (d[k].length > n) { console.error(k + ' is ' + d[k].length + ', over ' + n); process.exit(1) }
+            }"
       - run: npm run build
       - uses: actions/upload-artifact@v4
-        with: { name: web, path: dist }
-
-  pages:
-    name: Deploy the web client
-    # Off unless the repository variable ENABLE_PAGES is "true". GitHub Pages on a
-    # private repository needs a paid plan, and on a public one the whole
-    # codebase is published; either is a decision, not a default.
-    if: vars.ENABLE_PAGES == 'true'
-    runs-on: ubuntu-latest
-    needs: web
-    environment:
-      name: github-pages
-      url: ${{ steps.deploy.outputs.page_url }}
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
-        with: { node-version: 22, cache: npm }
-      - run: npm ci
-      # A project site lives under /GetIt/, so the build is told where it will sit.
-      - run: npm run build
-        env:
-          VITE_BASE: /${{ github.event.repository.name }}/
-      # Without this GitHub serves 404 for a deep link, because a single-page
-      # app has no file at /plan.
-      - run: cp dist/index.html dist/404.html
-      - uses: actions/configure-pages@v5
-      - uses: actions/upload-pages-artifact@v3
-        with: { path: dist }
-      - id: deploy
-        uses: actions/deploy-pages@v4
+        with: { name: getit-web, path: dist }
 
   android:
-    name: Android APK
-    runs-on: ubuntu-latest
-    needs: web
+    name: Android (App Bundle and APK)
+    runs-on: ubuntu-24.04
+    needs: checks
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with: { node-version: 22, cache: npm }
       - uses: actions/setup-java@v4
-        with: { distribution: temurin, java-version: 21 }
+        with: { distribution: temurin, java-version: 21, cache: gradle }
       - run: npm ci
       - run: npm run build
-      - name: Add the Android project if it is not committed yet
+      - run: npx cap sync android
+      - name: Upload key from secrets
+        env:
+          KEYSTORE_B64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
         run: |
-          npm i -D @capacitor/cli@8.5.2 @capacitor/core@8.5.2 @capacitor/android@8.5.2 @capacitor/local-notifications@8.3.1
-          [ -d android ] || npx cap add android
-          npx cap sync android
-      - run: cd android && ./gradlew assembleDebug
+          if [ -n "$KEYSTORE_B64" ]; then
+            echo "$KEYSTORE_B64" | base64 --decode > "$RUNNER_TEMP/upload.jks"
+            echo "GETIT_KEYSTORE_PATH=$RUNNER_TEMP/upload.jks" >> "$GITHUB_ENV"
+            echo "Signing with the upload key."
+          else
+            echo "::warning::No upload key in secrets; building unsigned. Google Play will not accept this bundle. See docs/android-release.md."
+          fi
+      - name: Build
+        working-directory: android
+        env:
+          GETIT_VERSION_CODE: ${{ github.run_number }}
+          GETIT_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          GETIT_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          GETIT_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+        run: ./gradlew --no-daemon bundleRelease assembleRelease
+      - name: Nothing restricted slipped into the manifest
+        run: |
+          BT=$(ls -d $ANDROID_HOME/build-tools/* | sort -V | tail -1)
+          APK=$(ls android/app/build/outputs/apk/release/*.apk | head -1)
+          $BT/aapt2 dump badging "$APK" | tee /tmp/badging.txt | grep -E "^package:|targetSdkVersion"
+          if grep -qE "SCHEDULE_EXACT_ALARM|USE_EXACT_ALARM" /tmp/badging.txt; then echo "::error::Exact-alarm permission found"; exit 1; fi
+          grep -q "targetSdkVersion:'36'" /tmp/badging.txt || { echo "::error::Must target API 36"; exit 1; }
+      - name: Remove the key from the runner
+        if: always()
+        run: rm -f "$RUNNER_TEMP/upload.jks"
       - uses: actions/upload-artifact@v4
         with:
-          name: getit-android
-          path: android/app/build/outputs/apk/debug/*.apk
+          name: getit-android-release
+          path: |
+            android/app/build/outputs/bundle/release/*.aab
+            android/app/build/outputs/apk/release/*.apk
 
   windows:
     name: Windows installer
     runs-on: windows-latest
-    needs: web
+    needs: checks
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -101,7 +107,6 @@ jobs:
       - uses: swatinem/rust-cache@v2
         with: { workspaces: src-tauri }
       - run: npm ci
-      - run: npm i -D @tauri-apps/cli@2.11.5
       - run: npx tauri build
       - uses: actions/upload-artifact@v4
         with:
@@ -109,3 +114,18 @@ jobs:
           path: |
             src-tauri/target/release/bundle/nsis/*.exe
             src-tauri/target/release/bundle/msi/*.msi
+
+  site:
+    name: Privacy policy and account deletion pages
+    runs-on: ubuntu-24.04
+    needs: checks
+    # Needs the name and address the policy carries; skipped until they are set.
+    if: ${{ vars.SITE_READY == 'true' }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 22, cache: npm }
+      - run: npm ci
+      - run: npm run build:site
+      - uses: actions/upload-artifact@v4
+        with: { name: getit-site, path: dist-site }

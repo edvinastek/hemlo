@@ -122,14 +122,22 @@ export async function pull(ids: string[]): Promise<number> {
     if (error || !data) continue
 
     let newest = cursor
+    // Rows this device has no unsent edits to are written in one transaction.
+    // One write per row made a fresh phone wait seconds for the 807-food
+    // catalogue before the meal plan could show a single recipe.
+    const plain: Row[] = []
+    const contested: Row[] = []
     for (const remote of data as Row[]) {
       if (remote.updated_at && (!newest || remote.updated_at > newest)) newest = remote.updated_at
       const mine = claimed.get(`${table}:${remote.id}`)
-      if (!mine || mine.size === 0) {
-        await store(table).put(remote)
-        count++
-        continue
-      }
+      ;(mine && mine.size > 0 ? contested : plain).push(remote)
+    }
+    if (plain.length) {
+      await (db as unknown as Record<string, { bulkPut: (r: Row[]) => Promise<unknown> }>)[table].bulkPut(plain)
+      count += plain.length
+    }
+    for (const remote of contested) {
+      const mine = claimed.get(`${table}:${remote.id}`)!
       // This device has unsent edits to the row: its fields win, and any field
       // that also changed on the server is written down rather than decided silently.
       const local = await store(table).get(remote.id)

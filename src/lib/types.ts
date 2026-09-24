@@ -122,6 +122,8 @@ export interface FoodLogEntry {
   grams: number | null
   portions: number | null
   planned: boolean
+  updated_at?: string
+  deleted_at?: string | null
 }
 
 export interface MealPlanSlot {

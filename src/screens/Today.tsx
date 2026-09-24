@@ -5,7 +5,8 @@ import { db } from '../lib/db'
 import { useApp } from '../lib/store'
 import { PageHead } from '../ui/PageHead'
 import { TaskRow } from '../ui/TaskRow'
-import { queueChange } from '../lib/sync'
+import { saveTask, blankTask } from '../lib/tasks'
+import { TaskSheet } from '../ui/TaskSheet'
 import { dayTotals } from '../lib/nutrition'
 import type { Task } from '../lib/types'
 
@@ -15,6 +16,7 @@ export function Today() {
   const profile = useApp((s) => s.profile)
   const [date, setDate] = useState(new Date())
   const [section, setSection] = useState('Today')
+  const [editing, setEditing] = useState<{ task: Task; isNew: boolean } | null>(null)
   const day = format(date, 'yyyy-MM-dd')
 
   // Live queries: the screen re-reads itself as rows land from the sync, so
@@ -48,8 +50,7 @@ export function Today() {
       completed_at: task.status === 'done' ? null : new Date().toISOString(),
       updated_at: new Date().toISOString(),
     }
-    await db.task.put(next)
-    await queueChange('task', next, ['status', 'completed_at'])
+    await saveTask(next, ['status', 'completed_at'])
   }
 
   async function push(task: Task, minutes: number) {
@@ -64,8 +65,7 @@ export function Today() {
       needs_review: task.push_count + 1 >= 3,
       updated_at: new Date().toISOString(),
     }
-    await db.task.put(next)
-    await queueChange('task', next, ['planned_time', 'push_count', 'status', 'needs_review'])
+    await saveTask(next, ['planned_time', 'push_count', 'status', 'needs_review'])
   }
 
   const needsReview = useMemo(() => tasks.filter((t) => t.needs_review).length, [tasks])
@@ -103,13 +103,20 @@ export function Today() {
 
         <div className="rail">
           {tasks.length === 0 && (
-            <p className="empty">Nothing planned for this day yet.</p>
+            <p className="empty">Nothing planned for this day yet. Add something with the + button.</p>
           )}
           {tasks.map((t) => (
-            <TaskRow key={t.id} task={t} onTick={tick} onPush={push} />
+            <TaskRow key={t.id} task={t} onTick={tick} onPush={push}
+              onEdit={(task) => setEditing({ task, isNew: false })} />
           ))}
         </div>
       </div>
+
+      {profile && (
+        <button className="fab" aria-label="Add a task"
+          onClick={() => setEditing({ task: blankTask(profile.id, day), isNew: true })}>+</button>
+      )}
+      {editing && <TaskSheet task={editing.task} isNew={editing.isNew} onClose={() => setEditing(null)} />}
     </div>
   )
 }

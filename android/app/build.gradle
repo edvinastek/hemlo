@@ -1,0 +1,87 @@
+import groovy.json.JsonSlurper
+
+// Version comes from package.json so the web, Android and Windows builds of one
+// commit always carry the same number. The code must rise with every upload to
+// Play; CI passes its run number, a local build falls back to 1.
+def getitVersionName() {
+    def pkg = new JsonSlurper().parse(rootProject.file('../package.json'))
+    return pkg.version
+}
+def getitVersionCode() {
+    def fromCi = System.getenv('GETIT_VERSION_CODE')
+    return fromCi ? fromCi.toInteger() : 1
+}
+
+apply plugin: 'com.android.application'
+
+android {
+    namespace = "app.getit.planner"
+    compileSdk = rootProject.ext.compileSdkVersion
+    defaultConfig {
+        applicationId "app.getit.planner"
+        minSdkVersion rootProject.ext.minSdkVersion
+        targetSdkVersion rootProject.ext.targetSdkVersion
+        // One version for every platform, from package.json; CI sets the code.
+        versionCode getitVersionCode()
+        versionName getitVersionName()
+        testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
+        aaptOptions {
+             // Files and dirs to omit from the packaged assets dir, modified to accommodate modern web apps.
+             // Default: https://android.googlesource.com/platform/frameworks/base/+/282e181b58cf72b6ca770dc7ca5f91f135444502/tools/aapt/AaptAssets.cpp#61
+            ignoreAssetsPattern = '!.svn:!.git:!.ds_store:!*.scc:.*:!CVS:!thumbs.db:!picasa.ini:!*~'
+        }
+    }
+    signingConfigs {
+        release {
+            // The upload key never sits in the repository. CI supplies it from
+            // GitHub secrets; on a laptop it comes from keystore.properties,
+            // which .gitignore keeps out of git.
+            def props = new Properties()
+            def local = rootProject.file('keystore.properties')
+            if (local.exists()) local.withInputStream { props.load(it) }
+            def path = System.getenv('GETIT_KEYSTORE_PATH') ?: props['storeFile']
+            if (path) {
+                storeFile file(path)
+                storePassword System.getenv('GETIT_KEYSTORE_PASSWORD') ?: props['storePassword']
+                keyAlias System.getenv('GETIT_KEY_ALIAS') ?: props['keyAlias']
+                keyPassword System.getenv('GETIT_KEY_PASSWORD') ?: props['keyPassword']
+            }
+        }
+    }
+    buildTypes {
+        release {
+            minifyEnabled false
+            proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
+            signingConfig signingConfigs.release.storeFile ? signingConfigs.release : null
+        }
+    }
+}
+
+repositories {
+    flatDir{
+        dirs '../capacitor-cordova-android-plugins/src/main/libs', 'libs'
+    }
+}
+
+dependencies {
+    implementation fileTree(include: ['*.jar'], dir: 'libs')
+    implementation "androidx.appcompat:appcompat:$androidxAppCompatVersion"
+    implementation "androidx.coordinatorlayout:coordinatorlayout:$androidxCoordinatorLayoutVersion"
+    implementation "androidx.core:core-splashscreen:$coreSplashScreenVersion"
+    implementation project(':capacitor-android')
+    testImplementation "junit:junit:$junitVersion"
+    androidTestImplementation "androidx.test.ext:junit:$androidxJunitVersion"
+    androidTestImplementation "androidx.test.espresso:espresso-core:$androidxEspressoCoreVersion"
+    implementation project(':capacitor-cordova-android-plugins')
+}
+
+apply from: 'capacitor.build.gradle'
+
+try {
+    def servicesJSON = file('google-services.json')
+    if (servicesJSON.text) {
+        apply plugin: 'com.google.gms.google-services'
+    }
+} catch(Exception e) {
+    logger.info("google-services.json not found, google-services plugin not applied. Push Notifications won't work")
+}

@@ -10,3 +10,15 @@ src-tauri/target/
 # Reference material lives in the GETIT folder, not the repo: its sample
 # screens carry personal figures.
 design-kit/
+
+# Android signing: never commit a keystore or its passwords.
+*.jks
+*.keystore
+android/keystore.properties
+android/app/release/
+
+dist-site/
+
+# Tauri build output and generated schemas
+src-tauri/target/
+src-tauri/gen/

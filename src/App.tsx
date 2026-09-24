@@ -8,7 +8,9 @@ import { db, resetLocal, localOwner, setMeta } from './lib/db'
 import { sync, watchConnection } from './lib/sync'
 import { Nav } from './ui/Nav'
 import { Today } from './screens/Today'
-import { Auth } from './screens/Auth'
+import { Auth, SetPassword } from './screens/Auth'
+import { listenForAuthLinks } from './lib/auth-links'
+import { watchLifecycle, remindersSoon } from './lib/lifecycle'
 import { Plan } from './screens/Plan'
 import { Food } from './screens/Food'
 import { Shop } from './screens/Shop'
@@ -16,7 +18,14 @@ import { More } from './screens/More'
 import { Onboarding } from './screens/Onboarding'
 
 export default function App() {
-  const { session, profile, setSession, setProfile, setProfiles } = useApp()
+  const { session, profile, recovering, setSession, setProfile, setProfiles } = useApp()
+
+  // Email links (confirmation, password reset) arrive once, at start-up or
+  // while the app is open.
+  useEffect(() => { listenForAuthLinks(); watchLifecycle() }, [])
+
+  // Whenever the active profile changes (or first arrives), set its reminders.
+  useEffect(() => { if (profile) remindersSoon() }, [profile?.id, profile?.ai_persona_name])
 
   // Session first: the app opens signed in wherever it was left.
   //
@@ -85,6 +94,7 @@ export default function App() {
     return <div className="empty">No Supabase credentials. Copy .env.example to .env and fill it in.</div>
   }
   if (!session) return <Auth />
+  if (recovering) return <SetPassword />
 
   // The first run asks for the few things nothing can be calculated without,
   // and the nav stays away until it is done.

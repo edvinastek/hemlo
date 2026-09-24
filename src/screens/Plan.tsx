@@ -61,12 +61,14 @@ export function Plan() {
               return (
                 <div key={d.toISOString()} className={`week-col${isSameDay(d, new Date()) ? ' is-today' : ''}`}>
                   <h3>{format(d, 'EEE d')}</h3>
-                  {items.map((t) => (
-                    <div key={t.id} className="week-item">
-                      <span className="t">{t.planned_time?.slice(0, 5)}</span> {t.title}
-                    </div>
-                  ))}
-                  {items.length === 0 && <span className="t" style={{ color: 'var(--e-ink-soft)' }}>—</span>}
+                  <div className="week-items">
+                    {items.map((t) => (
+                      <div key={t.id} className="week-item">
+                        <span className="t">{t.planned_time?.slice(0, 5)}</span> {t.title}
+                      </div>
+                    ))}
+                    {items.length === 0 && <span className="t" style={{ color: 'var(--e-ink-soft)' }}>—</span>}
+                  </div>
                 </div>
               )
             })}

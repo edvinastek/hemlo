@@ -1,17 +1,25 @@
 {
   "name": "getit",
   "private": true,
-  "version": "0.1.0",
+  "version": "0.2.0",
   "type": "module",
   "scripts": {
     "dev": "vite",
     "build": "tsc -b && vite build",
     "preview": "vite preview",
-    "android": "npm run build && npx cap sync android && cd android && ./gradlew assembleDebug",
+    "android": "npm run build && npx cap sync android && cd android && ./gradlew bundleRelease assembleRelease",
     "windows": "npx tauri build",
-    "check": "tsc -b && node --experimental-strip-types src/test/calc.check.mjs && node --experimental-strip-types src/test/formula.check.mjs && node --experimental-strip-types src/test/notify.check.mjs"
+    "check": "tsc -b && node --experimental-strip-types src/test/calc.check.mjs && node --experimental-strip-types src/test/formula.check.mjs && node --experimental-strip-types src/test/notify.check.mjs",
+    "build:site": "vite build --config vite.site.config.ts",
+    "assets": "node scripts/make-assets.mjs && npx capacitor-assets generate --android --iconBackgroundColor '#f8f4ed' --iconBackgroundColorDark '#15141b' --splashBackgroundColor '#f8f4ed' --splashBackgroundColorDark '#15141b' && npx tauri icon assets/icon-only.png -o src-tauri/icons && rm -rf src-tauri/icons/android src-tauri/icons/ios"
   },
   "dependencies": {
+    "@capacitor/android": "^8.5.2",
+    "@capacitor/app": "^8.1.1",
+    "@capacitor/core": "^8.5.2",
+    "@capacitor/local-notifications": "^8.3.1",
+    "@fontsource/ibm-plex-sans": "^5.3.0",
+    "@fontsource/spectral": "^5.3.0",
     "@supabase/supabase-js": "^2.45.0",
     "date-fns": "^3.6.0",
     "dexie": "^4.0.8",
@@ -23,6 +31,9 @@
     "zustand": "^4.5.5"
   },
   "devDependencies": {
+    "@capacitor/assets": "^3.0.5",
+    "@capacitor/cli": "^8.5.2",
+    "@tauri-apps/cli": "^2.11.5",
     "@types/react": "^18.3.5",
     "@types/react-dom": "^18.3.0",
     "@vitejs/plugin-react": "^4.3.1",

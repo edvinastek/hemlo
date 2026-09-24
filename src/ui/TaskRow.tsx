@@ -4,13 +4,14 @@ interface Props {
   task: Task
   onTick: (t: Task) => void
   onPush: (t: Task, minutes: number) => void
+  onEdit: (t: Task) => void
 }
 
 const PUSH_STEPS = [15, 30, 60]
 
 /** Left to right: time in the margin, rail dot, name, meta, state, push.
  *  A locked item shows the lock and no push control — nothing may move it. */
-export function TaskRow({ task, onTick, onPush }: Props) {
+export function TaskRow({ task, onTick, onPush, onEdit }: Props) {
   const done = task.status === 'done'
   const slipped = task.status === 'stuck' || task.needs_review
 
@@ -26,7 +27,7 @@ export function TaskRow({ task, onTick, onPush }: Props) {
       <span className="row-dot" aria-hidden="true" />
 
       <div>
-        <div className="row-name">{task.title}</div>
+        <div className="row-name"><button onClick={() => onEdit(task)}>{task.title}</button></div>
         {meta && <div className="row-meta">{meta}</div>}
         {slipped && <div className="row-note">pushed {task.push_count}×, needs a new time</div>}
       </div>

@@ -1,0 +1,7 @@
+{
+  "$schema": "../gen/schemas/desktop-schema.json",
+  "identifier": "default",
+  "description": "What the GetIt window may do: the core window API and showing notifications. Nothing touches the file system or runs commands.",
+  "windows": ["main"],
+  "permissions": ["core:default", "notification:default"]
+}

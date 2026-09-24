@@ -5,8 +5,10 @@ import { useApp } from '../lib/store'
 import { supabase } from '../lib/supabase'
 import { edit } from '../lib/write'
 import { MODULES } from '../modules/registry'
+import { Privacy } from './Privacy'
 import { ModuleEditor } from '../ui/ModuleEditor'
 import { exportBundle, importBundle } from '../lib/bundle'
+import { getReminderSettings, setReminderSettings, requestPermission, type ReminderSettings } from '../lib/notify'
 import type { ModuleInstance } from '../lib/types'
 import type { ImportPreview } from '../lib/excel'
 
@@ -147,29 +149,59 @@ function ProfilePanel() {
 
 function AssistantPanel() {
   const profile = useApp((s) => s.profile)
-  if (!profile) return null
+  const settings = useLiveQuery(() => getReminderSettings(), [], null)
+  const [note, setNote] = useState<string | null>(null)
+  if (!profile || !settings) return null
+
+  async function update(next: ReminderSettings) {
+    setNote(null)
+    if (next.on && !settings!.on && !(await requestPermission())) {
+      setNote('Notifications are blocked for GetIt. Allow them in the phone\u2019s settings, then turn this on again.')
+      return
+    }
+    await setReminderSettings(next, profile!.id, profile!.ai_persona_name)
+  }
+
   return (
     <>
       <p className="section-title">Who reminds you</p>
       <Field label="Name" value={profile.ai_persona_name ?? ''}
-        hint="The name reminders arrive under. Leave it empty and they come from the app."
+        hint="The name reminders arrive under. Leave it empty and they come from GetIt."
         onSave={(v) => edit('profile', profile, { ai_persona_name: v || null })} />
+
+      <p className="section-title">Reminders on this device</p>
       <div className="setting-row">
         <div>
-          <div className="row-name">Notifications</div>
+          <div className="row-name">Remind me at each task’s time</div>
           <div className="row-meta">
-            Off by default. Turn them on per module once the plan is one you trust;
-            quiet hours are held to whatever you set.
+            Within a few minutes of the time, for the next three days, even with GetIt closed.
+            On a locked phone the text is hidden. This setting is for this device only.
           </div>
         </div>
-        <span className="chip">off</span>
+        <button className="switch" role="switch" aria-checked={settings.on}
+          aria-label="Reminders" onClick={() => void update({ ...settings, on: !settings.on })} />
       </div>
+      <div className="setting-row">
+        <div>
+          <div className="row-name">Quiet hours</div>
+          <div className="row-meta">Nothing arrives between these times.</div>
+        </div>
+        <div className="row-right">
+          <input className="btn" type="time" value={settings.quietFrom}
+            onChange={(e) => void update({ ...settings, quietFrom: e.target.value })} />
+          <span className="row-meta">to</span>
+          <input className="btn" type="time" value={settings.quietTo}
+            onChange={(e) => void update({ ...settings, quietTo: e.target.value })} />
+        </div>
+      </div>
+      {note && <p className="empty" style={{ color: 'var(--e-warn)' }}>{note}</p>}
+
       <div className="setting-row">
         <div>
           <div className="row-name">Assistant</div>
           <div className="row-meta">
-            Not in this build. The tables and the per-module skill list are there, so
-            switching it on later is wiring rather than a rewrite.
+            Not in this version. The tables and the per-module skill list are there, so
+            adding it later is wiring rather than a rewrite.
           </div>
         </div>
         <span className="chip">later</span>
@@ -184,6 +216,9 @@ function DataPanel() {
   const [preview, setPreview] = useState<{ file: File; preview: ImportPreview } | null>(null)
   const conflicts = useLiveQuery(() => db.conflicts.reverse().limit(20).toArray(), [], [])
   const pending = useLiveQuery(() => db.pending.count(), [], 0)
+  const [policy, setPolicy] = useState(false)
+
+  if (policy) return <Privacy onBack={() => setPolicy(false)} />
 
   async function doExport() {
     if (!profile) return
@@ -289,6 +324,15 @@ function DataPanel() {
         </>
       )}
       {note && <p className="empty">{note}</p>}
+
+      <p className="section-title">Privacy</p>
+      <div className="setting-row">
+        <div>
+          <div className="row-name">Privacy policy</div>
+          <div className="row-meta">What GetIt stores, why, where, and how to get it back or delete it.</div>
+        </div>
+        <button className="btn" onClick={() => setPolicy(true)}>Read</button>
+      </div>
 
       <p className="section-title">Account</p>
       <div className="setting-row">

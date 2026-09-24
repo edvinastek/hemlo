@@ -1,0 +1,16 @@
+body { margin: 0; background: var(--e-paper); color: var(--e-ink); font-family: var(--font-serif); line-height: 1.55; }
+main { max-width: 640px; margin: 0 auto; padding: 48px 20px 64px; }
+h1 { font-size: 30px; margin: 0 0 4px; }
+h2 { font-size: 19px; margin: 32px 0 8px; }
+.sub, label, button, input, nav { font-family: var(--font-sans); }
+.sub { color: var(--e-ink-soft); font-size: 14px; margin: 0; }
+nav { display: flex; gap: 16px; font-size: 14px; margin-bottom: 40px; }
+a { color: var(--e-accent); }
+form { display: grid; gap: 12px; margin-top: 16px; max-width: 360px; }
+label { display: grid; gap: 4px; font-size: 13px; color: var(--e-ink-soft); }
+input { padding: 9px 10px; border: 1px solid var(--e-rule); border-radius: 10px; background: transparent; color: var(--e-ink); font-size: 15px; }
+button { padding: 10px 12px; border-radius: 10px; border: 1px solid var(--e-rule); background: transparent; color: var(--e-ink); font-size: 15px; cursor: pointer; }
+button.primary { background: var(--e-accent); color: var(--e-paper); border-color: var(--e-accent); }
+button:disabled { opacity: .5; cursor: default; }
+.note { font-family: var(--font-sans); font-size: 14px; color: var(--e-warn); }
+.ok { color: var(--e-done); }

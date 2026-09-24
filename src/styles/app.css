@@ -11,6 +11,11 @@ html, body, #root { height: 100%; }
 
 body {
   margin: 0;
+  /* Keep clear of the status bar and camera cut-out on edge-to-edge phones.
+     Capacitor sets --safe-area-inset-*; browsers fall back to env(). */
+  padding-top: var(--safe-area-inset-top, env(safe-area-inset-top, 0px));
+  padding-left: var(--safe-area-inset-left, env(safe-area-inset-left, 0px));
+  padding-right: var(--safe-area-inset-right, env(safe-area-inset-right, 0px));
   background: var(--e-paper);
   color: var(--e-ink);
   font-family: var(--font-serif);
@@ -51,7 +56,7 @@ hr, .rule { border: 0; border-top: 1px solid var(--e-rule); margin: 0; }
   grid-template-columns: repeat(5, 1fr);
   border-top: 1px solid var(--e-rule);
   background: var(--e-paper);
-  padding-bottom: env(safe-area-inset-bottom);
+  padding-bottom: var(--safe-area-inset-bottom, env(safe-area-inset-bottom, 0px));
 }
 
 .bottom-nav a {
@@ -381,6 +386,12 @@ hr, .rule { border: 0; border-top: 1px solid var(--e-rule); margin: 0; }
 .week-col.is-today h3 { color: var(--e-accent); }
 .week-item { font-size: 13px; padding: 3px 0; border-bottom: 1px solid var(--e-rule); }
 .week-item .t { font-family: var(--font-sans); font-size: 11px; color: var(--e-ink-soft); }
+@media (max-width: 700px) {
+  /* Seven columns do not fit a phone: the week reads as a list of days. */
+  .week-grid { grid-template-columns: 1fr; }
+  .week-col { min-height: 0; display: grid; grid-template-columns: 64px minmax(0, 1fr); gap: var(--space-2); }
+  .week-col h3 { margin: 3px 0 0; }
+}
 
 .month-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 1px; background: var(--e-rule); margin: 0 var(--space-4); }
 .month-cell { background: var(--e-paper); min-height: 62px; padding: 4px 6px; font-family: var(--font-sans); font-size: 11px; }
@@ -396,3 +407,47 @@ hr, .rule { border: 0; border-top: 1px solid var(--e-rule); margin: 0; }
 .goal-bar { display: grid; grid-template-columns: 160px 1fr; gap: var(--space-3); align-items: center; padding: var(--space-2) var(--space-4); font-size: 14px; }
 .goal-track { height: 8px; background: var(--e-tint); border-radius: var(--radius-sm); overflow: hidden; }
 .goal-fill { height: 100%; background: var(--e-goal); }
+
+/* ---------- bottom sheet -------------------------------------------------- */
+/* 16 px on the top corners only, as the kit specifies for a bottom sheet. */
+.sheet-scrim { position: fixed; inset: 0; background: var(--e-scrim); z-index: 20; }
+.bottom-sheet {
+  position: fixed; left: 0; right: 0; bottom: 0; z-index: 21;
+  background: var(--e-paper);
+  border-top: 1px solid var(--e-rule);
+  border-radius: var(--radius-lg) var(--radius-lg) 0 0;
+  padding: var(--space-4) var(--space-4) calc(var(--space-4) + var(--safe-area-inset-bottom, env(safe-area-inset-bottom, 0px)));
+  max-height: 88vh; overflow-y: auto;
+}
+.bottom-sheet h2 { font-size: 18px; margin-bottom: var(--space-3); }
+.form-grid { display: grid; gap: var(--space-3); }
+.form-grid label { display: grid; gap: 4px; font-family: var(--font-sans); font-size: 13px; color: var(--e-ink-soft); }
+.form-grid .two { display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-3); }
+.form-grid input, .form-grid select, .form-grid textarea {
+  padding: 9px 10px; border: 1px solid var(--e-rule); border-radius: var(--radius-md);
+  background: transparent; color: var(--e-ink); font: inherit; font-size: 15px;
+}
+.form-grid textarea { min-height: 64px; font-family: var(--font-serif); }
+.sheet-actions { display: flex; gap: var(--space-2); margin-top: var(--space-4); }
+.sheet-actions .grow { margin-left: auto; }
+
+/* Add button: the page's primary action, in the accent. */
+.fab {
+  position: fixed; right: var(--space-4); z-index: 10;
+  bottom: calc(72px + var(--safe-area-inset-bottom, env(safe-area-inset-bottom, 0px)));
+  width: 52px; height: 52px; border-radius: var(--radius-pill);
+  background: var(--e-accent); color: var(--e-paper);
+  font-family: var(--font-sans); font-size: 26px; line-height: 1;
+  display: grid; place-items: center;
+}
+@media (min-width: 900px) { .fab { bottom: var(--space-6); } }
+
+.row-name button { text-align: left; font: inherit; }
+
+/* ---------- meal slots ---------------------------------------------------- */
+.slot { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: var(--space-2); align-items: center;
+        padding: var(--space-3) var(--space-4); border-bottom: 1px solid var(--e-rule); }
+.slot select, .slot input { padding: 6px 8px; border: 1px solid var(--e-rule); border-radius: var(--radius-md);
+                            background: transparent; color: var(--e-ink); font-family: var(--font-sans); font-size: 14px; }
+.slot select { width: 100%; min-width: 0; text-overflow: ellipsis; }
+.slot .suggest { font-family: var(--font-sans); font-size: 12px; color: var(--e-accent); }

@@ -9,7 +9,12 @@ export const supabase = createClient(url, key, {
   auth: {
     persistSession: true,
     autoRefreshToken: true,
-    detectSessionInUrl: true,
+    // PKCE: an email link carries a one-time code, not a session, so a link
+    // opened on another device or forwarded by mistake cannot sign anyone in.
+    flowType: 'pkce',
+    // Links are handled explicitly (see auth-links.ts) so the app can tell a
+    // password reset from a sign-up confirmation.
+    detectSessionInUrl: false,
   },
 })
 

@@ -9,6 +9,8 @@ interface Props<T extends { id: string }> {
   fields: FieldDef[]
   /** Fields to keep when the screen is too narrow for the full sheet. */
   priority?: string[]
+  /** Only these fields take edits; the rest read as text. All, when absent. */
+  editable?: string[]
   rows: T[]
   lookups?: Record<string, LookupOption[]>
   onChange?: (row: T, field: string, value: unknown) => void
@@ -20,7 +22,7 @@ interface Props<T extends { id: string }> {
  *  at once, dropdowns wherever a database is referenced, and calculated cells
  *  that are visibly not yours to type in. */
 export function DataTable<T extends { id: string } & Record<string, unknown>>(
-  { fields, priority, rows, lookups = {}, onChange, totals = [], emptyNote }: Props<T>,
+  { fields, priority, editable, rows, lookups = {}, onChange, totals = [], emptyNote }: Props<T>,
 ) {
   const narrow = useNarrow()
   const shown = narrow && priority
@@ -64,7 +66,8 @@ export function DataTable<T extends { id: string } & Record<string, unknown>>(
           {rows.map((row) => (
             <tr key={row.id}>
               {shown.map((f) => (
-                <Cell key={f.name} field={f} row={row} lookups={lookups} onChange={onChange} />
+                <Cell key={f.name} field={f} row={row} lookups={lookups}
+                  onChange={!editable || editable.includes(f.name) ? onChange : undefined} />
               ))}
             </tr>
           ))}

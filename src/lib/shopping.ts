@@ -29,6 +29,7 @@ export async function tripFromPlan(
   const foods = new Map<string, Food>((await db.food.toArray()).map((f) => [f.id, f]))
   const allLines = await db.recipe_line.toArray()
   const needed = new Map<string, number>()
+  const said = new Map<string, string>()   // what the recipe calls it: "Peanut butter", not "Butter Peanut Smooth"
 
   for (const slot of inWindow) {
     if (!slot.recipe_id) continue
@@ -38,6 +39,7 @@ export async function tripFromPlan(
       // Shopping is done in raw weight, because that is what a shop sells.
       const grams = rawGrams(line, food) * (slot.portion_multiplier ?? 1)
       needed.set(line.food_id, (needed.get(line.food_id) ?? 0) + grams)
+      if (line.raw_text && !said.has(line.food_id)) said.set(line.food_id, cleanName(line.raw_text))
     }
   }
 
@@ -48,7 +50,7 @@ export async function tripFromPlan(
       const { packs } = shoppingQuantity(grams, have, food?.pack_size_g ?? null)
       return {
         id: foodId,
-        name: food?.name ?? 'Unknown',
+        name: said.get(foodId) ?? food?.name ?? 'Unknown',
         needed_g: Math.round(grams),
         from_stock_g: Math.round(have),
         pack_size_g: food?.pack_size_g ?? null,
@@ -59,4 +61,11 @@ export async function tripFromPlan(
     })
     .filter((line) => line.needed_g > line.from_stock_g)
     .sort((a, b) => a.section.localeCompare(b.section) || a.name.localeCompare(b.name))
+}
+
+/** "Brown rice (cooked)" is how a recipe says it; on a shopping list it is rice
+ *  you buy dry, so the cooking note goes. */
+function cleanName(raw: string): string {
+  const name = raw.replace(/\s*\((cooked|steamed|grilled|baked|boiled|roasted|drained|grilled or baked)[^)]*\)/i, '').trim()
+  return name.charAt(0).toUpperCase() + name.slice(1)
 }

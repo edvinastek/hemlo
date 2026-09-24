@@ -35,6 +35,13 @@ Copy `.env.example` to `.env` and fill in the project URL and publishable key.
 end-to-end checks in `src/test` need a built app being served; `src/test/README.md`
 says how.
 
+## Releasing
+
+Phones come first. `docs/android-release.md` covers the one-time upload key and
+the public privacy and deletion pages, then each release. Everything Google
+Play asks, answered to match the app, is in `store/play-console-answers.md`;
+the listing text, icon, feature graphic and screenshots are in `store/`.
+
 ## Where each client comes from
 
 Push to `main` and the workflow in `.github/workflows/build.yml` builds all
@@ -42,15 +49,18 @@ three on GitHub's runners:
 
 | Client | Downloaded from | Notes |
 | --- | --- | --- |
-| Web | Deployed to GitHub Pages | Also installs from the browser on Android |
-| Android | The run's Artifacts, `getit-android` | Debug APK; sideload it |
-| Windows | The run's Artifacts, `getit-windows` | NSIS installer and MSI |
+| Android | The run's `getit-android-release` artifact | Signed App Bundle for Google Play, and an APK |
+| Windows | The run's `getit-windows` artifact | NSIS installer and MSI |
+| Web | The run's `getit-web` artifact | Static files; host anywhere |
+| Public site | The run's `getit-site` artifact | Privacy policy and account deletion pages |
+
+All four carry the version in `package.json`.
 
 Two repository secrets are needed first, under Settings → Secrets and variables
 → Actions: `VITE_SUPABASE_URL` and `VITE_SUPABASE_PUBLISHABLE_KEY`. Both are
 safe to store there — the publishable key is public by design and row-level
-security is what protects the data. Pages also has to be switched on once, under
-Settings → Pages → Source: GitHub Actions.
+security is what protects the data. The Android signing secrets and the site's
+secrets are listed in `docs/android-release.md`.
 
 ## What is built
 
