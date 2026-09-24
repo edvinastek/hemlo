@@ -11,6 +11,7 @@ import { exportBundle, importBundle } from '../lib/bundle'
 import { getReminderSettings, setReminderSettings, requestPermission, type ReminderSettings } from '../lib/notify'
 import type { ModuleInstance } from '../lib/types'
 import type { ImportPreview } from '../lib/excel'
+import type { ImportPlan, ImportSummary } from '../lib/import'
 
 const SECTIONS = ['Modules', 'Profile', 'Assistant', 'Data']
 
@@ -211,9 +212,11 @@ function AssistantPanel() {
 }
 
 function DataPanel() {
-  const { profile } = useApp()
+  const { profile, session } = useApp()
   const [note, setNote] = useState<string | null>(null)
-  const [preview, setPreview] = useState<{ file: File; preview: ImportPreview } | null>(null)
+  const [preview, setPreview] = useState<{ file: File; preview: ImportPreview; plan: ImportPlan } | null>(null)
+  const [summary, setSummary] = useState<{ file: string; summary: ImportSummary } | null>(null)
+  const [saving, setSaving] = useState(false)
   const conflicts = useLiveQuery(() => db.conflicts.reverse().limit(20).toArray(), [], [])
   const pending = useLiveQuery(() => db.pending.count(), [], 0)
   const [policy, setPolicy] = useState(false)
@@ -233,19 +236,37 @@ function DataPanel() {
 
   async function doImport(file: File) {
     setNote(null)
+    setSummary(null)
     try {
       if (file.name.endsWith('.xlsx')) {
         // The workbook is read and shown before anything is saved, so a bad
         // column never lands in the database unseen.
+        if (!session) return
         const { readWorkbook } = await import('../lib/excel')
+        const { planWorkbook } = await import('../lib/import')
         const preview = await readWorkbook(file)
-        setPreview({ file, preview })
+        setPreview({ file, preview, plan: await planWorkbook(preview, session.user.id) })
         return
       }
       const result = await importBundle(file)
       setNote(`${result.imported} records read from ${result.name}.`)
     } catch (e) {
       setNote(e instanceof Error ? e.message : 'That file could not be read.')
+    }
+  }
+
+  async function saveWorkbookNow() {
+    if (!preview || !session || saving) return
+    setSaving(true)
+    try {
+      const { saveWorkbook } = await import('../lib/import')
+      const result = await saveWorkbook(preview.preview, session.user.id)
+      setSummary({ file: preview.file.name, summary: result })
+      setPreview(null)
+    } catch (e) {
+      setNote(e instanceof Error ? e.message : 'The workbook could not be saved. Nothing was imported.')
+    } finally {
+      setSaving(false)
     }
   }
 
@@ -299,28 +320,79 @@ function DataPanel() {
         <>
           <p className="section-title">Preview · {preview.file.name}</p>
           <p className="empty">
-            This shows what GetIt reads from the workbook. Saving it into your account is not
-            built yet, so nothing below has been imported.
+            Nothing is saved until you tap Import. Foods and recipes you can already see are left
+            as they are.
           </p>
           <div className="setting-row">
             <div>
               <div className="row-name">
-                {preview.preview.foods.length} foods · {preview.preview.exercises.length} exercises
-                · {preview.preview.recipes.length} recipes
+                {preview.plan.foods.length} new foods · {preview.plan.recipes.length} new recipes
               </div>
+              <div className="row-meta">
+                {preview.plan.foodsExisting} foods and {preview.plan.recipesExisting} recipes already there
+                · {preview.plan.linesMatched} ingredient lines matched to a food, {preview.plan.linesUnmatched} not
+              </div>
+            </div>
+          </div>
+          {preview.preview.exercises.length > 0 && (
+            <div className="setting-row">
+              <div>
+                <div className="row-name">{preview.preview.exercises.length} exercises</div>
+                <div className="row-meta">Read, but not saved yet. Exercises have nowhere to go in the app so far.</div>
+              </div>
+            </div>
+          )}
+          <div className="setting-row">
+            <div>
               <div className="row-meta">
                 Sheets read: {preview.preview.sheets.slice(0, 6).join(', ')}
                 {preview.preview.skipped > 0 && ` · ${preview.preview.skipped} duplicate rows skipped`}
               </div>
             </div>
-            <button className="btn" onClick={() => setPreview(null)}>Close</button>
+            <div style={{ display: 'flex', gap: 'var(--space-2)' }}>
+              <button className="btn" onClick={() => setPreview(null)} disabled={saving}>Close</button>
+              <button className="btn btn-primary" onClick={() => void saveWorkbookNow()}
+                disabled={saving || (preview.plan.foods.length === 0 && preview.plan.recipes.length === 0)}>
+                {saving ? 'Importing' : 'Import'}
+              </button>
+            </div>
           </div>
-          {preview.preview.foods.slice(0, 5).map((f) => (
-            <div key={f.name} className="setting-row">
+          {preview.plan.foods.slice(0, 5).map((f) => (
+            <div key={f.id} className="setting-row">
               <div><div className="row-name">{f.name}</div>
                 <div className="row-meta">{f.kcal ?? '—'} kcal · {f.protein_g ?? '—'} g protein per 100 g</div></div>
             </div>
           ))}
+          {preview.plan.unmatched.length > 0 && (
+            <div className="setting-row">
+              <div>
+                <div className="row-name">Lines with no food yet</div>
+                <div className="row-meta">
+                  Saved with their text, left out of the macros until you pick a food:
+                  {' '}{preview.plan.unmatched.slice(0, 8).join(', ')}
+                  {preview.plan.unmatched.length > 8 && ` and ${preview.plan.unmatched.length - 8} more`}
+                </div>
+              </div>
+            </div>
+          )}
+        </>
+      )}
+      {summary && (
+        <>
+          <p className="section-title">Imported · {summary.file}</p>
+          <div className="setting-row">
+            <div>
+              <div className="row-name">
+                {summary.summary.foodsAdded} foods added · {summary.summary.recipesAdded} recipes added
+              </div>
+              <div className="row-meta">
+                {summary.summary.foodsExisting} foods and {summary.summary.recipesExisting} recipes were already there
+                · {summary.summary.linesMatched} ingredient lines matched to a food, {summary.summary.linesUnmatched} not
+                {summary.summary.exercises > 0 && ` · ${summary.summary.exercises} exercises not saved yet`}
+              </div>
+            </div>
+            <button className="btn" onClick={() => setSummary(null)}>Close</button>
+          </div>
         </>
       )}
       {note && <p className="empty">{note}</p>}
