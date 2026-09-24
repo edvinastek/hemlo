@@ -83,14 +83,15 @@ export function currentStreak(schedule: HabitSchedule, doneDays: Iterable<string
 
   if (schedule === 'weekly') return weeklyStreak(done, day)
 
+  // Only the day shown itself is still open. Looking back from a Saturday,
+  // the first scheduled day of a weekdays habit is Friday, which is over, so
+  // a missed Friday has to end the run rather than be treated as open.
   let count = 0
   let cursor = day
-  let first = true
   for (let i = 0; i < LOOKBACK; i++, cursor = addDays(cursor, -1)) {
     if (!isScheduled(schedule, cursor)) continue
     if (done.has(cursor)) count++
-    else if (!first) break
-    first = false
+    else if (cursor !== day) break
   }
   return count
 }

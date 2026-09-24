@@ -60,6 +60,13 @@ is('weekdays, missed Monday ends it', currentStreak('weekdays', fullWeek, '2026-
 is('weekdays, weekend tick adds nothing', currentStreak('weekdays', [...acrossWeekend, '2026-09-19'], '2026-09-22'), 4)
 // A missed Friday is a break even with the weekend in between.
 is('weekdays, missed Friday ends it', currentStreak('weekdays', ['2026-09-17', '2026-09-21'], '2026-09-21'), 1)
+// Viewed on the weekend itself: Friday is over, not open, so missing it ends
+// the run. This used to read 4 because Friday was treated as the open day.
+is('weekdays, missed Friday seen on Saturday', currentStreak('weekdays', monThu, '2026-09-26'), 0)
+is('weekdays, missed Friday seen on Sunday', currentStreak('weekdays', monThu, '2026-09-27'), 0)
+is('weekdays, missed Friday seen next Monday', currentStreak('weekdays', monThu, '2026-09-28'), 0)
+// Viewed on the weekend with Friday done: the whole week counts.
+is('weekdays, done Friday seen on Saturday', currentStreak('weekdays', fullWeek, '2026-09-26'), 5)
 
 // Weekly: one tick in each of three weeks running -> 3.
 const weekly = ['2026-09-09', '2026-09-14', '2026-09-24']
