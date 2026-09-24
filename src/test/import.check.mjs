@@ -3,6 +3,7 @@
 import { readFileSync } from 'node:fs'
 import {
   parseIngredientLine, parseIngredients, stateOf, tokens, jaccard, FoodMatcher, ALIAS, planImport,
+  fit, pendingEntry, MAX_MACRO,
 } from '../lib/match-food.ts'
 
 let fail = 0
@@ -34,6 +35,16 @@ is('bullet stripped', parseIngredientLine('• Banana – 80g').food, 'Banana')
 is('blank line is nothing', parseIngredientLine('   '), null)
 is('several lines, blanks skipped', parseIngredients('Apple – 150g\r\n\r\nCottage cheese (low-fat) – 100g\n').map((l) => l.grams), [150, 100])
 is('whole-wheat is not a dash separator', parseIngredientLine('Whole-wheat pita – 50g').food, 'Whole-wheat pita')
+
+// Review fixes: a number in the food's own name is not its portion.
+is('grams in the name do not count when the amount says otherwise', parseIngredientLine('Protein bar (20g protein) – 1 bar').grams, null)
+is('ml line with grams in the name stays unknown', parseIngredientLine('Almond milk (1g sugar) – 150ml').grams, null)
+is('grams in brackets with no dash still count', parseIngredientLine('Rice (60g)').grams, 60)
+is('grams past the server column are unknown', parseIngredientLine('Rice – 12345678g').grams, null)
+is('fit keeps a normal value', fit(52.5, MAX_MACRO), 52.5)
+is('fit drops a negative', fit(-3, MAX_MACRO), null)
+is('fit drops a figure past numeric(7,2)', fit(100000, MAX_MACRO), null)
+is('fit keeps unknown unknown', fit(null, MAX_MACRO), null)
 
 for (const w of ['cooked', 'steamed', 'grilled', 'baked', 'boiled', 'roasted', 'drained']) {
   is(`state for "${w}"`, stateOf(`Something (${w})`), 'cooked')
@@ -122,6 +133,20 @@ is('sort order follows the recipe', planned.map((l) => l.sort_order), [0, 1, 2])
 is('matched and not matched counted', [plan.linesMatched, plan.linesUnmatched, plan.unmatched], [2, 1, ['Mystery crunch – 1 handful']])
 is('exercises counted', plan.exercises, 2)
 is('ids unique', new Set([...plan.foods.map((f) => f.id), ...plan.recipes.flatMap((r) => [r.recipe.id, ...r.lines.map((l) => l.id)])]).size, 5)
+
+// Out-of-range numbers never reach a row: the server would refuse them with an
+// error the sync layer retries forever.
+const odd = planImport({
+  sheets: [], skipped: 0, exercises: [],
+  foods: [{ name: 'Typo', kcal: 5200000, carbs_g: -1, fiber_g: null, fat_g: 3, protein_g: 4 }],
+  recipes: [{ name: 'Typo meal', kcal: 1e9, carbs_g: 10, fiber_g: 1, fat_g: 2, protein_g: 3, ingredients: '' }],
+}, { foods: [], recipes: [] }, 'user-1', id, '2026-09-24T10:00:00.000Z')
+is('food macros out of range become unknown', [odd.foods[0].kcal, odd.foods[0].carbs_g, odd.foods[0].fat_g], [null, null, 3])
+is('recipe macros out of range become unknown', [odd.recipes[0].recipe.kcal, odd.recipes[0].recipe.carbs_g], [null, 10])
+
+// The queue entry carries exactly the listed fields, like queueChange.
+const entry = pendingEntry('food', { id: 'x', name: 'Skyr', kcal: 63, secret: 'no' }, ['name', 'kcal'], 'T')
+is('pending entry shape', entry, { table: 'food', row_id: 'x', op: 'upsert', payload: { name: 'Skyr', kcal: 63 }, fields: ['name', 'kcal'], changed_at: 'T' })
 
 console.log(fail ? `\n${fail} check(s) failed` : '\nall checks passed')
 process.exit(fail ? 1 : 0)

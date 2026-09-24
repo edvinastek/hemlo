@@ -167,6 +167,18 @@ export interface ParsedLine {
 }
 
 const GRAMS = /(\d+(?:[.,]\d+)?)\s*g\b/gi
+
+/** The largest values the server columns hold: numeric(7,2) for the macros
+ *  and numeric(8,2) for grams. A bigger number is refused with an error the
+ *  sync layer treats as temporary, so that row would be retried forever. */
+export const MAX_MACRO = 99999.99
+export const MAX_GRAMS = 999999.99
+
+/** A number the server can store, or unknown. A negative amount or a figure
+ *  past the column is a typing slip in the workbook, not a value to keep. */
+export function fit(n: number | null | undefined, max: number): number | null {
+  return typeof n === 'number' && Number.isFinite(n) && n >= 0 && n <= max ? n : null
+}
 const COOKED = /\b(cooked|steamed|grilled|baked|boiled|roasted|drained)\b/i
 
 function lastGrams(s: string): number | null {
@@ -202,7 +214,10 @@ export function parseIngredientLine(line: string): ParsedLine | null {
   }
   food = food.replace(/^[\s–—-]+|[\s–—-]+$/g, '').trim()
   if (!food) return null
-  const grams = (qty ? lastGrams(qty) : null) ?? lastGrams(text)
+  // When the line has an amount, only the amount can give the grams: in
+  // "Protein bar (20g protein) – 1 bar" the 20g describes the food, and
+  // reading it as the portion would count a fifth of a bar.
+  const grams = fit(qty ? lastGrams(qty) : lastGrams(text), MAX_GRAMS)
   return { food, grams, qty, state: stateOf(food) }
 }
 
@@ -241,6 +256,28 @@ export interface ImportPlan {
   exercises: number
 }
 
+type Macros = { kcal: number | null; carbs_g: number | null; fiber_g: number | null; fat_g: number | null; protein_g: number | null }
+
+function macros(m: Partial<Macros>): Macros {
+  return {
+    kcal: fit(m.kcal, MAX_MACRO), carbs_g: fit(m.carbs_g, MAX_MACRO), fiber_g: fit(m.fiber_g, MAX_MACRO),
+    fat_g: fit(m.fat_g, MAX_MACRO), protein_g: fit(m.protein_g, MAX_MACRO),
+  }
+}
+
+/** One entry for the sync queue, in the shape queueChange writes: the fields
+ *  listed and their values, so the server receives exactly what was set. */
+export function pendingEntry<T extends { id: string }>(table: string, row: T, fields: (keyof T & string)[], at: string) {
+  return {
+    table,
+    row_id: row.id,
+    op: 'upsert' as const,
+    payload: Object.fromEntries(fields.map((f) => [f, row[f]])) as Record<string, unknown>,
+    fields: [...fields] as string[],
+    changed_at: at,
+  }
+}
+
 /** Decides every row an import would write, without writing any. Foods and
  *  recipes whose name is already visible (shared catalogue or the person's
  *  own) are skipped and counted: importing the workbook the catalogue was
@@ -264,7 +301,7 @@ export function planImport(
     if (matcher.has(f.name)) { plan.foodsExisting++; continue }
     const row: FoodRowPlan = {
       id: newId(), owner_id: ownerId, name: f.name.trim(),
-      kcal: f.kcal, carbs_g: f.carbs_g, fiber_g: f.fiber_g, fat_g: f.fat_g, protein_g: f.protein_g,
+      ...macros(f),
       state: 'raw', cook_yield: null, pack_size_g: null, store_section: null,
       source: 'import', updated_at: now, deleted_at: null,
     }
@@ -281,7 +318,7 @@ export function planImport(
     const recipe: RecipeRowPlan = {
       id: newId(), owner_id: ownerId, name: r.name.trim(), role: null, portions_per_batch: 1,
       cook_minutes: null, steps: null,
-      kcal: r.kcal, carbs_g: r.carbs_g ?? null, fiber_g: r.fiber_g ?? null, fat_g: r.fat_g ?? null, protein_g: r.protein_g,
+      ...macros(r),
       updated_at: now, deleted_at: null,
     }
     const lines = parseIngredients(r.ingredients).map((p, i): LineRowPlan => {

@@ -238,10 +238,10 @@ function DataPanel() {
     setNote(null)
     setSummary(null)
     try {
-      if (file.name.endsWith('.xlsx')) {
+      if (file.name.toLowerCase().endsWith('.xlsx')) {
         // The workbook is read and shown before anything is saved, so a bad
         // column never lands in the database unseen.
-        if (!session) return
+        if (!session) { setNote('Sign in first. Imported foods and recipes are saved to your account.'); return }
         const { readWorkbook } = await import('../lib/excel')
         const { planWorkbook } = await import('../lib/import')
         const preview = await readWorkbook(file)
@@ -313,7 +313,13 @@ function DataPanel() {
         <label className="btn" style={{ cursor: 'pointer' }}>
           Choose file
           <input type="file" accept=".json,.xlsx" hidden
-            onChange={(e) => e.target.files?.[0] && void doImport(e.target.files[0])} />
+            onChange={(e) => {
+              const file = e.target.files?.[0]
+              // Cleared so choosing the same file again, after closing its
+              // preview, still reads it.
+              e.target.value = ''
+              if (file) void doImport(file)
+            }} />
         </label>
       </div>
       {preview && (
@@ -349,7 +355,7 @@ function DataPanel() {
                 {preview.preview.skipped > 0 && ` · ${preview.preview.skipped} duplicate rows skipped`}
               </div>
             </div>
-            <div style={{ display: 'flex', gap: 'var(--space-2)' }}>
+            <div className="row-right">
               <button className="btn" onClick={() => setPreview(null)} disabled={saving}>Close</button>
               <button className="btn btn-primary" onClick={() => void saveWorkbookNow()}
                 disabled={saving || (preview.plan.foods.length === 0 && preview.plan.recipes.length === 0)}>
