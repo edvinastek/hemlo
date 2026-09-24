@@ -65,9 +65,13 @@ export default function App() {
   useEffect(() => {
     if (!localProfiles) return
     setProfiles(localProfiles)
+    // Keep the active profile the live row, not the copy taken when it was
+    // chosen: otherwise an edit (height, goal, date of birth) stays invisible
+    // to every screen until the app restarts, and the next edit made from the
+    // stale copy writes the old values back.
     const current = useApp.getState().profile
-    const stillThere = current && localProfiles.some((p) => p.id === current.id)
-    if (!stillThere) setProfile(localProfiles.find((p) => p.is_default) ?? localProfiles[0] ?? null)
+    const fresh = current ? localProfiles.find((p) => p.id === current.id) : undefined
+    setProfile(fresh ?? localProfiles.find((p) => p.is_default) ?? localProfiles[0] ?? null)
   }, [localProfiles])
 
   // Network second.

@@ -34,10 +34,13 @@ export function Today() {
 
   const targets = useLiveQuery(async () => {
     if (!profile) return null
-    const rows = await db.target.where('profile_id').equals(profile.id).sortBy('from_date')
+    // The targets in force on the day shown: the newest one that has started
+    // by then and was not deleted.
+    const rows = (await db.target.where('profile_id').equals(profile.id).sortBy('from_date'))
+      .filter((t) => !t.deleted_at && t.from_date <= day)
     const latest = rows[rows.length - 1]
     return latest ? { kcal: Number(latest.kcal ?? 0), protein: Number(latest.protein_g ?? 0) } : null
-  }, [profile?.id], null)
+  }, [profile?.id, day], null)
 
   const eaten = useLiveQuery(async () => {
     if (!profile) return { kcal: 0, protein: 0 }
@@ -78,8 +81,6 @@ export function Today() {
     return tasks
   }, [tasks, section])
 
-  const needsReview = useMemo(() => tasks.filter((t) => t.needs_review).length, [tasks])
-  const persona = profile?.ai_persona_name
 
   return (
     <div className="page">
@@ -105,12 +106,8 @@ export function Today() {
           </div>
         )}
 
+        {/* The review card now carries slipped tasks too; one prompt, not two. */}
         {section === 'Today' && profile && <ReviewCard profileId={profile.id} day={day} variant="compact" />}
-        {section === 'Today' && persona && needsReview > 0 && (
-          <p className="assistant">
-            {persona}: {needsReview} {needsReview === 1 ? 'task has' : 'tasks have'} slipped. Want new slots?
-          </p>
-        )}
 
         {section === 'Body' && profile && <BodySection profileId={profile.id} day={day} />}
         {section === 'Night' && profile && <ReviewCard profileId={profile.id} day={day} variant="full" />}

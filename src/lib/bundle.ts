@@ -1,8 +1,20 @@
 import { db } from './db'
 
 /** One file that holds everything: profile, plan, logs, recipes and settings.
- *  It is the backup, and it is how a device hands its state to another one. */
-const TABLES = ['profile', 'task', 'target', 'body_log', 'food_log', 'meal_plan_slot', 'module_instance'] as const
+ *  It is the backup, how a device hands its state to another one, and the
+ *  copy a person is entitled to under GDPR articles 15 and 20 — so every table
+ *  that holds their data must be listed here. */
+const TABLES = [
+  'profile', 'task', 'target', 'body_log', 'food_log', 'meal_plan_slot', 'module_instance',
+  'series', 'habit', 'supplement',
+] as const
+
+/** Rows that belong to the profile through a parent row rather than directly. */
+const CHILDREN = [
+  { table: 'series_exception', parent: 'series', key: 'series_id' },
+  { table: 'habit_log', parent: 'habit', key: 'habit_id' },
+  { table: 'supplement_log', parent: 'supplement', key: 'supplement_id' },
+] as const
 
 export interface Bundle {
   format: 'getit.bundle'
@@ -17,6 +29,11 @@ export async function exportBundle(profileId: string): Promise<Blob> {
   for (const table of TABLES) {
     const rows = await (db as never as Record<string, { toArray: () => Promise<Record<string, unknown>[]> }>)[table].toArray()
     records[table] = table === 'profile' ? rows : rows.filter((r) => r.profile_id === profileId)
+  }
+  for (const { table, parent, key } of CHILDREN) {
+    const parents = new Set((records[parent] as { id: string }[]).map((p) => p.id))
+    const rows = await (db as never as Record<string, { toArray: () => Promise<Record<string, unknown>[]> }>)[table].toArray()
+    records[table] = rows.filter((r) => parents.has(r[key] as string))
   }
   // Recipes a person wrote travel with them; the shared catalogue does not,
   // because every account already has it.

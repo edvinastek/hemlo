@@ -13,10 +13,13 @@ export const ACTIVITY = {
 
 export function ageFrom(birthDate: string | null, on = new Date()): number | null {
   if (!birthDate) return null
-  const b = new Date(birthDate)
-  let age = on.getFullYear() - b.getFullYear()
-  const m = on.getMonth() - b.getMonth()
-  if (m < 0 || (m === 0 && on.getDate() < b.getDate())) age--
+  // Read the date as a calendar day. new Date('1996-05-10') is midnight UTC,
+  // which west of Greenwich is the 9th, so the age turned over a day late.
+  const [y, mo, d] = birthDate.slice(0, 10).split('-').map(Number)
+  if (!y || !mo || !d) return null
+  let age = on.getFullYear() - y
+  const m = on.getMonth() + 1 - mo
+  if (m < 0 || (m === 0 && on.getDate() < d)) age--
   return age
 }
 

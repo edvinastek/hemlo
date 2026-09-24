@@ -184,6 +184,7 @@ insert into _r (check_name, expected, actual) values
   ('Deleting removes their tasks', '0', (select count(*) from task where title = 'A private task')::text),
   ('Deleting removes their weight log', '0', (select count(*) from body_log where profile_id = (select pa from _ids))::text),
   ('Deleting removes their own recipes', '0', (select count(*) from recipe where name = 'A secret recipe')::text),
+  ('Deleting removes them from the invite list', '0', (select count(*) from private.signup_allowlist where email = 'sec-a@test.local')::text),
   ('A shared household passes to the remaining member', 'M',
      case when (select owner_id from household where id = (select ha from _ids)) = (select m from _ids) then 'M' else 'lost' end),
   ('The remaining member keeps their own profile', '1',

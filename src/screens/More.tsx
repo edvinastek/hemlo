@@ -129,6 +129,9 @@ function ProfilePanel() {
       <p className="section-title">Body and goal</p>
       <Field label="Height" value={String(profile.height_cm ?? '')} unit="cm"
         onSave={(v) => edit('profile', profile, { height_cm: Number(v) })} />
+      <Field label="Date of birth" type="date" value={profile.birth_date ?? ''}
+        hint="Used for the calorie budget. Change it here if it was entered wrong."
+        onSave={(v) => edit('profile', profile, { birth_date: v || null })} />
       <Field label="Activity factor" value={String(profile.activity_level)}
         hint="1.2 desk job, 1.5 hard training twice a day, 1.9 very active"
         onSave={(v) => edit('profile', profile, { activity_level: Number(v) })} />
@@ -425,8 +428,8 @@ function DataPanel() {
   )
 }
 
-function Field({ label, value, unit, hint, onSave }: {
-  label: string; value: string; unit?: string; hint?: string
+function Field({ label, value, unit, hint, type = 'text', onSave }: {
+  label: string; value: string; unit?: string; hint?: string; type?: 'text' | 'date'
   onSave: (v: string) => void | Promise<unknown>
 }) {
   const [draft, setDraft] = useState(value)
@@ -439,8 +442,9 @@ function Field({ label, value, unit, hint, onSave }: {
       <div className="row-right">
         <input
           className="btn"
+          type={type}
           value={draft}
-          style={{ width: 110, textAlign: 'right' }}
+          style={{ width: type === 'date' ? 150 : 110, textAlign: 'right' }}
           onChange={(e) => setDraft(e.target.value)}
           onBlur={() => draft !== value && void onSave(draft)}
         />

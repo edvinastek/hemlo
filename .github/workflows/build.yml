@@ -28,12 +28,8 @@ jobs:
       - run: npm ci
       - name: Refuse to build with a known high-severity vulnerability
         run: npm audit --omit=dev --audit-level=high
-      - run: npx tsc -b
-      - name: Calculations, formulas and reminder rules
-        run: |
-          node --experimental-strip-types src/test/calc.check.mjs
-          node --experimental-strip-types src/test/formula.check.mjs
-          node --experimental-strip-types src/test/notify.check.mjs
+      - name: Types and every rule check (calculations, formulas, reminders, weigh-in, recurring tasks, habits, review, import, invite list)
+        run: npm run check
       - name: Store listing fits Google Play's limits
         run: |
           node -e "

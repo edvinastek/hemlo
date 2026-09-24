@@ -33,9 +33,32 @@ export async function queueChange<T extends Syncable>(table: string, row: T, fie
   if (navigator.onLine) void push()
 }
 
-/** Postgres refused it for a reason retrying will not change. */
+/** Postgres refused it for a reason retrying will not change.
+ *  A missing parent (23503) is not one of them: the parent's own insert may
+ *  simply not have landed yet, so the child waits in the queue and tries again. */
 function isPermanent(code: string | undefined): boolean {
-  return code === '42501' || code === '23503' || code === '23505' || code === '23514' || code === '22P02'
+  return code === '42501' || code === '23505' || code === '23514' || code === '22P02'
+}
+
+// One push at a time. Every edit starts a push, so a burst of edits used to
+// start a burst of pushes that each sent the same new rows; the second insert
+// of a row the first had just created was refused as a duplicate and logged
+// as a conflict that never happened. Now a push that arrives while one is
+// running only asks for one more pass when it ends.
+let inflight: Promise<number> | null = null
+let again = false
+
+export function push(): Promise<number> {
+  if (inflight) { again = true; return inflight }
+  inflight = (async () => {
+    let sent = 0
+    do {
+      again = false
+      sent += await pushOnce()
+    } while (again)
+    return sent
+  })().finally(() => { inflight = null })
+  return inflight
 }
 
 /** Send everything waiting. Runs on reconnect and after each edit.
@@ -45,7 +68,7 @@ function isPermanent(code: string | undefined): boolean {
  *  device while offline — so the whole local row is inserted instead. Before
  *  this, new rows were "sent" as updates that matched nothing, counted as a
  *  success, and silently dropped. */
-export async function push(): Promise<number> {
+async function pushOnce(): Promise<number> {
   const pending = await db.pending.toArray()
   if (pending.length === 0) return 0
 
@@ -69,6 +92,14 @@ export async function push(): Promise<number> {
       if (local) {
         const { updated_at: _u, ...row } = local
         error = (await supabase.from(entry.table).insert(row)).error
+        if (error?.code === '23505') {
+          // Already there under this id (it landed between the two calls):
+          // that is success, so send the patch once more and move on. A
+          // duplicate on some other key (the same day logged twice from two
+          // devices) still updates nothing and is recorded as refused.
+          const retry = await supabase.from(entry.table).update(patch).eq('id', entry.id).select('id')
+          if (!retry.error && (retry.data?.length ?? 0) > 0) error = null
+        }
       }
     }
 

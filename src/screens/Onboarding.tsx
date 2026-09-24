@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { format } from 'date-fns'
 import { useApp } from '../lib/store'
 import { edit } from '../lib/write'
 import { targetsFor } from '../lib/calc'
@@ -45,7 +46,9 @@ export function Onboarding({ onDone }: { onDone: () => void }) {
     })
 
     if (targets) {
-      const today = new Date().toISOString().slice(0, 10)
+      // The person's own calendar day, not the UTC date, which is still
+      // yesterday until 02:00 in the Netherlands in summer.
+      const today = format(new Date(), 'yyyy-MM-dd')
       const row = {
         id: crypto.randomUUID(),
         profile_id: profile!.id,

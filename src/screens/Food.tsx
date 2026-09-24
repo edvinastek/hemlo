@@ -30,9 +30,10 @@ export function Food() {
   )
   const target = useLiveQuery(async () => {
     if (!profile) return null
-    const rows = await db.target.where('profile_id').equals(profile.id).sortBy('from_date')
+    const rows = (await db.target.where('profile_id').equals(profile.id).sortBy('from_date'))
+      .filter((t) => !t.deleted_at && t.from_date <= day)
     return rows[rows.length - 1] ?? null
-  }, [profile?.id], null)
+  }, [profile?.id, day], null)
 
   const foodMap = useMemo(() => new Map(foods.map((f) => [f.id, f])), [foods])
 

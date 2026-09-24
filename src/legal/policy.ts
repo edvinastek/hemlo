@@ -77,7 +77,7 @@ export function privacySections(): Section[] {
     {
       heading: 'Your rights',
       body: [
-        `See and take your data: More → Data → Export gives you your profile, plan, targets, weigh-ins, food log, meal plan and recipes in one file. For a complete copy of everything GetIt holds about you, write to ${mail}.`,
+        `See and take your data: More → Data → Export gives you everything GetIt holds about you in one file: profile, plan, recurring tasks, targets, weigh-ins, food log, meal plan, habits, supplements and your own recipes. You can also ask for a copy at ${mail}.`,
         'Correct it: edit anything in the app.',
         'Delete it: More → Data → Delete account, or on the account deletion page, which works without the app.',
         `Object, restrict processing or ask anything else: write to ${mail}. You will get an answer within one month.`,
@@ -92,7 +92,9 @@ export function privacySections(): Section[] {
     },
     {
       heading: 'Age',
-      body: ['GetIt is not for people under 16.'],
+      // Matches the Google Play target audience (18 and over), which is kept
+      // above the Dutch digital-consent age of 16 because of the health data.
+      body: ['GetIt is for adults. It is not for anyone under 18.'],
     },
     {
       heading: 'Changes',
