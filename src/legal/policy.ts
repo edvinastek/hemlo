@@ -1,6 +1,8 @@
 /** The privacy policy, written once and shown in two places: inside the app,
  *  and on the public page Google Play links to. Keep it true to the code: if a
  *  feature starts collecting something new, this changes in the same commit.
+ *  The sources for each statement (Supabase's plan, logs, backups, processors)
+ *  are in docs/privacy/, which changes with it.
  *
  *  The controller's name and contact address come from the build environment
  *  (VITE_CONTROLLER_NAME, VITE_CONTACT_EMAIL), so they are not hard-coded into
@@ -22,7 +24,7 @@ export function privacySections(): Section[] {
     {
       heading: 'Who is responsible',
       body: [
-        `GetIt is made by ${who}, based in the Netherlands, who decides how your data is used and is responsible for it under the GDPR. Questions, requests and complaints go to ${mail}.`,
+        `GetIt is made by ${who}, a private individual in the Netherlands, who decides how your data is used and is responsible for it under the GDPR. Questions, requests and complaints go to ${mail}.`,
       ],
     },
     {
@@ -32,45 +34,60 @@ export function privacySections(): Section[] {
         'Your profile: a name, sex, date of birth, height, activity level, goal, time zone and the times your day starts and ends.',
         'Health and fitness details you enter: weigh-ins and waist measurements, calorie and protein targets, what you plan to eat and what you ate, training sessions and sets, and, if you turn those modules on, sleep, habits and supplements.',
         'Your plan: tasks, notes, goals, calendar events, recipes you add, shopping lists and what is in stock.',
-        'Nothing else. GetIt has no advertising, no analytics, no tracking, no third-party code that receives your data, and it never sells or shares data.',
+        'When you agreed to the storing of your health details, and to which version of this policy.',
+        'Technical logs of requests to the server, including your IP address and the type of device or browser, kept for security.',
+        'GetIt has no advertising, no analytics, no tracking and no third-party code that receives your data. It never sells your data or shares it for anyone else’s use.',
       ],
     },
     {
       heading: 'Why, and on what basis',
       body: [
         'Your account, profile and plan are stored to provide the planner you signed up for (GDPR article 6(1)(b), performance of a contract).',
-        'Weight, food, training and sleep details are health data. GetIt stores them only with your explicit consent, given when you create an account (GDPR article 9(2)(a)). They are used for one thing: calculating your targets and planning your days, meals and shopping.',
-        'You can withdraw consent at any time by deleting your account. GetIt cannot plan meals or targets without these details, so withdrawing ends the service.',
+        'Weight, food, training and sleep details are health data. GetIt stores them only with your explicit consent, given when you create an account (GDPR article 9(2)(a)). They are used for one thing: calculating your targets and planning your days, meals and shopping. Nothing is decided about you automatically.',
+        'You can withdraw consent at any time by deleting your account. GetIt cannot plan meals or targets without these details, so withdrawing ends the service. What was stored before you withdrew was stored lawfully.',
+        'The technical logs are kept to keep the service secure and working (GDPR article 6(1)(f), legitimate interest).',
       ],
     },
     {
       heading: 'Where your data is kept',
       body: [
-        'On servers run by Supabase, in Frankfurt, Germany, which processes the data only on GetIt’s instructions. Data is encrypted on its way there and while stored.',
-        'On your device, a copy that lets GetIt work without a connection. Signing out removes it. On Android it is left out of phone backups and device-to-device transfers.',
-        'Reminders on a locked phone show no text. The server keeps brief technical logs, including IP addresses, for security; they are deleted after a short period.',
+        'With Supabase, which runs GetIt’s database and sign-in. Supabase is a processor: it handles the data only on GetIt’s instructions, under a data processing agreement. The data is stored in Frankfurt, Germany, on Amazon Web Services servers, encrypted on its way there and while stored.',
+        'Supabase uses other companies to provide its service, such as Amazon Web Services for the servers and Cloudflare for the network that carries requests to them. Some of them, and Supabase’s own support staff, are outside the European Union; Supabase’s agreement covers any access from there with the European Commission’s standard contractual clauses. Its list of these companies is at supabase.com/legal/customer-resources/subprocessor-list.',
+        'Emails to confirm your address or reset your password are sent through an email delivery service that acts for GetIt in the same way and receives only your email address and the link.',
+        'On your device, a copy that lets GetIt work without a connection. Signing out removes it. On Android it is left out of phone backups and device-to-device transfers. Reminders on a locked phone show no text.',
+        'The privacy and account deletion pages are hosted by Cloudflare, which sees your IP address when you visit them. They set no cookies. On the deletion page, your email and password go straight from your browser to Supabase.',
       ],
     },
     {
       heading: 'Who else can see it',
       body: [
-        'No one. Access is enforced by the database itself, not only by the app. If you share a household, its members share the stock list and shopping trips; your profile, health details and plan stay private to you.',
+        'No one else. Access is enforced by the database itself, not only by the app. If you share a household, its members share the stock list and shopping trips; your profile, health details and plan stay private to you.',
+        'Google, which distributes the app through Google Play, receives nothing you enter in GetIt.',
       ],
     },
     {
       heading: 'How long it is kept',
       body: [
-        'For as long as you have an account. Deleting your account removes your data from the database at once. If backups are running at the time, deleted data can remain in them for up to seven days before it is overwritten.',
+        'Your data is kept for as long as you have an account. Deleting your account removes it from the database at once.',
+        'Something you delete inside the app is hidden at once and kept, marked as deleted, so your other devices learn it is gone. It is removed for good when your account is deleted, or sooner if you ask.',
+        'Supabase deletes its technical logs, with IP addresses, after one day.',
+        'GetIt’s database currently has no automatic backups, so nothing remains after your account is deleted. If daily backups are added, deleted data will remain in them for no longer than seven days, and this policy will say so first.',
       ],
     },
     {
       heading: 'Your rights',
       body: [
-        'See and take your data: More → Data → Export gives you everything in one file.',
+        `See and take your data: More → Data → Export gives you your profile, plan, targets, weigh-ins, food log, meal plan and recipes in one file. For a complete copy of everything GetIt holds about you, write to ${mail}.`,
         'Correct it: edit anything in the app.',
         'Delete it: More → Data → Delete account, or on the account deletion page, which works without the app.',
         `Object, restrict processing or ask anything else: write to ${mail}. You will get an answer within one month.`,
         'Complain: to the Dutch data protection authority, the Autoriteit Persoonsgegevens (autoriteitpersoonsgegevens.nl).',
+      ],
+    },
+    {
+      heading: 'If something goes wrong',
+      body: [
+        'If your data is ever exposed, lost or changed without permission, it is reported to the Autoriteit Persoonsgegevens within 72 hours when the law requires it, and you are told directly if it puts you at high risk.',
       ],
     },
     {

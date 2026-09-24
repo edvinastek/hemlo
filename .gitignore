@@ -22,3 +22,8 @@ dist-site/
 # Tauri build output and generated schemas
 src-tauri/target/
 src-tauri/gen/
+
+# Tester lists are friends' email addresses: they go into the Supabase
+# allowlist via scripts/allowlist.mjs and never into the repository.
+store/testers/*.txt
+store/testers/*.csv
