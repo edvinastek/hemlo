@@ -1,0 +1,69 @@
+/* Habits and supplements on Today's Body tab. Rows sit on the page, not on
+   the rail: these are ticks for the day, not items with a time. */
+
+.track-row {
+  min-height: var(--row-e);
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-2) var(--space-4);
+  border-bottom: 1px solid var(--e-rule);
+}
+
+.track-row .row-name { overflow-wrap: anywhere; }
+.track-row.is-done .row-name { color: var(--e-ink-soft); }
+/* Not due today: the row stays so it can be renamed or ticked anyway, but
+   it reads as quieter than the ones that are due. */
+.track-row.is-off .row-name { color: var(--e-ink-soft); }
+
+.track-right { display: flex; align-items: center; gap: var(--space-2); }
+
+.track-group {
+  font-family: var(--font-sans);
+  font-size: 12px;
+  color: var(--e-ink-soft);
+  padding: var(--space-3) var(--space-4) var(--space-1);
+}
+
+/* An inline form: one line of fields, then its buttons. Names are typed in
+   the serif because they are the person's own words. */
+.track-form {
+  display: grid;
+  gap: var(--space-2);
+  padding: var(--space-3) var(--space-4);
+  border-bottom: 1px solid var(--e-rule);
+}
+.track-form .fields { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: var(--space-2); }
+.track-form .fields.three { grid-template-columns: minmax(0, 2fr) minmax(0, 1fr) auto; }
+.track-form input,
+.track-form select {
+  min-width: 0;
+  padding: 8px 10px;
+  border: 1px solid var(--e-rule);
+  border-radius: var(--radius-md);
+  background: transparent;
+  color: var(--e-ink);
+  font-size: 15px;
+}
+.track-form input.name { font-family: var(--font-serif); }
+.track-form .actions { display: flex; gap: var(--space-2); }
+.track-form .actions .grow { margin-left: auto; }
+.track-form .btn.warn { color: var(--e-warn); }
+
+@media (max-width: 420px) {
+  /* Three fields do not fit a narrow phone on one line: the name gets its own. */
+  .track-form .fields.three { grid-template-columns: minmax(0, 1fr) auto; }
+  .track-form .fields.three .name { grid-column: 1 / -1; }
+}
+
+.track-add {
+  display: block;
+  width: 100%;
+  text-align: left;
+  padding: var(--space-3) var(--space-4);
+  font-size: 14px;
+  color: var(--e-ink-soft);
+  border-bottom: 1px solid var(--e-rule);
+}
+.track-add svg { vertical-align: -1px; margin-right: var(--space-2); }
