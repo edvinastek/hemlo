@@ -137,6 +137,27 @@ export function occurrences(s: RuleFields, from: string, to: string, exceptions:
   return [...new Set(plan(s, from, to, exceptions).map((o) => o.date))]
 }
 
+/** The id of the task a series makes for one of its days, the same on every
+ *  device. Two phones that fill the same new day while out of touch then
+ *  write one row between them rather than two, and a task later moved to
+ *  another day still says which day it was made for, so that day is not
+ *  filled again. The digest is SHA-256 of the series id and the day, shaped
+ *  as a version 8 (custom) UUID so Postgres takes it as any other id. */
+export async function occurrenceId(seriesId: string, base: string): Promise<string> {
+  const bytes = new Uint8Array(await globalThis.crypto.subtle.digest(
+    'SHA-256', new TextEncoder().encode(`series-occurrence:${seriesId}:${base}`)))
+  bytes[6] = (bytes[6] & 0x0f) | 0x80
+  bytes[8] = (bytes[8] & 0x3f) | 0x80
+  const hex = [...bytes.slice(0, 16)].map((b) => b.toString(16).padStart(2, '0')).join('')
+  return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-${hex.slice(16, 20)}-${hex.slice(20, 32)}`
+}
+
+/** The chosen last day comes before the first, so the series would never
+ *  produce a day and the task being saved would go nowhere. */
+export function endsBeforeStart(start: string, endDate: string | null): boolean {
+  return !!endDate && endDate < start
+}
+
 /* ---------- the Repeat control ------------------------------------------- */
 
 export type RepeatKind = 'never' | 'daily' | 'weekdays' | 'weekly' | 'biweekly' | 'monthly'

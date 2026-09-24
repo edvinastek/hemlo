@@ -2,6 +2,7 @@
 // 2026-09-24 is a Thursday; 2026-09-28 a Monday; 2028 is a leap year.
 import {
   occurrences, plan, baseDates, addDays, weekdayOf, ruleFromChoice, describeRule, toDayNumber, fromDayNumber,
+  occurrenceId, endsBeforeStart,
 } from '../lib/series-rules.ts'
 
 let fail = 0
@@ -148,6 +149,24 @@ eq('describe monthly on the 31st', describeRule(series('monthly', '2026-08-31'))
 eq('describe monthly on the 2nd', describeRule(series('monthly', '2026-08-02')), 'Monthly on the 2nd')
 eq('describe monthly on the 12th', describeRule(series('monthly', '2026-08-12')), 'Monthly on the 12th')
 eq('describe with an end', describeRule(series('daily', '2026-09-24', { end_date: '2026-11-03' })), 'Every day until 3 Nov 2026')
+
+// Occurrence ids: the same series and day give the same id on every device,
+// so two phones filling one day while apart make one row, not two.
+const sid = '6f1c2a3e-0000-4000-8000-000000000001'
+const idA = await occurrenceId(sid, '2026-10-01')
+eq('occurrence id is a UUID Postgres accepts', /^[0-9a-f]{8}-[0-9a-f]{4}-8[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/.test(idA), true)
+eq('occurrence id is the same when made again', await occurrenceId(sid, '2026-10-01'), idA)
+eq('occurrence id differs by day', (await occurrenceId(sid, '2026-10-02')) !== idA, true)
+eq('occurrence id differs by series', (await occurrenceId('6f1c2a3e-0000-4000-8000-000000000002', '2026-10-01')) !== idA, true)
+const ids = new Set()
+for (let i = 0; i < 400; i++) ids.add(await occurrenceId(sid, addDays('2026-09-24', i)))
+eq('four hundred days give four hundred ids', ids.size, 400)
+
+// An end before the start: the sheet refuses to save rather than lose the task.
+eq('end before start', endsBeforeStart('2026-09-24', '2026-09-23'), true)
+eq('end on the start day is fine', endsBeforeStart('2026-09-24', '2026-09-24'), false)
+eq('no end is fine', endsBeforeStart('2026-09-24', null), false)
+eq('an end before the start produces no days', occurrences(series('daily', '2026-09-24', { end_date: '2026-09-23' }), '2026-09-01', '2026-10-30'), [])
 
 console.log(fail ? `\n${fail} check(s) failed` : '\nall checks passed')
 process.exit(fail ? 1 : 0)

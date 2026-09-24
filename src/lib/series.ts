@@ -1,10 +1,10 @@
 import { format } from 'date-fns'
 import { db, getMeta, setMeta } from './db'
 import { push } from './sync'
-import { blankTask, saveTask } from './tasks'
+import { blankTask, deleteTask, saveTask } from './tasks'
 import { edit } from './write'
 import type { PendingChange, Series, SeriesException, Task } from './types'
-import { addDays, plan, ruleFromChoice, type RepeatKind } from './series-rules'
+import { addDays, occurrenceId, plan, ruleFromChoice, type RepeatKind } from './series-rules'
 
 /** How far ahead a series is turned into real tasks. Eight weeks is enough to
  *  plan a month and see the next, and few enough rows that a daily series does
@@ -24,27 +24,40 @@ const hhmm = (t: string | null | undefined) => (t ? t.slice(0, 5) : null)
 /** Where this device has already filled a series up to. See materializeSeries. */
 const throughKey = (seriesId: string) => `series-through:${seriesId}`
 
+type Write =
+  | { table: 'task'; row: Task; fields: (keyof Task & string)[] }
+  | { table: 'series'; row: Series; fields: (keyof Series & string)[] }
+
 /** Many rows at once, sent in one push. queueChange starts a push per call,
  *  and fifty-six pushes racing each other would each try to insert the same
- *  new rows, and all but one would be refused as duplicates. */
-async function writeTasks(rows: { task: Task; fields: (keyof Task & string)[] }[]) {
+ *  new rows, and all but one would be refused as duplicates. Rows are queued
+ *  in the order given, and a push sends them in that order, so a series goes
+ *  up before the tasks that point at it. `send: false` leaves the push to a
+ *  write that follows straight after. */
+async function writeRows(rows: Write[], send = true) {
   if (rows.length === 0) return
   const now = new Date().toISOString()
-  const tasks = rows.map((r) => ({ ...r.task, updated_at: now }))
-  const pending: PendingChange[] = rows.map((r, i) => ({
-    table: 'task',
-    row_id: tasks[i].id,
+  const stamped = rows.map((r) => ({ ...r, row: { ...r.row, updated_at: now } }))
+  const pending: PendingChange[] = stamped.map((r) => ({
+    table: r.table,
+    row_id: r.row.id,
     op: 'upsert',
-    payload: Object.fromEntries(r.fields.map((f) => [f, tasks[i][f]])),
+    payload: Object.fromEntries(r.fields.map((f) => [f, (r.row as unknown as Record<string, unknown>)[f]])),
     fields: r.fields,
     changed_at: now,
   }))
-  await db.transaction('rw', db.task, db.pending, async () => {
-    await db.task.bulkPut(tasks)
+  const tasks = stamped.filter((r) => r.table === 'task').map((r) => r.row as Task)
+  const series = stamped.filter((r) => r.table === 'series').map((r) => r.row as Series)
+  await db.transaction('rw', db.task, db.series, db.pending, async () => {
+    if (series.length) await db.series.bulkPut(series)
+    if (tasks.length) await db.task.bulkPut(tasks)
     await db.pending.bulkAdd(pending)
   })
-  if (navigator.onLine) void push()
+  if (send && navigator.onLine) void push()
 }
+
+const writeTasks = (rows: { task: Task; fields: (keyof Task & string)[] }[]) =>
+  writeRows(rows.map((r) => ({ table: 'task' as const, row: r.task, fields: r.fields })))
 
 const everyTaskField = (t: Task) =>
   (Object.keys(t) as (keyof Task & string)[]).filter((k) => k !== 'id' && k !== 'updated_at')
@@ -105,8 +118,13 @@ async function fill(profileId: string, from: string): Promise<number> {
       // A task on the base day means the move has not reached this device yet;
       // leave it for the sync rather than make a second one.
       if (days.has(occ.date) || days.has(occ.base)) continue
+      // A row with this day's id already exists when the occurrence was moved
+      // somewhere without a move being written down: it is still that day's task.
+      const id = await occurrenceId(s.id, occ.base)
+      if (await db.task.get(id)) continue
       const change = exceptions.find((e) => e.exception_date === occ.base && e.action === 'change')?.changes ?? {}
       const task = blankTask(profileId, occ.date, {
+        id,
         title: s.title,
         series_id: s.id,
         module_key: s.module_key,
@@ -141,8 +159,14 @@ export interface RepeatChoice {
  *  is one the rule produces. When it is not (a Tuesday task set to repeat on
  *  Mondays and Wednesdays), a new task is not saved on the Tuesday, because
  *  the person asked for Mondays and Wednesdays; an existing task stays where
- *  it was, as a one-off. */
-export async function startSeries(task: Task, choice: RepeatChoice, isNew: boolean): Promise<Series> {
+ *  it was, as a one-off.
+ *
+ *  `changed` is what the person edited on an existing task; only those fields
+ *  (and the link to the series) are sent, so a tick made on another device in
+ *  the meantime is not overwritten. A new task is sent whole. */
+export async function startSeries(
+  task: Task, choice: RepeatChoice, isNew: boolean, changed: (keyof Task & string)[] = [],
+): Promise<Series> {
   const start = task.planned_date ?? dayOf(new Date())
   const now = new Date().toISOString()
   const fields: Omit<Series, 'id' | 'updated_at'> = {
@@ -161,12 +185,26 @@ export async function startSeries(task: Task, choice: RepeatChoice, isNew: boole
     deleted_at: null,
   }
   // A new row is sent whole: the sync inserts it because the server has no row with this id.
-  const series = await edit<Series>('series', { id: crypto.randomUUID(), updated_at: now } as Series, fields)
+  const series: Series = { id: crypto.randomUUID(), updated_at: now, ...fields }
+  const rows: Write[] = [{ table: 'series', row: series, fields: Object.keys(fields) as (keyof Series & string)[] }]
 
   const first = plan(series, start, start).length > 0
-  if (first) await saveTask({ ...task, planned_date: start, series_id: series.id })
-  else if (!isNew) await saveTask(task)
-  await materializeSeries(task.profile_id)
+  if (first) {
+    // A new task takes its day's shared id, like every task the fill makes;
+    // an existing one keeps its own, since other rows may already point at it.
+    const id = isNew ? await occurrenceId(series.id, start) : task.id
+    const row: Task = { ...task, id, planned_date: start, series_id: series.id }
+    const sent = isNew ? everyTaskField(row) : [...new Set([...changed, 'planned_date', 'series_id'] as (keyof Task & string)[])]
+    rows.push({ table: 'task', row, fields: sent })
+  } else if (!isNew && changed.length) {
+    rows.push({ table: 'task', row: task, fields: changed })
+  }
+  // The series, its first task and the weeks the fill adds go up in one push.
+  // Separate pushes run side by side, and each would try to insert the new
+  // series, the second being refused as a duplicate and logged as a conflict.
+  await writeRows(rows, false)
+  const made = await materializeSeries(task.profile_id)
+  if (made === 0 && navigator.onLine) void push()
   return series
 }
 
@@ -189,6 +227,10 @@ async function baseDayOf(task: Task): Promise<string | null> {
  *  server allows one exception per series and day, deleted or not, so an
  *  earlier row for that day is reused rather than a second one made. */
 async function recordMove(seriesId: string, base: string, to: string | null) {
+  // An exception for a series this device does not hold would be refused by
+  // the server's reference to it, and there is nothing here for it to steer.
+  const series = await db.series.get(seriesId)
+  if (!series || series.deleted_at) return
   const existing = await db.series_exception.where('[series_id+exception_date]').equals([seriesId, base]).first()
   if (to === base) {
     if (existing && !existing.deleted_at) await edit('series_exception', existing, { deleted_at: new Date().toISOString() })
@@ -210,6 +252,16 @@ export async function editOccurrence(before: Task, after: Task, fields: (keyof T
     if (base) await recordMove(after.series_id, base, after.planned_date)
   }
   await saveTask(after, fields)
+}
+
+/** Delete one day of a series. The task row stays, marked deleted, which is
+ *  enough for this device. A skip is also written down against the series,
+ *  because the series and its exceptions are what another device fills from:
+ *  one that has not pulled this deletion yet must not fill the day again. */
+export async function deleteOccurrence(task: Task) {
+  const base = await baseDayOf(task)
+  if (task.series_id && base) await recordMove(task.series_id, base, null)
+  await deleteTask(task)
 }
 
 /** "This and following": the series takes the change, and so does every

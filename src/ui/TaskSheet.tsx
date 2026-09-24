@@ -4,8 +4,8 @@ import { useLiveQuery } from 'dexie-react-hooks'
 import type { Task } from '../lib/types'
 import { db } from '../lib/db'
 import { deleteTask, saveTask } from '../lib/tasks'
-import { editFollowing, editOccurrence, seriesChanges, startSeries, stopSeries, upcomingCount } from '../lib/series'
-import { dayName, describeRule, ruleFromChoice, weekdayOf, WEEK_ORDER, type RepeatKind } from '../lib/series-rules'
+import { deleteOccurrence, editFollowing, editOccurrence, seriesChanges, startSeries, stopSeries, upcomingCount } from '../lib/series'
+import { dayName, describeRule, endsBeforeStart, ruleFromChoice, weekdayOf, WEEK_ORDER, type RepeatKind } from '../lib/series-rules'
 import './tasksheet.css'
 
 const REPEAT_LABELS: [RepeatKind, string][] = [
@@ -54,6 +54,8 @@ export function TaskSheet({ task, isNew, onClose }: { task: Task; isNew: boolean
     occurrence_count: null,
   }
 
+  const endsEarly = !!preview && endsBeforeStart(start, preview.end_date)
+
   function chooseRepeat(kind: RepeatKind) {
     setRepeat(kind)
     if ((kind === 'weekly' || kind === 'biweekly') && weekdays.length === 0) setWeekdays([weekdayOf(start)])
@@ -93,7 +95,10 @@ export function TaskSheet({ task, isNew, onClose }: { task: Task; isNew: boolean
     if (!inSeries) {
       if (preview) {
         const choice = { kind: repeat as Exclude<RepeatKind, 'never'>, weekdays: pickedDays, endDate: preview.end_date }
-        return run(() => startSeries(next, choice, isNew))
+        // A last day before the first would leave the series empty and the new
+        // task saved nowhere, so nothing is saved until the dates make sense.
+        if (endsEarly) return
+        return run(() => startSeries(next, choice, isNew, isNew ? [] : changedFields(next)))
       }
       return run(() => saveTask(next))
     }
@@ -225,7 +230,7 @@ export function TaskSheet({ task, isNew, onClose }: { task: Task; isNew: boolean
                   {preview && (
                     <p className="ts-repeat-rule">
                       {describeRule(preview)}. Starts {format(new Date(`${start}T12:00:00`), 'd MMM')}.
-                      {endKind === 'date' && endDate && endDate < start ? ' The last day is before the first, so nothing repeats.' : ''}
+                      {endsEarly ? ' The last day is before the first. Pick a later one to save.' : ''}
                     </p>
                   )}
                 </>
@@ -246,10 +251,10 @@ export function TaskSheet({ task, isNew, onClose }: { task: Task; isNew: boolean
               {!isNew && !confirmDelete && <button type="button" className="btn" onClick={() => setConfirmDelete(true)}>Delete</button>}
               {!isNew && confirmDelete && (
                 <button type="button" className="btn" style={{ color: 'var(--e-warn)' }}
-                  onClick={() => void deleteTask(task).then(onClose)}>{inSeries ? 'Delete this day' : 'Delete for good'}</button>
+                  onClick={() => void (inSeries ? deleteOccurrence(task) : deleteTask(task)).then(onClose)}>{inSeries ? 'Delete this day' : 'Delete for good'}</button>
               )}
               <button type="button" className="btn grow" onClick={onClose}>Cancel</button>
-              <button type="submit" className="btn btn-primary" disabled={busy}>Save</button>
+              <button type="submit" className="btn btn-primary" disabled={busy || endsEarly}>Save</button>
             </div>
           </>
         )}
