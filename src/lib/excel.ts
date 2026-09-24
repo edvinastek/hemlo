@@ -5,13 +5,19 @@
 export interface ImportPreview {
   foods: { name: string; kcal: number | null; carbs_g: number | null; fiber_g: number | null; fat_g: number | null; protein_g: number | null }[]
   exercises: { name: string }[]
-  recipes: { name: string; kcal: number | null; protein_g: number | null; ingredients: string }[]
+  recipes: {
+    name: string; kcal: number | null; carbs_g: number | null; fiber_g: number | null
+    fat_g: number | null; protein_g: number | null; ingredients: string
+  }[]
   sheets: string[]
   skipped: number
 }
 
 const num = (v: unknown): number | null => {
-  const n = typeof v === 'number' ? v : Number(String(v ?? '').replace(',', '.'))
+  // An empty cell is unknown, not zero: Number('') is 0, and a food saved
+  // with 0 kcal would quietly shrink every meal it is in.
+  if (v === null || v === undefined || String(v).trim() === '') return null
+  const n = typeof v === 'number' ? v : Number(String(v).trim().replace(',', '.'))
   return Number.isFinite(n) ? n : null
 }
 
@@ -46,7 +52,10 @@ export async function readWorkbook(file: File): Promise<ImportPreview> {
   for (const row of rowsOf('D_Meals').slice(1)) {
     const name = String(row[1] ?? '').trim()
     if (!name) continue
-    preview.recipes.push({ name, kcal: num(row[2]), protein_g: num(row[6]), ingredients: String(row[7] ?? '') })
+    preview.recipes.push({
+      name, kcal: num(row[2]), carbs_g: num(row[3]), fiber_g: num(row[4]),
+      fat_g: num(row[5]), protein_g: num(row[6]), ingredients: String(row[7] ?? ''),
+    })
   }
 
   return preview
