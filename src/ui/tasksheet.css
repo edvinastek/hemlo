@@ -1,0 +1,30 @@
+/* Task sheet: the Repeat control and the two questions a series asks. */
+
+.ts-days { display: flex; flex-wrap: wrap; gap: var(--space-1); }
+/* A picked day is marked by weight and the tint, not the accent: the accent is
+   kept for the primary button, and this is a choice, not an action. */
+.ts-day {
+  font-family: var(--font-sans); font-size: 13px; font-variant-numeric: tabular-nums;
+  min-width: 44px; padding: 6px 8px;
+  border: 1px solid var(--e-rule); border-radius: var(--radius-pill);
+  background: transparent; color: var(--e-ink-soft);
+}
+.ts-day[aria-pressed="true"] { background: var(--e-tint); color: var(--e-ink); border-color: var(--e-ink-soft); font-weight: 600; }
+
+.ts-repeat { display: grid; grid-template-columns: 1fr auto; gap: 4px var(--space-3); align-items: center; }
+.ts-repeat-label { grid-column: 1 / -1; font-family: var(--font-sans); font-size: 13px; color: var(--e-ink-soft); }
+.ts-repeat-rule { font-family: var(--font-sans); font-size: 13px; color: var(--e-ink-soft); margin: 0; }
+.ts-repeat .ts-repeat-rule { color: var(--e-ink); font-size: 14px; }
+.ts-stop { white-space: nowrap; }
+
+.ts-question { display: grid; gap: var(--space-2); }
+.ts-question-title { font-family: var(--font-serif); font-size: 17px; color: var(--e-ink); margin: 0; }
+.ts-question-sub { font-family: var(--font-sans); font-size: 13px; color: var(--e-ink-soft); margin: 0 0 var(--space-2); }
+.ts-offer {
+  display: grid; gap: 2px; text-align: left; width: 100%;
+  padding: var(--space-3); border: 1px solid var(--e-rule); border-radius: var(--radius-md);
+  background: transparent; color: var(--e-ink);
+}
+.ts-offer:disabled { opacity: 0.6; }
+.ts-offer-name { font-family: var(--font-sans); font-size: 15px; font-weight: 600; }
+.ts-offer-why { font-family: var(--font-sans); font-size: 13px; color: var(--e-ink-soft); }
