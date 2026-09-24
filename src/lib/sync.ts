@@ -4,7 +4,11 @@ import { useApp } from './store'
 
 /** Tables the app keeps a full local copy of. Catalogue tables are shared
  *  reference data: pulled, never pushed, except rows a person owns. */
-const SYNCED = ['task', 'target', 'body_log', 'food_log', 'meal_plan_slot', 'module_instance'] as const
+const SYNCED = ['task', 'target', 'body_log', 'food_log', 'meal_plan_slot', 'module_instance', 'series', 'habit', 'supplement'] as const
+/** Rows that belong to a profile through their parent (a log to its habit).
+ *  Row-level security already limits them to the account, so they are fetched
+ *  without a profile filter, still incrementally. */
+const CHILDREN = ['habit_log', 'supplement_log', 'series_exception'] as const
 const CATALOGUE = ['food', 'recipe', 'recipe_line'] as const
 
 type Row = { id: string; updated_at?: string } & Record<string, unknown>
@@ -110,13 +114,14 @@ export async function pull(ids: string[]): Promise<number> {
   if (profileIds.length === 0) return 0
 
   let count = remoteProfiles?.length ?? 0
-  for (const table of [...SYNCED, ...CATALOGUE]) {
-    const incremental = (SYNCED as readonly string[]).includes(table)
+  for (const table of [...SYNCED, ...CHILDREN, ...CATALOGUE]) {
+    const scoped = (SYNCED as readonly string[]).includes(table)
+    const incremental = scoped || (CHILDREN as readonly string[]).includes(table)
     const cursorKey = `cursor:${table}`
     const cursor = incremental ? await getMeta<string | null>(cursorKey, null) : null
 
     let query = supabase.from(table).select('*')
-    if (incremental) query = query.in('profile_id', profileIds)
+    if (scoped) query = query.in('profile_id', profileIds)
     if (cursor) query = query.gt('updated_at', cursor)
     const { data, error } = await query
     if (error || !data) continue

@@ -7,6 +7,8 @@ import { PageHead } from '../ui/PageHead'
 import { TaskRow } from '../ui/TaskRow'
 import { saveTask, blankTask } from '../lib/tasks'
 import { TaskSheet } from '../ui/TaskSheet'
+import { BodySection } from '../sections/BodySection'
+import { ReviewCard } from '../sections/ReviewCard'
 import { dayTotals } from '../lib/nutrition'
 import type { Task } from '../lib/types'
 
@@ -68,6 +70,14 @@ export function Today() {
     await saveTask(next, ['planned_time', 'push_count', 'status', 'needs_review'])
   }
 
+  // The tabs filter the day: Work is the Work section, Night is anything from
+  // 18:00 or marked Night, Body is the body-and-habits page instead of the rail.
+  const shown = useMemo(() => {
+    if (section === 'Work') return tasks.filter((t) => t.category === 'Work')
+    if (section === 'Night') return tasks.filter((t) => t.category === 'Night' || (t.planned_time ?? '') >= '18:00')
+    return tasks
+  }, [tasks, section])
+
   const needsReview = useMemo(() => tasks.filter((t) => t.needs_review).length, [tasks])
   const persona = profile?.ai_persona_name
 
@@ -95,21 +105,31 @@ export function Today() {
           </div>
         )}
 
-        {persona && needsReview > 0 && (
+        {section === 'Today' && profile && <ReviewCard profileId={profile.id} day={day} variant="compact" />}
+        {section === 'Today' && persona && needsReview > 0 && (
           <p className="assistant">
             {persona}: {needsReview} {needsReview === 1 ? 'task has' : 'tasks have'} slipped. Want new slots?
           </p>
         )}
 
-        <div className="rail">
-          {tasks.length === 0 && (
-            <p className="empty">Nothing planned for this day yet. Add something with the + button.</p>
-          )}
-          {tasks.map((t) => (
-            <TaskRow key={t.id} task={t} onTick={tick} onPush={push}
-              onEdit={(task) => setEditing({ task, isNew: false })} />
-          ))}
-        </div>
+        {section === 'Body' && profile && <BodySection profileId={profile.id} day={day} />}
+        {section === 'Night' && profile && <ReviewCard profileId={profile.id} day={day} variant="full" />}
+
+        {section !== 'Body' && (
+          <div className="rail">
+            {shown.length === 0 && (
+              <p className="empty">
+                {section === 'Today'
+                  ? 'Nothing planned for this day yet. Add something with the + button.'
+                  : `Nothing in ${section} for this day.`}
+              </p>
+            )}
+            {shown.map((t) => (
+              <TaskRow key={t.id} task={t} onTick={tick} onPush={push}
+                onEdit={(task) => setEditing({ task, isNew: false })} />
+            ))}
+          </div>
+        )}
       </div>
 
       {profile && (

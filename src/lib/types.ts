@@ -101,6 +101,8 @@ export interface Target {
   carbs_g: number | null
   fiber_g: number | null
   reason: string | null
+  updated_at?: string
+  deleted_at?: string | null
 }
 
 export interface BodyLog {
@@ -110,6 +112,8 @@ export interface BodyLog {
   weight_kg: number | null
   waist_cm: number | null
   note: string | null
+  updated_at?: string
+  deleted_at?: string | null
 }
 
 export interface FoodLogEntry {
@@ -136,6 +140,76 @@ export interface MealPlanSlot {
   status: 'planned' | 'eaten' | 'skipped'
   updated_at: string
   deleted_at: string | null
+}
+
+export interface Series {
+  id: UUID
+  profile_id: UUID
+  title: string
+  /** daily | weekdays | weekly | every_n_weeks | monthly */
+  rule: 'daily' | 'weekdays' | 'weekly' | 'every_n_weeks' | 'monthly'
+  /** {n: 2, weekdays: [1,3,5], day_of_month: 15} — weekdays are 0 (Sunday) to 6 */
+  rule_config: { n?: number; weekdays?: number[]; day_of_month?: number }
+  start_date: string
+  end_date: string | null
+  occurrence_count: number | null
+  time_of_day: string | null
+  /** Fields copied onto every generated task: category, duration_min, locked, notes */
+  task_template: Partial<Pick<Task, 'category' | 'duration_min' | 'locked' | 'notes'>>
+  module_key: string | null
+  active: boolean
+  updated_at: string
+  deleted_at: string | null
+}
+
+export interface SeriesException {
+  id: UUID
+  series_id: UUID
+  exception_date: string
+  action: 'skip' | 'move' | 'change'
+  moved_to: string | null
+  changes: Record<string, unknown>
+  updated_at: string
+  deleted_at: string | null
+}
+
+export interface Habit {
+  id: UUID
+  profile_id: UUID
+  name: string
+  schedule: 'daily' | 'weekdays' | 'weekly'
+  sort_order: number
+  active: boolean
+  updated_at: string
+  deleted_at: string | null
+}
+
+export interface HabitLog {
+  id: UUID
+  habit_id: UUID
+  log_date: string
+  done: boolean
+  updated_at: string
+}
+
+export interface Supplement {
+  id: UUID
+  profile_id: UUID
+  name: string
+  dose_text: string | null
+  time_slot: 'morning' | 'midday' | 'evening' | null
+  active: boolean
+  sort_order: number
+  updated_at: string
+  deleted_at: string | null
+}
+
+export interface SupplementLog {
+  id: UUID
+  supplement_id: UUID
+  log_date: string
+  done: boolean
+  updated_at: string
 }
 
 export interface ModuleInstance {

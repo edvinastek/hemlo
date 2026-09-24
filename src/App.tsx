@@ -10,7 +10,7 @@ import { Nav } from './ui/Nav'
 import { Today } from './screens/Today'
 import { Auth, SetPassword } from './screens/Auth'
 import { listenForAuthLinks } from './lib/auth-links'
-import { watchLifecycle, remindersSoon } from './lib/lifecycle'
+import { watchLifecycle, refreshPlan } from './lib/lifecycle'
 import { Plan } from './screens/Plan'
 import { Food } from './screens/Food'
 import { Shop } from './screens/Shop'
@@ -25,7 +25,7 @@ export default function App() {
   useEffect(() => { listenForAuthLinks(); watchLifecycle() }, [])
 
   // Whenever the active profile changes (or first arrives), set its reminders.
-  useEffect(() => { if (profile) remindersSoon() }, [profile?.id, profile?.ai_persona_name])
+  useEffect(() => { if (profile) void refreshPlan() }, [profile?.id, profile?.ai_persona_name])
 
   // Session first: the app opens signed in wherever it was left.
   //
@@ -76,6 +76,7 @@ export default function App() {
     void (async () => {
       const local = await db.profile.toArray()
       await sync(local.map((p) => p.id))
+      await refreshPlan()
     })()
   }, [session?.user.id])
 
