@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  4 x 3 cells by default, resizable. It redraws when the app changes something,
+  when a row is ticked, and every 30 minutes (Android's shortest period), which
+  is what moves it to the next day after midnight.
+-->
+<appwidget-provider xmlns:android="http://schemas.android.com/apk/res/android"
+    android:minWidth="250dp"
+    android:minHeight="110dp"
+    android:minResizeWidth="180dp"
+    android:minResizeHeight="110dp"
+    android:targetCellWidth="4"
+    android:targetCellHeight="3"
+    android:resizeMode="horizontal|vertical"
+    android:updatePeriodMillis="1800000"
+    android:initialLayout="@layout/widget_today"
+    android:previewLayout="@layout/widget_today_preview"
+    android:previewImage="@drawable/widget_preview"
+    android:description="@string/widget_description"
+    android:widgetCategory="home_screen" />

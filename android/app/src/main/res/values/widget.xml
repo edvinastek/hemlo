@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- The widget's colours: the app's "notebook" tokens, the e set in
+     src/styles/tokens.css. values-night holds the dark ones; the home screen
+     picks by the phone's own light or dark setting. -->
+<resources>
+    <color name="widget_paper">#F8F4ED</color>
+    <color name="widget_ink">#201E1B</color>
+    <color name="widget_ink_soft">#6C665B</color>
+    <color name="widget_rule">#E4DDCD</color>
+    <color name="widget_rail">#CFC6B3</color>
+    <color name="widget_accent">#B4442A</color>
+    <string name="widget_name">GetIt · Today</string>
+    <string name="widget_description">Today\'s next tasks and habits. Tick them off without opening the app.</string>
+    <string name="widget_tick">Tick</string>
+</resources>

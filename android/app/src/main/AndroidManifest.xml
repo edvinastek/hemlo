@@ -41,6 +41,24 @@
             </intent-filter>
         </activity>
 
+        <!--
+          The home-screen widget. It shows today's tasks and habits from a copy
+          the app keeps on the phone (never from the server directly), and
+          ticks made on it go to TickReceiver, which no other app can reach.
+        -->
+        <receiver
+            android:name=".widget.TodayWidget"
+            android:label="@string/widget_name"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data android:name="android.appwidget.provider" android:resource="@xml/widget_today_info" />
+        </receiver>
+        <receiver
+            android:name=".widget.TickReceiver"
+            android:exported="false" />
+
         <provider
             android:name="androidx.core.content.FileProvider"
             android:authorities="${applicationId}.fileprovider"

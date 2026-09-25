@@ -16,6 +16,11 @@ apply plugin: 'com.android.application'
 
 android {
     namespace = "app.getit.planner"
+    testOptions {
+        unitTests {
+            includeAndroidResources = true
+        }
+    }
     compileSdk = rootProject.ext.compileSdkVersion
     defaultConfig {
         applicationId "app.getit.planner"
@@ -70,6 +75,11 @@ dependencies {
     implementation "androidx.core:core-splashscreen:$coreSplashScreenVersion"
     implementation project(':capacitor-android')
     testImplementation "junit:junit:$junitVersion"
+    // The widget's model reads JSON; Android's own org.json is only a stub in
+    // plain JVM tests. Robolectric draws the real widget layout in a test so
+    // it can be looked at without a phone (TodayWidgetRenderTest).
+    testImplementation "org.json:json:20260814"
+    testImplementation "org.robolectric:robolectric:4.17"
     androidTestImplementation "androidx.test.ext:junit:$androidxJunitVersion"
     androidTestImplementation "androidx.test.espresso:espresso-core:$androidxEspressoCoreVersion"
     implementation project(':capacitor-cordova-android-plugins')

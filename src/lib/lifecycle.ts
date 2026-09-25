@@ -5,6 +5,7 @@ import { rescheduleReminders } from './notify'
 import { sync } from './sync'
 import { materializeSeries } from './series'
 import { useApp } from './store'
+import { applyWidgetTicks, listenForWidgetTicks, watchWidget } from './widget'
 
 let timer: number | undefined
 
@@ -35,10 +36,16 @@ export function watchLifecycle() {
   db.task.hook('deleting', () => { remindersSoon() })
 
   if (isNative()) {
+    listenForWidgetTicks()
     void NativeApp.addListener('appStateChange', ({ isActive }) => {
       if (!isActive) return
-      const ids = useApp.getState().profiles.map((p) => p.id)
-      void sync(ids).then(refreshPlan)
+      const { profiles, profile } = useApp.getState()
+      // Ticks made on the home-screen widget first, so the sync sends them;
+      // then the widget is rebuilt, which also moves it on after midnight.
+      void applyWidgetTicks()
+        .then(() => sync(profiles.map((p) => p.id)))
+        .then(refreshPlan)
+        .then(() => watchWidget(profile?.id ?? null))
     })
   }
 }

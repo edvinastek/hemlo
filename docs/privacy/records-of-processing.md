@@ -100,7 +100,7 @@ Technical:
 - Sign-ups are invite-only until launch (`private.signup_allowlist`).
 - Passwords: at least 10 characters in the app, stored by Supabase Auth only as a hash. Sign-in links use PKCE, so a forwarded link cannot sign anyone in (`src/lib/supabase.ts`).
 - Only the publishable key ships in the app; the secret key is never in any build.
-- Android: app data is excluded from cloud backup and device transfer (`allowBackup="false"` and data extraction rules); reminders use a private notification channel so a locked phone shows no text; the local copy is cleared on sign-out.
+- Android: app data is excluded from cloud backup and device transfer (`allowBackup="false"` and data extraction rules); reminders use a private notification channel so a locked phone shows no text; the local copy is cleared on sign-out. The home-screen widget, if the user adds one, draws today's tasks and habits from a copy in the app's private storage (same backup exclusion); sign-out clears it and any ticks waiting in it. The widget's tick receiver is not exported, so no other app can change data through it.
 - Account deletion in the app and on the web, through one database function (`delete_my_account`).
 - No analytics, advertising, crash-reporting or other third-party SDKs.
 

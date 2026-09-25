@@ -85,10 +85,17 @@ export async function setMeta(key: string, value: unknown) {
 /** Forget everything this device holds. Called on sign-out and whenever a
  *  different account signs in, so one person's health data is never shown to
  *  the next person who uses the same browser or phone. */
+/** Other copies of the account's data kept outside this database (the
+ *  home-screen widget's) register here, so every way of forgetting the
+ *  account forgets them too. */
+const resetHooks: (() => Promise<void>)[] = []
+export function onResetLocal(fn: () => Promise<void>) { resetHooks.push(fn) }
+
 export async function resetLocal(): Promise<void> {
   await db.transaction('rw', db.tables, async () => {
     await Promise.all(db.tables.map((t) => t.clear()))
   })
+  await Promise.all(resetHooks.map((fn) => fn().catch(() => undefined)))
 }
 
 /** The account this device's copy belongs to. */

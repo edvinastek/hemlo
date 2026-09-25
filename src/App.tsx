@@ -11,6 +11,7 @@ import { Today } from './screens/Today'
 import { Auth, SetPassword } from './screens/Auth'
 import { listenForAuthLinks } from './lib/auth-links'
 import { watchLifecycle, refreshPlan } from './lib/lifecycle'
+import { applyWidgetTicks, watchWidget } from './lib/widget'
 import { Plan } from './screens/Plan'
 import { Food } from './screens/Food'
 import { Shop } from './screens/Shop'
@@ -26,6 +27,9 @@ export default function App() {
 
   // Whenever the active profile changes (or first arrives), set its reminders.
   useEffect(() => { if (profile) void refreshPlan() }, [profile?.id, profile?.ai_persona_name])
+
+  // The home-screen widget shows the open profile's day.
+  useEffect(() => { watchWidget(profile?.id ?? null) }, [profile?.id])
 
   // Session first: the app opens signed in wherever it was left.
   //
@@ -79,6 +83,8 @@ export default function App() {
     if (!session) return
     void (async () => {
       const local = await db.profile.toArray()
+      // Ticks made on the widget while the app was closed go up with this sync.
+      await applyWidgetTicks()
       await sync(local.map((p) => p.id))
       await refreshPlan()
     })()

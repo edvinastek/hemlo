@@ -74,6 +74,9 @@ jobs:
           GETIT_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
           GETIT_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
         run: ./gradlew --no-daemon bundleRelease assembleRelease
+      - name: Widget checks (what it shows for each size, drawn light and dark)
+        working-directory: android
+        run: ./gradlew --no-daemon testReleaseUnitTest
       - name: Nothing restricted slipped into the manifest
         run: |
           BT=$(ls -d $ANDROID_HOME/build-tools/* | sort -V | tail -1)
@@ -90,6 +93,7 @@ jobs:
           path: |
             android/app/build/outputs/bundle/release/*.aab
             android/app/build/outputs/apk/release/*.apk
+            android/app/build/widget-previews/*.png
 
   windows:
     name: Windows installer

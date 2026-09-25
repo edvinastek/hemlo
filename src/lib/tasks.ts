@@ -30,6 +30,15 @@ export async function saveTask(task: Task, changed?: (keyof Task & string)[]) {
   return row
 }
 
+/** Tick or untick, from Today or from the home-screen widget. */
+export function setTaskDone(task: Task, done: boolean) {
+  return saveTask({
+    ...task,
+    status: done ? 'done' : 'todo',
+    completed_at: done ? new Date().toISOString() : null,
+  }, ['status', 'completed_at'])
+}
+
 /** Deleting keeps the row with a date on it, so the deletion syncs to every
  *  device instead of the task reappearing from one that still has it. */
 export async function deleteTask(task: Task) {

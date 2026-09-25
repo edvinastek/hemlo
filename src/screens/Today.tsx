@@ -5,7 +5,7 @@ import { db } from '../lib/db'
 import { useApp } from '../lib/store'
 import { PageHead } from '../ui/PageHead'
 import { TaskRow } from '../ui/TaskRow'
-import { saveTask, blankTask } from '../lib/tasks'
+import { saveTask, blankTask, setTaskDone } from '../lib/tasks'
 import { TaskSheet } from '../ui/TaskSheet'
 import { BodySection } from '../sections/BodySection'
 import { ReviewCard } from '../sections/ReviewCard'
@@ -49,13 +49,7 @@ export function Today() {
   }, [profile?.id, day], { kcal: 0, protein: 0 })
 
   async function tick(task: Task) {
-    const next: Task = {
-      ...task,
-      status: task.status === 'done' ? 'todo' : 'done',
-      completed_at: task.status === 'done' ? null : new Date().toISOString(),
-      updated_at: new Date().toISOString(),
-    }
-    await saveTask(next, ['status', 'completed_at'])
+    await setTaskDone(task, task.status !== 'done')
   }
 
   async function push(task: Task, minutes: number) {
