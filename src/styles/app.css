@@ -422,8 +422,13 @@ hr, .rule { border: 0; border-top: 1px solid var(--e-rule); margin: 0; }
 .bottom-sheet h2 { font-size: 18px; margin-bottom: var(--space-3); }
 .form-grid { display: grid; gap: var(--space-3); }
 .form-grid label { display: grid; gap: 4px; font-family: var(--font-sans); font-size: 13px; color: var(--e-ink-soft); }
-.form-grid .two { display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-3); }
+.form-grid { min-width: 0; }
+/* minmax(0, …) and min-width: 0 let the fields shrink on a 360 px phone
+   instead of pushing the form, and its Save button, off the screen. */
+.form-grid .two { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--space-3); }
+.form-grid label { min-width: 0; }
 .form-grid input, .form-grid select, .form-grid textarea {
+  width: 100%; min-width: 0; box-sizing: border-box;
   padding: 9px 10px; border: 1px solid var(--e-rule); border-radius: var(--radius-md);
   background: transparent; color: var(--e-ink); font: inherit; font-size: 15px;
 }

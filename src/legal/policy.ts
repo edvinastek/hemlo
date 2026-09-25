@@ -8,7 +8,7 @@
  *  (VITE_CONTROLLER_NAME, VITE_CONTACT_EMAIL), so they are not hard-coded into
  *  the repository. The public site refuses to build without them. */
 
-export const POLICY_VERSION = '2026-09-24'
+export const POLICY_VERSION = '2026-09-25'
 
 export const controller = {
   name: (import.meta.env.VITE_CONTROLLER_NAME as string | undefined) ?? '',

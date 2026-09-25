@@ -24,7 +24,7 @@ Make throwaway ones, run, and delete them afterwards:
 export SB=<Supabase access token>  TEST_PASSWORD=<random>
 export TEST_EMAIL=e2e-a@example.invalid TEST_NEW_EMAIL=e2e-b@example.invalid TEST_FEAT_EMAIL=e2e-c@example.invalid
 node scripts/test-accounts.mjs create $TEST_EMAIL $TEST_NEW_EMAIL $TEST_FEAT_EMAIL
-for t in features offline privacy tracking tour; do node src/test/$t.e2e.mjs || break; done
+for t in features offline privacy tracking layout tour; do node src/test/$t.e2e.mjs || break; done
 node scripts/test-accounts.mjs delete $TEST_EMAIL $TEST_NEW_EMAIL $TEST_FEAT_EMAIL
 ```
 
@@ -37,6 +37,7 @@ to the test accounts, because they run against the live project.
 - `tracking` — weigh-in, habits and supplements, the same tick from two offline phones,
   a repeating task, the evening review, the Excel import, an export read into another account.
 - `tour` — walks every screen and reports what rendered.
+- `layout` — opens every screen and tab at 360 px wide and fails if anything runs off the side.
 
 ## Database — `supabase/test.sh`
 
