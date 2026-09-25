@@ -1,4 +1,4 @@
-import { useEffect, useState, type FormEvent } from 'react'
+import { useEffect, useRef, useState, type FormEvent } from 'react'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { format, parseISO } from 'date-fns'
 import { useApp } from '../lib/store'
@@ -37,14 +37,18 @@ export function WeighIn({ profileId, day }: { profileId: string; day: string }) 
   const [saving, setSaving] = useState(false)
 
   // Fill the form from the day's entry when the day changes or the entry
-  // itself changes (saved here or arriving from sync). Typing alone does not
-  // change the key, so it never resets what is being typed.
+  // itself changes (saved here or arriving from sync). What someone has typed
+  // for this day stays until they save it or move to another day.
   const entryKey = `${day}|${entry?.id ?? ''}|${entry?.updated_at ?? ''}`
+  const typed = useRef<string | null>(null)
   useEffect(() => {
+    if (typed.current === day) return
+    typed.current = null
     setWeight(entry ? String(entry.weight_kg) : '')
     setWaist(entry?.waist_cm != null ? String(entry.waist_cm) : '')
     setError(null)
   }, [entryKey])
+  const typing = () => { typed.current = day }
   useEffect(() => setNote(null), [day])
 
   const today = format(new Date(), 'yyyy-MM-dd')
@@ -60,6 +64,7 @@ export function WeighIn({ profileId, day }: { profileId: string; day: string }) 
     if (!c.ok) return setError(c.message)
     setError(null)
     setSaving(true)
+    typed.current = null
     try {
       await saveWeighIn(profileId, day, w.value!, c.value)
       if (profile) {
@@ -95,12 +100,12 @@ export function WeighIn({ profileId, day }: { profileId: string; day: string }) 
             <label>
               Weight, kg
               <input inputMode="decimal" autoComplete="off" value={weight} placeholder="82.4"
-                onChange={(e) => setWeight(e.target.value)} aria-invalid={error !== null && !parseWeight(weight).ok} />
+                onChange={(e) => { typing(); setWeight(e.target.value) }} aria-invalid={error !== null && !parseWeight(weight).ok} />
             </label>
             <label>
               Waist, cm (optional)
               <input inputMode="decimal" autoComplete="off" value={waist}
-                onChange={(e) => setWaist(e.target.value)} aria-invalid={error !== null && !parseWaist(waist).ok} />
+                onChange={(e) => { typing(); setWaist(e.target.value) }} aria-invalid={error !== null && !parseWaist(waist).ok} />
             </label>
           </div>
           {error && <p className="weighin-warn" role="alert">{error}</p>}

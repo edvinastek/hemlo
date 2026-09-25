@@ -16,6 +16,20 @@ type Syncable = { id: string }
 type Store = {
   get: (id: string) => Promise<Row | undefined>
   put: (r: Row) => Promise<unknown>
+  delete: (id: string) => Promise<unknown>
+}
+
+/** Tables where one row per key is the rule (one weigh-in a day, one tick per
+ *  habit a day). Two devices offline can each make that row under a different
+ *  id; when the second one arrives it is folded into the first rather than
+ *  refused, so a tick made on the other phone is never lost. */
+export const NATURAL_KEYS: Record<string, string[]> = {
+  module_instance: ['profile_id', 'module_key'],
+  body_log: ['profile_id', 'log_date'],
+  target: ['profile_id', 'from_date'],
+  habit_log: ['habit_id', 'log_date'],
+  supplement_log: ['supplement_id', 'log_date'],
+  series_exception: ['series_id', 'exception_date'],
 }
 const store = (table: string) => (db as unknown as Record<string, Store>)[table]
 
@@ -72,7 +86,7 @@ async function pushOnce(): Promise<number> {
   const pending = await db.pending.toArray()
   if (pending.length === 0) return 0
 
-  const byRow = new Map<string, { table: string; id: string; patch: Record<string, unknown>; ids: number[] }>()
+  const byRow = new Map<string, Entry>()
   for (const p of pending) {
     const key = `${p.table}:${p.row_id}`
     const entry = byRow.get(key) ?? { table: p.table, id: p.row_id, patch: {}, ids: [] }
@@ -81,44 +95,101 @@ async function pushOnce(): Promise<number> {
     byRow.set(key, entry)
   }
 
-  let sent = 0
+  // Tables go in the order their first edit was made, so a parent (a series,
+  // a habit) reaches the server before the rows that point at it. Rows of one
+  // table go several at a time: a new repeating task lays out a dozen days,
+  // and sending them one by one kept every later edit waiting behind them.
+  const byTable = new Map<string, Entry[]>()
   for (const entry of byRow.values()) {
-    const { updated_at: _ignored, ...patch } = entry.patch
-    const updated = await supabase.from(entry.table).update(patch).eq('id', entry.id).select('id')
+    const list = byTable.get(entry.table) ?? []
+    list.push(entry)
+    byTable.set(entry.table, list)
+  }
+  let sent = 0
+  let orphans = 0
+  for (const entries of byTable.values()) {
+    for (let i = 0; i < entries.length; i += PARALLEL) {
+      const results = await Promise.all(entries.slice(i, i + PARALLEL).map(sendOne))
+      sent += results.filter((r) => r === 'sent').length
+      orphans += results.filter((r) => r === 'orphan').length
+    }
+  }
+  // A child whose parent was still on its way is sent again once the parent is there.
+  if (orphans > 0 && sent > 0) again = true
+  return sent
+}
 
-    let error = updated.error
-    if (!error && (updated.data?.length ?? 0) === 0) {
-      const local = await store(entry.table)?.get(entry.id)
-      if (local) {
-        const { updated_at: _u, ...row } = local
-        error = (await supabase.from(entry.table).insert(row)).error
-        if (error?.code === '23505') {
-          // Already there under this id (it landed between the two calls):
-          // that is success, so send the patch once more and move on. A
-          // duplicate on some other key (the same day logged twice from two
-          // devices) still updates nothing and is recorded as refused.
-          const retry = await supabase.from(entry.table).update(patch).eq('id', entry.id).select('id')
-          if (!retry.error && (retry.data?.length ?? 0) > 0) error = null
-        }
+type Entry = { table: string; id: string; patch: Record<string, unknown>; ids: number[] }
+const PARALLEL = 6
+
+async function sendOne(entry: Entry): Promise<'sent' | 'refused' | 'orphan' | 'waiting'> {
+  const { updated_at: _ignored, ...patch } = entry.patch
+  const updated = await supabase.from(entry.table).update(patch).eq('id', entry.id).select('id')
+
+  let error = updated.error
+  if (!error && (updated.data?.length ?? 0) === 0) {
+    const local = await store(entry.table)?.get(entry.id)
+    if (local) {
+      const { updated_at: _u, ...row } = local
+      error = (await supabase.from(entry.table).insert(row)).error
+      if (error?.code === '23505') {
+        // Already there under this id (it landed between the two calls):
+        // that is success, so send the patch once more and move on. A
+        // duplicate on its natural key (the same day's tick made on another
+        // phone) is folded into that row. Anything else is refused.
+        const retry = await supabase.from(entry.table).update(patch).eq('id', entry.id).select('id')
+        if (!retry.error && (retry.data?.length ?? 0) > 0) error = null
+        else if (await foldIntoTwin(entry.table, local, patch)) error = null
       }
     }
-
-    if (!error) {
-      await db.pending.bulkDelete(entry.ids)
-      sent++
-      continue
-    }
-    if (isPermanent(error.code)) {
-      // Kept where the person can read it, rather than retried forever or lost.
-      await db.conflicts.add({
-        table: entry.table, row_id: entry.id, field: Object.keys(patch).join(', '),
-        local_value: patch, remote_value: error.message, kept: 'rejected', at: new Date().toISOString(),
-      })
-      await db.pending.bulkDelete(entry.ids)
-    }
-    // Anything else (no connection, a timeout) stays queued for the next attempt.
   }
-  return sent
+
+  if (!error) {
+    await db.pending.bulkDelete(entry.ids)
+    return 'sent'
+  }
+  if (isPermanent(error.code)) {
+    // Kept where the person can read it, rather than retried forever or lost.
+    await db.conflicts.add({
+      table: entry.table, row_id: entry.id, field: Object.keys(patch).join(', '),
+      local_value: patch, remote_value: error.message, kept: 'rejected', at: new Date().toISOString(),
+    })
+    await db.pending.bulkDelete(entry.ids)
+    return 'refused'
+  }
+  // A missing parent, no connection, a timeout: stays queued for the next attempt.
+  return error.code === '23503' ? 'orphan' : 'waiting'
+}
+
+/** The row collided with another on its natural key: the same day's weigh-in
+ *  or habit tick, made on another device under another id. Apply this
+ *  device's fields to that row, adopt its id locally, and note it where the
+ *  person can see it when a value really differed. */
+async function foldIntoTwin(table: string, local: Row, patch: Record<string, unknown>): Promise<boolean> {
+  const keys = NATURAL_KEYS[table]
+  if (!keys || keys.some((k) => local[k] == null)) return false
+  let query = supabase.from(table).select('*')
+  for (const k of keys) query = query.eq(k, local[k] as string)
+  const { data: twin, error } = await query.maybeSingle()
+  if (error || !twin || twin.id === local.id) return false
+
+  const { id: _id, ...fields } = patch
+  const merged = await supabase.from(table).update(fields).eq('id', twin.id).select('*')
+  const row = merged.data?.[0] as Row | undefined
+  if (merged.error || !row) return false
+
+  const differed = Object.keys(fields).filter((f) => f !== 'updated_at' && !keys.includes(f) && String(twin[f]) !== String(fields[f]))
+  if (differed.length) {
+    await db.conflicts.add({
+      table, row_id: twin.id, field: differed.join(', '),
+      local_value: Object.fromEntries(differed.map((f) => [f, fields[f]])),
+      remote_value: Object.fromEntries(differed.map((f) => [f, twin[f]])),
+      kept: 'local', at: new Date().toISOString(),
+    })
+  }
+  await store(table).delete(local.id)
+  await store(table).put(row)
+  return true
 }
 
 /** Fetch what changed. The cursor per table is the newest updated_at the

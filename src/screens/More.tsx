@@ -251,8 +251,9 @@ function DataPanel() {
         setPreview({ file, preview, plan: await planWorkbook(preview, session.user.id) })
         return
       }
-      const result = await importBundle(file)
-      setNote(`${result.imported} records read from ${result.name}.`)
+      if (!profile || !session) { setNote('Sign in first. An export is read into the profile that is open.'); return }
+      const result = await importBundle(file, profile.id, session.user.id)
+      setNote(`${result.imported} records from ${result.name} added to ${profile.name}. They go up to your account with the next sync.`)
     } catch (e) {
       setNote(e instanceof Error ? e.message : 'That file could not be read.')
     }

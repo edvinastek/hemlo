@@ -1,4 +1,5 @@
 import { chromium } from 'playwright'
+import { signIn } from './e2e.mjs'
 
 // What a closed-test tester will do in the first ten minutes, end to end:
 // add, edit and delete a task; plan meals and size the main one; eat one;
@@ -45,11 +46,7 @@ await p.click('text=Forgot your password?')
 is('password reset is offered', await p.locator('button:has-text("Send reset link")').count(), 1)
 await p.click('text=Back to sign in')
 
-await p.fill('input[type=email]', email)
-await p.fill('input[type=password]', process.env.TEST_PASSWORD)
-await p.click('button[type=submit]')
-await p.waitForSelector('.bottom-nav', { timeout: 20000 })
-await p.waitForTimeout(3000)
+await signIn(p, email)
 
 // Tasks: add, edit, delete.
 await p.click('.fab')

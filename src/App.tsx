@@ -101,9 +101,16 @@ export default function App() {
   if (!session) return <Auth />
   if (recovering) return <SetPassword />
 
+  // Until the profile has landed and it is known whether setup is done, show
+  // nothing that could be tapped: a new account would otherwise glimpse an
+  // empty Today before the first-run wizard takes over.
+  if (!profile || needsSetup === undefined) {
+    return <div className="app"><p className="empty">Setting up your profile…</p></div>
+  }
+
   // The first run asks for the few things nothing can be calculated without,
   // and the nav stays away until it is done.
-  if (profile && needsSetup === true) {
+  if (needsSetup === true) {
     return <Onboarding onDone={() => setSetupDone(true)} />
   }
 
@@ -117,7 +124,6 @@ export default function App() {
         <Route path="/more" element={<More />} />
       </Routes>
       <Nav />
-      {!profile && <p className="empty">Setting up your profile…</p>}
     </div>
   )
 }

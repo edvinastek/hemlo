@@ -77,7 +77,7 @@ export function privacySections(): Section[] {
     {
       heading: 'Your rights',
       body: [
-        `See and take your data: More → Data → Export gives you everything GetIt holds about you in one file: profile, plan, recurring tasks, targets, weigh-ins, food log, meal plan, habits, supplements and your own recipes. You can also ask for a copy at ${mail}.`,
+        `See and take your data: More → Data → Export gives you everything GetIt holds about you in one file: profile, plan, recurring tasks, targets, weigh-ins, food log, meal plan, habits, supplements, and the foods and recipes you added. You can also ask for a copy at ${mail}.`,
         'Correct it: edit anything in the app.',
         'Delete it: More → Data → Delete account, or on the account deletion page, which works without the app.',
         `Object, restrict processing or ask anything else: write to ${mail}. You will get an answer within one month.`,

@@ -1,4 +1,5 @@
 import { chromium } from 'playwright'
+import { signIn } from './e2e.mjs'
 
 // Credentials come from the environment and are never committed: an account
 // whose password sits in the repository is an account anyone can sign in to.
@@ -13,10 +14,7 @@ const errors = []
 p.on('pageerror', e => errors.push(String(e).slice(0, 160)))
 p.on('console', m => { if (m.type() === 'error' && !m.text().includes('favicon')) errors.push(m.text().slice(0, 160)) })
 await p.goto('http://127.0.0.1:4173/', { waitUntil: 'networkidle' })
-await p.fill('input[type=email]',process.env.TEST_EMAIL); await p.fill('input[type=password]',process.env.TEST_PASSWORD)
-await p.click('button[type=submit]')
-await p.waitForSelector('.bottom-nav', { timeout: 20000 })
-await p.waitForTimeout(3500)
+await signIn(p, process.env.TEST_EMAIL)
 for (const [label, href] of [['today','/'],['plan','/plan'],['food','/food'],['shop','/shop'],['more','/more']]) {
   await p.click(`.bottom-nav a[href="${href}"]`)
   await p.waitForTimeout(1200)
