@@ -37,7 +37,8 @@ to the test accounts, because they run against the live project.
 - `tracking` — weigh-in, habits and supplements, the same tick from two offline phones,
   a repeating task, the evening review, the Excel import, an export read into another account.
 - `tour` — walks every screen and reports what rendered.
-- `layout` — opens every screen and tab at 360 px wide and fails if anything runs off the side.
+- `layout` — opens every screen and tab at 360 px wide and fails if anything runs off the side
+  or sits under the floating add button.
 
 ## Database — `supabase/test.sh`
 

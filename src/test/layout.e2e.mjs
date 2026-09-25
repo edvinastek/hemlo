@@ -1,6 +1,6 @@
 import { need, open, signIn } from './e2e.mjs'
 
-// Nothing on any screen runs off a small phone. At 360 px wide (the most
+// Nothing on any screen runs off a small phone or hides under the add button. At 360 px wide (the most
 // common Android width) every screen and tab is opened, and anything whose
 // right edge passes the screen is reported. Needs TEST_EMAIL and TEST_PASSWORD.
 need('TEST_EMAIL', 'TEST_PASSWORD')
@@ -25,6 +25,23 @@ const overflow = () => p.evaluate(() => {
   return out.slice(0, 5)
 })
 
+// With the page scrolled to its end, nothing tappable may sit under the
+// floating add button.
+const underFab = () => p.evaluate(() => {
+  const page = document.querySelector('.page')
+  if (page) page.scrollTop = page.scrollHeight
+  const fab = document.querySelector('.fab')
+  if (!fab) return []
+  const f = fab.getBoundingClientRect()
+  const out = []
+  for (const el of document.querySelectorAll('.page button, .page input, .page select, .page a')) {
+    const r = el.getBoundingClientRect()
+    if (el === fab || r.width === 0 || r.height === 0) continue
+    if (r.left < f.right && r.right > f.left && r.top < f.bottom && r.bottom > f.top) out.push(`${el.tagName.toLowerCase()} "${(el.textContent || el.getAttribute('aria-label') || '').trim().slice(0, 30)}"`)
+  }
+  return out
+})
+
 let bad = 0
 const screens = [['/', ['Today', 'Body', 'Work', 'Night']], ['/plan', ['Week', 'Month', 'Year']], ['/food', ['Day', 'Recipes', 'Foods']],
   ['/shop', ['Trip', 'Stock', 'Stores']], ['/more', ['Modules', 'Profile', 'Assistant', 'Data']]]
@@ -33,7 +50,7 @@ for (const [href, tabs] of screens) {
   for (const t of tabs) {
     await p.click(`.tabs button:has-text("${t}")`)
     await p.waitForTimeout(700)
-    const found = await overflow()
+    const found = [...await overflow(), ...(await underFab()).map((x) => `${x} is under the add button`)]
     if (found.length) bad++
     console.log(`${found.length ? 'FAIL' : 'ok  '}  ${href} ${t}${found.length ? ': ' + found.join('; ') : ''}`)
   }
@@ -45,6 +62,6 @@ const sheet = await overflow()
 if (sheet.length) bad++
 console.log(`${sheet.length ? 'FAIL' : 'ok  '}  new task sheet${sheet.length ? ': ' + sheet.join('; ') : ''}`)
 console.log(errors.length ? 'PAGE ERRORS: ' + errors.join(' | ') : 'no page errors')
-console.log(bad ? `\n${bad} screen(s) run off a 360 px phone` : '\nall checks passed')
+console.log(bad ? `\n${bad} screen(s) do not fit a 360 px phone` : '\nall checks passed')
 await b.close()
 process.exit(bad || errors.length ? 1 : 0)

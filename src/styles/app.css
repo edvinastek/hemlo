@@ -47,7 +47,10 @@ hr, .rule { border: 0; border-top: 1px solid var(--e-rule); margin: 0; }
 
 .page {
   overflow-y: auto;
-  padding-bottom: var(--space-6);
+  /* Room for the round add button, which floats over the bottom of the page:
+     without it, the last button on a page (Done under the habits) sits
+     underneath it and cannot be tapped. */
+  padding-bottom: calc(var(--space-6) + 72px);
 }
 
 /* Phone: five-item bottom nav that never changes. Desktop: sidebar + panes. */
