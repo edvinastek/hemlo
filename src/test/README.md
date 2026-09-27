@@ -19,6 +19,7 @@ Types, then every check that needs nothing but Node. CI runs the same command.
 - `timeframe` — a task's length as minutes or as an end time, across midnight.
 - `notes` — the note's checklists, bullets, headings and bold; ticking; the toolbar.
 - `quickfood` — meals as plain numbers (per 100 g and other sizes), and which figures the food pages and Today show.
+- `stock` — typing and showing amounts, the −/+ steps, what an eaten meal takes and gives back, what a trip puts in stock.
 
 ## Browser checks
 
@@ -51,6 +52,8 @@ to the test accounts, because they run against the live project.
 - `widget` — the app’s side of the Android widget, with a stand-in for the native bridge:
   what it is sent, ticks applied while open and after a restart, cleared on sign-out.
 - `tasksheet` — a task with a time range, a checklist note ticked on its page, the chip on Today.
+- `stock` — the cupboard: add by search, adjust, remove; the trip less stock; ingredients
+  taken out when a meal is eaten and put back when it is unticked.
 - `layout` — opens every screen and tab at 360 px wide and fails if anything runs off the side
   or sits under the floating add button.
 

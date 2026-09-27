@@ -5,6 +5,7 @@ import { recipeMacros, type Macros } from './calc'
 import { blankTask, saveTask } from './tasks'
 import { mealTime, readSettings, type ProfileSettings } from './settings'
 import { isQuick, quickTitle, type QuickEntry } from './quick-food'
+import { consumeForMeal } from './stock'
 import type { Food, FoodLogEntry, MealPlanSlot, Recipe } from './types'
 
 /** The day's meals. They have no time of their own: a time comes from the
@@ -173,6 +174,7 @@ async function logQuick(slot: MealPlanSlot) {
 
 /** Eating a planned meal logs it, which is what moves the day's totals. */
 export async function markEaten(slot: MealPlanSlot, eaten: boolean) {
+  await consumeForMeal(slot, eaten ? 1 : -1)   // stock, if they switched that on; the slot is still the old one here
   const saved = await saveSlot({ ...slot, status: eaten ? 'eaten' : 'planned' })
   const quick = isQuick(slot)
   const logs = (await db.food_log.where('profile_id').equals(slot.profile_id).toArray())
