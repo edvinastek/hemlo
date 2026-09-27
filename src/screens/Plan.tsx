@@ -1,31 +1,46 @@
 import { useMemo, useState, type CSSProperties } from 'react'
 import { useLiveQuery } from 'dexie-react-hooks'
 import {
-  addDays, eachDayOfInterval, endOfMonth, endOfWeek, format, isSameDay,
-  isSameMonth, startOfMonth, startOfWeek, startOfYear,
+  addMonths, eachDayOfInterval, endOfMonth, endOfWeek, format, isSameDay,
+  isSameMonth, parseISO, startOfMonth, startOfWeek,
 } from 'date-fns'
 import { db } from '../lib/db'
 import { useApp } from '../lib/store'
 import { PageHead } from '../ui/PageHead'
+import { MonthScroller, type DayHeat } from '../ui/MonthScroller'
+import { useDayRange } from '../ui/useDayRange'
 import { useModuleColours, type ModuleColours } from '../lib/colours'
 import { modulesByWeight } from '../lib/colours-rules'
+import { usePlannedRepeats } from '../lib/planned'
+import type { PlannedRepeat } from '../lib/series-rules'
 import type { Task } from '../lib/types'
 import '../ui/colours.css'
 
 const SECTIONS = ['Week', 'Month', 'Year']
+const key = (d: Date) => format(d, 'yyyy-MM-dd')
 
 /** Year gives the overview, month the load, week the headers, day the detail.
- *  Each level answers one question and hands the next one down. */
+ *  Each level answers one question and hands the next one down.
+ *
+ *  Every view reaches three years back and five ahead. A repeating task is
+ *  a real task only eight weeks ahead; past that, the days its series will
+ *  land on are shown as "planned repeats", worked out from the series, in
+ *  the load and colours as well as in the week list. */
 export function Plan() {
   const profile = useApp((s) => s.profile)
   const [date, setDate] = useState(new Date())
   const [section, setSection] = useState('Week')
   const colours = useModuleColours()
+  const { range, clamp, today } = useDayRange()
+  const go = (d: Date) => setDate(clamp(d))
 
   const tasks = useLiveQuery(async () => {
     if (!profile) return []
     return (await db.task.where('profile_id').equals(profile.id).toArray()).filter((t) => !t.deleted_at)
   }, [profile?.id], [] as Task[])
+
+  // Worked out once for the whole reach ahead; every view reads from it.
+  const planned = usePlannedRepeats(profile?.id, today, range.last)
 
   const byDay = useMemo(() => {
     const map = new Map<string, Task[]>()
@@ -38,25 +53,32 @@ export function Plan() {
     return map
   }, [tasks])
 
-  /** The modules present on a day, most items first: for the month dots,
-   *  the legends and the year square's title. */
-  const modulesOn = (d: Date) => modulesByWeight((byDay.get(format(d, 'yyyy-MM-dd')) ?? []).map(colours.moduleOf))
+  const plannedOn = (day: string): PlannedRepeat[] => planned.get(day) ?? []
 
-  const load = (d: Date) => (byDay.get(format(d, 'yyyy-MM-dd')) ?? [])
+  /** The modules present on a day, most items first: for the month dots,
+   *  the legends and the year's days. Planned repeats count. */
+  const modulesOnDay = (day: string) =>
+    modulesByWeight([...(byDay.get(day) ?? []), ...plannedOn(day)].map(colours.moduleOf))
+  const modulesOn = (d: Date) => modulesOnDay(key(d))
+
+  const loadOn = (day: string) => [...(byDay.get(day) ?? []), ...plannedOn(day)]
     .reduce((sum, t) => sum + (t.duration_min ?? 15), 0)
+  const load = (d: Date) => loadOn(key(d))
 
   /** The heat ramp belongs to Month and Year, and never appears without its
    *  legend, so a colour never has to be guessed at. */
-  const heat = (minutes: number) =>
-    minutes === 0 ? 'var(--e-heat-0)'
-    : minutes < 60 ? 'var(--e-heat-1)'
-    : minutes < 180 ? 'var(--e-heat-2)'
-    : minutes < 360 ? 'var(--e-heat-3)' : 'var(--e-heat-4)'
+  const heat = (minutes: number) => `var(--e-heat-${heatStep(minutes)})`
+
+  const yearLegend = useMemo(() => modulesByWeight(
+    [...tasks, ...[...planned.values()].flat()].map(colours.moduleOf)), [tasks, planned, colours])
+
+  const month = startOfMonth(date)
+  const monthStep = (n: number) => go(addMonths(date, n))
 
   return (
     <div className="page">
       <div className="page-inner">
-        <PageHead date={date} onPick={setDate} sections={SECTIONS} active={section} onSection={setSection} />
+        <PageHead date={date} onPick={go} sections={SECTIONS} active={section} onSection={setSection} />
 
         {section === 'Week' && (
           <>
@@ -64,6 +86,7 @@ export function Plan() {
               {weekDays(date).map((d) => {
                 const items = (byDay.get(format(d, 'yyyy-MM-dd')) ?? [])
                   .sort((a, b) => (a.planned_time ?? '99').localeCompare(b.planned_time ?? '99'))
+                const later = plannedOn(key(d))
                 return (
                   <div key={d.toISOString()} className={`week-col${isSameDay(d, new Date()) ? ' is-today' : ''}`}>
                     <h3>{format(d, 'EEE d')}</h3>
@@ -77,32 +100,39 @@ export function Plan() {
                           </div>
                         )
                       })}
-                      {items.length === 0 && <span className="t" style={{ color: 'var(--e-ink-soft)' }}>—</span>}
+                      {later.map((r) => <PlannedItem key={`${r.seriesId}:${r.base}`} repeat={r} colours={colours} />)}
+                      {items.length === 0 && later.length === 0 && <span className="t" style={{ color: 'var(--e-ink-soft)' }}>—</span>}
                     </div>
                   </div>
                 )
               })}
             </div>
+            {weekDays(date).some((d) => plannedOn(key(d)).length > 0) && (
+              <p className="planned-note">
+                <span className="planned-mark" aria-hidden="true">↻</span> Planned repeat: worked out from its
+                series, it becomes a task you can tick eight weeks before the day.
+              </p>
+            )}
             <ModuleLegend colours={colours} keys={modulesByWeight(weekDays(date).flatMap(modulesOn))} />
           </>
         )}
 
         {section === 'Month' && (
           <>
-            <div className="legend">
-              <span>Load</span>
-              <i style={{ background: 'var(--e-heat-0)' }} /> none
-              <i style={{ background: 'var(--e-heat-1)' }} /> under 1 h
-              <i style={{ background: 'var(--e-heat-2)' }} /> to 3 h
-              <i style={{ background: 'var(--e-heat-3)' }} /> to 6 h
-              <i style={{ background: 'var(--e-heat-4)' }} /> more
+            <div className="plan-monthnav">
+              <button type="button" className="btn" aria-label="Previous month"
+                disabled={key(month) <= range.first} onClick={() => monthStep(-1)}>‹</button>
+              <span>{format(date, 'MMMM yyyy')}</span>
+              <button type="button" className="btn" aria-label="Next month"
+                disabled={key(endOfMonth(date)) >= range.last} onClick={() => monthStep(1)}>›</button>
             </div>
+            <HeatLegend />
             <div className="month-grid">
               {monthDays(date).map((d) => (
                 <button
                   key={d.toISOString()}
                   className="month-cell"
-                  onClick={() => { setDate(d); setSection('Week') }}
+                  onClick={() => { go(d); setSection('Week') }}
                   style={{ opacity: isSameMonth(d, date) ? 1 : 0.4, textAlign: 'left' }}
                 >
                   <span className="d">{format(d, 'd')}</span>
@@ -126,20 +156,24 @@ export function Plan() {
 
         {section === 'Year' && (
           <>
-            <div className="legend"><span>{format(date, 'yyyy')} · one square a day, colour is the load</span></div>
-            <div className="year-grid">
-              {eachDayOfInterval({
-                start: startOfYear(date),
-                end: addDays(startOfYear(date), 364),
-              }).map((d) => (
-                <span
-                  key={d.toISOString()}
-                  className="year-cell"
-                  title={yearTitle(d, load(d), colours.on ? modulesOn(d)[0] : undefined, colours)}
-                  style={{ background: heat(load(d)) }}
-                />
-              ))}
+            <HeatLegend note="Tap a day for its week" />
+            {/* Months stacked, scrolling from three years back to five ahead;
+                it opens on the month being looked at. */}
+            <div className="plan-year">
+              <MonthScroller
+                first={range.first} last={range.last} openAt={key(date)} today={today}
+                label="Every day, month by month"
+                heat={(day): DayHeat => {
+                  const step = heatStep(loadOn(day))
+                  return { colour: `var(--e-heat-${step})`, strong: step === 4 }
+                }}
+                marks={(day) => (colours.on ? modulesOnDay(day).map(colours.of) : [])}
+                describe={(day) => dayWords(loadOn(day), colours.on ? modulesOnDay(day)[0] : undefined,
+                  plannedOn(day).length, colours)}
+                onDayClick={(day) => { go(parseISO(day)); setSection('Week') }}
+              />
             </div>
+            <ModuleLegend colours={colours} keys={yearLegend} />
             <p className="section-title">Goals and phases</p>
             <Goals />
           </>
@@ -147,6 +181,11 @@ export function Plan() {
       </div>
     </div>
   )
+}
+
+/** Minutes of the day's tasks as a step on the heat ramp, 0 to 4. */
+function heatStep(minutes: number): number {
+  return minutes === 0 ? 0 : minutes < 60 ? 1 : minutes < 180 ? 2 : minutes < 360 ? 3 : 4
 }
 
 const weekDays = (date: Date) => eachDayOfInterval({
@@ -159,10 +198,46 @@ const monthDays = (date: Date) => eachDayOfInterval({
   end: endOfWeek(endOfMonth(date), { weekStartsOn: 1 }),
 })
 
-/** The year square stays a heat square, readable at 9 px; the module that
- *  filled most of the day is named in its title instead of drawn on it. */
-function yearTitle(d: Date, minutes: number, top: string | undefined, colours: ModuleColours): string {
-  return [format(d, 'd MMM'), `${minutes} min`, top ? `mostly ${colours.label(top)}` : null].filter(Boolean).join(' · ')
+/** What a year day says when read out: its load, the module that filled
+ *  most of it, and how much of it is planned repeats. */
+function dayWords(minutes: number, top: string | undefined, planned: number, colours: ModuleColours): string {
+  return [
+    minutes ? `${minutes} min` : 'nothing planned',
+    top ? `mostly ${colours.label(top)}` : null,
+    planned ? `${planned} planned ${planned === 1 ? 'repeat' : 'repeats'}` : null,
+  ].filter(Boolean).join(', ')
+}
+
+const HEAT_WORDS = ['none', 'under 1 h', 'to 3 h', 'to 6 h', 'more']
+
+/** The heat ramp with a name for every step. It wraps on a phone. */
+function HeatLegend({ note }: { note?: string }) {
+  return (
+    <div className="legend">
+      <span>Load</span>
+      {HEAT_WORDS.map((words, step) => (
+        <span key={words}><i style={{ background: `var(--e-heat-${step})` }} /> {words}</span>
+      ))}
+      {note && <span className="legend-note">{note}</span>}
+    </div>
+  )
+}
+
+/** A day a series will land on that is too far ahead to be a task yet. It
+ *  reads like the task it will become, a little quieter, with a mark saying
+ *  so; it cannot be ticked or moved until it is a real task. */
+function PlannedItem({ repeat, colours }: { repeat: PlannedRepeat; colours: ModuleColours }) {
+  const c = colours.ofTask(repeat)
+  return (
+    <div className={`week-item is-planned${c ? ' has-mod' : ''}`}
+      title="Planned repeat. It becomes a task eight weeks before the day.">
+      {c && <i className="mod-dot" style={{ '--mod': c } as CSSProperties} aria-hidden="true" />}
+      <span>
+        <span className="t">{repeat.time}</span> {repeat.title}{' '}
+        <span className="planned-mark">↻<span className="visually-hidden"> planned repeat</span></span>
+      </span>
+    </div>
+  )
 }
 
 /** Every colour on the page with its name, so a colour is never guessed. */

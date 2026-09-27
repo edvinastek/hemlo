@@ -7,6 +7,7 @@ import { PageHead } from '../ui/PageHead'
 import { TaskRow } from '../ui/TaskRow'
 import { saveTask, blankTask, setTaskDone } from '../lib/tasks'
 import { TaskSheet } from '../ui/TaskSheet'
+import { PlannedDay } from '../ui/PlannedDay'
 import { BodySection } from '../sections/BodySection'
 import { ReviewCard } from '../sections/ReviewCard'
 import { ModuleDay } from '../sections/ModuleDay'
@@ -151,6 +152,9 @@ export function Today() {
             })}
           </div>
         )}
+
+        {/* Past the eight weeks the series have filled: what will repeat here. */}
+        {tab.key === 'today' && profile && <PlannedDay profileId={profile.id} day={day} />}
       </div>
 
       {profile && (

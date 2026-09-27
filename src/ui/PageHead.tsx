@@ -1,5 +1,8 @@
-import { useRef, useState, type MouseEvent, type PointerEvent } from 'react'
-import { addDays, format, isSameDay, startOfWeek } from 'date-fns'
+import { useEffect, useRef, useState, type MouseEvent, type PointerEvent } from 'react'
+import { addDays, format, isSameDay, parseISO, startOfWeek } from 'date-fns'
+import { inRange, moveWeek } from '../lib/calendar-rules'
+import { MonthScroller } from './MonthScroller'
+import { useDayRange } from './useDayRange'
 
 interface Props {
   date: Date
@@ -11,15 +14,32 @@ interface Props {
 }
 
 /** Serif date, week strip, section tabs. The header owns about a third of the
- *  screen at most — past that the page stops being the subject. */
+ *  screen at most — past that the page stops being the subject.
+ *
+ *  Tapping the date opens a calendar to jump to any day. Every way of moving
+ *  (the calendar, the strip, a swipe) stops three years back and five years
+ *  ahead of today. */
 export function PageHead({ date, onPick, sections, active, onSection, sub }: Props) {
   const weekStart = startOfWeek(date, { weekStartsOn: 1 })
   const today = new Date()
-  const strip = useWeekSwipe((dir) => onPick(addDays(date, dir * 7)))
+  const { range, clamp, today: todayKey } = useDayRange()
+  const day = format(date, 'yyyy-MM-dd')
+  const [picking, setPicking] = useState(false)
+  const pick = (d: Date) => onPick(clamp(d))
+  const strip = useWeekSwipe((dir) => {
+    const next = moveWeek(day, dir, range)
+    if (next) pick(parseISO(next))
+    return !!next
+  })
+  // The year is only said when it is not this one.
+  const heading = format(date, date.getFullYear() === today.getFullYear() ? 'EEEE d MMMM' : 'EEEE d MMMM yyyy')
 
   return (
     <header className="page-head">
-      <h1 className="page-date">{format(date, 'EEEE d MMMM')}</h1>
+      <h1 className="page-date">
+        <button type="button" className="page-date-pick" aria-haspopup="dialog" aria-expanded={picking}
+          title="Go to a day" onClick={() => setPicking(true)}>{heading}</button>
+      </h1>
       {sub && <p className="page-sub">{sub}</p>}
 
       <div className={`week-strip${strip.slide ? ` slide-${strip.slide}` : ''}`}
@@ -29,6 +49,7 @@ export function PageHead({ date, onPick, sections, active, onSection, sub }: Pro
             key={d.toISOString()}
             className={isSameDay(d, today) ? 'today' : undefined}
             onClick={() => onPick(d)}
+            disabled={!inRange(format(d, 'yyyy-MM-dd'), range)}
             aria-current={isSameDay(d, date) ? 'date' : undefined}
           >
             <span>{format(d, 'EEEEE')}</span>
@@ -44,7 +65,40 @@ export function PageHead({ date, onPick, sections, active, onSection, sub }: Pro
           </button>
         ))}
       </div>
+
+      {picking && (
+        <DayPicker day={day} today={todayKey} first={range.first} last={range.last}
+          onPick={(d) => { pick(parseISO(d)); setPicking(false) }} onClose={() => setPicking(false)} />
+      )}
     </header>
+  )
+}
+
+/** The calendar behind the date: months scrolling top to bottom, opened on
+ *  the day being shown. A tap goes to that day and closes it. */
+function DayPicker({ day, today, first, last, onPick, onClose }: {
+  day: string; today: string; first: string; last: string
+  onPick: (day: string) => void; onClose: () => void
+}) {
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose() }
+    document.addEventListener('keydown', onKey)
+    return () => document.removeEventListener('keydown', onKey)
+  }, [onClose])
+
+  return (
+    <>
+      <div className="sheet-scrim" onClick={onClose} />
+      <div className="bottom-sheet ph-pick" role="dialog" aria-label="Go to a day">
+        <h2>Go to a day</h2>
+        <MonthScroller first={first} last={last} openAt={day} today={today}
+          label="Days to go to" chosen={day} onDayClick={onPick} />
+        <div className="sheet-actions">
+          <button type="button" className="btn" onClick={() => onPick(today)}>Today</button>
+          <button type="button" className="btn grow" onClick={onClose}>Close</button>
+        </div>
+      </div>
+    </>
   )
 }
 
@@ -53,8 +107,9 @@ export function PageHead({ date, onPick, sections, active, onSection, sub }: Pro
  *  events cover touch and a mouse drag on the desktop alike; the strip's
  *  touch-action (pan-y) keeps the phone from treating the swipe as its own.
  *  A tap still picks a day: only a clear sideways drag counts, and the click
- *  that a mouse drag ends with is swallowed. */
-function useWeekSwipe(onWeek: (dir: 1 | -1) => void) {
+ *  that a mouse drag ends with is swallowed. At either end of the range the
+ *  swipe does nothing, and the strip does not slide. */
+function useWeekSwipe(onWeek: (dir: 1 | -1) => boolean) {
   const start = useRef<{ x: number; y: number; id: number } | null>(null)
   const swallowClick = useRef(false)
   const [slide, setSlide] = useState<'next' | 'prev' | null>(null)
@@ -69,8 +124,7 @@ function useWeekSwipe(onWeek: (dir: 1 | -1) => void) {
     const dir = dx < 0 ? 1 : -1
     swallowClick.current = true
     window.setTimeout(() => { swallowClick.current = false }, 0)
-    setSlide(dir === 1 ? 'next' : 'prev')
-    onWeek(dir)
+    if (onWeek(dir)) setSlide(dir === 1 ? 'next' : 'prev')
   }
 
   return {
