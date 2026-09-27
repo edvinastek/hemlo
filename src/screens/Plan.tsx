@@ -7,6 +7,8 @@ import {
 import { db } from '../lib/db'
 import { useApp } from '../lib/store'
 import { PageHead } from '../ui/PageHead'
+import { ExportLink } from '../ui/ExportLink'
+import { rangeFor } from '../lib/transfer-rules'
 import { useModuleColours, type ModuleColours } from '../lib/colours'
 import { modulesByWeight } from '../lib/colours-rules'
 import type { Task } from '../lib/types'
@@ -144,6 +146,7 @@ export function Plan() {
             <Goals />
           </>
         )}
+        <ExportLink calendar source={{ dataset: 'calendar', range: rangeFor(section === 'Week' ? 'week' : section === 'Month' ? 'month' : 'year', format(date, 'yyyy-MM-dd')) }} />
       </div>
     </div>
   )

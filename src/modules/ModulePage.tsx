@@ -12,6 +12,7 @@ import { PAGE_VIEW_TYPES } from './def-rules'
 import { instanceFor, setModuleEnabled, useModuleDef } from './defs'
 import { useLookups, useRecords, type Rec } from './records'
 import { InlineForm, RecordSheet } from './RecordSheet'
+import { ExportLink } from '../ui/ExportLink'
 import { CalendarView, ListView, TableView, Totals } from './views'
 import './modules.css'
 
@@ -100,6 +101,7 @@ function Body({ def, profileId, onEdit }: { def: ModuleDef; profileId: string; o
       <>
         <Head def={def} onEdit={onEdit} />
         <Section profileId={profileId} day={format(new Date(), 'yyyy-MM-dd')} />
+        {def.entities[0] && <ExportLink source={{ dataset: `m:${def.key}:${def.entities[0].name}` }} />}
       </>
     )
   }
@@ -175,6 +177,7 @@ function Generic({ def, profileId, onEdit }: { def: ModuleDef; profileId: string
           )}
         </>
       )}
+      <ExportLink source={{ dataset: `m:${def.key}:${entity.name}` }} calendar={type === 'calendar' || entity.table === 'calendar_event'} />
       {type !== 'form' && (
         <button type="button" className="fab" aria-label={`Add ${noun}`} onClick={() => add()}>+</button>
       )}

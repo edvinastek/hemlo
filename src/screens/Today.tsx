@@ -7,6 +7,8 @@ import { PageHead } from '../ui/PageHead'
 import { TaskRow } from '../ui/TaskRow'
 import { saveTask, blankTask, setTaskDone } from '../lib/tasks'
 import { TaskSheet } from '../ui/TaskSheet'
+import { ExportLink } from '../ui/ExportLink'
+import { rangeFor } from '../lib/transfer-rules'
 import { BodySection } from '../sections/BodySection'
 import { ReviewCard } from '../sections/ReviewCard'
 import { ModuleDay } from '../sections/ModuleDay'
@@ -151,6 +153,7 @@ export function Today() {
             })}
           </div>
         )}
+        <ExportLink calendar source={{ dataset: 'calendar', range: rangeFor('day', day) }} />
       </div>
 
       {profile && (
