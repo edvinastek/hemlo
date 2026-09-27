@@ -10,6 +10,7 @@ import { ModuleEditor } from '../ui/ModuleEditor'
 import { Dropdown } from '../ui/Dropdown'
 import { PlanningSettings } from '../settings/PlanningSettings'
 import { FoodSettings } from '../settings/FoodSettings'
+import { NavSettings } from '../settings/NavSettings'
 import { exportBundle, importBundle } from '../lib/bundle'
 import { getReminderSettings, setReminderSettings, requestPermission, type ReminderSettings } from '../lib/notify'
 import type { ModuleInstance } from '../lib/types'
@@ -64,6 +65,7 @@ function Modules({ onEdit }: { onEdit: (key: string) => void }) {
 
   return (
     <>
+      <NavSettings />
       <p className="section-title">On</p>
       {MODULES.filter((m) => byKey.get(m.key)?.enabled).map((m) => (
         <Row key={m.key} name={m.name} summary={m.summary} depth={m.depth}

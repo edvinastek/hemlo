@@ -1,7 +1,7 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState, type ReactNode } from 'react'
 import { useLiveQuery } from 'dexie-react-hooks'
 import type { Session } from '@supabase/supabase-js'
-import { Route, Routes } from 'react-router-dom'
+import { Navigate, Route, Routes, useLocation, useNavigate, useParams } from 'react-router-dom'
 import { supabase, hasCredentials } from './lib/supabase'
 import { useApp } from './lib/store'
 import { db, resetLocal, localOwner, setMeta } from './lib/db'
@@ -18,9 +18,27 @@ import { Shop } from './screens/Shop'
 import { More } from './screens/More'
 import { Onboarding } from './screens/Onboarding'
 import { readSettings } from './lib/settings'
+import { ModulePage } from './modules/ModulePage'
+import { usePages, pageForPath, pageAllowed, neighbour, type Pages } from './lib/pages'
+import { useSwipe } from './ui/useSwipe'
 
 export default function App() {
   const { session, profile, recovering, setSession, setProfile, setProfiles } = useApp()
+
+  // The pages the open profile has (from its modules), shared by the bar,
+  // the routes and the swipe between pages.
+  const pages = usePages()
+  const appRef = useRef<HTMLDivElement>(null)
+  const navigate = useNavigate()
+  const { pathname } = useLocation()
+  useSwipe(appRef, {
+    enabled: !!pages?.nav.swipe,
+    onSwipe: (dir) => {
+      const to = pages ? neighbour(pages, pageForPath(pathname), dir) : null
+      if (to) navigate(to.route)
+      return !!to
+    },
+  })
 
   // Email links (confirmation, password reset) arrive once, at start-up or
   // while the app is open.
@@ -125,15 +143,35 @@ export default function App() {
   }
 
   return (
-    <div className="app">
+    <div className="app" ref={appRef}>
       <Routes>
         <Route path="/" element={<Today />} />
         <Route path="/plan" element={<Plan />} />
-        <Route path="/food" element={<Food />} />
-        <Route path="/shop" element={<Shop />} />
+        <Route path="/food" element={<Only page="food" pages={pages}><Food /></Only>} />
+        <Route path="/shop" element={<Only page="shop" pages={pages}><Shop /></Only>} />
         <Route path="/more" element={<More />} />
+        <Route path="/m/:key" element={<ModuleRoute pages={pages} />} />
+        <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
-      <Nav />
+      <Nav pages={pages} />
     </div>
+  )
+}
+
+/** A page that exists only while its module is on. Switched off (here or on
+ *  another device), or never there, its address leads to Today instead.
+ *  Until the modules have loaded nothing is shown, so a page that does exist
+ *  is never bounced away from on a cold start. */
+function Only({ page, pages, children }: { page: string | null; pages: Pages | undefined; children: ReactNode }) {
+  if (!pages) return null
+  return pageAllowed(page, pages.all) ? <>{children}</> : <Navigate to="/" replace />
+}
+
+function ModuleRoute({ pages }: { pages: Pages | undefined }) {
+  const { key = '' } = useParams()
+  return (
+    <Only page={pageForPath(`/m/${key}`)} pages={pages}>
+      <ModulePage key={key} moduleKey={key} />
+    </Only>
   )
 }

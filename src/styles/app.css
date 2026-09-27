@@ -66,16 +66,18 @@ hr, .rule { border: 0; border-top: 1px solid var(--e-rule); margin: 0; }
 
 .page {
   overflow-y: auto;
+  /* Never sideways: a page that could scroll sideways would swallow the
+     swipe to the next page, and wide tables scroll in their own wrapper. */
+  overflow-x: hidden;
   /* Room for the round add button, which floats over the bottom of the page:
      without it, the last button on a page (Done under the habits) sits
      underneath it and cannot be tapped. */
   padding-bottom: calc(var(--space-6) + 72px);
 }
 
-/* Phone: five-item bottom nav that never changes. Desktop: sidebar + panes. */
+/* Phone: the page bar, laid out by style in src/ui/nav.css. Desktop: sidebar + panes. */
 .bottom-nav {
   display: grid;
-  grid-template-columns: repeat(5, 1fr);
   border-top: 1px solid var(--e-rule);
   background: var(--e-paper);
   padding-bottom: var(--safe-area-inset-bottom, env(safe-area-inset-bottom, 0px));
@@ -133,6 +135,16 @@ hr, .rule { border: 0; border-top: 1px solid var(--e-rule); margin: 0; }
 }
 
 .week-strip .today .disc { background: var(--e-accent); color: var(--e-paper); }
+
+/* Swiping the strip moves a week (PageHead); pan-y leaves vertical scrolling
+   to the browser and the sideways drag to the strip. The new week slides in
+   from the side the finger came from. */
+.week-strip { touch-action: pan-y; user-select: none; -webkit-user-select: none; }
+.week-strip.slide-next { animation: week-in-next 160ms ease-out; }
+.week-strip.slide-prev { animation: week-in-prev 160ms ease-out; }
+@keyframes week-in-next { from { transform: translateX(24px); opacity: 0.4; } to { transform: none; opacity: 1; } }
+@keyframes week-in-prev { from { transform: translateX(-24px); opacity: 0.4; } to { transform: none; opacity: 1; } }
+@media (prefers-reduced-motion: reduce) { .week-strip.slide-next, .week-strip.slide-prev { animation: none; } }
 
 .tabs {
   display: flex;
@@ -471,7 +483,8 @@ hr, .rule { border: 0; border-top: 1px solid var(--e-rule); margin: 0; }
 /* Add button: the page's primary action, in the accent. */
 .fab {
   position: fixed; right: var(--space-4); z-index: 10;
-  bottom: calc(72px + var(--safe-area-inset-bottom, env(safe-area-inset-bottom, 0px)));
+  /* Clear of the page bar, however many rows it has: Nav sets --nav-h. */
+  bottom: calc(var(--nav-h, calc(56px + var(--safe-area-inset-bottom, env(safe-area-inset-bottom, 0px)))) + var(--space-4));
   width: 52px; height: 52px; border-radius: var(--radius-pill);
   background: var(--e-accent); color: var(--e-paper);
   font-family: var(--font-sans); font-size: 26px; line-height: 1;

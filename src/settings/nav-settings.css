@@ -1,0 +1,64 @@
+/* Page bar settings. A style picker of drawn thumbnails, then the pages. */
+
+.nv .nv-block { grid-template-columns: minmax(0, 1fr); }
+
+.nv-styles {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: var(--space-1);
+  margin-top: var(--space-3);
+}
+.nv-style {
+  display: grid;
+  justify-items: center;
+  gap: 4px;
+  min-width: 0;
+  padding: 6px 2px;
+  border: 1px solid var(--e-rule);
+  border-radius: var(--radius-md);
+  font-family: var(--font-sans);
+  font-size: 11px;
+  color: var(--e-ink-soft);
+}
+.nv-style span { max-width: 100%; text-align: center; line-height: 1.2; overflow-wrap: anywhere; }
+.nv-style[aria-checked="true"] { border-color: var(--e-accent); color: var(--e-ink); background: var(--e-tint); }
+.nv-style:focus-visible { outline: 2px solid var(--e-accent); outline-offset: 1px; }
+.nv-preview { width: 100%; max-width: 56px; height: auto; }
+
+/* The drawing, in the app's own colours so it follows light and dark. */
+.pv-frame { fill: var(--e-paper); stroke: var(--e-rule); }
+.pv-rule { stroke: var(--e-rule); }
+.pv-p { fill: var(--e-primary-nav); }
+.pv-o { fill: var(--e-ink-soft); opacity: 0.55; }
+.pv-c { fill: var(--e-paper); stroke: var(--e-accent); stroke-width: 1.2; }
+.pv-sheet { fill: var(--e-tint); stroke: var(--e-rule); }
+
+.nv-pages { list-style: none; margin: var(--space-3) 0 0; padding: 0; }
+.nv-page {
+  display: grid;
+  grid-template-columns: 28px minmax(0, 1fr) auto auto;
+  align-items: center;
+  gap: var(--space-2);
+  min-height: 44px;
+  border-top: 1px solid var(--e-rule);
+  font-family: var(--font-sans);
+  font-size: 14px;
+}
+.nv-page:first-child { border-top: 0; }
+.nv-glyph { text-align: center; font-size: 16px; color: var(--e-ink-soft); }
+.nv-page.is-primary .nv-glyph, .nv-page.is-primary .nv-name { color: var(--e-primary-nav); }
+.nv-page.is-primary .nv-name { font-weight: 600; }
+.nv-page.is-off .nv-name, .nv-page.is-off .nv-glyph { opacity: 0.5; }
+.nv-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.nv-fixed { margin-left: var(--space-2); font-size: 12px; font-weight: 400; color: var(--e-ink-soft); }
+.nv-moves { display: inline-flex; gap: 2px; }
+.nv-move {
+  width: 34px; height: 34px;
+  border: 1px solid var(--e-rule);
+  border-radius: var(--radius-md);
+  font-size: 15px;
+  color: var(--e-ink);
+}
+.nv-move:disabled { opacity: 0.3; cursor: default; }
+.nv-move:focus-visible { outline: 2px solid var(--e-accent); outline-offset: 1px; }
+.nv-reset { margin-top: var(--space-3); }

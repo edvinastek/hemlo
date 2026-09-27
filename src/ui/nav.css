@@ -1,0 +1,217 @@
+/* The page bar in its five styles, the drawer sheet and the fan.
+   Held to the kit: 1px e-rule separators, no shadows, sans for the labels.
+   Today and Plan are the two pages everything starts from, so in every style
+   they are a size up and sit on their own tint (--e-primary-nav*). The page
+   open now is always in the accent. */
+
+:root, [data-theme="light"] { --e-primary-nav: #8e3521; --e-primary-nav-bg: #f0dfd3; }
+[data-theme="dark"] { --e-primary-nav: #ec9479; --e-primary-nav-bg: #33221f; }
+
+/* ---------- phone ------------------------------------------------------------ */
+@media (max-width: 899px) {
+  .bottom-nav {
+    position: relative;
+    display: grid;
+    align-items: stretch;
+    min-width: 0;
+  }
+
+  /* :is() lifts these over app.css's `.bottom-nav a`, which is loaded later. */
+  :is(.bottom-nav, .nav-sheet, .fan-layer) .nav-item {
+    display: grid;
+    justify-items: center;
+    align-content: center;
+    gap: 2px;
+    min-width: 0;
+    padding: 7px 2px 9px;
+    font-family: var(--font-sans);
+    font-size: 11px;
+    letter-spacing: 0.02em;
+    color: var(--e-ink-soft);
+    text-decoration: none;
+    -webkit-tap-highlight-color: transparent;
+  }
+  :is(.bottom-nav, .nav-sheet, .fan-layer) .nav-label {
+    max-width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    line-height: 1.25;
+  }
+  :is(.bottom-nav, .nav-sheet, .fan-layer) .nav-glyph {
+    display: grid;
+    place-items: center;
+    width: 40px;
+    height: 24px;
+    border-radius: var(--radius-pill);
+    font-size: 16px;
+    line-height: 1;
+  }
+  :is(.bottom-nav, .nav-sheet, .fan-layer) .nav-item[aria-current="page"] { color: var(--e-accent); }
+  :is(.bottom-nav, .nav-sheet, .fan-layer) .nav-item[aria-current="page"] .nav-label { font-weight: 600; }
+  :is(.bottom-nav, .nav-sheet) .nav-item[aria-current="page"] .nav-glyph { background: var(--e-tint); }
+  :is(.bottom-nav, .nav-sheet, .fan-layer) .nav-item:focus-visible {
+    outline: 2px solid var(--e-accent);
+    outline-offset: -2px;
+    border-radius: var(--radius-md);
+  }
+
+  /* Today and Plan: bigger, and in their own colour. */
+  .bottom-nav .nav-item.is-primary { color: var(--e-primary-nav); font-size: 12px; font-weight: 500; }
+  .bottom-nav .is-primary .nav-glyph {
+    width: 50px;
+    height: 28px;
+    font-size: 19px;
+    background: var(--e-primary-nav-bg);
+  }
+  .bottom-nav .is-primary[aria-current="page"] { color: var(--e-accent); }
+  .bottom-nav .is-primary[aria-current="page"] .nav-glyph { background: var(--e-accent); color: var(--e-paper); }
+
+  /* ---------- sideways strips (row overflow, grid overflow) ---------------- */
+  .nav-scroll {
+    position: relative;
+    min-width: 0;
+    overflow-x: auto;
+    overflow-y: hidden;
+    overscroll-behavior-x: contain;
+    scroll-snap-type: x proximity;
+    scrollbar-width: none;
+  }
+  .nav-scroll::-webkit-scrollbar { display: none; }
+  /* A soft fade at whichever edge has more pages behind it. */
+  .nav-scroll[data-fade="r"] {
+    -webkit-mask-image: linear-gradient(to right, #000 calc(100% - 28px), transparent);
+    mask-image: linear-gradient(to right, #000 calc(100% - 28px), transparent);
+  }
+  .nav-scroll[data-fade="l"] {
+    -webkit-mask-image: linear-gradient(to left, #000 calc(100% - 28px), transparent);
+    mask-image: linear-gradient(to left, #000 calc(100% - 28px), transparent);
+  }
+  .nav-scroll[data-fade="lr"] {
+    -webkit-mask-image: linear-gradient(to right, transparent, #000 28px, #000 calc(100% - 28px), transparent);
+    mask-image: linear-gradient(to right, transparent, #000 28px, #000 calc(100% - 28px), transparent);
+  }
+
+  /* ---------- one row --------------------------------------------------- */
+  .nav-row-split { grid-template-columns: 66px 66px minmax(0, 1fr) 54px; }
+  .nav-row-scroll { display: flex; }
+  .nav-row-scroll .nav-item { flex: 0 0 64px; scroll-snap-align: start; }
+
+  /* ---------- two or three rows ----------------------------------------- */
+  .nav-grid { grid-template-columns: auto minmax(0, 1fr); padding-top: 4px; }
+  .nav-grid-prim { display: grid; gap: 4px; padding: 0 4px 6px; }
+  .nav-grid-prim .nav-item {
+    width: 58px;
+    border-radius: var(--radius-md);
+    background: var(--e-primary-nav-bg);
+    gap: 4px;
+  }
+  .nav-grid-prim .nav-item .nav-glyph { background: none; font-size: 22px; height: 26px; }
+  .nav-grid-prim .nav-item[aria-current="page"] { background: var(--e-accent); color: var(--e-paper); }
+  .nav-grid-prim .nav-item[aria-current="page"] .nav-glyph { background: none; color: inherit; }
+  .nav-grid-rest { display: grid; align-content: stretch; }
+  .nav-grid-rest .nav-item { padding: 3px 2px 4px; gap: 1px; scroll-snap-align: start; }
+  .nav-grid-rest .nav-glyph { width: 36px; height: 20px; font-size: 14px; }
+  .nav-grid-rest .nav-label { font-size: 10px; }
+
+  /* ---------- drawer ------------------------------------------------------ */
+  .nav-drawer { padding-top: 4px; }
+  /* The grabber says the bar can be pulled up. */
+  .nav-grabber {
+    position: absolute; top: 4px; left: 50%;
+    width: 32px; height: 4px; margin-left: -16px;
+    border-radius: var(--radius-pill);
+    background: var(--e-rail);
+  }
+  .nav-handle[aria-expanded="true"] { color: var(--e-accent); }
+  .bottom-sheet.nav-sheet { padding-top: var(--space-3); }
+  .nav-sheet-grabber {
+    display: block; width: 36px; height: 4px; margin: 0 auto var(--space-3);
+    border-radius: var(--radius-pill); background: var(--e-rail);
+  }
+  .bottom-sheet.nav-sheet h2 { font-family: var(--font-sans); font-size: 15px; font-weight: 600; color: var(--e-ink-soft); }
+  .nav-sheet-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(76px, 1fr));
+    gap: var(--space-2) var(--space-1);
+  }
+  .nav-sheet-grid .nav-item { padding: 8px 2px; font-size: 12px; }
+  .nav-sheet-grid .nav-glyph { width: 48px; height: 36px; font-size: 19px; border: 1px solid var(--e-rule); border-radius: var(--radius-md); }
+  .nav-sheet-grid .nav-item[aria-current="page"] .nav-glyph { border-color: var(--e-accent); }
+
+  /* ---------- fan --------------------------------------------------------- */
+  .nav-fan.is-open { z-index: 32; }
+  .nav-fan-btn { overflow: visible; }
+  /* The centre button stands a little proud of the bar. */
+  .nav-fan-disc {
+    display: grid; place-items: center;
+    width: 44px; height: 44px; margin-top: -16px;
+    border-radius: var(--radius-pill);
+    border: 1.5px solid var(--e-accent);
+    background: var(--e-paper);
+    color: var(--e-accent);
+    font-size: 18px; line-height: 1;
+    transition: transform 200ms ease-out;
+  }
+  .nav-fan.is-open .nav-fan-btn:not(.is-here) .nav-fan-disc { transform: rotate(45deg); }
+  .nav-fan-btn.is-here { color: var(--e-accent); }
+  .nav-fan-btn.is-here .nav-label { font-weight: 600; }
+  .nav-fan-btn.is-here .nav-fan-disc { background: var(--e-accent); color: var(--e-paper); }
+  .nav-fan-btn:focus-visible .nav-fan-disc { outline: 2px solid var(--e-accent); outline-offset: 2px; }
+
+  .fan-scrim { position: fixed; inset: 0; z-index: 30; background: var(--e-scrim); }
+  .fan-layer { position: fixed; inset: 0; z-index: 31; pointer-events: none; }
+  .fan-layer .fan-item {
+    position: fixed;
+    width: 72px;
+    padding: 0;
+    gap: 3px;
+    pointer-events: auto;
+    color: var(--e-ink);
+    opacity: 0;
+    transform: translate(-50%, -50%) translate(var(--fx), var(--fy)) scale(0.3);
+    transition: transform 220ms cubic-bezier(0.2, 0.9, 0.3, 1.15) var(--d), opacity 120ms linear var(--d);
+  }
+  .fan-layer.is-shown .fan-item { opacity: 1; transform: translate(-50%, -50%) translate(var(--x), var(--y)) scale(1); }
+  .fan-layer .fan-item .nav-glyph {
+    width: 46px; height: 46px;
+    border-radius: var(--radius-pill);
+    background: var(--e-paper);
+    border: 1px solid var(--e-rule);
+    font-size: 19px;
+  }
+  /* The label sits on paper so it reads over the dimmed page. */
+  .fan-layer .fan-item .nav-label {
+    background: var(--e-paper);
+    padding: 1px 6px;
+    border-radius: var(--radius-sm);
+  }
+  .fan-layer .fan-item[aria-current="page"] .nav-glyph { border-color: var(--e-accent); color: var(--e-accent); }
+}
+
+/* ---------- desktop sidebar -------------------------------------------------- */
+@media (min-width: 900px) {
+  /* Placed explicitly: the page is pinned to row 1, so left to itself it
+     took the 232 px sidebar column and pushed the sidebar to the right. */
+  .app > .nav-side { grid-column: 1; grid-row: 1; overflow-y: auto; }
+  .app > .page { grid-column: 2; }
+  .nav-side .is-primary { color: var(--e-primary-nav); font-size: 15px; font-weight: 600; }
+  .nav-side .is-primary .nav-glyph { font-size: 18px; }
+  .nav-side .nav-label { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+}
+
+/* ---------- swiping between pages --------------------------------------------- */
+/* A browser treats a sideways swipe with nothing to scroll as Back or
+   Forward. Here that swipe turns the page, so the browser's gesture is off. */
+html, body { overscroll-behavior-x: none; }
+
+/* The page swiped to slides in from the side the finger came from. */
+@keyframes page-in-next { from { transform: translateX(28px); opacity: 0.5; } to { transform: none; opacity: 1; } }
+@keyframes page-in-prev { from { transform: translateX(-28px); opacity: 0.5; } to { transform: none; opacity: 1; } }
+.app[data-swipe="next"] .page > .page-inner { animation: page-in-next 180ms ease-out; }
+.app[data-swipe="prev"] .page > .page-inner { animation: page-in-prev 180ms ease-out; }
+
+@media (prefers-reduced-motion: reduce) {
+  .fan-layer .fan-item, .nav-fan-disc { transition: none; }
+  .app[data-swipe] .page > .page-inner { animation: none; }
+}
