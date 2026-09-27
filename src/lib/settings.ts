@@ -1,4 +1,5 @@
 import type { Profile } from './types'
+import { readBooks, type Book } from './books-rules.ts'
 
 /** The choices that shape the app for one person, kept in profile.settings.
  *  Every key is optional in storage and has a default here, so an old or
@@ -89,6 +90,9 @@ export interface ProfileSettings {
   colours: ColourSettings
   holidays: HolidaySettings
   stats: StatsSettings
+  /** Recipe and food books: named lists on the Recipes and Foods tabs, at
+   *  most 50. Checked strictly in books-rules.ts. */
+  books: Book[]
 }
 
 export const DEFAULT_SETTINGS: ProfileSettings = {
@@ -104,6 +108,7 @@ export const DEFAULT_SETTINGS: ProfileSettings = {
   colours: { on: true, modules: {} },
   holidays: { countries: [], colours: {} },
   stats: { show_disabled: false },
+  books: [],
 }
 
 const TIME = /^([01]\d|2[0-3]):[0-5]\d$/
@@ -157,6 +162,7 @@ export function readSettings(profile: Pick<Profile, 'settings'> | null | undefin
     colours: readColours(s.colours, d.colours),
     holidays: readHolidays(s.holidays),
     stats: { show_disabled: bool((s.stats as Partial<StatsSettings> | undefined)?.show_disabled, d.stats.show_disabled) },
+    books: readBooks(s.books),
   }
 }
 
@@ -203,7 +209,8 @@ function readHolidays(v: unknown): HolidaySettings {
 }
 
 /** Settings with a change laid over them, as the value to store. Nested
- *  objects merge one level deep, so changing the work start keeps the end. */
+ *  objects merge one level deep, so changing the work start keeps the end.
+ *  Lists (nutrients, books) are replaced whole: `books` is the full new list. */
 export type SettingsChange = Partial<Omit<ProfileSettings, 'work' | 'commute' | 'nav' | 'colours' | 'holidays' | 'stats'>> & {
   holidays?: Partial<HolidaySettings>
   stats?: Partial<StatsSettings>

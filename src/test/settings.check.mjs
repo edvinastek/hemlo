@@ -59,5 +59,28 @@ is('no holidays by default', DEFAULT_SETTINGS.holidays, { countries: [], colours
 is('stats hide switched-off modules by default', readSettings({ settings: { stats: { show_disabled: 'y' } } }).stats.show_disabled, false)
 is('changing holiday colours keeps the countries', mergeSettings(hol, { holidays: { colours: { DE: '#00aa00' } } }).holidays, { countries: ['NL', 'DE', 'LT', 'BE', 'FR', 'PL'], colours: { DE: '#00aa00' } })
 
+// Recipe and food books.
+const longName = 'x'.repeat(80)
+const books = readSettings({ settings: { books: [
+  { id: 'b1', name: '  Quick   lunches ', kind: 'recipe', items: ['r1', 'r2', 'r1', 5, 'bad id'], colour: '#1E8347' },
+  { id: 'b1', name: 'Same id again', kind: 'recipe', items: [] },
+  { id: 'b2', name: longName, kind: 'food', items: 'r1', colour: '#123456' },
+  { id: 'b3', name: '   ', kind: 'food', items: [] },
+  { id: 'b4', name: 'Drinks', kind: 'drink', items: [] },
+  { name: 'No id', kind: 'food', items: [] },
+  'junk', null,
+] } }).books
+is('books: only whole ones are kept, names tidied, items checked and not repeated', books.map((b) => [b.id, b.name.length > 30 ? b.name.length : b.name, b.kind, b.items, b.colour ?? null]),
+  [['b1', 'Quick lunches', 'recipe', ['r1', 'r2'], '#1e8347'], ['b2', 60, 'food', [], null]])
+is('no books by default', DEFAULT_SETTINGS.books, [])
+is('books that are not a list are none', readSettings({ settings: { books: { b1: 1 } } }).books, [])
+const many = Array.from({ length: 70 }, (_, i) => ({ id: `b${i}`, name: `Book ${i}`, kind: 'food', items: Array.from({ length: 600 }, (_, j) => `f${j}`) }))
+const capped = readSettings({ settings: { books: many } }).books
+is('at most 50 books of at most 500 rows', [capped.length, capped[0].items.length], [50, 500])
+is('a books change replaces the list and keeps the rest', (() => {
+  const m = mergeSettings(readSettings({ settings: { stock_auto: true, books: [{ id: 'a', name: 'A', kind: 'food', items: [] }] } }), { books: [{ id: 'b', name: 'B', kind: 'recipe', items: ['x'] }] })
+  return [m.stock_auto, m.books.map((b) => b.id)]
+})(), [true, ['b']])
+
 console.log(fail ? `\n${fail} check(s) failed` : '\nall checks passed')
 process.exit(fail ? 1 : 0)
