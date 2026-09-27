@@ -9,7 +9,7 @@
     "preview": "vite preview",
     "android": "npm run build && npx cap sync android && cd android && ./gradlew bundleRelease assembleRelease",
     "windows": "npx tauri build",
-    "check": "tsc -b && for t in calc formula notify body series tracking review import allowlist widget settings templates work timeframe notes quickfood stock pages daytabs colours moduledefs; do node --experimental-strip-types src/test/$t.check.mjs || exit 1; done",
+    "check": "tsc -b && for t in calc formula notify body series tracking review import allowlist widget settings templates work timeframe notes quickfood stock pages daytabs colours moduledefs holidays; do node --experimental-strip-types src/test/$t.check.mjs || exit 1; done",
     "build:site": "vite build --config vite.site.config.ts",
     "assets": "node scripts/make-assets.mjs && npx capacitor-assets generate --android --iconBackgroundColor '#f8f4ed' --iconBackgroundColorDark '#15141b' --splashBackgroundColor '#f8f4ed' --splashBackgroundColorDark '#15141b' && npx tauri icon assets/icon-only.png -o src-tauri/icons && rm -rf src-tauri/icons/android src-tauri/icons/ios"
   },
@@ -22,6 +22,7 @@
     "@fontsource/spectral": "^5.3.0",
     "@supabase/supabase-js": "^2.45.0",
     "date-fns": "^3.6.0",
+    "date-holidays": "^3.37.0",
     "dexie": "^4.0.8",
     "dexie-react-hooks": "^4.4.0",
     "react": "^18.3.1",
