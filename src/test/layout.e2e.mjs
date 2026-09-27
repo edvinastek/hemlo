@@ -1,4 +1,4 @@
-import { need, open, signIn, modulesOn, ALL_MODULES } from './e2e.mjs'
+import { need, open, signIn, modulesOn, ALL_MODULES, APP } from './e2e.mjs'
 
 // Nothing on any screen runs off a small phone or hides under the add button. At 360 px wide (the most
 // common Android width) every screen and tab is opened, and anything whose
@@ -45,16 +45,21 @@ const underFab = () => p.evaluate(() => {
 })
 
 let bad = 0
-const screens = [['/', ['Today', 'Body', 'Work', 'Night']], ['/plan', ['Week', 'Month', 'Year']], ['/food', ['Day', 'Recipes', 'Foods']],
-  ['/shop', ['Trip', 'Stock', 'Stores']], ['/more', ['Modules', 'Profile', 'Assistant', 'Data']]]
-for (const [href, tabs] of screens) {
-  await p.click(`.bottom-nav a[href="${href}"]`)
-  for (const t of tabs) {
-    await p.click(`.tabs button:has-text("${t}")`)
+// Every page the bar can have, and every tab each one shows today (Today's
+// tabs follow the day, so they are read off the page, not listed here).
+const routes = ['/', '/plan', '/food', '/shop', '/more',
+  ...ALL_MODULES.filter((k) => k !== 'nutrition' && k !== 'shopping').map((k) => `/m/${k}`)]
+for (const route of routes) {
+  await p.goto(new URL(route.slice(1), APP).href, { waitUntil: 'domcontentloaded' })
+  await p.locator('.bottom-nav').waitFor({ timeout: 20000 })
+  await p.waitForTimeout(1200)
+  const tabs = await p.locator('.page [role=tab]').allTextContents()
+  for (const t of tabs.length ? tabs : ['(no tabs)']) {
+    if (tabs.length) await p.locator('.page [role=tab]', { hasText: t }).first().click()
     await p.waitForTimeout(700)
     const found = [...await overflow(), ...(await underFab()).map((x) => `${x} is under the add button`)]
     if (found.length) bad++
-    console.log(`${found.length ? 'FAIL' : 'ok  '}  ${href} ${t}${found.length ? ': ' + found.join('; ') : ''}`)
+    console.log(`${found.length ? 'FAIL' : 'ok  '}  ${route} ${t}${found.length ? ': ' + found.join('; ') : ''}`)
   }
 }
 await p.click('.bottom-nav a[href="/"]')

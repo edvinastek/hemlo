@@ -60,6 +60,7 @@ await sql(`insert into public.habit (profile_id, name, schedule, active, sort_or
 await reload()
 is('a habit due today brings the Habits tab', (await tabs()).join(','), 'Today,Habits')
 await p.click('[role=tab]:has-text("Habits")')
+await p.locator('.page', { hasText: 'Stretch' }).first().waitFor({ timeout: 8000 }).catch(() => undefined)
 is('the Habits tab lists it', await p.locator('.page', { hasText: 'Stretch' }).count() > 0, true)
 
 // 4. Work only on today's weekday: Work today, none on another day, and a

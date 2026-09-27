@@ -36,6 +36,7 @@ await p.getByRole('button', exact('Next')).click()
 await p.getByRole('button', exact('Create')).click()
 await p.waitForURL(/\/m\/u_[a-z0-9]{12}$/, { timeout: 15000 })
 const key = p.url().match(/\/m\/(u_[a-z0-9]{12})$/)[1]
+await p.locator('h1', { hasText: 'E2E Spending' }).waitFor({ timeout: 10000 }).catch(() => undefined)
 is('its page opens, with its name', await p.locator('h1', { hasText: 'E2E Spending' }).count(), 1)
 is('the empty page says how to add the first record', await p.getByText('No expenses yet').count(), 1)
 
