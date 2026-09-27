@@ -28,3 +28,23 @@
 .ts-offer:disabled { opacity: 0.6; }
 .ts-offer-name { font-family: var(--font-sans); font-size: 15px; font-weight: 600; }
 .ts-offer-why { font-family: var(--font-sans); font-size: 13px; color: var(--e-ink-soft); }
+
+/* A field whose control is a Dropdown, not an input. It is a div, not a
+   label: a label would pass every tap in the open list back to the button
+   and open it again. */
+.form-grid .ts-field { display: grid; gap: 4px; min-width: 0; font-family: var(--font-sans); font-size: 13px; color: var(--e-ink-soft); }
+/* A list opened from the right-hand column lines up with its right edge, so
+   it stays on a 360 px screen. */
+.dd.dd-end .dd-list { left: auto; right: 0; }
+
+/* Minutes, or an end time, in one grid cell. The "Until" box sits in the
+   corner of the cell on the label's line, so switching adds no row. */
+.ts-dur { position: relative; min-width: 0; }
+.ts-dur-name { display: block; padding-right: 64px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.form-grid .ts-until {
+  position: absolute; top: 0; right: 0;
+  display: flex; align-items: center; gap: 4px;
+  font-size: 12px; line-height: 19px; color: var(--e-ink-soft); cursor: pointer;
+}
+.form-grid .ts-until input { width: 14px; height: 14px; margin: 0; padding: 0; flex: none; }
+.form-grid .ts-until:has(input:disabled) { opacity: 0.5; cursor: default; }
