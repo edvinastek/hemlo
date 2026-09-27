@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { format } from 'date-fns'
 import { db } from '../lib/db'
@@ -9,19 +9,27 @@ import { saveTask, blankTask, setTaskDone } from '../lib/tasks'
 import { TaskSheet } from '../ui/TaskSheet'
 import { BodySection } from '../sections/BodySection'
 import { ReviewCard } from '../sections/ReviewCard'
+import { ModuleDay } from '../sections/ModuleDay'
+import { SleepDay } from '../sections/SleepDay'
+import { activeTab, dayTabs, tabTasks, type DayTab } from '../lib/day-tabs'
+import { loadDayInput } from '../lib/day'
+import { useModuleColours } from '../lib/colours'
 import { dayTotals } from '../lib/nutrition'
 import { readSettings } from '../lib/settings'
 import { metricLine } from '../lib/quick-food'
 import type { Task } from '../lib/types'
+import './today.css'
 
-const SECTIONS = ['Today', 'Body', 'Work', 'Night']
+const ONLY_TODAY: DayTab[] = [{ key: 'today', label: 'Today' }]
 
 export function Today() {
   const profile = useApp((s) => s.profile)
   const [date, setDate] = useState(new Date())
-  const [section, setSection] = useState('Today')
+  const [section, setSection] = useState('today')
   const [editing, setEditing] = useState<{ task: Task; isNew: boolean } | null>(null)
   const day = format(date, 'yyyy-MM-dd')
+  const today = format(new Date(), 'yyyy-MM-dd')
+  const colours = useModuleColours()
 
   // Live queries: the screen re-reads itself as rows land from the sync, so
   // there is no moment where the data is there and the page still says empty.
@@ -70,24 +78,36 @@ export function Today() {
     await saveTask(next, ['planned_time', 'push_count', 'status', 'needs_review'])
   }
 
-  // The tabs filter the day: Work is the Work section, Night is anything from
-  // 18:00 or marked Night, Body is the body-and-habits page instead of the rail.
-  const shown = useMemo(() => {
-    if (section === 'Work') return tasks.filter((t) => t.category === 'Work')
-    if (section === 'Night') return tasks.filter((t) => t.category === 'Night' || (t.planned_time ?? '') >= '18:00')
-    return tasks
-  }, [tasks, section])
+  // The tabs follow the day: Today always, the others only when their part
+  // of the app is on and the day has something for it (lib/day-tabs.ts has
+  // the rules). Until the day is read, only Today, so no tab flickers in and
+  // straight back out.
+  const work = readSettings(profile).work
+  const workKey = `${work.on}|${work.days.join(',')}`
+  const input = useLiveQuery(
+    async () => (profile ? loadDayInput(profile.id, day, today, { work }) : null),
+    [profile?.id, day, today, workKey], null)
+  const tabs = useMemo(() => (input ? dayTabs(input) : ONLY_TODAY), [input])
+  const tab = activeTab(tabs, section)
 
+  // A tab the new day does not have falls back to Today, and stays there:
+  // coming back to a day with Work does not jump back to Work unasked.
+  useEffect(() => {
+    if (input && input.day === day && tab.key !== section) setSection(tab.key)
+  }, [input, day, tab.key, section])
+
+  const shown = useMemo(() => tabTasks(tab, tasks), [tasks, tab])
 
   return (
-    <div className="page">
+    <div className="page today-page">
       <div className="page-inner">
+        {/* With only Today there is nothing to choose between: no tab row. */}
         <PageHead
           date={date}
           onPick={setDate}
-          sections={SECTIONS}
-          active={section}
-          onSection={setSection}
+          sections={tabs.length > 1 ? tabs.map((t) => t.label) : []}
+          active={tab.label}
+          onSection={(label) => setSection(tabs.find((t) => t.label === label)?.key ?? 'today')}
           sub={figure?.text}
         />
 
@@ -103,24 +123,31 @@ export function Today() {
         )}
 
         {/* The review card now carries slipped tasks too; one prompt, not two. */}
-        {section === 'Today' && profile && <ReviewCard profileId={profile.id} day={day} variant="compact" />}
+        {tab.key === 'today' && profile && <ReviewCard profileId={profile.id} day={day} variant="compact" />}
 
-        {section === 'Body' && profile && <BodySection profileId={profile.id} day={day} />}
-        {section === 'Night' && profile && <ReviewCard profileId={profile.id} day={day} variant="full" />}
+        {tab.key === 'body' && profile && <BodySection profileId={profile.id} day={day} parts={tab.parts} />}
+        {tab.key === 'evening' && profile && <ReviewCard profileId={profile.id} day={day} variant="full" />}
+        {tab.key === 'sleep' && profile && <SleepDay profileId={profile.id} day={day} />}
+        {tab.module && profile && <ModuleDay profileId={profile.id} day={day} moduleKey={tab.module} label={tab.label} />}
 
-        {section !== 'Body' && (
-          <div className="rail">
+        {/* A module tab may hold only records; its rail shows when it has tasks. */}
+        {shown && !(tab.module && shown.length === 0) && (
+          <div className={`rail${colours.on ? ' is-coloured' : ''}`}>
             {shown.length === 0 && (
               <p className="empty">
-                {section === 'Today'
+                {tab.key === 'today'
                   ? 'Nothing planned for this day yet. Add something with the + button.'
-                  : `Nothing in ${section} for this day.`}
+                  : `Nothing in ${tab.label} for this day.`}
               </p>
             )}
-            {shown.map((t) => (
-              <TaskRow key={t.id} task={t} onTick={tick} onPush={push}
-                onEdit={(task) => setEditing({ task, isNew: false })} />
-            ))}
+            {shown.map((t) => {
+              const key = colours.moduleOf(t)
+              return (
+                <TaskRow key={t.id} task={t} onTick={tick} onPush={push}
+                  colour={colours.ofTask(t)} moduleName={key ? colours.label(key) : null}
+                  onEdit={(task) => setEditing({ task, isNew: false })} />
+              )
+            })}
           </div>
         )}
       </div>

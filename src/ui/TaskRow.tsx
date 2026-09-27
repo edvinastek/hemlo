@@ -1,24 +1,31 @@
+import type { CSSProperties } from 'react'
 import type { Task } from '../lib/types'
 import { checklistProgress, hasNote } from '../lib/notes'
+import './colours.css'
 
 interface Props {
   task: Task
   onTick: (t: Task) => void
   onPush: (t: Task, minutes: number) => void
   onEdit: (t: Task) => void
+  /** The task's module colour when colours are on, else nothing. */
+  colour?: string | null
+  /** The module's name, shown in the meta line when the task has no section,
+   *  so the colour is never the only thing that says what it is. */
+  moduleName?: string | null
 }
 
 const PUSH_STEPS = [15, 30, 60]
 
 /** Left to right: time in the margin, rail dot, name, meta, state, push.
  *  A locked item shows the lock and no push control — nothing may move it. */
-export function TaskRow({ task, onTick, onPush, onEdit }: Props) {
+export function TaskRow({ task, onTick, onPush, onEdit, colour, moduleName }: Props) {
   const done = task.status === 'done'
   const slipped = task.status === 'stuck' || task.needs_review
 
   const meta = [
     task.duration_min ? `${task.duration_min} min` : null,
-    task.category,
+    task.category ?? (colour ? moduleName : null),
     !slipped && task.push_count > 0 ? `pushed ${task.push_count}×` : null,
   ].filter(Boolean).join(' · ')
 
@@ -39,7 +46,8 @@ export function TaskRow({ task, onTick, onPush, onEdit }: Props) {
   ) : null
 
   return (
-    <article className={`row${done ? ' is-done' : ''}${slipped ? ' is-slipped' : ''}`}>
+    <article className={`row${done ? ' is-done' : ''}${slipped ? ' is-slipped' : ''}${colour ? ' has-mod' : ''}`}
+      style={colour ? ({ '--row-mod': colour } as CSSProperties) : undefined}>
       <span className="row-time">{task.planned_time?.slice(0, 5) ?? ''}</span>
       <span className="row-dot" aria-hidden="true" />
 

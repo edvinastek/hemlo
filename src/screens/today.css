@@ -1,0 +1,16 @@
+/* Today's header. The tabs follow the day, so there can be none (only
+   Today: the header draws no tab row at all) or more than fit a phone (they
+   scroll sideways instead of running off the page). */
+.today-page .tabs:empty { display: none; }
+.today-page .tabs {
+  overflow-x: auto;
+  scrollbar-width: none;
+  /* A scroll box clips what hangs out of it, and the selected tab's 2 px
+     underline hangs 1 px over the row's rule. The padding makes room for
+     it inside, and the rule becomes a 1 px background line underneath. */
+  padding-bottom: 1px;
+  border-bottom: 0;
+  background: linear-gradient(var(--e-rule), var(--e-rule)) bottom / 100% 1px no-repeat;
+}
+.today-page .tabs::-webkit-scrollbar { display: none; }
+.today-page .tabs button { flex: none; white-space: nowrap; max-width: 16ch; overflow: hidden; text-overflow: ellipsis; }

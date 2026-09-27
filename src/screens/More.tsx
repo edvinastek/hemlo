@@ -11,6 +11,7 @@ import { Dropdown } from '../ui/Dropdown'
 import { PlanningSettings } from '../settings/PlanningSettings'
 import { FoodSettings } from '../settings/FoodSettings'
 import { NavSettings } from '../settings/NavSettings'
+import { ColourSettings } from '../settings/ColourSettings'
 import { exportBundle, importBundle } from '../lib/bundle'
 import { getReminderSettings, setReminderSettings, requestPermission, type ReminderSettings } from '../lib/notify'
 import type { ModuleInstance } from '../lib/types'
@@ -132,6 +133,7 @@ function ProfilePanel() {
       ))}
 
       <PlanningSettings />
+      <ColourSettings />
       <p className="section-title">Body and goal</p>
       <Field label="Height" value={String(profile.height_cm ?? '')} unit="cm"
         onSave={(v) => edit('profile', profile, { height_cm: Number(v) })} />

@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useMemo, useState, type CSSProperties } from 'react'
 import { useLiveQuery } from 'dexie-react-hooks'
 import {
   addDays, eachDayOfInterval, endOfMonth, endOfWeek, format, isSameDay,
@@ -7,7 +7,10 @@ import {
 import { db } from '../lib/db'
 import { useApp } from '../lib/store'
 import { PageHead } from '../ui/PageHead'
+import { useModuleColours, type ModuleColours } from '../lib/colours'
+import { modulesByWeight } from '../lib/colours-rules'
 import type { Task } from '../lib/types'
+import '../ui/colours.css'
 
 const SECTIONS = ['Week', 'Month', 'Year']
 
@@ -17,6 +20,7 @@ export function Plan() {
   const profile = useApp((s) => s.profile)
   const [date, setDate] = useState(new Date())
   const [section, setSection] = useState('Week')
+  const colours = useModuleColours()
 
   const tasks = useLiveQuery(async () => {
     if (!profile) return []
@@ -33,6 +37,10 @@ export function Plan() {
     }
     return map
   }, [tasks])
+
+  /** The modules present on a day, most items first: for the month dots,
+   *  the legends and the year square's title. */
+  const modulesOn = (d: Date) => modulesByWeight((byDay.get(format(d, 'yyyy-MM-dd')) ?? []).map(colours.moduleOf))
 
   const load = (d: Date) => (byDay.get(format(d, 'yyyy-MM-dd')) ?? [])
     .reduce((sum, t) => sum + (t.duration_min ?? 15), 0)
@@ -51,28 +59,32 @@ export function Plan() {
         <PageHead date={date} onPick={setDate} sections={SECTIONS} active={section} onSection={setSection} />
 
         {section === 'Week' && (
-          <div className="week-grid" style={{ margin: 'var(--space-3) var(--space-4) 0' }}>
-            {eachDayOfInterval({
-              start: startOfWeek(date, { weekStartsOn: 1 }),
-              end: endOfWeek(date, { weekStartsOn: 1 }),
-            }).map((d) => {
-              const items = (byDay.get(format(d, 'yyyy-MM-dd')) ?? [])
-                .sort((a, b) => (a.planned_time ?? '99').localeCompare(b.planned_time ?? '99'))
-              return (
-                <div key={d.toISOString()} className={`week-col${isSameDay(d, new Date()) ? ' is-today' : ''}`}>
-                  <h3>{format(d, 'EEE d')}</h3>
-                  <div className="week-items">
-                    {items.map((t) => (
-                      <div key={t.id} className="week-item">
-                        <span className="t">{t.planned_time?.slice(0, 5)}</span> {t.title}
-                      </div>
-                    ))}
-                    {items.length === 0 && <span className="t" style={{ color: 'var(--e-ink-soft)' }}>—</span>}
+          <>
+            <div className="week-grid" style={{ margin: 'var(--space-3) var(--space-4) 0' }}>
+              {weekDays(date).map((d) => {
+                const items = (byDay.get(format(d, 'yyyy-MM-dd')) ?? [])
+                  .sort((a, b) => (a.planned_time ?? '99').localeCompare(b.planned_time ?? '99'))
+                return (
+                  <div key={d.toISOString()} className={`week-col${isSameDay(d, new Date()) ? ' is-today' : ''}`}>
+                    <h3>{format(d, 'EEE d')}</h3>
+                    <div className="week-items">
+                      {items.map((t) => {
+                        const c = colours.ofTask(t)
+                        return (
+                          <div key={t.id} className={`week-item${c ? ' has-mod' : ''}`}>
+                            {c && <i className="mod-dot" style={{ '--mod': c } as CSSProperties} aria-hidden="true" />}
+                            <span><span className="t">{t.planned_time?.slice(0, 5)}</span> {t.title}</span>
+                          </div>
+                        )
+                      })}
+                      {items.length === 0 && <span className="t" style={{ color: 'var(--e-ink-soft)' }}>—</span>}
+                    </div>
                   </div>
-                </div>
-              )
-            })}
-          </div>
+                )
+              })}
+            </div>
+            <ModuleLegend colours={colours} keys={modulesByWeight(weekDays(date).flatMap(modulesOn))} />
+          </>
         )}
 
         {section === 'Month' && (
@@ -86,10 +98,7 @@ export function Plan() {
               <i style={{ background: 'var(--e-heat-4)' }} /> more
             </div>
             <div className="month-grid">
-              {eachDayOfInterval({
-                start: startOfWeek(startOfMonth(date), { weekStartsOn: 1 }),
-                end: endOfWeek(endOfMonth(date), { weekStartsOn: 1 }),
-              }).map((d) => (
+              {monthDays(date).map((d) => (
                 <button
                   key={d.toISOString()}
                   className="month-cell"
@@ -98,9 +107,20 @@ export function Plan() {
                 >
                   <span className="d">{format(d, 'd')}</span>
                   <span className="load" style={{ background: heat(load(d)) }} />
+                  {/* Under the heat, up to four of the day's modules; the
+                      legend below names each colour. */}
+                  {colours.on && (
+                    <span className="month-mods" aria-hidden="true">
+                      {modulesOn(d).slice(0, 4).map((k) => (
+                        <i key={k} className="mod-dot" style={{ '--mod': colours.of(k) } as CSSProperties} />
+                      ))}
+                    </span>
+                  )}
                 </button>
               ))}
             </div>
+            <ModuleLegend colours={colours}
+              keys={modulesByWeight(monthDays(date).filter((d) => isSameMonth(d, date)).flatMap(modulesOn))} />
           </>
         )}
 
@@ -115,7 +135,7 @@ export function Plan() {
                 <span
                   key={d.toISOString()}
                   className="year-cell"
-                  title={`${format(d, 'd MMM')} · ${load(d)} min`}
+                  title={yearTitle(d, load(d), colours.on ? modulesOn(d)[0] : undefined, colours)}
                   style={{ background: heat(load(d)) }}
                 />
               ))}
@@ -125,6 +145,34 @@ export function Plan() {
           </>
         )}
       </div>
+    </div>
+  )
+}
+
+const weekDays = (date: Date) => eachDayOfInterval({
+  start: startOfWeek(date, { weekStartsOn: 1 }),
+  end: endOfWeek(date, { weekStartsOn: 1 }),
+})
+
+const monthDays = (date: Date) => eachDayOfInterval({
+  start: startOfWeek(startOfMonth(date), { weekStartsOn: 1 }),
+  end: endOfWeek(endOfMonth(date), { weekStartsOn: 1 }),
+})
+
+/** The year square stays a heat square, readable at 9 px; the module that
+ *  filled most of the day is named in its title instead of drawn on it. */
+function yearTitle(d: Date, minutes: number, top: string | undefined, colours: ModuleColours): string {
+  return [format(d, 'd MMM'), `${minutes} min`, top ? `mostly ${colours.label(top)}` : null].filter(Boolean).join(' · ')
+}
+
+/** Every colour on the page with its name, so a colour is never guessed. */
+function ModuleLegend({ colours, keys }: { colours: ModuleColours; keys: string[] }) {
+  if (!colours.on || keys.length === 0) return null
+  return (
+    <div className="mod-legend" aria-label="Module colours">
+      {keys.map((k) => (
+        <span key={k}><i className="mod-dot" style={{ '--mod': colours.of(k) } as CSSProperties} />{colours.label(k)}</span>
+      ))}
     </div>
   )
 }

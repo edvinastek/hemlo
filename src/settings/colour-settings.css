@@ -1,0 +1,41 @@
+/* More → Profile → Colours. One row per module: its swatch, its name, the
+   colour's name. Tapping opens a compact palette under the row, never a
+   full-screen picker. */
+
+.cs-list.is-off .cs-head { opacity: 0.6; }
+
+.cs-row { border-bottom: 1px solid var(--e-rule); }
+.cs-head {
+  display: grid; grid-template-columns: 18px minmax(0, 1fr) auto; gap: var(--space-3); align-items: center;
+  width: 100%; padding: var(--space-3) var(--space-4); text-align: left;
+}
+.cs-head .row-name { font-family: var(--font-sans); font-size: 15px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.cs-head .row-meta { margin: 0; white-space: nowrap; }
+.cs-swatch { width: 18px; height: 18px; border-radius: var(--radius-pill); background: var(--mod); }
+
+.cs-note {
+  padding: 0 var(--space-4) var(--space-2) calc(var(--space-4) + 18px + var(--space-3));
+  font-family: var(--font-sans); font-size: 12px; color: var(--e-warn);
+}
+
+.cs-note.is-quiet { color: var(--e-ink-soft); }
+
+.cs-panel { padding: 0 var(--space-4) var(--space-3); display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--space-3); }
+/* Eight to a line: 16 swatches in two rows, each at least 32 px to tap at 360 px. */
+.cs-grid { display: grid; grid-template-columns: repeat(8, minmax(0, 1fr)); gap: var(--space-2); }
+.cs-pick {
+  aspect-ratio: 1; min-height: 32px; min-width: 0; padding: 0; border-radius: var(--radius-sm);
+  background: var(--mod); border: 2px solid transparent;
+}
+/* The chosen one is ringed in ink with a gap of page between, so it reads
+   on every swatch and in both themes. */
+.cs-pick[aria-pressed="true"] { border-color: var(--e-paper); outline: 2px solid var(--e-ink); }
+
+.cs-custom { display: flex; gap: var(--space-2); }
+.cs-custom input {
+  /* No width of its own, so the row fits a phone and the field takes what
+     the two buttons leave. */
+  flex: 1; width: 0; min-width: 0; font-family: var(--font-mono); font-size: 14px; color: var(--e-ink);
+  background: var(--e-paper); border: 1px solid var(--e-rule); border-radius: var(--radius-md); padding: 8px 10px;
+}
+.cs-custom .btn:disabled { opacity: 0.5; }

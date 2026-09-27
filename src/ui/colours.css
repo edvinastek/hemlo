@@ -1,0 +1,42 @@
+/* Module colours on the rail, the week list, the month grid and in the
+   legends. The colour itself comes in as --row-mod / --mod on the element, so
+   these rules only place it. Colour is never the only signal: every marker
+   sits beside a name (the row's meta line, a legend, a tab). */
+
+/* The rail: a 7 px dot on the line in place of the plain one, and a 2 px
+   edge down the row's left side. The row's padding box moves by the edge's
+   width, so the time and the dot move back by the same amount and stay on
+   the line. */
+.row.has-mod { border-left: 2px solid var(--row-mod); padding-left: 10px; }
+.row.has-mod .row-time { left: -66px; }
+.row.has-mod .row-dot { width: 7px; height: 7px; left: -13px; top: 19px; background: var(--row-mod); }
+/* Rows with no module keep their text in line with the coloured ones. */
+.rail.is-coloured .row:not(.has-mod):not(.is-slipped) { padding-left: 12px; }
+/* A slipped row keeps its warning edge: needing a decision outranks which
+   part of the day it belongs to. The module colour stays on the dot. */
+.row.has-mod.is-slipped { border-left: 3px solid var(--e-warn); padding-left: var(--space-3); }
+.row.has-mod.is-slipped .row-time { left: -67px; }
+.row.has-mod.is-slipped .row-dot { left: -14px; }
+
+/* A small round marker used in lists and legends. */
+.mod-dot {
+  display: inline-block; flex: none;
+  width: 7px; height: 7px; border-radius: var(--radius-pill);
+  background: var(--mod);
+}
+
+.week-item.has-mod { display: flex; align-items: baseline; gap: 6px; }
+.week-item.has-mod .mod-dot { transform: translateY(-1px); }
+
+/* Up to four dots under the month cell's load bar. */
+.month-mods { display: flex; gap: 3px; margin-top: 5px; flex-wrap: wrap; }
+.month-mods .mod-dot { width: 6px; height: 6px; }
+
+/* The legend under Week and Month: every colour with its name. Wraps on a
+   phone rather than running off the side. */
+.mod-legend {
+  display: flex; flex-wrap: wrap; gap: var(--space-1) var(--space-3);
+  padding: var(--space-2) var(--space-4);
+  font-family: var(--font-sans); font-size: 12px; color: var(--e-ink-soft);
+}
+.mod-legend span { display: inline-flex; align-items: center; gap: 6px; white-space: nowrap; }
