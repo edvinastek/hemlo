@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type MouseEvent, type PointerEvent } from 'react'
+import { useEffect, useRef, useState, type MouseEvent, type PointerEvent, type ReactNode } from 'react'
 import { addDays, format, isSameDay, parseISO, startOfWeek } from 'date-fns'
 import { inRange, moveWeek } from '../lib/calendar-rules'
 import { MonthScroller } from './MonthScroller'
@@ -11,6 +11,8 @@ interface Props {
   active: string
   onSection: (s: string) => void
   sub?: string
+  /** Under the date: the day's public holidays on Today. */
+  note?: ReactNode
 }
 
 /** Serif date, week strip, section tabs. The header owns about a third of the
@@ -19,7 +21,7 @@ interface Props {
  *  Tapping the date opens a calendar to jump to any day. Every way of moving
  *  (the calendar, the strip, a swipe) stops three years back and five years
  *  ahead of today. */
-export function PageHead({ date, onPick, sections, active, onSection, sub }: Props) {
+export function PageHead({ date, onPick, sections, active, onSection, sub, note }: Props) {
   const weekStart = startOfWeek(date, { weekStartsOn: 1 })
   const today = new Date()
   const { range, clamp, today: todayKey } = useDayRange()
@@ -41,6 +43,7 @@ export function PageHead({ date, onPick, sections, active, onSection, sub }: Pro
           title="Go to a day" onClick={() => setPicking(true)}>{heading}</button>
       </h1>
       {sub && <p className="page-sub">{sub}</p>}
+      {note}
 
       <div className={`week-strip${strip.slide ? ` slide-${strip.slide}` : ''}`}
         key={weekStart.toISOString()} {...strip.handlers}>

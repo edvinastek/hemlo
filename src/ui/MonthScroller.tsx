@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties } from 'react'
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode } from 'react'
 import { monthAt, monthDays, monthIndex, monthsBetween, monthTops, type MonthBlock } from '../lib/calendar-rules'
 import './colours.css'
 import './monthscroller.css'
@@ -52,6 +52,8 @@ interface Props {
   disabled?: (day: string) => boolean
   /** More words read out after the day: "2 h planned". */
   describe?: (day: string) => string | undefined
+  /** Anything more drawn inside a day, such as a public holiday's mark. */
+  extra?: (day: string) => ReactNode
   onDayClick?: (day: string) => void
   className?: string
 }
@@ -62,7 +64,7 @@ interface Props {
  *  buttons, and the page would crawl. Every month's height is known in
  *  advance (a heading and four to six rows), which is what makes that work. */
 export function MonthScroller({
-  first, last, openAt, jump, today, label, marks, heat, selected, chosen, disabled, describe, onDayClick, className,
+  first, last, openAt, jump, today, label, marks, heat, selected, chosen, disabled, describe, extra, onDayClick, className,
 }: Props) {
   const scroller = useRef<HTMLDivElement>(null)
   const months = useMemo(() => monthsBetween(first, last), [first, last])
@@ -109,7 +111,7 @@ export function MonthScroller({
         <div className="ms-inner" style={{ height: total }}>
           {months.slice(from, to + 1).map((m, i) => (
             <Month key={m.key} block={m} top={tops[from + i]} first={first} last={last} today={today}
-              marks={marks} heat={heat} selected={selected} chosen={chosen} disabled={disabled} describe={describe}
+              marks={marks} heat={heat} selected={selected} chosen={chosen} disabled={disabled} describe={describe} extra={extra}
               onDayClick={onDayClick} />
           ))}
         </div>
@@ -118,7 +120,7 @@ export function MonthScroller({
   )
 }
 
-function Month({ block, top, first, last, today, marks, heat, selected, chosen, disabled, describe, onDayClick }:
+function Month({ block, top, first, last, today, marks, heat, selected, chosen, disabled, describe, extra, onDayClick }:
   Omit<Props, 'openAt' | 'jump' | 'label' | 'className'> & { block: MonthBlock; top: number }) {
   return (
     <section className="ms-month" style={{ top, height: HEAD_H + block.weeks * ROW_H }} aria-label={monthName(block.key)}>
@@ -130,17 +132,18 @@ function Month({ block, top, first, last, today, marks, heat, selected, chosen, 
           const dots = marks?.(day).slice(0, 3) ?? []
           const warm = heat?.(day)
           const picked = selected?.has(day) || day === chosen
-          const extra = [day === chosen ? 'showing now' : null, describe?.(day)].filter(Boolean).join(', ')
+          const words = [day === chosen ? 'showing now' : null, describe?.(day)].filter(Boolean).join(', ')
           const cls = ['ms-day', day === today && 'is-today', picked && 'is-picked', warm?.strong && 'is-strong']
             .filter(Boolean).join(' ')
           return (
             <button key={day} type="button" className={cls} disabled={off || !onDayClick}
               aria-pressed={selected ? !!selected.has(day) : undefined}
               aria-current={day === today ? 'date' : undefined}
-              aria-label={`${spokenDay(day, block.lead)}${extra ? `, ${extra}` : ''}`}
+              aria-label={`${spokenDay(day, block.lead)}${words ? `, ${words}` : ''}`}
               data-day={day}
               style={warm ? ({ '--ms-heat': warm.colour } as CSSProperties) : undefined}
               onClick={() => onDayClick?.(day)}>
+              {extra?.(day)}
               <span className="ms-num">{Number(day.slice(8, 10))}</span>
               {dots.length > 0 && (
                 <span className="ms-dots" aria-hidden="true">

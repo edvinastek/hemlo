@@ -1,0 +1,40 @@
+/* Public holiday marks. The country's colour comes in as --hol on the
+   element; these rules only place it. Holidays are short bars, modules are
+   round dots, so the two never look alike. Every swatch is at 3:1 or more on
+   both the light and the dark page (colours-rules.ts). */
+
+.hol-mark { display: flex; gap: 2px; pointer-events: none; }
+.hol-mark i { display: block; background: var(--hol); border-radius: 2px; }
+
+/* Under a day's header in Week: a short underline, split per country. */
+.hol-mark.is-bar { margin-top: 3px; width: 100%; max-width: 44px; }
+.hol-mark.is-bar i { flex: 1; height: 3px; }
+
+/* Along the top edge of a month cell, split per country. */
+.month-cell { position: relative; }
+.hol-mark.is-top { position: absolute; top: 0; left: 0; right: 0; }
+.hol-mark.is-top i { flex: 1; height: 3px; border-radius: 0; }
+
+/* In a small day square: tiny marks in a row. */
+.hol-mark.is-dot { gap: 1px; }
+.hol-mark.is-dot i { width: 5px; height: 3px; }
+
+/* Today's header: the day's holidays by name. Wraps on a phone. */
+.hol-chips {
+  display: flex; flex-wrap: wrap; gap: var(--space-1) var(--space-2);
+  margin-top: var(--space-1);
+  font-family: var(--font-sans); font-size: 12px; color: var(--e-ink);
+}
+.hol-chip {
+  display: inline-flex; align-items: center; gap: 6px; min-width: 0;
+  background: var(--e-tint); border-radius: var(--radius-pill); padding: 3px 9px;
+  overflow-wrap: anywhere;
+}
+/* The chip's own mark: a short bar per country, side by side. */
+.hol-mark.is-chip { flex: none; gap: 1px; }
+.hol-mark.is-chip i { width: 7px; height: 3px; }
+.hol-mark.is-chip i:only-child { width: 10px; }
+
+/* The legend's key is the same short bar the marks use. */
+.hol-legend > span:first-child { color: var(--e-ink-soft); }
+.hol-key { display: inline-block; flex: none; width: 12px; height: 3px; border-radius: 2px; background: var(--hol); }

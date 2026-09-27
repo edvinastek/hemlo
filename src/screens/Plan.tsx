@@ -1,8 +1,8 @@
 import { useMemo, useState, type CSSProperties } from 'react'
 import { useLiveQuery } from 'dexie-react-hooks'
 import {
-  addMonths, eachDayOfInterval, endOfMonth, endOfWeek, format, isSameDay,
-  isSameMonth, parseISO, startOfMonth, startOfWeek,
+  addMonths, eachDayOfInterval, endOfMonth, endOfWeek, endOfYear, format, isSameDay,
+  isSameMonth, parseISO, startOfMonth, startOfWeek, startOfYear,
 } from 'date-fns'
 import { db } from '../lib/db'
 import { useApp } from '../lib/store'
@@ -15,6 +15,8 @@ import { usePlannedRepeats } from '../lib/planned'
 import type { PlannedRepeat } from '../lib/series-rules'
 import { readSettings } from '../lib/settings'
 import { useWeekSwap } from '../ui/WeekSwap'
+import { countriesIn, holidayMarks, holidaysText, useHolidays } from '../lib/holidays'
+import { HolidayLegend, HolidayMark } from '../ui/HolidayMark'
 import type { Task } from '../lib/types'
 import '../ui/colours.css'
 
@@ -35,6 +37,14 @@ export function Plan() {
   const colours = useModuleColours()
   const { range, clamp, today } = useDayRange()
   const go = (d: Date) => setDate(clamp(d))
+  // Public holidays for the whole year shown, padded to full weeks, so Week,
+  // Month and Year all read from one map (empty when no country is chosen).
+  // Year scrolls the whole range, so it asks for every year in it.
+  const holidays = useHolidays(
+    section === 'Year' ? range.first : format(startOfWeek(startOfYear(date), { weekStartsOn: 1 }), 'yyyy-MM-dd'),
+    section === 'Year' ? range.last : format(endOfWeek(endOfYear(date), { weekStartsOn: 1 }), 'yyyy-MM-dd'))
+  const holidayLegend = (days: Date[]) =>
+    countriesIn(days.map((d) => holidayMarks(holidays, d)), readSettings(profile).holidays.countries)
 
   const tasks = useLiveQuery(async () => {
     if (!profile) return []
@@ -94,10 +104,11 @@ export function Plan() {
                 const items = (byDay.get(day) ?? [])
                   .sort((a, b) => (a.planned_time ?? '99').localeCompare(b.planned_time ?? '99'))
                 const later = plannedOn(day)
+                const hol = holidayMarks(holidays, d)
                 return (
                   <div key={d.toISOString()} className={`week-col${isSameDay(d, new Date()) ? ' is-today' : ''}${swap.colClass(day)}`}
                     {...swap.colProps(day)}>
-                    <h3 {...swap.headProps(day)}>{format(d, 'EEE d')}</h3>
+                    <h3 {...swap.headProps(day)} title={[holidaysText(hol), swap.headProps(day).title].filter(Boolean).join(' · ')}>{format(d, 'EEE d')}<HolidayMark marks={hol} variant="bar" /></h3>
                     <div className="week-items">
                       {items.map((t) => {
                         const c = colours.ofTask(t)
@@ -123,6 +134,7 @@ export function Plan() {
               </p>
             )}
             <ModuleLegend colours={colours} keys={modulesByWeight(weekDays(date).flatMap(modulesOn))} />
+            <HolidayLegend countries={holidayLegend(weekDays(date))} />
           </>
         )}
 
@@ -143,7 +155,9 @@ export function Plan() {
                   className="month-cell"
                   onClick={() => { go(d); setSection('Week') }}
                   style={{ opacity: isSameMonth(d, date) ? 1 : 0.4, textAlign: 'left' }}
+                  title={holidaysText(holidayMarks(holidays, d)) || undefined}
                 >
+                  <HolidayMark marks={holidayMarks(holidays, d)} variant="top" />
                   <span className="d">{format(d, 'd')}</span>
                   <span className="load" style={{ background: heat(load(d)) }} />
                   {/* Under the heat, up to four of the day's modules; the
@@ -160,6 +174,7 @@ export function Plan() {
             </div>
             <ModuleLegend colours={colours}
               keys={modulesByWeight(monthDays(date).filter((d) => isSameMonth(d, date)).flatMap(modulesOn))} />
+            <HolidayLegend countries={holidayLegend(monthDays(date).filter((d) => isSameMonth(d, date)))} />
           </>
         )}
 
@@ -177,12 +192,14 @@ export function Plan() {
                   return { colour: `var(--e-heat-${step})`, strong: step === 4 }
                 }}
                 marks={(day) => (colours.on ? modulesOnDay(day).map(colours.of) : [])}
-                describe={(day) => dayWords(loadOn(day), colours.on ? modulesOnDay(day)[0] : undefined,
-                  plannedOn(day).length, colours)}
+                describe={(day) => [dayWords(loadOn(day), colours.on ? modulesOnDay(day)[0] : undefined,
+                  plannedOn(day).length, colours), holidaysText(holidayMarks(holidays, day))].filter(Boolean).join(', ') || undefined}
+                extra={(day) => <HolidayMark marks={holidayMarks(holidays, day)} variant="top" />}
                 onDayClick={(day) => { go(parseISO(day)); setSection('Week') }}
               />
             </div>
             <ModuleLegend colours={colours} keys={yearLegend} />
+            <HolidayLegend countries={countriesIn([...holidays.values()], readSettings(profile).holidays.countries)} />
             <p className="section-title">Goals and phases</p>
             <Goals />
           </>

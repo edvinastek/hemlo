@@ -19,6 +19,8 @@ import { useModuleColours } from '../lib/colours'
 import { dayTotals } from '../lib/nutrition'
 import { readSettings } from '../lib/settings'
 import { metricLine } from '../lib/quick-food'
+import { holidayMarks, useHolidays } from '../lib/holidays'
+import { HolidayChips } from '../ui/HolidayMark'
 import type { Task } from '../lib/types'
 import './today.css'
 
@@ -32,6 +34,8 @@ export function Today() {
   const day = format(date, 'yyyy-MM-dd')
   const today = format(new Date(), 'yyyy-MM-dd')
   const colours = useModuleColours()
+  // The day's public holidays, if any countries are chosen (More → Profile).
+  const holidays = useHolidays(day, day)
 
   // Live queries: the screen re-reads itself as rows land from the sync, so
   // there is no moment where the data is there and the page still says empty.
@@ -112,6 +116,7 @@ export function Today() {
           active={tab.label}
           onSection={(label) => setSection(tabs.find((t) => t.label === label)?.key ?? 'today')}
           sub={figure?.text}
+          note={<HolidayChips marks={holidayMarks(holidays, day)} />}
         />
 
         {figure && figure.share !== null && (
