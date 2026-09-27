@@ -41,7 +41,7 @@ export SB=<Supabase access token>  TEST_PASSWORD=<random>
 export TEST_EMAIL=e2e-a@example.invalid TEST_NEW_EMAIL=e2e-b@example.invalid TEST_FEAT_EMAIL=e2e-c@example.invalid
 export TEST_ONBOARD_EMAIL=e2e-d@example.invalid TEST_MODULES_EMAIL=e2e-e@example.invalid
 node scripts/test-accounts.mjs create $TEST_EMAIL $TEST_NEW_EMAIL $TEST_FEAT_EMAIL $TEST_ONBOARD_EMAIL $TEST_MODULES_EMAIL
-for t in onboarding features offline privacy tracking widget tasksheet food stock daytabs modules nav layout tour; do node src/test/$t.e2e.mjs || break; done
+for t in onboarding features offline privacy tracking widget tasksheet food stock daytabs modules stats nav layout tour; do node src/test/$t.e2e.mjs || break; done
 node scripts/test-accounts.mjs delete $TEST_EMAIL $TEST_NEW_EMAIL $TEST_FEAT_EMAIL $TEST_ONBOARD_EMAIL $TEST_MODULES_EMAIL
 ```
 
@@ -67,6 +67,9 @@ to the test accounts, because they run against the live project.
   Work on a day without it; the rail's colour marker on and off, and a colour reaching profile.settings.
 - `modules` — a module built from the Expenses preset, a dated record in Postgres, the rule that puts it on
   Today as a task, a field added in the editor, a night on the Sleep page, a built-in field renamed.
+- `stats` — the Stats page at 360 px in light and dark: today's tasks and a habit tick on the Day tab, a chart
+  and no overflow on Week, Month and Year, the arrows stopping three years back, and "Show switched-off modules"
+  bringing a switched-off card and reaching profile.settings.
 - `layout` — opens every screen and tab at 360 px wide and fails if anything runs off the side
   or sits under the floating add button.
 
