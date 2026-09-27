@@ -7,6 +7,7 @@ import { edit } from '../lib/write'
 import { MODULES } from '../modules/registry'
 import { Privacy } from './Privacy'
 import { ModuleEditor } from '../ui/ModuleEditor'
+import { BuiltModules } from '../modules/ModuleBuilder'
 import { Dropdown } from '../ui/Dropdown'
 import { PlanningSettings } from '../settings/PlanningSettings'
 import { FoodSettings } from '../settings/FoodSettings'
@@ -80,6 +81,7 @@ function Modules({ onEdit }: { onEdit: (key: string) => void }) {
       ))}
 
       {instances.length === 0 && <p className="empty">Modules arrive with your profile.</p>}
+      <BuiltModules onEdit={onEdit} />
     </>
   )
 }

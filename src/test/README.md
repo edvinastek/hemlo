@@ -23,6 +23,9 @@ Types, then every check that needs nothing but Node. CI runs the same command.
 - `pages` — which pages the bar has for which modules, their order, hidden pages, where a swipe lands, which addresses go to Today, and how each bar style shares the pages out.
 - `daytabs` — which tabs Today shows for a day (only what is on and has something that day), their order, the fallback to Today.
 - `colours` — module colours: the palette at 3:1 or more on both the light and the dark page, defaults, a task's module, choosing and resetting.
+- `moduledefs` — module definitions read from storage are checked and cleaned (names, types, formulas, options,
+  sizes); a built-in module's changes survive the stored overlay; a record's day; the rule that turns dated
+  records into tasks; the keyword suggestion; every builder preset is a valid module.
 
 ## Browser checks
 
@@ -33,10 +36,10 @@ Make throwaway ones, run, and delete them afterwards:
 ```sh
 export SB=<Supabase access token>  TEST_PASSWORD=<random>
 export TEST_EMAIL=e2e-a@example.invalid TEST_NEW_EMAIL=e2e-b@example.invalid TEST_FEAT_EMAIL=e2e-c@example.invalid
-export TEST_ONBOARD_EMAIL=e2e-d@example.invalid
-node scripts/test-accounts.mjs create $TEST_EMAIL $TEST_NEW_EMAIL $TEST_FEAT_EMAIL $TEST_ONBOARD_EMAIL
+export TEST_ONBOARD_EMAIL=e2e-d@example.invalid TEST_MODULES_EMAIL=e2e-e@example.invalid
+node scripts/test-accounts.mjs create $TEST_EMAIL $TEST_NEW_EMAIL $TEST_FEAT_EMAIL $TEST_ONBOARD_EMAIL $TEST_MODULES_EMAIL
 for t in onboarding features offline privacy tracking widget tasksheet food stock daytabs modules nav layout tour; do node src/test/$t.e2e.mjs || break; done
-node scripts/test-accounts.mjs delete $TEST_EMAIL $TEST_NEW_EMAIL $TEST_FEAT_EMAIL $TEST_ONBOARD_EMAIL
+node scripts/test-accounts.mjs delete $TEST_EMAIL $TEST_NEW_EMAIL $TEST_FEAT_EMAIL $TEST_ONBOARD_EMAIL $TEST_MODULES_EMAIL
 ```
 
 Never commit the password or the token. Every query in these checks is scoped
@@ -59,6 +62,8 @@ to the test accounts, because they run against the live project.
   taken out when a meal is eaten and put back when it is unticked.
 - `daytabs` — Today's tabs follow the day: none on a Minimal planner, Habits once a habit is due, no
   Work on a day without it; the rail's colour marker on and off, and a colour reaching profile.settings.
+- `modules` — a module built from the Expenses preset, a dated record in Postgres, the rule that puts it on
+  Today as a task, a field added in the editor, a night on the Sleep page, a built-in field renamed.
 - `layout` — opens every screen and tab at 360 px wide and fails if anything runs off the side
   or sits under the floating add button.
 

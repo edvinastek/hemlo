@@ -16,13 +16,21 @@ interface Props<T extends { id: string }> {
   onChange?: (row: T, field: string, value: unknown) => void
   totals?: (keyof T & string)[]
   emptyNote?: string
+  /** A calculated cell's value, when the caller works it out (module pages
+   *  leave a formula blank until its inputs are filled). */
+  computed?: (row: T, field: FieldDef) => number | null
+  /** Adds an Open button at the end of each row, for the row's own sheet. */
+  onOpen?: (row: T) => void
+  openLabel?: (row: T) => string
+  /** A cleared number cell sends null rather than 0. */
+  emptyAsNull?: boolean
 }
 
 /** A table that behaves like the sheet it came from: edit in place, recalculate
  *  at once, dropdowns wherever a database is referenced, and calculated cells
  *  that are visibly not yours to type in. */
 export function DataTable<T extends { id: string } & Record<string, unknown>>(
-  { fields, priority, editable, rows, lookups = {}, onChange, totals = [], emptyNote }: Props<T>,
+  { fields, priority, editable, rows, lookups = {}, onChange, totals = [], emptyNote, computed, onOpen, openLabel, emptyAsNull }: Props<T>,
 ) {
   const narrow = useNarrow()
   const shown = narrow && priority
@@ -49,6 +57,7 @@ export function DataTable<T extends { id: string } & Record<string, unknown>>(
                 {f.label}{f.unit ? <span style={{ color: 'var(--e-ink-soft)' }}> {f.unit}</span> : null}
               </th>
             ))}
+            {onOpen && <th aria-label="Open" style={{ width: 52 }} />}
           </tr>
         </thead>
         <tbody>
@@ -61,14 +70,21 @@ export function DataTable<T extends { id: string } & Record<string, unknown>>(
                     : ''}
                 </td>
               ))}
+              {onOpen && <td />}
             </tr>
           )}
           {rows.map((row) => (
             <tr key={row.id}>
               {shown.map((f) => (
-                <Cell key={f.name} field={f} row={row} lookups={lookups}
+                <Cell key={f.name} field={f} row={row} lookups={lookups} computed={computed} emptyAsNull={emptyAsNull}
                   onChange={!editable || editable.includes(f.name) ? onChange : undefined} />
               ))}
+              {onOpen && (
+                <td className="open-cell">
+                  <button type="button" className="sheet-open" onClick={() => onOpen(row)}
+                    aria-label={openLabel ? openLabel(row) : 'Open'}>Open</button>
+                </td>
+              )}
             </tr>
           ))}
         </tbody>
@@ -78,13 +94,14 @@ export function DataTable<T extends { id: string } & Record<string, unknown>>(
 }
 
 function Cell<T extends { id: string } & Record<string, unknown>>(
-  { field, row, lookups, onChange }:
-  { field: FieldDef; row: T; lookups: Record<string, LookupOption[]>; onChange?: Props<T>['onChange'] },
+  { field, row, lookups, onChange, computed: compute, emptyAsNull }:
+  { field: FieldDef; row: T; lookups: Record<string, LookupOption[]>; onChange?: Props<T>['onChange']
+    computed?: Props<T>['computed']; emptyAsNull?: boolean },
 ) {
   const value = row[field.name]
 
   if (field.type === 'formula') {
-    const computed = field.formula ? evaluateFormula(field.formula, row) : null
+    const computed = compute ? compute(row, field) : field.formula ? evaluateFormula(field.formula, row) : null
     return <td className="calc" title={field.formula}>{computed === null ? '—' : Math.round(computed * 100) / 100}</td>
   }
 
@@ -143,9 +160,12 @@ function Cell<T extends { id: string } & Record<string, unknown>>(
   return (
     <td className={numeric ? 'num' : undefined}>
       <input
-        type={numeric ? 'number' : field.type === 'date' ? 'date' : field.type === 'time' ? 'time' : 'text'}
+        type={numeric ? 'number' : field.type === 'date' ? 'date' : field.type === 'time' ? 'time' : field.type === 'datetime' ? 'datetime-local' : 'text'}
         value={(value as string | number) ?? ''}
-        onChange={(e) => onChange?.(row, field.name, numeric ? Number(e.target.value) : e.target.value)}
+        aria-label={field.label}
+        onChange={(e) => onChange?.(row, field.name, numeric
+          ? (emptyAsNull && e.target.value === '' ? null : Number(e.target.value))
+          : (emptyAsNull && e.target.value === '' ? null : e.target.value))}
         readOnly={!onChange}
       />
     </td>
