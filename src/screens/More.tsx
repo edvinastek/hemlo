@@ -7,6 +7,7 @@ import { edit } from '../lib/write'
 import { MODULES } from '../modules/registry'
 import { Privacy } from './Privacy'
 import { ModuleEditor } from '../ui/ModuleEditor'
+import { Dropdown } from '../ui/Dropdown'
 import { PlanningSettings } from '../settings/PlanningSettings'
 import { FoodSettings } from '../settings/FoodSettings'
 import { exportBundle, importBundle } from '../lib/bundle'
@@ -143,12 +144,15 @@ function ProfilePanel() {
           <div className="row-name">Goal</div>
           <div className="row-meta">Cut takes 500 kcal off, bulk adds 300, recomp holds the line.</div>
         </div>
-        <select className="btn" value={profile.goal}
-          onChange={(e) => void edit('profile', profile, { goal: e.target.value as typeof profile.goal })}>
-          <option value="cut">cut</option>
-          <option value="recomp">recomp</option>
-          <option value="bulk">bulk</option>
-        </select>
+        <div style={{ width: 170 }}>
+          <Dropdown label="Body goal" value={profile.goal}
+            options={[
+              { value: 'cut', label: 'Lose fat' },
+              { value: 'recomp', label: 'Maintain and recomp' },
+              { value: 'bulk', label: 'Build muscle' },
+            ]}
+            onChange={(v) => void edit('profile', profile, { goal: v })} />
+        </div>
       </div>
       <FoodSettings />
     </>

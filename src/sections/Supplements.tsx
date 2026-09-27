@@ -5,6 +5,7 @@ import type { Supplement } from '../lib/types'
 import { addSupplement, archiveSupplement, moduleEnabled, toggleSupplement } from '../lib/tracking'
 import { SLOTS, SLOT_LABEL, groupBySlot, pickLog, type SupplementSlot } from '../lib/tracking-rules'
 import { PlusGlyph, TickGlyph } from './Habits'
+import { Dropdown } from '../ui/Dropdown'
 import './tracking.css'
 
 /** The day's supplements on Today's Body tab, in the order of the day:
@@ -102,9 +103,8 @@ function SupplementAdd({ profileId }: { profileId: string }) {
         <input className="name" value={name} onChange={(e) => setName(e.target.value)}
           placeholder="Vitamin D" aria-label="Supplement name" autoFocus />
         <input value={dose} onChange={(e) => setDose(e.target.value)} placeholder="25 µg" aria-label="Dose" />
-        <select value={slot} onChange={(e) => setSlot(e.target.value as SupplementSlot)} aria-label="Time of day">
-          {SLOTS.map((s) => <option key={s} value={s}>{SLOT_LABEL[s]}</option>)}
-        </select>
+        <Dropdown label="Time of day" value={slot} onChange={setSlot}
+          options={SLOTS.map((s) => ({ value: s, label: SLOT_LABEL[s] }))} />
       </div>
       <div className="actions">
         <button type="submit" className="btn btn-primary" disabled={!name.trim()}>Add</button>

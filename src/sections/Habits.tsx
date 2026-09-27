@@ -7,6 +7,7 @@ import {
   SCHEDULES, SCHEDULE_LABEL, currentStreak, doneDays, doneThisWeek, isScheduled, pickLog, streakText,
   type HabitSchedule,
 } from '../lib/tracking-rules'
+import { Dropdown } from '../ui/Dropdown'
 import './tracking.css'
 
 /** The day's habits on Today's Body tab: a tick for the day, the current run
@@ -132,9 +133,8 @@ function HabitAdd({ profileId }: { profileId: string }) {
       <div className="fields">
         <input className="name" value={name} onChange={(e) => setName(e.target.value)}
           placeholder="Mobility" aria-label="Habit name" autoFocus />
-        <select value={schedule} onChange={(e) => setSchedule(e.target.value as HabitSchedule)} aria-label="How often">
-          {SCHEDULES.map((s) => <option key={s} value={s}>{SCHEDULE_LABEL[s]}</option>)}
-        </select>
+        <Dropdown label="How often" value={schedule} onChange={setSchedule}
+          options={SCHEDULES.map((s) => ({ value: s, label: SCHEDULE_LABEL[s] }))} />
       </div>
       <div className="actions">
         <button type="submit" className="btn btn-primary" disabled={!name.trim()}>Add</button>
