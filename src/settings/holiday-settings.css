@@ -1,0 +1,16 @@
+/* More → Profile → Public holidays. The rows and the palette are the
+   colour settings' own (colour-settings.css); this only adds the Remove
+   button beside each row and the search field under the list. */
+
+.hs-intro {
+  padding: 0 var(--space-4) var(--space-2);
+  font-family: var(--font-sans); font-size: 12px; color: var(--e-ink-soft); max-width: 60ch;
+}
+
+/* The row's button takes what the Remove button leaves, so a long country
+   name shortens instead of pushing Remove off a 360 px screen. */
+.hs-line { display: flex; align-items: center; padding-right: var(--space-4); }
+.hs-line .cs-head { flex: 1; min-width: 0; }
+.hs-remove { flex: none; padding: 6px 10px; }
+
+.hs-add { padding: var(--space-3) var(--space-4); }
