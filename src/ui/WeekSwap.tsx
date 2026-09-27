@@ -108,18 +108,23 @@ export function useWeekSwap({ byDay, work }: { byDay: Map<string, Task[]>; work:
 
   const ui: ReactNode = (
     <>
-      {picked && !ask ? (
-        <div className="week-pick" role="status">
-          <span>
-            {picked.kind === 'day'
-              ? <>Swapping <b>{label(picked.day)}</b>. Tap the day to swap it with.</>
-              : <>Moving <b>“{picked.task.title || 'task'}”</b>. Tap the day to move it to.</>}
-          </span>
-          <button type="button" className="btn" onClick={() => pick(null)}>Cancel</button>
-        </div>
-      ) : (
-        <p className="week-hint">Hold a day to swap it with another, or hold a task to move it.</p>
-      )}
+      {/* The hint keeps its place while a banner floats over it, so nothing
+          under the finger moves when something is picked up. */}
+      <div className="week-pick-slot">
+        <p className="week-hint" style={picked && !ask ? { visibility: 'hidden' } : undefined}>
+          Hold a day to swap it with another, or hold a task to move it.
+        </p>
+        {picked && !ask && (
+          <div className="week-pick" role="status">
+            <span>
+              {picked.kind === 'day'
+                ? <>Swapping <b>{label(picked.day)}</b>. Tap the day to swap it with.</>
+                : <>Moving <b>“{picked.task.title || 'task'}”</b>. Tap the day to move it to.</>}
+            </span>
+            <button type="button" className="btn" onClick={() => pick(null)}>Cancel</button>
+          </div>
+        )}
+      </div>
       {ask?.kind === 'swap' && <SwapSheet ask={ask} onClose={() => { setAsk(null); pick(null) }} />}
       {ask?.kind === 'task' && (
         <MoveSheet

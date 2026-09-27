@@ -80,10 +80,12 @@ html.is-holding, html.is-holding * { cursor: grabbing; }
 .week-col.is-target { background: var(--e-tint); box-shadow: inset 0 0 0 2px var(--e-rail); }
 .week-item.is-picked { background: var(--e-tint); box-shadow: inset 3px 0 0 var(--e-accent); padding-left: 6px; }
 
+.week-pick-slot { position: sticky; top: var(--space-2); z-index: 4; }
 .week-pick {
-  position: sticky; top: var(--space-2); z-index: 4;
+  position: absolute; top: 0; left: 0; right: 0;
+  box-shadow: 0 2px 8px rgb(0 0 0 / 0.12);
   display: flex; align-items: center; gap: var(--space-2); flex-wrap: wrap;
-  margin: var(--space-2) var(--space-4) 0; padding: 8px var(--space-3);
+  margin: 0 var(--space-4); padding: 8px var(--space-3);
   background: var(--e-tint); border-left: 3px solid var(--e-accent); border-radius: var(--radius-md);
   font-family: var(--font-sans); font-size: 13px; color: var(--e-ink);
 }

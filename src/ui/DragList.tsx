@@ -81,8 +81,12 @@ export function DragList({ tasks, day, date, work, renderRow }: Props) {
     if (!d || !list) return
     const dy = d.y - list.getBoundingClientRect().top - d.startY
     const centre = d.tops[d.from] + d.heights[d.from] / 2 + dy
-    let raw = 0
-    d.tops.forEach((top, j) => { if (j !== d.from && top + d.heights[j] / 2 < centre) raw++ })
+    // It lands on the row whose place the middle of the held row is over
+    // (past either end, the first or last row), so dropping one row onto
+    // another's middle always means that row.
+    const last = d.tops.length - 1
+    let raw = centre < d.tops[0] ? 0 : centre >= d.tops[last] + d.room[last] ? last : d.from
+    d.tops.forEach((top, j) => { if (centre >= top && centre < top + d.room[j]) raw = j })
     d.to = clampTarget(latest.current.tasks, d.from, raw)
 
     const order = previewOrder(latest.current.tasks, d.from, d.to)

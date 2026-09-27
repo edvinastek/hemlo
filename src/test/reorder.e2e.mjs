@@ -27,6 +27,10 @@ const [dayA, dayB] = [0, 1, 2, 3, 4, 5, 6].map((n) => addDays(monday, n)).filter
 
 // Rows from an earlier run go first, before any device holds them.
 await sql(`delete from public.task where ${mine} and title like 'Reorder %'`)
+// Other checks' tasks on these days would sit between the ones moved here
+// and clash with them, so they are put away (this is a throwaway account).
+await sql(`update public.task set deleted_at = now() where ${mine} and deleted_at is null
+  and planned_date in ('${day}', '${dayA}', '${dayB}')`)
 await sql(`insert into public.task (profile_id, title, planned_date, planned_time, duration_min, sort_order, locked) values
   (${profileOf(email)}, 'Reorder gym', '${day}', '06:00', 60, 0, false),
   (${profileOf(email)}, 'Reorder email', '${day}', '07:15', 15, 0, false),
@@ -69,11 +73,19 @@ async function hold(loc, dy, dx = 0) {
   await p.waitForTimeout(500)
 }
 const rowH = async () => (await item('Reorder gym').boundingBox()).height
+/** Hold a thing and drop it on the middle of another (other tasks the
+ *  account has today may sit between them). */
+async function holdOnto(loc, target) {
+  await loc.scrollIntoViewIfNeeded()
+  const a = await loc.boundingBox()
+  const b = await target.boundingBox()
+  await hold(loc, (b.y + b.height / 2) - (a.y + a.height / 2))
+}
 
 // 1. A timed task dropped one place up swaps times with the one it lands on.
 is('the timed tasks start in time order', (await order()).slice(0, 4).join(', '),
   'Reorder gym, Reorder email, Reorder meet, Reorder call')
-await hold(item('Reorder call'), -1.3 * (await rowH()))
+await holdOnto(item('Reorder call'), item('Reorder meet'))
 is('no sheet for a swap with no clash', await p.locator('.move-sheet').count(), 0)
 await settle(p, 1200)
 is('the call took the meeting’s time', (await got('Reorder call')).t, '07:40')
@@ -92,14 +104,14 @@ await p.click('.bottom-sheet button:has-text("Cancel")')
 
 // 3. A swap that would clash asks first. The gym hour (06:00, 60 min) onto
 //    the email (07:15) would run from 07:15 into the call at 07:40.
-await hold(item('Reorder gym'), 1.3 * (await rowH()))
+await holdOnto(item('Reorder gym'), item('Reorder email'))
 is('the sheet asks before a clash', await p.locator('.move-sheet').count(), 1)
 is('and names it', (await p.locator('.move-warnings').textContent()).includes('would overlap'), true)
 is('the button says anyway', (await p.locator('.move-sheet .btn-primary').textContent()), 'Move anyway')
 await p.click('.move-sheet .btn:has-text("Cancel")')
 await settle(p)
 is('Cancel leaves it', (await got('Reorder gym')).t, '06:00')
-await hold(item('Reorder gym'), 1.3 * (await rowH()))
+await holdOnto(item('Reorder gym'), item('Reorder email'))
 await p.click('.move-sheet .btn-primary')
 await settle(p, 1200)
 is('Move anyway moves it', `${(await got('Reorder gym')).t} ${(await got('Reorder email')).t}`, '07:15 06:00')
