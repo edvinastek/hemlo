@@ -1,24 +1,31 @@
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import { format } from 'date-fns'
 import { useLiveQuery } from 'dexie-react-hooks'
 import type { Task } from '../lib/types'
 import { db } from '../lib/db'
 import { deleteTask, saveTask } from '../lib/tasks'
 import { deleteOccurrence, editFollowing, editOccurrence, seriesChanges, startSeries, stopSeries, upcomingCount } from '../lib/series'
-import { dayName, describeRule, endsBeforeStart, ruleFromChoice, weekdayOf, WEEK_ORDER, type RepeatKind } from '../lib/series-rules'
+import {
+  dayName, describeRule, endsBeforeStart, everyN, MAX_EVERY_N_DAYS, MAX_PICKED_DATES, ruleFromChoice, seriesBounds,
+  togglePicked, weekdayOf, WEEK_ORDER, type RepeatKind,
+} from '../lib/series-rules'
 import { durationBetween, endFrom, shortSpan, toMinutes } from '../lib/timeframe'
 import { Dropdown, type Option } from './Dropdown'
 import { NoteEditor } from './NoteEditor'
 import { NotesPage } from './NotesPage'
+import { MonthScroller } from './MonthScroller'
+import { useDayRange } from './useDayRange'
 import './tasksheet.css'
 
 const REPEAT_OPTIONS: Option<RepeatKind>[] = [
   { value: 'never', label: 'Never' },
   { value: 'daily', label: 'Every day' },
+  { value: 'every_n_days', label: 'Every few days' },
   { value: 'weekdays', label: 'Weekdays' },
   { value: 'weekly', label: 'Weekly on chosen days' },
   { value: 'biweekly', label: 'Every 2 weeks' },
   { value: 'monthly', label: 'Monthly, same day' },
+  { value: 'dates', label: 'Pick dates' },
 ]
 
 const END_OPTIONS: Option<'never' | 'date'>[] = [
@@ -54,6 +61,13 @@ export function TaskSheet({ task, isNew, onClose }: { task: Task; isNew: boolean
   const [weekdays, setWeekdays] = useState<number[]>([])
   const [endKind, setEndKind] = useState<'never' | 'date'>('never')
   const [endDate, setEndDate] = useState('')
+  // "Every few days": what is typed, kept as text so the box can be cleared
+  // while typing; the rule reads it as 2 to 365.
+  const [everyText, setEveryText] = useState('2')
+  // "Pick dates": the days picked on the calendar, in order.
+  const [dates, setDates] = useState<string[]>([])
+  const pickedSet = useMemo(() => new Set(dates), [dates])
+  const { range } = useDayRange()
   const [upcoming, setUpcoming] = useState(0)
   const set = <K extends keyof Task>(k: K, v: Task[K]) => setDraft((d) => ({ ...d, [k]: v }))
 
@@ -72,14 +86,17 @@ export function TaskSheet({ task, isNew, onClose }: { task: Task; isNew: boolean
 
   const start = draft.planned_date ?? today
   const pickedDays = weekdays.length ? weekdays : [weekdayOf(start)]
-  const preview = repeat === 'never' ? null : {
-    ...ruleFromChoice(repeat, start, pickedDays),
-    start_date: start,
-    end_date: endKind === 'date' && endDate ? endDate : null,
+  const rule = repeat === 'never' ? null
+    : ruleFromChoice(repeat, start, pickedDays, { n: everyN(everyText), dates })
+  const preview = rule && {
+    ...rule,
+    ...seriesBounds(rule, start, endKind === 'date' && endDate ? endDate : null),
     occurrence_count: null,
   }
 
-  const endsEarly = !!preview && endsBeforeStart(start, preview.end_date)
+  const endsEarly = !!preview && endsBeforeStart(preview.start_date, preview.end_date)
+  // Picking dates with none picked would be a series with nothing in it.
+  const noDates = repeat === 'dates' && dates.length === 0
 
   // An end time means nothing without a start, so the choice waits for one.
   const hasStart = toMinutes(draft.planned_time) !== null
@@ -123,6 +140,8 @@ export function TaskSheet({ task, isNew, onClose }: { task: Task; isNew: boolean
   function chooseRepeat(kind: RepeatKind) {
     setRepeat(kind)
     if ((kind === 'weekly' || kind === 'biweekly') && weekdays.length === 0) setWeekdays([weekdayOf(start)])
+    // The task's own day starts out picked, when it is not already past.
+    if (kind === 'dates' && dates.length === 0 && start >= today) setDates([start])
   }
 
   // At least one day stays picked: a weekly series on no day is not a series.
@@ -158,10 +177,13 @@ export function TaskSheet({ task, isNew, onClose }: { task: Task; isNew: boolean
 
     if (!inSeries) {
       if (preview) {
-        const choice = { kind: repeat as Exclude<RepeatKind, 'never'>, weekdays: pickedDays, endDate: preview.end_date }
+        const choice = {
+          kind: repeat as Exclude<RepeatKind, 'never'>, weekdays: pickedDays, endDate: preview.end_date,
+          n: everyN(everyText), dates,
+        }
         // A last day before the first would leave the series empty and the new
         // task saved nowhere, so nothing is saved until the dates make sense.
-        if (endsEarly) return
+        if (endsEarly || noDates) return
         return run(() => startSeries(next, choice, isNew, isNew ? [] : changedFields(next)))
       }
       return run(() => saveTask(next))
@@ -290,7 +312,32 @@ export function TaskSheet({ task, isNew, onClose }: { task: Task; isNew: boolean
                       ))}
                     </div>
                   )}
-                  {repeat !== 'never' && (
+                  {repeat === 'every_n_days' && (
+                    <label className="ts-every">
+                      <span>Every</span>
+                      <input type="number" inputMode="numeric" min={2} max={MAX_EVERY_N_DAYS} step={1} value={everyText}
+                        aria-label="Number of days between" onChange={(e) => setEveryText(e.target.value)}
+                        onBlur={() => setEveryText(String(everyN(everyText)))} />
+                      <span>days</span>
+                    </label>
+                  )}
+                  {repeat === 'dates' && (
+                    <div className="ts-dates">
+                      <div className="ts-dates-head">
+                        <span aria-live="polite">
+                          {dates.length === 0 ? 'Tap the days it should be on.'
+                            : `${dates.length} ${dates.length === 1 ? 'day' : 'days'} picked`}
+                          {dates.length >= MAX_PICKED_DATES ? ' — the most there can be' : ''}
+                        </span>
+                        <button type="button" className="btn ts-dates-clear" disabled={dates.length === 0}
+                          onClick={() => setDates([])}>Clear</button>
+                      </div>
+                      <MonthScroller first={range.first} last={range.last} openAt={start > today ? start : today}
+                        today={today} label="Days to repeat on" selected={pickedSet}
+                        disabled={(d) => d < today} onDayClick={(d) => setDates((ds) => togglePicked(ds, d))} />
+                    </div>
+                  )}
+                  {repeat !== 'never' && repeat !== 'dates' && (
                     <div className="two">
                       <div className="ts-field">
                         <span className="ts-field-name">Ends</span>
@@ -303,10 +350,18 @@ export function TaskSheet({ task, isNew, onClose }: { task: Task; isNew: boolean
                       )}
                     </div>
                   )}
-                  {preview && (
+                  {preview && repeat !== 'dates' && (
                     <p className="ts-repeat-rule">
                       {describeRule(preview)}. Starts {format(new Date(`${start}T12:00:00`), 'd MMM')}.
                       {endsEarly ? ' The last day is before the first. Pick a later one to save.' : ''}
+                    </p>
+                  )}
+                  {preview && repeat === 'dates' && !noDates && (
+                    <p className="ts-repeat-rule">
+                      {describeRule(preview)}.
+                      {!dates.includes(start) && (isNew
+                        ? ' The day above is not picked, so nothing is added on it.'
+                        : ' The day above is not picked, so this task stays there as a one-off.')}
                     </p>
                   )}
                 </>
@@ -329,7 +384,7 @@ export function TaskSheet({ task, isNew, onClose }: { task: Task; isNew: boolean
                   onClick={() => void (inSeries ? deleteOccurrence(task) : deleteTask(task)).then(onClose)}>{inSeries ? 'Delete this day' : 'Delete for good'}</button>
               )}
               <button type="button" className="btn grow" onClick={onClose}>Cancel</button>
-              <button type="submit" className="btn btn-primary" disabled={busy || endsEarly}>Save</button>
+              <button type="submit" className="btn btn-primary" disabled={busy || endsEarly || noDates}>Save</button>
             </div>
           </>
         )}

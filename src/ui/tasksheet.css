@@ -48,3 +48,17 @@
 }
 .form-grid .ts-until input { width: 14px; height: 14px; margin: 0; padding: 0; flex: none; }
 .form-grid .ts-until:has(input:disabled) { opacity: 0.5; cursor: default; }
+
+/* "Every few days": the number sits in the sentence it belongs to. */
+.form-grid .ts-every { display: flex; align-items: center; gap: var(--space-2); color: var(--e-ink); font-size: 14px; }
+.form-grid .ts-every input { width: 5.5em; flex: none; }
+
+/* "Pick dates": the count and Clear above a calendar that scrolls by itself,
+   a little over a month tall so the sheet's Save stays within reach. */
+.ts-dates { display: grid; gap: var(--space-2); min-width: 0; --ms-height: min(330px, 42vh); }
+.ts-dates-head {
+  display: flex; align-items: center; justify-content: space-between; gap: var(--space-2);
+  font-family: var(--font-sans); font-size: 13px; color: var(--e-ink);
+}
+.ts-dates-clear { padding: 4px 12px; font-size: 13px; }
+.ts-dates-clear:disabled { opacity: 0.5; }
