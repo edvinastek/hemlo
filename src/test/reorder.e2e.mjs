@@ -117,7 +117,7 @@ await settle(p, 1200)
 is('Move anyway moves it', `${(await got('Reorder gym')).t} ${(await got('Reorder email')).t}`, '07:15 06:00')
 
 // 4. Untimed: z held and dragged to the top of the untimed ones.
-await hold(item('Reorder z'), -2.3 * (await rowH()))
+await holdOnto(item('Reorder z'), item('Reorder x'))
 await settle(p, 1200)
 is('the untimed list reads z, x, y', (await order()).filter((t) => /Reorder [xyz]$/.test(t)).join(', '),
   'Reorder z, Reorder x, Reorder y')

@@ -27,7 +27,8 @@ html.is-holding, html.is-holding * { cursor: grabbing; }
 
 /* The ⋮ on a row: small to look at, a full finger's width to press. */
 .row-more {
-  width: 24px; height: 32px; margin-right: -6px;
+  /* A 28 by 36 target whose negative margins keep the row its plain height. */
+  width: 28px; height: 36px; margin: -6px -8px -6px -2px;
   display: grid; place-items: center;
   color: var(--e-ink-soft); border-radius: var(--radius-sm);
 }

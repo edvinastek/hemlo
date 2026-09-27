@@ -115,7 +115,7 @@ is('a plain note shows a note mark', await plain.locator('.row-notemark').count(
 is('and no progress chip', await plain.locator('.row-chip').count(), 0)
 const heights = await p.evaluate(() => [...document.querySelectorAll('.row')]
   .filter((el) => /Sheet (trip|plain)/.test(el.textContent)).map((el) => Math.round(el.getBoundingClientRect().height)))
-is('rows with a chip or a mark are the plain row height', heights.every((h) => h <= 44), true)
+is(`rows with a chip or a mark are the plain row height (${heights.join(', ')} px)`, heights.every((h) => h <= 44), true)
 
 await sql(`delete from public.task where ${mine} and title like 'Sheet %'`)
 console.log(A.errors.length ? 'PAGE ERRORS: ' + A.errors.join(' | ') : 'no page errors')

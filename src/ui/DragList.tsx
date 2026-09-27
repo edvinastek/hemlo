@@ -32,8 +32,9 @@ interface Drag {
   room: number[]
   /** Where the finger was, against the list, when the hold was up. */
   startY: number
-  /** The finger now, against the screen. */
+  /** The finger now, against the screen, and where it was picked up. */
   y: number
+  y0: number
   to: number
   /** Where each row sits for that drop. */
   at: number[]
@@ -111,7 +112,10 @@ export function DragList({ tasks, day, date, work, renderRow }: Props) {
     if (s) {
       const r = s.getBoundingClientRect()
       const edge = 64
-      const push = d.y < r.top + edge ? -(r.top + edge - d.y) : d.y > r.bottom - edge ? d.y - (r.bottom - edge) : 0
+      // Only once the finger has moved towards that edge: a row picked up
+      // near the bottom must not set the page scrolling on its own.
+      const push = d.y < r.top + edge && d.y < d.y0 - 8 ? -(r.top + edge - d.y)
+        : d.y > r.bottom - edge && d.y > d.y0 + 8 ? d.y - (r.bottom - edge) : 0
       if (push) {
         const before = s.scrollTop
         s.scrollTop += Math.max(-16, Math.min(16, Math.round(push / 4)))
@@ -136,7 +140,7 @@ export function DragList({ tasks, day, date, work, renderRow }: Props) {
       const room = tops.map((t, i) => (i < tops.length - 1 ? tops[i + 1] - t : heights[i]))
       const y = at.y - list.getBoundingClientRect().top
       drag.current = {
-        from, ids, tops, heights, room, startY: y, y: at.y, to: from, at: tops, frame: 0,
+        from, ids, tops, heights, room, startY: y, y: at.y, y0: at.y, to: from, at: tops, frame: 0,
         scroller: list.closest<HTMLElement>('.page') ?? (document.scrollingElement as HTMLElement | null),
       }
       list.classList.add('is-dragging')
