@@ -4,12 +4,7 @@ import { push } from './sync'
 import { blankTask, deleteTask, saveTask } from './tasks'
 import { edit } from './write'
 import type { PendingChange, Series, SeriesException, Task } from './types'
-import { addDays, occurrenceId, plan, ruleFromChoice, type RepeatKind } from './series-rules'
-
-/** How far ahead a series is turned into real tasks. Eight weeks is enough to
- *  plan a month and see the next, and few enough rows that a daily series does
- *  not bury the week view or the sync. */
-const WINDOW_DAYS = 56
+import { addDays, occurrenceId, plan, ruleFromChoice, seriesBounds, WINDOW_DAYS, type RepeatKind } from './series-rules'
 
 /** The fields a series copies onto every task it makes, and the ones "this and
  *  following" carries forward. Date is never among them: moving one day is
@@ -153,6 +148,10 @@ export interface RepeatChoice {
   kind: Exclude<RepeatKind, 'never'>
   weekdays: number[]
   endDate: string | null
+  /** "Every N days": the N. */
+  n?: number
+  /** Days picked by hand. */
+  dates?: string[]
 }
 
 /** Start repeating a task. The task becomes the first occurrence when its day
@@ -169,12 +168,14 @@ export async function startSeries(
 ): Promise<Series> {
   const start = task.planned_date ?? dayOf(new Date())
   const now = new Date().toISOString()
+  const rule = ruleFromChoice(choice.kind, start, choice.weekdays, { n: choice.n, dates: choice.dates })
   const fields: Omit<Series, 'id' | 'updated_at'> = {
     profile_id: task.profile_id,
     title: task.title,
-    ...ruleFromChoice(choice.kind, start, choice.weekdays),
-    start_date: start,
-    end_date: choice.endDate,
+    ...rule,
+    // Days picked by hand run from the first of them to the last, whatever
+    // day the task itself is on.
+    ...seriesBounds(rule, start, choice.endDate),
     occurrence_count: null,
     time_of_day: hhmm(task.planned_time),
     task_template: {

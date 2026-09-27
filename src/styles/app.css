@@ -108,6 +108,10 @@ hr, .rule { border: 0; border-top: 1px solid var(--e-rule); margin: 0; }
 }
 
 .page-sub { font-family: var(--font-sans); font-size: 13px; color: var(--e-ink-soft); margin-top: 2px; }
+/* The date is also the way into the calendar: it looks like the heading it
+   is, with a small mark saying it opens something. */
+.page-date-pick { font: inherit; letter-spacing: inherit; color: inherit; text-align: left; }
+.page-date-pick::after { content: ' \25BE'; font-family: var(--font-sans); font-size: 13px; color: var(--e-ink-soft); }
 
 .week-strip {
   display: grid;
@@ -442,11 +446,32 @@ hr, .rule { border: 0; border-top: 1px solid var(--e-rule); margin: 0; }
 .month-cell .d { color: var(--e-ink-soft); }
 .month-cell .load { display: block; height: 4px; border-radius: var(--radius-sm); margin-top: 4px; }
 
-.legend { display: flex; gap: var(--space-3); align-items: center; padding: var(--space-2) var(--space-4); font-family: var(--font-sans); font-size: 12px; color: var(--e-ink-soft); }
+.legend { display: flex; flex-wrap: wrap; gap: var(--space-1) var(--space-3); align-items: center; padding: var(--space-2) var(--space-4); font-family: var(--font-sans); font-size: 12px; color: var(--e-ink-soft); }
+.legend > span { white-space: nowrap; }
 .legend i { width: 14px; height: 8px; border-radius: 2px; display: inline-block; }
+.legend .legend-note { flex-basis: 100%; white-space: normal; }
 
-.year-grid { display: grid; grid-template-columns: repeat(53, 9px); gap: 2px; padding: 0 var(--space-4); overflow-x: auto; }
-.year-cell { width: 9px; height: 9px; border-radius: 2px; }
+/* Month: which month, and a step either way. */
+.plan-monthnav { display: flex; align-items: center; justify-content: space-between; gap: var(--space-2);
+  padding: var(--space-3) var(--space-4) 0; font-family: var(--font-serif); font-size: 16px; font-weight: 600; }
+.plan-monthnav .btn { min-width: 44px; padding: 4px 10px; font-size: 18px; line-height: 1.2; }
+.plan-monthnav .btn:disabled { opacity: 0.35; cursor: default; }
+
+/* Year: the scrolling months, inside the page's side margins. */
+.plan-year { padding: 0 var(--space-4); }
+
+/* A planned repeat: a series' day too far ahead to be a task yet. Quieter
+   than a task, and marked, so it is never taken for one. */
+.week-item.is-planned { color: var(--e-ink-soft); border-bottom-style: dashed; }
+.planned-mark { font-family: var(--font-sans); font-size: 11px; color: var(--e-ink-soft); }
+.planned-note { padding: var(--space-2) var(--space-4) 0; margin: 0; font-family: var(--font-sans); font-size: 12px; color: var(--e-ink-soft); }
+
+/* Read out, not shown. */
+.visually-hidden {
+  position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0; border: 0;
+  overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap;
+}
+
 
 .goal-bar { display: grid; grid-template-columns: 160px 1fr; gap: var(--space-3); align-items: center; padding: var(--space-2) var(--space-4); font-size: 14px; }
 .goal-track { height: 8px; background: var(--e-tint); border-radius: var(--radius-sm); overflow: hidden; }

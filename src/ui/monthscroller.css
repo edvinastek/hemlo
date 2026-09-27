@@ -1,0 +1,56 @@
+/* The scrolling month calendar (MonthScroller.tsx). Month and row heights
+   come from the component as --ms-head and --ms-row: it works out where
+   every month sits from the same numbers, so they are never set here. */
+
+.ms { display: grid; min-width: 0; }
+
+/* M T W T F S S, held above the scrolling months. */
+.ms-weekdays {
+  display: grid; grid-template-columns: repeat(7, minmax(0, 1fr));
+  padding: 0 0 var(--space-1); border-bottom: 1px solid var(--e-rule);
+  font-family: var(--font-sans); font-size: 11px; color: var(--e-ink-soft); text-align: center;
+}
+
+/* About two months on a phone; a flick at the ends does not scroll the page. */
+.ms-scroll {
+  height: var(--ms-height, min(520px, 62vh));
+  overflow-y: auto; overflow-x: hidden; overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+}
+.ms-inner { position: relative; }
+.ms-month { position: absolute; left: 0; right: 0; }
+.ms-title {
+  height: var(--ms-head); display: flex; align-items: flex-end; padding: 0 2px 6px; margin: 0;
+  font-family: var(--font-serif); font-size: 15px; font-weight: 600; color: var(--e-ink);
+}
+.ms-grid { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); grid-auto-rows: var(--ms-row); }
+
+/* A day: its number, then up to three module dots. The load, when shown,
+   fills the square behind it. */
+.ms-day {
+  position: relative; margin: 2px; min-width: 0;
+  display: grid; align-content: center; justify-items: center; gap: 2px;
+  border: 1px solid transparent; border-radius: var(--radius-sm);
+  background: var(--ms-heat, transparent); color: var(--e-ink);
+  font-family: var(--font-sans); font-size: 13px; font-variant-numeric: tabular-nums;
+  cursor: pointer;
+}
+/* Out of reach (a picker's past days, the ends of the range): faded. */
+.ms-day:disabled { cursor: default; opacity: 0.35; }
+.ms-num { line-height: 1; }
+.ms-day.is-strong .ms-num { color: var(--e-paper); }
+.ms-day.is-today { border-color: var(--e-ink-soft); }
+.ms-day.is-today .ms-num { font-weight: 700; }
+/* Picked: filled with the ink colour, so it cannot be taken for the load. */
+.ms-day.is-picked { background: var(--e-ink); border-color: var(--e-ink); }
+.ms-day.is-picked .ms-num { color: var(--e-paper); font-weight: 600; }
+.ms-day:focus-visible { outline: 2px solid var(--e-accent); outline-offset: 1px; }
+
+.ms-dots { display: flex; gap: 2px; height: 5px; }
+.ms-dots .mod-dot { width: 5px; height: 5px; }
+/* On the darkest load, and on a picked day, a thin ring keeps each dot apart
+   from the colour behind it. */
+.ms-day.is-strong .mod-dot, .ms-day.is-picked .mod-dot { box-shadow: 0 0 0 1px var(--e-paper); }
+
+/* The header's "go to a day" calendar keeps a phone's width on a wide screen. */
+.ph-pick .ms { max-width: 440px; margin: 0 auto; }

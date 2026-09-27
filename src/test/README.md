@@ -8,7 +8,8 @@ Types, then every check that needs nothing but Node. CI runs the same command.
 - `formula` — the calculated-field parser, including that a formula cannot reach the page.
 - `notify` — quiet hours across midnight, reminder wording.
 - `body` — weigh-in parsing, the 7-day trend, when targets are recalculated.
-- `series` — repeat rules, laying out days, "only this one" and "this and following".
+- `series` — repeat rules (every N days and days picked by hand included), laying out days, "only this one" and
+  "this and following", and the planned repeats shown past the eight weeks the fill turns into tasks.
 - `tracking` — habit schedules and streaks, supplement slots.
 - `review` — which tasks the evening review offers, and what each action does.
 - `import` — reading the Excel workbook, ingredient lines, matching foods.
@@ -26,6 +27,8 @@ Types, then every check that needs nothing but Node. CI runs the same command.
 - `moduledefs` — module definitions read from storage are checked and cleaned (names, types, formulas, options,
   sizes); a built-in module's changes survive the stored overlay; a record's day; the rule that turns dated
   records into tasks; the keyword suggestion; every builder preset is a valid module.
+- `calendar` — how far every view reaches (three years back, five ahead, whole months), the week strip stopping
+  at the ends, and how the scrolling month calendar lays out and finds its months.
 
 ## Browser checks
 
@@ -38,7 +41,7 @@ export SB=<Supabase access token>  TEST_PASSWORD=<random>
 export TEST_EMAIL=e2e-a@example.invalid TEST_NEW_EMAIL=e2e-b@example.invalid TEST_FEAT_EMAIL=e2e-c@example.invalid
 export TEST_ONBOARD_EMAIL=e2e-d@example.invalid TEST_MODULES_EMAIL=e2e-e@example.invalid
 node scripts/test-accounts.mjs create $TEST_EMAIL $TEST_NEW_EMAIL $TEST_FEAT_EMAIL $TEST_ONBOARD_EMAIL $TEST_MODULES_EMAIL
-for t in onboarding features offline privacy tracking widget tasksheet food stock daytabs modules nav layout tour; do node src/test/$t.e2e.mjs || break; done
+for t in onboarding features offline privacy tracking widget tasksheet repeat food stock daytabs modules nav layout tour; do node src/test/$t.e2e.mjs || break; done
 node scripts/test-accounts.mjs delete $TEST_EMAIL $TEST_NEW_EMAIL $TEST_FEAT_EMAIL $TEST_ONBOARD_EMAIL $TEST_MODULES_EMAIL
 ```
 
@@ -58,6 +61,10 @@ to the test accounts, because they run against the live project.
 - `widget` — the app’s side of the Android widget, with a stand-in for the native bridge:
   what it is sent, ticks applied while open and after a restart, cleared on sign-out.
 - `tasksheet` — a task with a time range, a checklist note ticked on its page, the chip on Today.
+- `repeat` — a task repeating on days picked in the sheet's calendar (Clear, the count, one day past the eight
+  weeks the series fills), what Postgres holds, "every few days", Plan's Year as scrolling months with the
+  far day marked as a planned repeat and opening its week, and the header's calendar reaching three years
+  back and five ahead.
 - `stock` — the cupboard: add by search, adjust, remove; the trip less stock; ingredients
   taken out when a meal is eaten and put back when it is unticked.
 - `daytabs` — Today's tabs follow the day: none on a Minimal planner, Habits once a habit is due, no
