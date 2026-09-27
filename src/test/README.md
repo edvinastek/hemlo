@@ -29,6 +29,9 @@ Types, then every check that needs nothing but Node. CI runs the same command.
   records into tasks; the keyword suggestion; every builder preset is a valid module.
 - `calendar` — how far every view reaches (three years back, five ahead, whole months), the week strip stopping
   at the ends, and how the scrolling month calendar lays out and finds its months.
+- `reorder` — moving tasks by hand: a drag on Today stays among its kind (timed or not), timed tasks swap
+  times with the one they land on, untimed ones take new order numbers; the warnings asked first (locked,
+  fixed, locked work hours, a new clash); swapping two days on Plan's week and moving one task to a day.
 
 ## Browser checks
 
@@ -41,7 +44,7 @@ export SB=<Supabase access token>  TEST_PASSWORD=<random>
 export TEST_EMAIL=e2e-a@example.invalid TEST_NEW_EMAIL=e2e-b@example.invalid TEST_FEAT_EMAIL=e2e-c@example.invalid
 export TEST_ONBOARD_EMAIL=e2e-d@example.invalid TEST_MODULES_EMAIL=e2e-e@example.invalid
 node scripts/test-accounts.mjs create $TEST_EMAIL $TEST_NEW_EMAIL $TEST_FEAT_EMAIL $TEST_ONBOARD_EMAIL $TEST_MODULES_EMAIL
-for t in onboarding features offline privacy tracking widget tasksheet repeat food stock daytabs modules nav layout tour; do node src/test/$t.e2e.mjs || break; done
+for t in onboarding features offline privacy tracking widget tasksheet repeat reorder food stock daytabs modules nav layout tour; do node src/test/$t.e2e.mjs || break; done
 node scripts/test-accounts.mjs delete $TEST_EMAIL $TEST_NEW_EMAIL $TEST_FEAT_EMAIL $TEST_ONBOARD_EMAIL $TEST_MODULES_EMAIL
 ```
 
@@ -65,6 +68,9 @@ to the test accounts, because they run against the live project.
   weeks the series fills), what Postgres holds, "every few days", Plan's Year as scrolling months with the
   far day marked as a planned repeat and opening its week, and the header's calendar reaching three years
   back and five ahead.
+- `reorder` — at 360 px: hold and drag on Today (timed tasks swap times, untimed ones slide into place), the sheet
+  that asks before a clash, Move up and Move down in the ⋮ menu, taps still tick and open, a held drag never
+  swipes the page; on Plan's week, two days swapped (a locked task stays) and one task dragged onto a day.
 - `stock` — the cupboard: add by search, adjust, remove; the trip less stock; ingredients
   taken out when a meal is eaten and put back when it is unticked.
 - `daytabs` — Today's tabs follow the day: none on a Minimal planner, Habits once a habit is due, no

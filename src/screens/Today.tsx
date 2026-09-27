@@ -8,6 +8,7 @@ import { TaskRow } from '../ui/TaskRow'
 import { saveTask, blankTask, setTaskDone } from '../lib/tasks'
 import { TaskSheet } from '../ui/TaskSheet'
 import { PlannedDay } from '../ui/PlannedDay'
+import { DragList } from '../ui/DragList'
 import { BodySection } from '../sections/BodySection'
 import { ReviewCard } from '../sections/ReviewCard'
 import { ModuleDay } from '../sections/ModuleDay'
@@ -142,14 +143,15 @@ export function Today() {
                   : `Nothing in ${tab.label} for this day.`}
               </p>
             )}
-            {shown.map((t) => {
+            {/* Hold a row and drag it, or use its ⋮ menu (ui/DragList.tsx). */}
+            <DragList tasks={shown} day={tasks} date={day} work={work} renderRow={(t, more) => {
               const key = colours.moduleOf(t)
               return (
-                <TaskRow key={t.id} task={t} onTick={tick} onPush={push}
+                <TaskRow task={t} onTick={tick} onPush={push} more={more}
                   colour={colours.ofTask(t)} moduleName={key ? colours.label(key) : null}
                   onEdit={(task) => setEditing({ task, isNew: false })} />
               )
-            })}
+            }} />
           </div>
         )}
 
