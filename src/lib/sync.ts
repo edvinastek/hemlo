@@ -4,11 +4,12 @@ import { useApp } from './store'
 
 /** Tables the app keeps a full local copy of. Catalogue tables are shared
  *  reference data: pulled, never pushed, except rows a person owns. */
-const SYNCED = ['task', 'target', 'body_log', 'food_log', 'meal_plan_slot', 'module_instance', 'series', 'habit', 'supplement'] as const
+const SYNCED = ['task', 'target', 'body_log', 'food_log', 'meal_plan_slot', 'module_instance', 'series', 'habit', 'supplement',
+  'module_record', 'calendar_event', 'goal', 'sleep_log', 'workout_log'] as const
 /** Rows that belong to a profile through their parent (a log to its habit).
  *  Row-level security already limits them to the account, so they are fetched
  *  without a profile filter, still incrementally. */
-const CHILDREN = ['habit_log', 'supplement_log', 'series_exception', 'stock'] as const
+const CHILDREN = ['habit_log', 'supplement_log', 'series_exception', 'stock', 'module'] as const
 const CATALOGUE = ['food', 'recipe', 'recipe_line'] as const
 
 type Row = { id: string; updated_at?: string } & Record<string, unknown>
@@ -31,7 +32,13 @@ export const NATURAL_KEYS: Record<string, string[]> = {
   supplement_log: ['supplement_id', 'log_date'],
   series_exception: ['series_id', 'exception_date'],
   stock: ['household_id', 'food_id'],
+  sleep_log: ['profile_id', 'log_date'],
 }
+
+/** Tables whose primary key is not called id. Locally such a row carries an
+ *  id equal to its key, so the queue can address it like any other; on the
+ *  server the key column is used and the local id is left out. */
+const KEY_COLUMN: Record<string, string> = { module: 'key' }
 const store = (table: string) => (db as unknown as Record<string, Store>)[table]
 
 /** Record an edit made on this device. The fields list is what makes the merge
@@ -124,21 +131,24 @@ type Entry = { table: string; id: string; patch: Record<string, unknown>; ids: n
 const PARALLEL = 6
 
 async function sendOne(entry: Entry): Promise<'sent' | 'refused' | 'orphan' | 'waiting'> {
+  const keyCol = KEY_COLUMN[entry.table] ?? 'id'
   const { updated_at: _ignored, ...patch } = entry.patch
-  const updated = await supabase.from(entry.table).update(patch).eq('id', entry.id).select('id')
+  if (keyCol !== 'id') delete patch.id
+  const updated = await supabase.from(entry.table).update(patch).eq(keyCol, entry.id).select(keyCol)
 
   let error = updated.error
   if (!error && (updated.data?.length ?? 0) === 0) {
     const local = await store(entry.table)?.get(entry.id)
     if (local) {
       const { updated_at: _u, ...row } = local
+      if (keyCol !== 'id') delete (row as Record<string, unknown>).id
       error = (await supabase.from(entry.table).insert(row)).error
       if (error?.code === '23505') {
         // Already there under this id (it landed between the two calls):
         // that is success, so send the patch once more and move on. A
         // duplicate on its natural key (the same day's tick made on another
         // phone) is folded into that row. Anything else is refused.
-        const retry = await supabase.from(entry.table).update(patch).eq('id', entry.id).select('id')
+        const retry = await supabase.from(entry.table).update(patch).eq(keyCol, entry.id).select(keyCol)
         if (!retry.error && (retry.data?.length ?? 0) > 0) error = null
         else if (await foldIntoTwin(entry.table, local, patch)) error = null
       }
@@ -237,9 +247,13 @@ export async function pull(ids: string[]): Promise<number> {
 
     let query = supabase.from(table).select('*')
     if (scoped) query = query.in('profile_id', profileIds)
+    // Built-in modules are defined in the app; only the ones people built sync.
+    if (table === 'module') query = query.eq('builtin', false)
     if (cursor) query = query.gt('updated_at', cursor)
-    const { data, error } = await query
-    if (error || !data) continue
+    const { data: fetched, error } = await query
+    if (error || !fetched) continue
+    const keyCol = KEY_COLUMN[table]
+    const data = keyCol ? (fetched as Row[]).map((r) => ({ ...r, id: String(r[keyCol]) })) : fetched
 
     let newest = cursor
     // Rows this device has no unsent edits to are written in one transaction.

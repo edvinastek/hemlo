@@ -3,6 +3,7 @@ import type {
   Profile, Task, Food, Recipe, RecipeLine, Target, BodyLog,
   FoodLogEntry, MealPlanSlot, ModuleInstance, PendingChange, ConflictEntry,
   Series, SeriesException, Habit, HabitLog, Supplement, SupplementLog, Stock,
+  ModuleRow, ModuleRecord, CalendarEvent, Goal, SleepLog, WorkoutLog,
 } from './types'
 
 /** The local copy. Every device holds the whole account, so the app works
@@ -25,6 +26,12 @@ class GetItDB extends Dexie {
   supplement!: Table<Supplement, string>
   supplement_log!: Table<SupplementLog, string>
   stock!: Table<Stock, string>
+  module!: Table<ModuleRow, string>
+  module_record!: Table<ModuleRecord, string>
+  calendar_event!: Table<CalendarEvent, string>
+  goal!: Table<Goal, string>
+  sleep_log!: Table<SleepLog, string>
+  workout_log!: Table<WorkoutLog, string>
   pending!: Table<PendingChange, number>
   conflicts!: Table<ConflictEntry, number>
   meta!: Table<{ key: string; value: unknown }, string>
@@ -72,6 +79,16 @@ class GetItDB extends Dexie {
     // Version 4 adds the household's stock, edited by hand.
     this.version(4).stores({
       stock: 'id, household_id, food_id, [household_id+food_id]',
+    })
+    // Version 5: modules someone built and their records, and the modules
+    // that now have pages of their own (agenda, goals, sleep, training).
+    this.version(5).stores({
+      module: 'id, key',
+      module_record: 'id, profile_id, module_key, record_date, [profile_id+module_key]',
+      calendar_event: 'id, profile_id, starts_at',
+      goal: 'id, profile_id',
+      sleep_log: 'id, profile_id, log_date, [profile_id+log_date]',
+      workout_log: 'id, profile_id, log_date',
     })
   }
 }

@@ -34,6 +34,29 @@ export interface Commute {
   km: number | null
 }
 
+/** How the page bar at the bottom is laid out. */
+export type NavStyle = 'row' | 'two_rows' | 'three_rows' | 'drawer' | 'fan'
+export const NAV_STYLES: NavStyle[] = ['row', 'two_rows', 'three_rows', 'drawer', 'fan']
+
+export interface NavSettings {
+  style: NavStyle
+  /** Page keys in the order the bar shows them: 'today', 'plan', 'more',
+   *  'food', 'shop', or 'm:<module key>'. Pages not listed follow, in the
+   *  app's own order. */
+  order: string[]
+  /** Pages kept off the bar even though their module is on. */
+  hidden: string[]
+  /** Swipe sideways on a page to go to the next or previous one. */
+  swipe: boolean
+}
+
+export interface ColourSettings {
+  /** Mark tasks and calendar days with their module's colour. */
+  on: boolean
+  /** Module key to a #rrggbb colour; a module not listed uses its default. */
+  modules: Record<string, string>
+}
+
 export interface ProfileSettings {
   /** Set when first-run setup is finished; targets are no longer the sign. */
   onboarded: boolean
@@ -49,6 +72,8 @@ export interface ProfileSettings {
   meal_times: Partial<Record<MealSlotKey, string>>
   /** Take ingredients out of stock when a planned meal is marked eaten. */
   stock_auto: boolean
+  nav: NavSettings
+  colours: ColourSettings
 }
 
 export const DEFAULT_SETTINGS: ProfileSettings = {
@@ -60,6 +85,8 @@ export const DEFAULT_SETTINGS: ProfileSettings = {
   today_metric: 'kcal',
   meal_times: {},
   stock_auto: false,
+  nav: { style: 'row', order: [], hidden: [], swipe: true },
+  colours: { on: true, modules: {} },
 }
 
 const TIME = /^([01]\d|2[0-3]):[0-5]\d$/
@@ -109,16 +136,54 @@ export function readSettings(profile: Pick<Profile, 'settings'> | null | undefin
     today_metric: metric,
     meal_times: mealTimes,
     stock_auto: bool(s.stock_auto, d.stock_auto),
+    nav: readNav(s.nav, d.nav),
+    colours: readColours(s.colours, d.colours),
   }
+}
+
+const PAGE_KEY = /^(today|plan|more|food|shop|m:[a-z0-9_]{1,40})$/
+const pageKeys = (v: unknown): string[] =>
+  Array.isArray(v) ? [...new Set(v.filter((x): x is string => typeof x === 'string' && PAGE_KEY.test(x)))] : []
+
+function readNav(v: unknown, d: NavSettings): NavSettings {
+  const n = (v ?? {}) as Partial<NavSettings>
+  return {
+    style: NAV_STYLES.includes(n.style as NavStyle) ? (n.style as NavStyle) : d.style,
+    order: pageKeys(n.order),
+    // Today, Plan and More can never be hidden: without them there is no way back.
+    hidden: pageKeys(n.hidden).filter((k) => k !== 'today' && k !== 'plan' && k !== 'more'),
+    swipe: bool(n.swipe, d.swipe),
+  }
+}
+
+const HEX = /^#[0-9a-f]{6}$/i
+function readColours(v: unknown, d: ColourSettings): ColourSettings {
+  const c = (v ?? {}) as Partial<ColourSettings>
+  const modules: Record<string, string> = {}
+  if (c.modules && typeof c.modules === 'object') {
+    for (const [k, x] of Object.entries(c.modules)) {
+      if (/^[a-z0-9_]{1,40}$/.test(k) && typeof x === 'string' && HEX.test(x)) modules[k] = x.toLowerCase()
+    }
+  }
+  return { on: bool(c.on, d.on), modules }
 }
 
 /** Settings with a change laid over them, as the value to store. Nested
  *  objects merge one level deep, so changing the work start keeps the end. */
-export function mergeSettings(current: ProfileSettings, change: Partial<ProfileSettings>): ProfileSettings {
-  const next = { ...current, ...change }
+export type SettingsChange = Partial<Omit<ProfileSettings, 'work' | 'commute' | 'nav' | 'colours'>> & {
+  work?: Partial<WorkHours>
+  commute?: Partial<Commute>
+  nav?: Partial<NavSettings>
+  colours?: Partial<ColourSettings>
+}
+
+export function mergeSettings(current: ProfileSettings, change: SettingsChange): ProfileSettings {
+  const next = { ...current, ...change } as ProfileSettings
   if (change.work) next.work = { ...current.work, ...change.work }
   if (change.commute) next.commute = { ...current.commute, ...change.commute }
   if (change.meal_times) next.meal_times = { ...change.meal_times }
+  if (change.nav) next.nav = { ...current.nav, ...change.nav }
+  if (change.colours) next.colours = { ...current.colours, ...change.colours }
   return readSettings({ settings: next })
 }
 

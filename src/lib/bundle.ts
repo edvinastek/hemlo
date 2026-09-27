@@ -8,6 +8,7 @@ import { queueChange, NATURAL_KEYS } from './sync'
 const TABLES = [
   'profile', 'task', 'target', 'body_log', 'food_log', 'meal_plan_slot', 'module_instance',
   'series', 'habit', 'supplement',
+  'module_record', 'calendar_event', 'goal', 'sleep_log', 'workout_log',
 ] as const
 
 /** Rows that belong to the profile through a parent row rather than directly. */
@@ -45,6 +46,9 @@ export async function exportBundle(profileId: string): Promise<Blob> {
     .filter((l) => recipes.some((r) => r.id === l.recipe_id))
   // The cupboard belongs to the household, not the profile: it goes with
   // whoever exports, as what their household had when they did.
+  // Modules the person built travel with their records, so an import can
+  // rebuild them; built-in modules are part of the app.
+  records.module = (await db.module.toArray()).filter((m) => !m.builtin && !m.deleted_at)
   const household = (await db.profile.get(profileId))?.household_id
   records.stock = household ? await db.stock.where('household_id').equals(household).toArray() : []
 
@@ -99,7 +103,8 @@ export async function importBundle(file: File, profileId: string, userId: string
   if (adopting) {
     for (const [name, list] of Object.entries(bundle.records)) {
       if (name === 'profile' || !Array.isArray(list)) continue
-      for (const r of rows(name)) fresh.set(r.id, crypto.randomUUID())
+      // A module's id is its key, which must keep the u_ form the server asks for.
+      for (const r of rows(name)) fresh.set(r.id, name === 'module' ? `u_${crypto.randomUUID().replace(/-/g, '').slice(0, 16)}` : crypto.randomUUID())
     }
   }
   const remap = (v: unknown): unknown => {
@@ -156,7 +161,10 @@ export async function importBundle(file: File, profileId: string, userId: string
   if (current) {
     for (const r of rows('stock').filter((x) => !x.deleted_at)) await put('stock', r, { household_id: current.household_id })
   }
-  const order = ['series', 'habit', 'supplement', 'module_instance', 'target', 'body_log', 'task', 'food_log', 'meal_plan_slot']
+  // Built modules before their switches and records point at them.
+  for (const r of rows('module')) await put('module', r, { created_by: userId, builtin: false })
+  const order = ['series', 'habit', 'supplement', 'module_instance', 'goal', 'calendar_event', 'sleep_log', 'workout_log',
+    'module_record', 'target', 'body_log', 'task', 'food_log', 'meal_plan_slot']
   for (const name of order) {
     for (const r of rows(name)) await put(name, r, { profile_id: profileId })
   }

@@ -1,6 +1,6 @@
 import { db } from './db'
 import { queueChange } from './sync'
-import { mergeSettings, readSettings, type ProfileSettings } from './settings'
+import { mergeSettings, readSettings, type SettingsChange } from './settings'
 import type { Profile } from './types'
 
 /** One path for every change: write locally so the screen updates at once,
@@ -9,7 +9,7 @@ import type { Profile } from './types'
 export async function edit<T extends { id: string; updated_at?: string }>(
   table: 'task' | 'target' | 'body_log' | 'food_log' | 'profile' | 'module_instance' | 'food' | 'recipe'
     | 'series' | 'series_exception' | 'habit' | 'habit_log' | 'supplement' | 'supplement_log' | 'recipe_line'
-    | 'stock' | 'meal_plan_slot',
+    | 'stock' | 'meal_plan_slot' | 'module' | 'module_record' | 'calendar_event' | 'goal' | 'sleep_log' | 'workout_log',
   row: T,
   changes: Partial<T>,
 ): Promise<T> {
@@ -20,7 +20,7 @@ export async function edit<T extends { id: string; updated_at?: string }>(
 }
 
 /** Change some of a profile's settings; the rest stay as they are. */
-export async function saveSettings(profile: Profile, change: Partial<ProfileSettings>): Promise<Profile> {
+export async function saveSettings(profile: Profile, change: SettingsChange): Promise<Profile> {
   const settings = mergeSettings(readSettings(profile), change)
   return edit('profile', profile, { settings })
 }

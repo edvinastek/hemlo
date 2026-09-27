@@ -43,6 +43,9 @@ with w as (insert into workout (owner_id, name) values (null, 'Shared workout') 
 update _ids set workout = (select id from w);
 insert into workout_line (workout_id, sets, reps) select workout, 3, 10 from _ids;
 
+insert into module (key, name, builtin, created_by, definition) select 'u_secrettest1', 'A''s own module', false, a, '{"fields":[]}' from _ids;
+insert into module_record (profile_id, module_key, entity, data) select pa, 'u_secrettest1', 'item', '{"note":"private"}' from _ids;
+
 -- As B, the stranger ---------------------------------------------------------
 do $$
 declare n int;
@@ -51,6 +54,8 @@ begin
   perform set_config('request.jwt.claims', json_build_object('sub', (select b from _ids), 'role', 'authenticated')::text, true);
 
   insert into _r (check_name, expected, actual) values
+    ('B cannot see a module A built', '0', (select count(*) from module where key = 'u_secrettest1')::text),
+    ('B cannot read the records of A''s module', '0', (select count(*) from module_record where module_key = 'u_secrettest1')::text),
     ('B sees none of A''s tasks', '0', (select count(*) from task where title = 'A private task')::text),
     ('B sees only their own profile', '1', (select count(*) from profile)::text),
     ('B cannot read A''s private recipe', '0', (select count(*) from recipe where name = 'A secret recipe')::text),
@@ -169,6 +174,29 @@ begin
   end;
 end $$;
 
+do $$
+declare n int;
+begin
+  perform set_config('role', 'authenticated', true);
+  perform set_config('request.jwt.claims', json_build_object('sub', (select b from _ids), 'role', 'authenticated')::text, true);
+  update module set name = 'Taken over' where key = 'u_secrettest1';
+  get diagnostics n = row_count;
+  insert into _r (check_name, expected, actual) values ('B cannot rename A''s module', '0', n::text);
+  begin
+    truncate task;
+    insert into _r (check_name, expected, actual) values ('B cannot empty a table with TRUNCATE', 'denied', 'allowed');
+  exception when others then
+    insert into _r (check_name, expected, actual) values ('B cannot empty a table with TRUNCATE', 'denied', 'denied');
+  end;
+  begin
+    insert into module (key, name, builtin, created_by) values ('nutrition2', 'Fake', false, (select b from _ids));
+    insert into _r (check_name, expected, actual) values ('A module key outside u_… is refused', 'denied', 'allowed');
+  exception when others then
+    insert into _r (check_name, expected, actual) values ('A module key outside u_… is refused', 'denied', 'denied');
+  end;
+  execute 'reset role';
+end $$;
+
 -- A deletes their account while M is still in the household ------------------
 do $$
 begin
@@ -184,6 +212,7 @@ insert into _r (check_name, expected, actual) values
   ('Deleting removes their tasks', '0', (select count(*) from task where title = 'A private task')::text),
   ('Deleting removes their weight log', '0', (select count(*) from body_log where profile_id = (select pa from _ids))::text),
   ('Deleting removes their own recipes', '0', (select count(*) from recipe where name = 'A secret recipe')::text),
+  ('Deleting removes the modules they built', '0', (select count(*) from module where key = 'u_secrettest1')::text),
   ('Deleting removes them from the invite list', '0', (select count(*) from private.signup_allowlist where email = 'sec-a@test.local')::text),
   ('A shared household passes to the remaining member', 'M',
      case when (select owner_id from household where id = (select ha from _ids)) = (select m from _ids) then 'M' else 'lost' end),

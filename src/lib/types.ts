@@ -278,3 +278,85 @@ export interface ConflictEntry {
   kept: 'local' | 'remote' | 'rejected'
   at: string
 }
+
+/** A module someone built (builtin = false), synced from the `module` table.
+ *  Locally `id` mirrors `key`, because the sync addresses every row by id. */
+export interface ModuleRow {
+  id: string
+  key: string
+  name: string
+  builtin: boolean
+  created_by: UUID | null
+  definition: Record<string, unknown>
+  version?: number
+  updated_at: string
+  deleted_at: string | null
+}
+
+/** One record of a module that has no table of its own (a custom module, or
+ *  Projects, Finance, Learning, Household). `data` holds its fields. */
+export interface ModuleRecord {
+  id: UUID
+  profile_id: UUID
+  module_key: string
+  entity: string
+  data: Record<string, unknown>
+  record_date: string | null
+  created_at?: string
+  updated_at: string
+  deleted_at: string | null
+}
+
+export interface CalendarEvent {
+  id: UUID
+  profile_id: UUID
+  title: string
+  starts_at: string
+  ends_at: string | null
+  all_day: boolean
+  location: string | null
+  updated_at: string
+  deleted_at: string | null
+}
+
+export interface Goal {
+  id: UUID
+  profile_id: UUID
+  title: string
+  measure_type: 'count' | 'amount' | 'duration' | 'boolean' | 'weight' | null
+  measure_target: number | null
+  measure_unit: string | null
+  start_date: string | null
+  end_date: string | null
+  status: 'active' | 'done' | 'dropped' | 'paused'
+  horizon: 'week' | 'month' | 'quarter' | 'year' | 'multi_year' | null
+  updated_at: string
+  deleted_at: string | null
+}
+
+export interface SleepLog {
+  id: UUID
+  profile_id: UUID
+  log_date: string
+  went_to_bed: string | null
+  woke_at: string | null
+  hours: number | null
+  quality: number | null
+  updated_at: string
+  deleted_at: string | null
+}
+
+export interface WorkoutLog {
+  id: UUID
+  profile_id: UUID
+  log_date: string
+  exercise_id: UUID | null
+  workout_id: UUID | null
+  set_number: number | null
+  reps_achieved: number | null
+  load_kg: number | null
+  seconds: number | null
+  note: string | null
+  updated_at: string
+  deleted_at: string | null
+}

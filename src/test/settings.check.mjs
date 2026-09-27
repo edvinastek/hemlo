@@ -40,5 +40,16 @@ is('a meal’s own time wins', mealTime({ slot: 'dinner', slot_time: '19:15:00' 
 is('then the default', mealTime({ slot: 'dinner', slot_time: null }, s), '18:30')
 is('else no time at all', mealTime({ slot: 'lunch' }, s), null)
 
+// The page bar and colours.
+const nav = readSettings({ settings: { nav: { style: 'fan', order: ['plan', 'm:u_abc123', 'm:BAD', 'plan', 42], hidden: ['today', 'shop', 'more'], swipe: 'no' } } }).nav
+is('a known bar style is kept', nav.style, 'fan')
+is('page keys are checked and not repeated', nav.order, ['plan', 'm:u_abc123'])
+is('Today, Plan and More cannot be hidden', nav.hidden, ['shop'])
+is('swipe falls back to on', nav.swipe, true)
+is('an unknown bar style falls back to one row', readSettings({ settings: { nav: { style: 'spiral' } } }).nav.style, 'row')
+const col = readSettings({ settings: { colours: { on: false, modules: { habits: '#3F6B4A', training: 'red', 'x y': '#000000' } } } }).colours
+is('colours: only #rrggbb for real keys, lower-cased', col, { on: false, modules: { habits: '#3f6b4a' } })
+is('changing the bar style keeps the order', mergeSettings(readSettings({ settings: { nav: { order: ['plan'] } } }), { nav: { style: 'drawer' } }).nav, { style: 'drawer', order: ['plan'], hidden: [], swipe: true })
+
 console.log(fail ? `\n${fail} check(s) failed` : '\nall checks passed')
 process.exit(fail ? 1 : 0)
