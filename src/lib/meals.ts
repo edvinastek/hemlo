@@ -2,6 +2,7 @@ import { db } from './db'
 import { queueChange } from './sync'
 import { recipeMacros, type Macros } from './calc'
 import { blankTask, saveTask } from './tasks'
+import { consumeForMeal } from './stock'
 import type { Food, FoodLogEntry, MealPlanSlot, Recipe } from './types'
 
 /** The day's meals, with the times their tasks and reminders use. */
@@ -71,6 +72,7 @@ export async function planMeal(profileId: string, day: string, slotKey: SlotKey,
 
 /** Eating a planned meal logs it, which is what moves the day's protein bar. */
 export async function markEaten(slot: MealPlanSlot, eaten: boolean) {
+  await consumeForMeal(slot, eaten ? 1 : -1)   // stock, if they switched that on; the slot is still the old one here
   const saved = await saveSlot({ ...slot, status: eaten ? 'eaten' : 'planned' })
   const logs = (await db.food_log.where('profile_id').equals(slot.profile_id).toArray())
     .filter((l) => l.log_date === slot.slot_date && l.recipe_id === slot.recipe_id && !l.deleted_at)

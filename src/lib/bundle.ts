@@ -43,6 +43,10 @@ export async function exportBundle(profileId: string): Promise<Blob> {
   records.recipe = recipes
   records.recipe_line = (await db.recipe_line.toArray())
     .filter((l) => recipes.some((r) => r.id === l.recipe_id))
+  // The cupboard belongs to the household, not the profile: it goes with
+  // whoever exports, as what their household had when they did.
+  const household = (await db.profile.get(profileId))?.household_id
+  records.stock = household ? await db.stock.where('household_id').equals(household).toArray() : []
 
   const bundle: Bundle = {
     format: 'getit.bundle',
@@ -145,6 +149,13 @@ export async function importBundle(file: File, profileId: string, userId: string
   for (const r of rows('food')) await put('food', r, { owner_id: userId })
   for (const r of rows('recipe')) await put('recipe', r, { owner_id: userId })
   for (const r of rows('recipe_line')) await put('recipe_line', r, {})
+  // Stock joins this household's cupboard. A food already in it is updated
+  // rather than doubled (NATURAL_KEYS.stock), so reading the same file twice
+  // leaves the same amounts. Rows removed before the export are left out: on
+  // the shared key they would remove what this household has now.
+  if (current) {
+    for (const r of rows('stock').filter((x) => !x.deleted_at)) await put('stock', r, { household_id: current.household_id })
+  }
   const order = ['series', 'habit', 'supplement', 'module_instance', 'target', 'body_log', 'task', 'food_log', 'meal_plan_slot']
   for (const name of order) {
     for (const r of rows(name)) await put(name, r, { profile_id: profileId })

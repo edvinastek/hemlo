@@ -1,0 +1,104 @@
+/* Shopping's Stock tab. Rows sit on the page like the habit rows: a name in
+   the serif (it is a food someone put there), the amount and its −/+ in the
+   sans (the system's reading of it). Sized for a 360 px phone: the name
+   column shrinks and wraps, the amount column never does. */
+
+.stock-form {
+  display: grid;
+  gap: var(--space-2);
+  padding: var(--space-3) var(--space-4);
+  border-bottom: 1px solid var(--e-rule);
+}
+.stock-fields {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  gap: var(--space-2);
+  align-items: stretch;
+}
+.stock-form input {
+  min-width: 0;
+  width: 100%;
+  padding: 8px 10px;
+  min-height: 40px;
+  font-size: 15px;
+}
+/* The note is the person's own words. */
+.stock-form input.stock-note-input { font-family: var(--font-serif); }
+.stock-hint { margin: 0; font-family: var(--font-sans); font-size: 12px; color: var(--e-ink-soft); }
+.stock-hint.is-warn { color: var(--e-warn); }
+
+.stock-actions { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2); }
+.stock-actions .grow { margin-left: auto; }
+.stock-actions .btn.warn { color: var(--e-warn); }
+/* The question gets a line of its own, so a long food name never pushes the
+   answer buttons onto separate lines. */
+.stock-actions .stock-ask { flex-basis: 100%; }
+
+.stock-units {
+  display: flex;
+  border: 1px solid var(--e-field-line);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+}
+.stock-units button {
+  min-width: 40px;
+  padding: 0 var(--space-2);
+  font-size: 14px;
+  color: var(--e-ink-soft);
+}
+.stock-units button + button { border-left: 1px solid var(--e-field-line); }
+.stock-units button[aria-pressed="true"] { background: var(--e-tint); color: var(--e-ink); font-weight: 600; }
+
+.stock-filter { padding: var(--space-3) var(--space-4) 0; }
+.stock-filter input { width: 100%; min-width: 0; padding: 8px 10px; min-height: 40px; font-size: 15px; }
+
+.stock-group {
+  font-family: var(--font-sans);
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--e-ink-soft);
+  padding: var(--space-3) var(--space-4) var(--space-1);
+}
+
+.stock-row {
+  min-height: var(--row-e);
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-2) var(--space-4);
+  border-bottom: 1px solid var(--e-rule);
+}
+.stock-name { font-size: 16px; overflow-wrap: anywhere; }
+.stock-note { font-size: 13px; color: var(--e-ink-soft); overflow-wrap: anywhere; margin-top: 1px; }
+/* Out stays listed, quieter, until someone removes it or buys more. */
+.stock-row.is-out .stock-name { color: var(--e-ink-soft); }
+
+.stock-amount { display: flex; align-items: center; gap: var(--space-1); }
+.stock-step {
+  width: 34px; height: 34px;
+  border: 1px solid var(--e-rule);
+  border-radius: var(--radius-md);
+  font-size: 18px;
+  line-height: 1;
+  color: var(--e-ink);
+}
+.stock-step:disabled { color: var(--e-ink-soft); opacity: 0.5; }
+.stock-qty {
+  min-width: 68px; height: 34px;
+  padding: 0 var(--space-2);
+  border: 1px solid var(--e-rule);
+  border-radius: var(--radius-md);
+  font-size: 14px;
+  text-align: center;
+  white-space: nowrap;
+}
+.stock-row.is-out .stock-qty { color: var(--e-warn); }
+
+/* A finished trip goes into the cupboard from the foot of the list. */
+.trip-foot {
+  display: grid;
+  gap: var(--space-2);
+  justify-items: start;
+  padding: var(--space-3) var(--space-4);
+}
