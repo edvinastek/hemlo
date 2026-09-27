@@ -18,13 +18,14 @@ export async function applyModules(profileId: string, on: string[]) {
     const row = byKey.get(m.key)
     if (row) {
       if (row.enabled !== want) await edit('module_instance', row, { enabled: want })
-    } else if (want) {
-      // Sent whole, so the sync inserts it; a row made for the same module on
-      // another device is folded into this one by its natural key.
-      const fresh = { id: crypto.randomUUID(), updated_at: new Date().toISOString() } as ModuleInstance
-      await edit<ModuleInstance>('module_instance', fresh, {
-        profile_id: profileId, module_key: m.key, enabled: true, sort_order: i, settings: {},
-      })
+    } else {
+      // No row here yet: either the module never had one, or (on a new
+      // account) the server made it and this phone has not pulled it yet.
+      // Either way a row is sent with just the switch; the sync inserts it,
+      // or folds it into the server's row for the same module by its natural
+      // key, so a module switched off here is switched off there too.
+      const fresh = { id: crypto.randomUUID(), sort_order: i, settings: {}, updated_at: new Date().toISOString() } as ModuleInstance
+      await edit<ModuleInstance>('module_instance', fresh, { profile_id: profileId, module_key: m.key, enabled: want })
     }
   }
 }

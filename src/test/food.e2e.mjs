@@ -38,8 +38,8 @@ await p.fill('input[aria-label="Lunch recipe"]', 'Grilled chicken')
 await p.locator('.sp-list li[role=option]', { hasText: 'Grilled chicken' }).first().click()
 await p.waitForTimeout(900)
 await go('/')
-is('the planned meal is on Today', await row('Lunch:').count(), 1)
-is('without a time', (await row('Lunch:').locator('.row-time').textContent())?.trim(), '')
+is('the planned meal is on Today', await row('Lunch: Grilled').count(), 1)
+is('without a time', (await row('Lunch: Grilled').locator('.row-time').textContent())?.trim(), '')
 
 // 2. Giving it a time puts it at that time on the rail.
 await go('/food')
@@ -48,7 +48,7 @@ await p.fill('input[aria-label="Lunch time"]', '12:30')
 await p.waitForTimeout(900)
 is('the slot header shows the time', await slot('lunch').locator('.slot-name').textContent(), 'Lunch · 12:30')
 await go('/')
-is('the meal is at its time on Today', (await row('Lunch:').locator('.row-time').textContent())?.trim(), '12:30')
+is('the meal is at its time on Today', (await row('Lunch: Grilled').locator('.row-time').textContent())?.trim(), '12:30')
 
 // 3. A snack as plain numbers: 250 kcal per 100 g, 180 g eaten.
 await go('/food')

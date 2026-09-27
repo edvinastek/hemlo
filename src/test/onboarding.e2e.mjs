@@ -98,7 +98,7 @@ is('no height saved', r.height_cm, null)
 r = await one(`select
   (select count(*) from public.target where ${mine}) targets,
   (select count(*) from public.body_log where ${mine}) weighins,
-  (select string_agg(module_key, ',' order by module_key) from public.module_instance where ${mine} and enabled) modules`)
+  (select string_agg(module_key, ',' order by module_key) from public.module_instance where ${mine} and enabled and module_key <> 'core') modules`)
 is('no targets saved', r.targets, 0)
 is('no weigh-in saved', r.weighins, 0)
 is('modules from the template, Sleep added by hand', r.modules, 'agenda,projects,shopping,sleep,habits'.split(',').sort().join(','))
