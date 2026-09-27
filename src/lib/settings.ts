@@ -57,6 +57,19 @@ export interface ColourSettings {
   modules: Record<string, string>
 }
 
+/** Public holidays shown on the calendar, per country. */
+export interface HolidaySettings {
+  /** ISO 3166 two-letter codes, upper case, at most 6. */
+  countries: string[]
+  /** Country code to a #rrggbb colour; a country not listed gets one picked. */
+  colours: Record<string, string>
+}
+
+export interface StatsSettings {
+  /** Include modules that are switched off. */
+  show_disabled: boolean
+}
+
 export interface ProfileSettings {
   /** Set when first-run setup is finished; targets are no longer the sign. */
   onboarded: boolean
@@ -74,6 +87,8 @@ export interface ProfileSettings {
   stock_auto: boolean
   nav: NavSettings
   colours: ColourSettings
+  holidays: HolidaySettings
+  stats: StatsSettings
 }
 
 export const DEFAULT_SETTINGS: ProfileSettings = {
@@ -87,6 +102,8 @@ export const DEFAULT_SETTINGS: ProfileSettings = {
   stock_auto: false,
   nav: { style: 'row', order: [], hidden: [], swipe: true },
   colours: { on: true, modules: {} },
+  holidays: { countries: [], colours: {} },
+  stats: { show_disabled: false },
 }
 
 const TIME = /^([01]\d|2[0-3]):[0-5]\d$/
@@ -138,6 +155,8 @@ export function readSettings(profile: Pick<Profile, 'settings'> | null | undefin
     stock_auto: bool(s.stock_auto, d.stock_auto),
     nav: readNav(s.nav, d.nav),
     colours: readColours(s.colours, d.colours),
+    holidays: readHolidays(s.holidays),
+    stats: { show_disabled: bool((s.stats as Partial<StatsSettings> | undefined)?.show_disabled, d.stats.show_disabled) },
   }
 }
 
@@ -168,9 +187,26 @@ function readColours(v: unknown, d: ColourSettings): ColourSettings {
   return { on: bool(c.on, d.on), modules }
 }
 
+const COUNTRY = /^[A-Z]{2}$/
+function readHolidays(v: unknown): HolidaySettings {
+  const h = (v ?? {}) as Partial<HolidaySettings>
+  const countries = Array.isArray(h.countries)
+    ? [...new Set(h.countries.filter((x): x is string => typeof x === 'string').map((x) => x.toUpperCase()).filter((x) => COUNTRY.test(x)))].slice(0, 6)
+    : []
+  const colours: Record<string, string> = {}
+  if (h.colours && typeof h.colours === 'object') {
+    for (const [k, x] of Object.entries(h.colours)) {
+      if (countries.includes(k) && typeof x === 'string' && HEX.test(x)) colours[k] = x.toLowerCase()
+    }
+  }
+  return { countries, colours }
+}
+
 /** Settings with a change laid over them, as the value to store. Nested
  *  objects merge one level deep, so changing the work start keeps the end. */
-export type SettingsChange = Partial<Omit<ProfileSettings, 'work' | 'commute' | 'nav' | 'colours'>> & {
+export type SettingsChange = Partial<Omit<ProfileSettings, 'work' | 'commute' | 'nav' | 'colours' | 'holidays' | 'stats'>> & {
+  holidays?: Partial<HolidaySettings>
+  stats?: Partial<StatsSettings>
   work?: Partial<WorkHours>
   commute?: Partial<Commute>
   nav?: Partial<NavSettings>
@@ -184,6 +220,8 @@ export function mergeSettings(current: ProfileSettings, change: SettingsChange):
   if (change.meal_times) next.meal_times = { ...change.meal_times }
   if (change.nav) next.nav = { ...current.nav, ...change.nav }
   if (change.colours) next.colours = { ...current.colours, ...change.colours }
+  if (change.holidays) next.holidays = { ...current.holidays, ...change.holidays }
+  if (change.stats) next.stats = { ...current.stats, ...change.stats }
   return readSettings({ settings: next })
 }
 

@@ -51,5 +51,13 @@ const col = readSettings({ settings: { colours: { on: false, modules: { habits: 
 is('colours: only #rrggbb for real keys, lower-cased', col, { on: false, modules: { habits: '#3f6b4a' } })
 is('changing the bar style keeps the order', mergeSettings(readSettings({ settings: { nav: { order: ['plan'] } } }), { nav: { style: 'drawer' } }).nav, { style: 'drawer', order: ['plan'], hidden: [], swipe: true })
 
+// Holidays and stats.
+const hol = readSettings({ settings: { holidays: { countries: ['nl', 'DE', 'NL', 'xyz', 5, 'LT', 'BE', 'FR', 'PL', 'GB'], colours: { NL: '#FF6600', DE: 'red', US: '#123456' } } } })
+is('country codes are upper-cased, deduplicated, checked and capped at 6', hol.holidays.countries, ['NL', 'DE', 'LT', 'BE', 'FR', 'PL'])
+is('only good colours for chosen countries are kept', hol.holidays.colours, { NL: '#ff6600' })
+is('no holidays by default', DEFAULT_SETTINGS.holidays, { countries: [], colours: {} })
+is('stats hide switched-off modules by default', readSettings({ settings: { stats: { show_disabled: 'y' } } }).stats.show_disabled, false)
+is('changing holiday colours keeps the countries', mergeSettings(hol, { holidays: { colours: { DE: '#00aa00' } } }).holidays, { countries: ['NL', 'DE', 'LT', 'BE', 'FR', 'PL'], colours: { DE: '#00aa00' } })
+
 console.log(fail ? `\n${fail} check(s) failed` : '\nall checks passed')
 process.exit(fail ? 1 : 0)
