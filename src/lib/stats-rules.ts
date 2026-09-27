@@ -288,6 +288,8 @@ export interface Metric {
   perLabel?: string
   /** Change on the period before: per day for a total, the figure itself otherwise. */
   delta: number | null
+  /** The change is across the period itself (a weight, from before it began to its end). */
+  deltaWithin?: boolean
   decimals: number
 }
 
