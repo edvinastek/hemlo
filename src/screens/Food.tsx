@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useMemo, useState, type ReactNode } from 'react'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { format } from 'date-fns'
 import { db } from '../lib/db'
@@ -7,14 +7,28 @@ import { PageHead } from '../ui/PageHead'
 import { DataTable } from '../ui/DataTable'
 import { dayTotals } from '../lib/nutrition'
 import { recipeMacros, mealMultiplier, type Macros } from '../lib/calc'
-import { SLOTS, MAIN_SLOT, slotsFor, planMeal, markEaten, macrosFor } from '../lib/meals'
+import { SLOTS, MAIN_SLOT, slotsFor, planMeal, planQuick, markEaten, macrosFor, setMealTime, type SlotKey } from '../lib/meals'
+import { readSettings, mealTime, type Nutrient, type ProfileSettings } from '../lib/settings'
+import {
+  BASES, EMPTY_FORM, MACROS, amountLine, formFrom, isQuick, nutrientLabel, quickMacros, readQuick, shownNutrients,
+  type Basis, type QuickEntry, type QuickForm,
+} from '../lib/quick-food'
+import { SearchPick, type PickItem } from '../ui/SearchPick'
+import { Dropdown } from '../ui/Dropdown'
 import { moduleByKey } from '../modules/registry'
-import type { Food as FoodRow, Recipe, RecipeLine, MealPlanSlot } from '../lib/types'
+import type { FieldDef } from '../modules/types'
+import type { Food as FoodRow, Recipe, RecipeLine, MealPlanSlot, Target } from '../lib/types'
+
+const NUTRIENT_KEYS: string[] = ['kcal', 'protein_g', 'carbs_g', 'fat_g', 'fiber_g']
 
 const SECTIONS = ['Day', 'Recipes', 'Foods']
 
 export function Food() {
   const profile = useApp((s) => s.profile)
+  const userId = useApp((s) => s.session?.user.id ?? null)
+  const settings = readSettings(profile)
+  // Calories and whatever the person chose to track; nothing else is shown.
+  const shown = shownNutrients(settings)
   const [date, setDate] = useState(new Date())
   const [section, setSection] = useState('Day')
   const [search, setSearch] = useState('')
@@ -48,9 +62,21 @@ export function Food() {
       protein_g: Math.round(m.protein_g * 10) / 10,
       carbs_g: Math.round(m.carbs_g * 10) / 10,
       fat_g: Math.round(m.fat_g * 10) / 10,
+      fiber_g: Math.round(m.fiber_g * 10) / 10,
       lines_count: lines.filter((l) => l.recipe_id === r.id).length,
     }
   }), [recipes, lines, foodMap])
+
+  // Columns for the nutrients not tracked are left out, not just narrowed.
+  const nutrientColumn = (f: FieldDef) => !NUTRIENT_KEYS.includes(f.name) || shown.includes(f.name as Nutrient)
+  const narrowColumns = ['name', ...shown.slice(0, 2)]
+  const recipeFields: FieldDef[] = [
+    { name: 'name', label: 'Recipe', type: 'text', width: 230 },
+    { name: 'role', label: 'Role', type: 'select', options: ['breakfast','lunch','dinner','snack','shake','main'], width: 110 },
+    { name: 'lines_count', label: 'Items', type: 'integer', width: 60 },
+    { name: 'kcal', label: 'kcal', type: 'integer', width: 70 },
+    ...shown.filter((k) => k !== 'kcal').map((k): FieldDef => ({ name: k, label: nutrientLabel(k), type: 'number', unit: 'g', width: 80 })),
+  ]
 
   const filteredFoods = useMemo(() => {
     const q = search.trim().toLowerCase()
@@ -64,25 +90,16 @@ export function Food() {
         <PageHead date={date} onPick={setDate} sections={SECTIONS} active={section} onSection={setSection} />
 
         {section === 'Day' && profile && (
-          <MealDay profileId={profile.id} day={day} recipes={recipes} lines={lines} foods={foodMap}
-            target={target ? { kcal: Number(target.kcal ?? 0), protein_g: Number(target.protein_g ?? 0) } : null}
-            eaten={totals} />
+          <MealDay profileId={profile.id} userId={userId} day={day} recipes={recipes} lines={lines} foods={foodMap}
+            target={target} eaten={totals} settings={settings} shown={shown} />
         )}
 
         {section === 'Recipes' && (
           <>
             <div className="totals"><span><b>{recipes.length}</b> recipes · macros calculated from the ingredient lines</span></div>
             <DataTable
-              fields={[
-                { name: 'name', label: 'Recipe', type: 'text', width: 230 },
-                { name: 'role', label: 'Role', type: 'select', options: ['breakfast','lunch','dinner','snack','shake','main'], width: 110 },
-                { name: 'lines_count', label: 'Items', type: 'integer', width: 60 },
-                { name: 'kcal', label: 'kcal', type: 'integer', width: 70 },
-                { name: 'protein_g', label: 'Protein', type: 'number', unit: 'g', width: 80 },
-                { name: 'carbs_g', label: 'Carbs', type: 'number', unit: 'g', width: 80 },
-                { name: 'fat_g', label: 'Fat', type: 'number', unit: 'g', width: 80 },
-              ]}
-              priority={['name', 'kcal', 'protein_g']}
+              fields={recipeFields}
+              priority={narrowColumns}
               rows={recipeRows}
               emptyNote="No recipes yet — import them from your Excel file in More."
             />
@@ -102,8 +119,8 @@ export function Food() {
               />
             </div>
             <DataTable
-              fields={mod.entities[0].fields}
-              priority={['name', 'kcal', 'protein_g']}
+              fields={mod.entities[0].fields.filter(nutrientColumn)}
+              priority={narrowColumns}
               rows={filteredFoods as never}
               emptyNote="No food matches that."
             />
@@ -117,84 +134,239 @@ export function Food() {
   )
 }
 
-function MealDay({ profileId, day, recipes, lines, foods, target, eaten }: {
-  profileId: string; day: string; recipes: Recipe[]; lines: RecipeLine[]; foods: Map<string, FoodRow>
-  target: { kcal: number; protein_g: number } | null
+type Totals = Record<Nutrient, number>
+const ZERO: Totals = { kcal: 0, protein_g: 0, carbs_g: 0, fat_g: 0, fiber_g: 0 }
+const add = (a: Totals, b: Totals, n = 1): Totals => ({
+  kcal: a.kcal + b.kcal * n, protein_g: a.protein_g + b.protein_g * n, carbs_g: a.carbs_g + b.carbs_g * n,
+  fat_g: a.fat_g + b.fat_g * n, fiber_g: a.fiber_g + b.fiber_g * n,
+})
+
+function MealDay({ profileId, userId, day, recipes, lines, foods, target, eaten, settings, shown }: {
+  profileId: string; userId: string | null; day: string; recipes: Recipe[]; lines: RecipeLine[]; foods: Map<string, FoodRow>
+  target: Target | null
   eaten: Macros | null
+  settings: ProfileSettings
+  shown: Nutrient[]
 }) {
   const slots = useLiveQuery(() => slotsFor(profileId, day), [profileId, day], [] as MealPlanSlot[])
   const bySlot = new Map(slots.map((s) => [s.slot, s]))
   const perPortion = (recipeId: string | null) => recipeId ? macrosFor(recipeId, lines, foods) : null
-  const sorted = [...recipes].sort((a, b) => a.name.localeCompare(b.name))
 
-  // What the day comes to as planned, portions included.
-  const planned = slots.reduce((acc, s) => {
+  /** What one planned meal comes to: its own numbers, or its recipe × portions. */
+  const slotTotals = (s: MealPlanSlot | undefined): Totals | null => {
+    if (!s) return null
+    if (isQuick(s)) return quickMacros(s)
     const m = perPortion(s.recipe_id)
-    if (!m) return acc
-    return { kcal: acc.kcal + m.kcal * s.portion_multiplier, protein_g: acc.protein_g + m.protein_g * s.portion_multiplier }
-  }, { kcal: 0, protein_g: 0 })
+    return m ? add(ZERO, m, s.portion_multiplier) : null
+  }
 
-  // The main meal is sized to close whatever the other meals leave open.
+  // Recipes as the picker lists them: own ones tagged, calories per portion.
+  const items: PickItem[] = useMemo(() => recipes.map((r) => ({
+    id: r.id, name: r.name,
+    tag: userId && r.owner_id === userId ? 'mine' : undefined,
+    meta: `${Math.round(macrosFor(r.id, lines, foods).kcal)} kcal per portion`,
+  })), [recipes, lines, foods, userId])
+
+  const planned = slots.reduce((acc, s) => add(acc, slotTotals(s) ?? ZERO), ZERO)
+
+  // The main meal is sized to close whatever the other meals leave open. It is
+  // a calorie sum, so it needs a calorie target to aim at.
   const main = bySlot.get(MAIN_SLOT)
-  const mainPer = perPortion(main?.recipe_id ?? null)
-  const others = slots.filter((s) => s.slot !== MAIN_SLOT).reduce((acc, s) => {
-    const m = perPortion(s.recipe_id)
-    return m ? { ...acc, kcal: acc.kcal + m.kcal * s.portion_multiplier, protein_g: acc.protein_g + m.protein_g * s.portion_multiplier } : acc
-  }, { kcal: 0, carbs_g: 0, fiber_g: 0, fat_g: 0, protein_g: 0 })
-  const suggestion = target && mainPer && mainPer.kcal > 0
-    ? Math.round(mealMultiplier(target, others, mainPer) * 10) / 10 : null
+  const mainPer = main && !isQuick(main) ? perPortion(main.recipe_id) : null
+  const others = slots.filter((s) => s.slot !== MAIN_SLOT).reduce((acc, s) => add(acc, slotTotals(s) ?? ZERO), ZERO)
+  const targetKcal = Math.round(Number(target?.kcal ?? 0))
+  const suggestion = targetKcal > 0 && mainPer && mainPer.kcal > 0
+    ? Math.round(mealMultiplier({ kcal: targetKcal, protein_g: target?.protein_g ?? null }, others, mainPer) * 10) / 10 : null
+
+  const goal = (k: Nutrient) => Math.round(Number(target?.[k] ?? 0))
 
   return (
     <>
       <div className="totals">
-        <span>Planned <b>{Math.round(planned.kcal)}</b>{target ? ` / ${Math.round(target.kcal)}` : ''} kcal</span>
-        <span>Protein <b>{Math.round(planned.protein_g)}</b>{target ? ` / ${Math.round(target.protein_g)}` : ''} g</span>
+        {shown.map((k) => (
+          <span key={k}>
+            {k === 'kcal' ? 'Planned' : nutrientLabel(k)} <b>{Math.round(planned[k])}</b>
+            {goal(k) > 0 ? ` / ${goal(k)}` : ''} {k === 'kcal' ? 'kcal' : 'g'}
+          </span>
+        ))}
         <span>Eaten <b>{Math.round(eaten?.kcal ?? 0)}</b> kcal</span>
       </div>
 
       {SLOTS.map((def) => {
         const slot = bySlot.get(def.key)
-        const m = perPortion(slot?.recipe_id ?? null)
+        const sizeTo = def.key === MAIN_SLOT && slot && suggestion !== null && Math.abs(suggestion - slot.portion_multiplier) >= 0.1
+          ? suggestion : null
         return (
-          <div key={def.key} className="slot">
-            <div>
-              <div className="row-meta">{def.label} · {def.time}</div>
-              <select value={slot?.recipe_id ?? ''} aria-label={`${def.label} recipe`}
-                onChange={(e) => void planMeal(profileId, day, def.key, e.target.value || null, slot?.portion_multiplier ?? 1)}
-                style={{ marginTop: 4 }}>
-                <option value="">Nothing planned</option>
-                {sorted.map((r) => <option key={r.id} value={r.id}>{r.name}</option>)}
-              </select>
-              {slot && m && (
-                <div className="row-meta" style={{ marginTop: 4 }}>
-                  {Math.round(m.kcal * slot.portion_multiplier)} kcal · {Math.round(m.protein_g * slot.portion_multiplier)} g protein
-                </div>
-              )}
-              {def.key === MAIN_SLOT && slot && suggestion !== null && Math.abs(suggestion - slot.portion_multiplier) >= 0.1 && (
-                <button className="suggest" onClick={() => void planMeal(profileId, day, def.key, slot.recipe_id, suggestion)}>
-                  {suggestion}× reaches {Math.round(target!.kcal)} kcal — use it
-                </button>
-              )}
-            </div>
-            {slot && (
-              <div className="row-right">
-                <input type="number" min={0.25} step={0.25} value={slot.portion_multiplier} aria-label="Portions"
-                  style={{ width: 64 }}
-                  onChange={(e) => void planMeal(profileId, day, def.key, slot.recipe_id, Number(e.target.value) || 1)} />
-                <label className="row-meta" style={{ display: 'grid', justifyItems: 'center' }}>
-                  <input type="checkbox" checked={slot.status === 'eaten'}
-                    onChange={(e) => void markEaten(slot, e.target.checked)} />
-                  eaten
-                </label>
-              </div>
-            )}
-          </div>
+          // Keyed by the slot row too: a meal made, cleared or on another day
+          // starts from what is stored, not from the last one's open fields.
+          <MealSlot key={`${day}:${def.key}:${slot?.id ?? ''}`} slotKey={def.key} label={def.label} slot={slot} day={day} profileId={profileId}
+            time={slot ? mealTime(slot, settings) : settings.meal_times[def.key] ?? null}
+            items={items} recipes={recipes} totals={slotTotals(slot)} shown={shown}
+            suggest={sizeTo !== null ? { portions: sizeTo, kcal: targetKcal } : null} />
         )
       })}
       <p className="empty">
-        Planned meals appear on Today at their time and fill the shopping list. Macros come from
-        the ingredients, and the main meal can be sized to reach the day's target.
+        Planned meals appear on Today, at their time if they have one, and fill the shopping list.
+        A meal can be a recipe or just the numbers off a packet.
       </p>
     </>
+  )
+}
+
+function MealSlot({ slotKey, label, slot, day, profileId, time, items, recipes, totals, shown, suggest }: {
+  slotKey: SlotKey; label: string; slot: MealPlanSlot | undefined; day: string; profileId: string
+  time: string | null; items: PickItem[]; recipes: Recipe[]; totals: Totals | null; shown: Nutrient[]
+  suggest: { portions: number; kcal: number } | null
+}) {
+  const quickSaved = !!slot && isQuick(slot)
+  const [quick, setQuick] = useState(quickSaved)
+  const planned = !!slot && (!!slot.recipe_id || quickSaved)
+  const recipe = slot?.recipe_id ? recipes.find((r) => r.id === slot.recipe_id) : undefined
+  const chosen = recipe?.name
+    ?? (quickSaved ? `${slot!.label ? `${slot!.label} · ` : ''}${Math.round(Number(slot!.kcal))} kcal` : null)
+
+  const toggle = (
+    <label className="slot-toggle">
+      <input type="checkbox" checked={quick} onChange={(e) => setQuick(e.target.checked)} aria-label={`${label}: just numbers`} />
+      Just numbers
+    </label>
+  )
+
+  return (
+    <div className="slot" data-slot={slotKey}>
+      <div className="slot-head">
+        <span className="slot-name">{label}{time ? ` · ${time}` : ''}</span>
+        <MealTime label={label} own={slot?.slot_time?.slice(0, 5) ?? null} time={time}
+          onSet={(t) => void setMealTime(profileId, day, slotKey, t)} />
+      </div>
+
+      {quick ? (
+        <QuickFields key={slot?.id ?? 'new'} slot={slot} shown={shown} toggle={toggle}
+          onSave={(entry) => void planQuick(profileId, day, slotKey, entry)} />
+      ) : (
+        <div className="slot-pick">
+          <SearchPick items={items} label={`${label} recipe`} placeholder="Choose a recipe" value={chosen}
+            onPick={(r) => void planMeal(profileId, day, slotKey, r.id, recipe ? slot!.portion_multiplier : 1)}
+            onClear={() => void planMeal(profileId, day, slotKey, null)} />
+          {toggle}
+        </div>
+      )}
+
+      {planned && (
+        <div className="slot-foot">
+          <span className="row-meta slot-amounts">{totals ? amountLine(totals, shown) : ''}</span>
+          {!quickSaved && (
+            <input type="number" min={0.25} step={0.25} value={slot!.portion_multiplier} aria-label={`${label} portions`}
+              className="slot-portions"
+              onChange={(e) => void planMeal(profileId, day, slotKey, slot!.recipe_id, Number(e.target.value) || 1)} />
+          )}
+          <label className="slot-eaten">
+            <input type="checkbox" checked={slot!.status === 'eaten'} aria-label={`${label} eaten`}
+              onChange={(e) => void markEaten(slot!, e.target.checked)} />
+            eaten
+          </label>
+        </div>
+      )}
+      {suggest && slot && (
+        <button className="suggest" onClick={() => void planMeal(profileId, day, slotKey, slot.recipe_id, suggest.portions)}>
+          {suggest.portions}× reaches {suggest.kcal} kcal — use it
+        </button>
+      )}
+    </div>
+  )
+}
+
+/** "Add time" until opened; then a time field, clearable when the meal has a
+ *  time of its own. Clearing falls back to the default time, if one is set. */
+function MealTime({ label, own, time, onSet }: {
+  label: string; own: string | null; time: string | null; onSet: (t: string | null) => void
+}) {
+  const [open, setOpen] = useState(false)
+  if (!open) {
+    return (
+      <button type="button" className="slot-link" onClick={() => setOpen(true)}>
+        {time ? 'Change time' : 'Add time'}
+      </button>
+    )
+  }
+  return (
+    <span className="slot-time">
+      <input type="time" value={time ?? ''} aria-label={`${label} time`} autoFocus={!time}
+        // A half-typed time reads as empty; only a whole one is saved.
+        onChange={(e) => { if (/^\d\d:\d\d/.test(e.target.value)) onSet(e.target.value.slice(0, 5)) }} />
+      {own && (
+        <button type="button" className="slot-link" aria-label={`Clear ${label} time`}
+          onClick={() => { onSet(null); setOpen(false) }}>×</button>
+      )}
+      <button type="button" className="slot-link" onClick={() => setOpen(false)}>Done</button>
+    </span>
+  )
+}
+
+const BASIS_OPTIONS = BASES.map((b) => ({ value: b.value, label: b.label }))
+
+/** A meal as plain numbers. Only calories are needed; any macro typed in is
+ *  kept. Figures can be the total, or per 100 g (or another size) with the
+ *  grams eaten, and the total is worked out as they type. */
+function QuickFields({ slot, shown, toggle, onSave }: {
+  slot: MealPlanSlot | undefined; shown: Nutrient[]; toggle: ReactNode; onSave: (entry: QuickEntry) => void
+}) {
+  const [form, setForm] = useState<QuickForm>(() => (slot && isQuick(slot) ? formFrom(slot) : EMPTY_FORM))
+  // Tracked macros first; the rest are one tap away, and kept if filled in.
+  const first = MACROS.filter((k) => shown.includes(k))
+  const rest = MACROS.filter((k) => !shown.includes(k))
+  const [more, setMore] = useState(() => rest.some((k) => form[k] !== ''))
+  const set = (change: Partial<QuickForm>) => setForm((f) => ({ ...f, ...change }))
+
+  const result = readQuick(form)
+  const entry = 'entry' in result ? result.entry : null
+  const touched = form.kcal !== '' || form.grams !== ''
+  // Saved already when the form comes to exactly what the slot holds.
+  const same = !!entry && !!slot && isQuick(slot)
+    && JSON.stringify(formFrom(entry)) === JSON.stringify(formFrom(slot))
+  const per = form.basis === 'total' ? '' : ` ${BASES.find((b) => b.value === form.basis)!.label.replace('…', form.portion_g || '…')}`
+
+  const field = (key: keyof QuickForm, text: string, placeholder?: string) => (
+    <label key={key} className="qf-field">
+      <span>{text}</span>
+      <input type="text" inputMode="decimal" autoComplete="off" value={form[key]} placeholder={placeholder}
+        onChange={(e) => set({ [key]: e.target.value })} />
+    </label>
+  )
+
+  return (
+    <div className="qf">
+      <div className="slot-pick">
+        <input className="qf-label" type="text" value={form.label} maxLength={120} placeholder="What it was (optional)"
+          aria-label="What it was" onChange={(e) => set({ label: e.target.value })} />
+        {toggle}
+      </div>
+      <div className="qf-grid">
+        {/* The dropdown sits in the left column so its list, wider than the
+            field, opens across the screen and not off its edge. */}
+        <div className="qf-field">
+          <span>Calories are</span>
+          <Dropdown<Basis> value={form.basis} options={BASIS_OPTIONS} label="Calories are" onChange={(basis) => set({ basis })} />
+        </div>
+        {field('kcal', `kcal${per}`)}
+        {form.basis === 'portion' && field('portion_g', 'One portion, g')}
+        {form.basis !== 'total' && field('grams', 'Grams eaten')}
+        {first.map((k) => field(k, `${nutrientLabel(k)}, g${per}`, 'optional'))}
+        {more && rest.map((k) => field(k, `${nutrientLabel(k)}, g${per}`, 'optional'))}
+      </div>
+      <div className="qf-actions">
+        {!more && rest.length > 0 && (
+          <button type="button" className="slot-link" onClick={() => setMore(true)}>
+            {first.length ? 'More' : 'Add macros'}
+          </button>
+        )}
+        <span className="row-meta qf-result" aria-live="polite">
+          {entry ? `Comes to ${amountLine(quickMacros(entry), shown)}` : touched ? (result as { error: string }).error : ''}
+        </span>
+        <button type="button" className="btn btn-primary" disabled={!entry || same} onClick={() => entry && onSave(entry)}>
+          {same ? 'Saved' : 'Save'}
+        </button>
+      </div>
+    </div>
   )
 }

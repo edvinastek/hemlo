@@ -10,6 +10,8 @@ import { TaskSheet } from '../ui/TaskSheet'
 import { BodySection } from '../sections/BodySection'
 import { ReviewCard } from '../sections/ReviewCard'
 import { dayTotals } from '../lib/nutrition'
+import { readSettings } from '../lib/settings'
+import { metricLine } from '../lib/quick-food'
 import type { Task } from '../lib/types'
 
 const SECTIONS = ['Today', 'Body', 'Work', 'Night']
@@ -32,21 +34,22 @@ export function Today() {
         (a.planned_time ?? '99').localeCompare(b.planned_time ?? '99') || a.sort_order - b.sort_order)
   }, [profile?.id, day], [] as Task[])
 
-  const targets = useLiveQuery(async () => {
-    if (!profile) return null
+  // The one figure the person chose for this header (Food settings), or
+  // nothing: counting protein is not everyone's reason to open a planner.
+  const metric = readSettings(profile).today_metric
+  const figure = useLiveQuery(async () => {
+    if (!profile || metric === 'none') return null
+    const nutrition = await db.module_instance.where('profile_id').equals(profile.id)
+      .filter((m) => m.module_key === 'nutrition').first()
+    // Nutrition is on unless switched off; a profile without the row has it.
+    if (nutrition && !nutrition.enabled) return null
     // The targets in force on the day shown: the newest one that has started
     // by then and was not deleted.
     const rows = (await db.target.where('profile_id').equals(profile.id).sortBy('from_date'))
       .filter((t) => !t.deleted_at && t.from_date <= day)
-    const latest = rows[rows.length - 1]
-    return latest ? { kcal: Number(latest.kcal ?? 0), protein: Number(latest.protein_g ?? 0) } : null
-  }, [profile?.id, day], null)
-
-  const eaten = useLiveQuery(async () => {
-    if (!profile) return { kcal: 0, protein: 0 }
-    const totals = await dayTotals(profile.id, day)
-    return { kcal: totals.kcal, protein: totals.protein_g }
-  }, [profile?.id, day], { kcal: 0, protein: 0 })
+    const latest = rows[rows.length - 1] ?? null
+    return metricLine(metric, await dayTotals(profile.id, day), latest)
+  }, [profile?.id, day, metric], null)
 
   async function tick(task: Task) {
     await setTaskDone(task, task.status !== 'done')
@@ -85,16 +88,15 @@ export function Today() {
           sections={SECTIONS}
           active={section}
           onSection={setSection}
-          sub={targets ? `Protein ${Math.round(eaten.protein)} / ${targets.protein} g · ${Math.max(0, targets.kcal - Math.round(eaten.kcal))} kcal left` : undefined}
+          sub={figure?.text}
         />
 
-        {targets && (
+        {figure && figure.share !== null && (
           <div className="metrics" style={{ padding: '0 var(--space-4)' }}>
             <div className="metric">
-              <span className="metric-label">Protein</span>
-              <span>{Math.round(eaten.protein)} / {targets.protein} g</span>
-              <div className="metric-track">
-                <div className="metric-fill" style={{ width: `${Math.min(100, (eaten.protein / (targets.protein || 1)) * 100)}%` }} />
+              <div className="metric-track" role="progressbar" aria-label={figure.text}
+                aria-valuemin={0} aria-valuemax={100} aria-valuenow={Math.round(figure.share * 100)}>
+                <div className="metric-fill" style={{ width: `${figure.share * 100}%` }} />
               </div>
             </div>
           </div>

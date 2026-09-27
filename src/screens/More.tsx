@@ -7,6 +7,7 @@ import { edit } from '../lib/write'
 import { MODULES } from '../modules/registry'
 import { Privacy } from './Privacy'
 import { ModuleEditor } from '../ui/ModuleEditor'
+import { FoodSettings } from '../settings/FoodSettings'
 import { exportBundle, importBundle } from '../lib/bundle'
 import { getReminderSettings, setReminderSettings, requestPermission, type ReminderSettings } from '../lib/notify'
 import type { ModuleInstance } from '../lib/types'
@@ -147,6 +148,7 @@ function ProfilePanel() {
           <option value="bulk">bulk</option>
         </select>
       </div>
+      <FoodSettings />
     </>
   )
 }

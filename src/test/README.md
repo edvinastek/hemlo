@@ -13,6 +13,7 @@ Types, then every check that needs nothing but Node. CI runs the same command.
 - `review` — which tasks the evening review offers, and what each action does.
 - `import` — reading the Excel workbook, ingredient lines, matching foods.
 - `allowlist` — the invite-list script.
+- `quickfood` — meals as plain numbers (per 100 g and other sizes), and which figures the food pages and Today show.
 
 ## Browser checks
 
@@ -24,7 +25,7 @@ Make throwaway ones, run, and delete them afterwards:
 export SB=<Supabase access token>  TEST_PASSWORD=<random>
 export TEST_EMAIL=e2e-a@example.invalid TEST_NEW_EMAIL=e2e-b@example.invalid TEST_FEAT_EMAIL=e2e-c@example.invalid
 node scripts/test-accounts.mjs create $TEST_EMAIL $TEST_NEW_EMAIL $TEST_FEAT_EMAIL
-for t in features offline privacy tracking widget layout tour; do node src/test/$t.e2e.mjs || break; done
+for t in features food offline privacy tracking widget layout tour; do node src/test/$t.e2e.mjs || break; done
 node scripts/test-accounts.mjs delete $TEST_EMAIL $TEST_NEW_EMAIL $TEST_FEAT_EMAIL
 ```
 
@@ -32,6 +33,8 @@ Never commit the password or the token. Every query in these checks is scoped
 to the test accounts, because they run against the live project.
 
 - `features` — a tester's first ten minutes: tasks, meals, shopping, reminders, the policy.
+- `food` — meals without preset times, a time added on the day, a meal as plain numbers reaching
+  food_log, the figure chosen for Today (and none), all at 360 px.
 - `offline` — works with the network cut, survives a reload offline, catches up after.
 - `privacy` — the first-run wizard, sign-out leaves nothing on the device, account deletion.
 - `tracking` — weigh-in, habits and supplements, the same tick from two offline phones,

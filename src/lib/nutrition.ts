@@ -1,12 +1,14 @@
 import { db } from './db'
 import { recipeMacros, type Macros } from './calc'
+import { quickMacros } from './quick-food'
 import type { Food } from './types'
 
 const ZERO: Macros = { kcal: 0, carbs_g: 0, fiber_g: 0, fat_g: 0, protein_g: 0 }
 
 /** What has actually been eaten on a day, computed from the catalogue — the
  *  same path a recipe's macros take, so a logged meal and a planned one can
- *  never disagree. */
+ *  never disagree. A log with its own numbers (a quick entry) counts those:
+ *  there is no food or recipe behind it to work them out from. */
 export async function dayTotals(profileId: string, day: string): Promise<Macros> {
   const logs = (await db.food_log.where('profile_id').equals(profileId).toArray())
     .filter((l) => l.log_date === day && !l.deleted_at)
@@ -16,7 +18,16 @@ export async function dayTotals(profileId: string, day: string): Promise<Macros>
   let total = { ...ZERO }
 
   for (const log of logs) {
-    if (log.food_id) {
+    if (log.kcal != null) {
+      const own = quickMacros(log)
+      total = {
+        kcal: total.kcal + own.kcal,
+        carbs_g: total.carbs_g + own.carbs_g,
+        fiber_g: total.fiber_g + own.fiber_g,
+        fat_g: total.fat_g + own.fat_g,
+        protein_g: total.protein_g + own.protein_g,
+      }
+    } else if (log.food_id) {
       const food = foods.get(log.food_id)
       if (!food) continue
       const factor = (log.grams ?? 0) / 100
