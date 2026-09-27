@@ -1,4 +1,5 @@
 import type { Task } from '../lib/types'
+import { checklistProgress, hasNote } from '../lib/notes'
 
 interface Props {
   task: Task
@@ -21,14 +22,30 @@ export function TaskRow({ task, onTick, onPush, onEdit }: Props) {
     !slipped && task.push_count > 0 ? `pushed ${task.push_count}×` : null,
   ].filter(Boolean).join(' · ')
 
+  // A checklist in the note shows how far along it is; any other note just
+  // shows that there is one. The mark joins the small line under the name
+  // when there is one, else the name's own line, so it never adds a line.
+  const list = checklistProgress(task.notes)
+  const mark = list.total > 0 ? (
+    <span className={`row-chip${list.done === list.total ? ' is-complete' : ''}`}
+      aria-label={`${list.done} of ${list.total} checklist items done`}>{list.done}/{list.total}</span>
+  ) : hasNote(task.notes) ? (
+    <span className="row-notemark" role="img" aria-label="Has a note">
+      <svg width="10" height="11" viewBox="0 0 10 11" fill="none" aria-hidden="true">
+        <path d="M1.5 0.5h5l2 2v8h-7z" stroke="currentColor" />
+        <path d="M3 5h4M3 7.5h3" stroke="currentColor" />
+      </svg>
+    </span>
+  ) : null
+
   return (
     <article className={`row${done ? ' is-done' : ''}${slipped ? ' is-slipped' : ''}`}>
       <span className="row-time">{task.planned_time?.slice(0, 5) ?? ''}</span>
       <span className="row-dot" aria-hidden="true" />
 
       <div>
-        <div className="row-name"><button onClick={() => onEdit(task)}>{task.title}</button></div>
-        {meta && <div className="row-meta">{meta}</div>}
+        <div className="row-name"><button onClick={() => onEdit(task)}>{task.title}</button>{!meta && mark}</div>
+        {meta && <div className="row-meta">{meta}{mark}</div>}
         {slipped && <div className="row-note">pushed {task.push_count}×, needs a new time</div>}
       </div>
 
