@@ -153,4 +153,4 @@ export async function modulesOn(email, keys, { only = false } = {}) {
 
 /** Every built-in module a person can switch on. */
 export const ALL_MODULES = ['nutrition', 'shopping', 'training', 'habits', 'supplements', 'health', 'learning',
-  'agenda', 'sleep', 'projects', 'finance', 'household']
+  'agenda', 'sleep', 'projects', 'finance', 'household', 'stats']

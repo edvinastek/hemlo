@@ -5,6 +5,7 @@ import { useApp } from '../lib/store'
 import { supabase } from '../lib/supabase'
 import { edit } from '../lib/write'
 import { MODULES } from '../modules/registry'
+import { setModuleEnabled } from '../modules/defs'
 import { Privacy } from './Privacy'
 import { ModuleEditor } from '../ui/ModuleEditor'
 import { BuiltModules } from '../modules/ModuleBuilder'
@@ -65,6 +66,11 @@ function Modules({ onEdit }: { onEdit: (key: string) => void }) {
   async function toggle(instance: ModuleInstance) {
     await edit('module_instance', instance, { enabled: !instance.enabled })
   }
+  // A module newer than the profile (Stats, on an older account) has no
+  // switch row yet: switching it on makes one.
+  async function switchOn(key: string) {
+    if (profile) await setModuleEnabled(profile.id, key, true)
+  }
 
   return (
     <>
@@ -78,7 +84,7 @@ function Modules({ onEdit }: { onEdit: (key: string) => void }) {
       <p className="section-title">Available</p>
       {MODULES.filter((m) => !byKey.get(m.key)?.enabled).map((m) => (
         <Row key={m.key} name={m.name} summary={m.summary} depth={m.depth}
-          instance={byKey.get(m.key)} onToggle={toggle} onEdit={() => onEdit(m.key)} />
+          instance={byKey.get(m.key)} onToggle={toggle} onCreate={() => void switchOn(m.key)} onEdit={() => onEdit(m.key)} />
       ))}
 
       {instances.length === 0 && <p className="empty">Modules arrive with your profile.</p>}
@@ -87,9 +93,9 @@ function Modules({ onEdit }: { onEdit: (key: string) => void }) {
   )
 }
 
-function Row({ name, summary, depth, instance, onToggle, onEdit }: {
+function Row({ name, summary, depth, instance, onToggle, onCreate, onEdit }: {
   name: string; summary: string; depth: 'full' | 'light'
-  instance?: ModuleInstance; onToggle: (i: ModuleInstance) => void; onEdit: () => void
+  instance?: ModuleInstance; onToggle: (i: ModuleInstance) => void; onCreate?: () => void; onEdit: () => void
 }) {
   return (
     <div className="setting-row">
@@ -107,7 +113,7 @@ function Row({ name, summary, depth, instance, onToggle, onEdit }: {
           role="switch"
           aria-checked={Boolean(instance?.enabled)}
           aria-label={`Turn ${name} ${instance?.enabled ? 'off' : 'on'}`}
-          onClick={() => instance && onToggle(instance)}
+          onClick={() => (instance ? onToggle(instance) : onCreate?.())}
         />
       </div>
     </div>

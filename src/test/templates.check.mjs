@@ -14,7 +14,7 @@ const is = (label, got, want) => {
 
 // The modules the registry knows; copied here so the check needs no React.
 const MODULE_KEYS = ['nutrition', 'shopping', 'training', 'habits', 'supplements', 'health', 'learning', 'agenda',
-  'sleep', 'projects', 'finance', 'household', 'custom']
+  'sleep', 'projects', 'finance', 'household', 'stats', 'custom']
 const NUTRIENTS = ['kcal', 'protein_g', 'carbs_g', 'fat_g', 'fiber_g']
 
 // The templates themselves.

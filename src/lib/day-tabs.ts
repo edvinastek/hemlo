@@ -74,7 +74,7 @@ export interface DayInput {
 /** Modules with a tab or page of their own elsewhere, or no day to show:
  *  their tasks stay on the Today rail and never make a module tab. */
 const NO_MODULE_TAB = new Set([
-  'nutrition', 'shopping', 'health', 'habits', 'supplements', 'sleep', 'agenda', 'training', 'work', 'evening',
+  'nutrition', 'shopping', 'health', 'habits', 'supplements', 'sleep', 'agenda', 'training', 'work', 'evening', 'stats',
 ])
 
 /** Record-store modules in the order they come after Training; built
