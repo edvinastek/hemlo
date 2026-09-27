@@ -1,0 +1,58 @@
+/* The Stats page. Each card carries its module's colour (--st-accent) on a
+   dot, its top edge and its bars; the words and numbers stay in the ink
+   colours, so they read the same in either theme. */
+
+.st-periods { padding: 0 var(--space-4); overflow-x: auto; scrollbar-width: none; }
+.st-periods::-webkit-scrollbar { display: none; }
+
+.st-nav { display: flex; align-items: center; gap: var(--space-2); padding: var(--space-3) var(--space-4) var(--space-2); }
+.st-nav h2 { flex: 1; min-width: 0; font-size: 17px; font-weight: 600; overflow-wrap: anywhere; }
+.st-nav .btn { padding: 6px 10px; flex: none; }
+.st-nav .btn:disabled { opacity: 0.4; }
+
+.st-check {
+  display: flex; align-items: center; gap: 10px;
+  padding: var(--space-1) var(--space-4) var(--space-2);
+  font-family: var(--font-sans); font-size: 14px; color: var(--e-ink);
+}
+.st-check input { width: 18px; height: 18px; margin: 0; accent-color: var(--e-accent); flex: none; }
+
+.st-note { font-family: var(--font-sans); font-size: 13px; color: var(--e-ink-soft); padding: var(--space-2) var(--space-4); margin: 0; }
+
+.st-cards { display: grid; gap: var(--space-3); padding: var(--space-2) var(--space-4) var(--space-6); }
+@media (min-width: 760px) { .st-cards { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+
+.st-card {
+  min-width: 0;
+  border: 1px solid var(--e-rule);
+  border-top: 3px solid var(--st-accent, var(--e-accent));
+  border-radius: var(--radius-md);
+  background: var(--e-paper);
+  padding: var(--space-3);
+}
+.st-card-head { display: flex; align-items: center; gap: var(--space-2); min-width: 0; }
+.st-card-head h3 { flex: 1; min-width: 0; font-family: var(--font-serif); font-size: 17px; font-weight: 600; color: var(--e-ink); overflow-wrap: anywhere; }
+.st-dot { width: 10px; height: 10px; border-radius: var(--radius-pill); background: var(--st-accent, var(--e-accent)); flex: none; }
+.st-empty { font-family: var(--font-sans); font-size: 13px; color: var(--e-ink-soft); margin: var(--space-2) 0 0; }
+
+.st-figures { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--space-3) var(--space-3); margin: var(--space-3) 0 0; }
+.st-figure { min-width: 0; }
+.st-figure dt { font-family: var(--font-sans); font-size: 12px; color: var(--e-ink-soft); }
+.st-figure dd { margin: 0; display: grid; gap: 1px; }
+.st-value { font-family: var(--font-sans); font-size: 20px; font-weight: 600; color: var(--e-ink); font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
+.st-sub { font-family: var(--font-sans); font-size: 12px; color: var(--e-ink-soft); overflow-wrap: anywhere; }
+
+/* The chart: columns from one baseline, 4 px rounded at the top, square at
+   the base, at most 24 px wide, 2 px apart. */
+.st-chart { margin: var(--space-3) 0 0; }
+.st-chart-cap { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 2px var(--space-2); font-family: var(--font-sans); font-size: 12px; color: var(--e-ink-soft); margin-bottom: var(--space-1); }
+.st-readout { color: var(--e-ink); min-height: 1.3em; }
+.st-bars { display: grid; gap: 2px; height: 72px; align-items: end; border-bottom: 1px solid var(--e-rail); }
+.st-col { height: 100%; min-width: 0; padding: 0; display: flex; align-items: flex-end; justify-content: center; background: none; border: 0; cursor: pointer; }
+.st-col:focus-visible { outline: 2px solid var(--e-ink); outline-offset: 1px; }
+.st-bar { display: block; width: 100%; max-width: 24px; background: var(--st-accent, var(--e-accent)); border-radius: 4px 4px 0 0; }
+.st-col.is-neg .st-bar { background: transparent; border: 1.5px solid var(--st-accent, var(--e-accent)); border-bottom: 0; }
+.st-col.is-future .st-bar { opacity: 0.4; }
+.st-col.is-picked { background: var(--e-tint); }
+.st-labels { display: grid; gap: 2px; margin-top: 3px; font-family: var(--font-sans); font-size: 10px; color: var(--e-ink-soft); }
+.st-labels span { text-align: center; white-space: nowrap; overflow: visible; min-width: 0; }
