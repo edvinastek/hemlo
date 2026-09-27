@@ -1,4 +1,4 @@
-import type { CSSProperties } from 'react'
+import type { CSSProperties, ReactNode } from 'react'
 import type { Task } from '../lib/types'
 import { checklistProgress, hasNote } from '../lib/notes'
 import './colours.css'
@@ -13,13 +13,16 @@ interface Props {
   /** The module's name, shown in the meta line when the task has no section,
    *  so the colour is never the only thing that says what it is. */
   moduleName?: string | null
+  /** A ⋮ button for moving the task, drawn last on the right, when the list
+   *  can be reordered (Today). */
+  more?: ReactNode
 }
 
 const PUSH_STEPS = [15, 30, 60]
 
 /** Left to right: time in the margin, rail dot, name, meta, state, push.
  *  A locked item shows the lock and no push control — nothing may move it. */
-export function TaskRow({ task, onTick, onPush, onEdit, colour, moduleName }: Props) {
+export function TaskRow({ task, onTick, onPush, onEdit, colour, moduleName, more }: Props) {
   const done = task.status === 'done'
   const slipped = task.status === 'stuck' || task.needs_review
 
@@ -77,6 +80,7 @@ export function TaskRow({ task, onTick, onPush, onEdit, colour, moduleName }: Pr
         <button className="tick" onClick={() => onTick(task)} aria-pressed={done} title={done ? 'Untick' : 'Tick'}>
           {done ? '✓' : ''}
         </button>
+        {more}
       </div>
     </article>
   )
