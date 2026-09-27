@@ -1,7 +1,7 @@
 import { useMemo, useState, type CSSProperties } from 'react'
 import { useLiveQuery } from 'dexie-react-hooks'
 import {
-  addDays, eachDayOfInterval, endOfMonth, endOfWeek, format, isSameDay,
+  addDays, eachDayOfInterval, endOfMonth, endOfWeek, endOfYear, format, isSameDay,
   isSameMonth, startOfMonth, startOfWeek, startOfYear,
 } from 'date-fns'
 import { db } from '../lib/db'
@@ -9,6 +9,9 @@ import { useApp } from '../lib/store'
 import { PageHead } from '../ui/PageHead'
 import { useModuleColours, type ModuleColours } from '../lib/colours'
 import { modulesByWeight } from '../lib/colours-rules'
+import { readSettings } from '../lib/settings'
+import { countriesIn, holidayMarks, holidaysText, useHolidays } from '../lib/holidays'
+import { HolidayLegend, HolidayMark } from '../ui/HolidayMark'
 import type { Task } from '../lib/types'
 import '../ui/colours.css'
 
@@ -21,6 +24,13 @@ export function Plan() {
   const [date, setDate] = useState(new Date())
   const [section, setSection] = useState('Week')
   const colours = useModuleColours()
+  // Public holidays for the whole year shown, padded to full weeks, so Week,
+  // Month and Year all read from one map (empty when no country is chosen).
+  const holidays = useHolidays(
+    format(startOfWeek(startOfYear(date), { weekStartsOn: 1 }), 'yyyy-MM-dd'),
+    format(endOfWeek(endOfYear(date), { weekStartsOn: 1 }), 'yyyy-MM-dd'))
+  const holidayLegend = (days: Date[]) =>
+    countriesIn(days.map((d) => holidayMarks(holidays, d)), readSettings(profile).holidays.countries)
 
   const tasks = useLiveQuery(async () => {
     if (!profile) return []
@@ -64,9 +74,10 @@ export function Plan() {
               {weekDays(date).map((d) => {
                 const items = (byDay.get(format(d, 'yyyy-MM-dd')) ?? [])
                   .sort((a, b) => (a.planned_time ?? '99').localeCompare(b.planned_time ?? '99'))
+                const hol = holidayMarks(holidays, d)
                 return (
                   <div key={d.toISOString()} className={`week-col${isSameDay(d, new Date()) ? ' is-today' : ''}`}>
-                    <h3>{format(d, 'EEE d')}</h3>
+                    <h3 title={holidaysText(hol) || undefined}>{format(d, 'EEE d')}<HolidayMark marks={hol} variant="bar" /></h3>
                     <div className="week-items">
                       {items.map((t) => {
                         const c = colours.ofTask(t)
@@ -84,6 +95,7 @@ export function Plan() {
               })}
             </div>
             <ModuleLegend colours={colours} keys={modulesByWeight(weekDays(date).flatMap(modulesOn))} />
+            <HolidayLegend countries={holidayLegend(weekDays(date))} />
           </>
         )}
 
@@ -104,7 +116,9 @@ export function Plan() {
                   className="month-cell"
                   onClick={() => { setDate(d); setSection('Week') }}
                   style={{ opacity: isSameMonth(d, date) ? 1 : 0.4, textAlign: 'left' }}
+                  title={holidaysText(holidayMarks(holidays, d)) || undefined}
                 >
+                  <HolidayMark marks={holidayMarks(holidays, d)} variant="top" />
                   <span className="d">{format(d, 'd')}</span>
                   <span className="load" style={{ background: heat(load(d)) }} />
                   {/* Under the heat, up to four of the day's modules; the
@@ -121,6 +135,7 @@ export function Plan() {
             </div>
             <ModuleLegend colours={colours}
               keys={modulesByWeight(monthDays(date).filter((d) => isSameMonth(d, date)).flatMap(modulesOn))} />
+            <HolidayLegend countries={holidayLegend(monthDays(date).filter((d) => isSameMonth(d, date)))} />
           </>
         )}
 

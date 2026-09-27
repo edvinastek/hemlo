@@ -1,4 +1,4 @@
-import { useRef, useState, type MouseEvent, type PointerEvent } from 'react'
+import { useRef, useState, type MouseEvent, type PointerEvent, type ReactNode } from 'react'
 import { addDays, format, isSameDay, startOfWeek } from 'date-fns'
 
 interface Props {
@@ -8,11 +8,13 @@ interface Props {
   active: string
   onSection: (s: string) => void
   sub?: string
+  /** Under the date: the day's public holidays on Today. */
+  note?: ReactNode
 }
 
 /** Serif date, week strip, section tabs. The header owns about a third of the
  *  screen at most — past that the page stops being the subject. */
-export function PageHead({ date, onPick, sections, active, onSection, sub }: Props) {
+export function PageHead({ date, onPick, sections, active, onSection, sub, note }: Props) {
   const weekStart = startOfWeek(date, { weekStartsOn: 1 })
   const today = new Date()
   const strip = useWeekSwipe((dir) => onPick(addDays(date, dir * 7)))
@@ -21,6 +23,7 @@ export function PageHead({ date, onPick, sections, active, onSection, sub }: Pro
     <header className="page-head">
       <h1 className="page-date">{format(date, 'EEEE d MMMM')}</h1>
       {sub && <p className="page-sub">{sub}</p>}
+      {note}
 
       <div className={`week-strip${strip.slide ? ` slide-${strip.slide}` : ''}`}
         key={weekStart.toISOString()} {...strip.handlers}>
