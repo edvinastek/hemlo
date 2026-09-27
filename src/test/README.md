@@ -18,6 +18,7 @@ Types, then every check that needs nothing but Node. CI runs the same command.
 - `settings` — personal settings always come out whole and sane.
 - `timeframe` — a task's length as minutes or as an end time, across midnight.
 - `notes` — the note's checklists, bullets, headings and bold; ticking; the toolbar.
+- `quickfood` — meals as plain numbers (per 100 g and other sizes), and which figures the food pages and Today show.
 
 ## Browser checks
 
@@ -40,6 +41,8 @@ to the test accounts, because they run against the live project.
 - `onboarding` — the first-run wizard as a planner: where you are, work and commute, a template
   suggested from typed words, no body targets; then work hours changed and turned off in More.
 - `features` — a tester's first ten minutes: tasks, meals, shopping, reminders, the policy.
+- `food` — meals without preset times, a time added on the day, a meal as plain numbers reaching
+  food_log, the figure chosen for Today (and none), all at 360 px.
 - `offline` — works with the network cut, survives a reload offline, catches up after.
 - `privacy` — the first-run wizard, sign-out leaves nothing on the device, account deletion.
 - `tracking` — weigh-in, habits and supplements, the same tick from two offline phones,

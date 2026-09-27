@@ -73,10 +73,10 @@ is('deleting removes it', await p.locator('.row', { hasText: 'Mobility' }).count
 // Meals: plan lunch and dinner, size dinner to the target, eat lunch.
 await p.click('.bottom-nav a[href="/food"]')
 await p.waitForTimeout(1200)
+// Recipes are picked by typing, the same search as the Foods page.
 const pick = async (slot, name) => {
-  const sel = p.locator(`select[aria-label="${slot} recipe"]`)
-  const value = await sel.locator('option', { hasText: name }).first().getAttribute('value')
-  await sel.selectOption(value)
+  await p.fill(`input[aria-label="${slot} recipe"]`, name)
+  await p.locator('.sp-list li[role=option]', { hasText: name }).first().click()
   await p.waitForTimeout(900)
 }
 await pick('Lunch', 'Grilled chicken')
@@ -86,10 +86,10 @@ is('the main meal is offered a size that reaches the target', await suggest.coun
 const suggestion = (await suggest.textContent()) ?? ''
 await suggest.click()
 await p.waitForTimeout(900)
-const dinnerPortions = await p.locator('.slot', { hasText: 'Dinner' }).locator('input[type=number]').inputValue()
+const dinnerPortions = await p.locator('input[aria-label="Dinner portions"]').inputValue()
 is('using it sets dinner to that size', suggestion.startsWith(dinnerPortions + '×'), true)
 
-await p.locator('.slot', { hasText: 'Lunch' }).locator('input[type=checkbox]').click()
+await p.locator('input[aria-label="Lunch eaten"]').click()
 await p.waitForTimeout(1200)
 const eatenText = await p.locator('.totals').textContent()
 is('eating lunch moves the eaten total', /Eaten\s*[1-9]\d*/.test(eatenText ?? ''), true)
@@ -98,8 +98,9 @@ await p.click('.bottom-nav a[href="/"]')
 await p.waitForTimeout(1000)
 is('planned meals appear on Today', await p.locator('.row', { hasText: /Lunch:|Dinner:/ }).count(), 2)
 is('the eaten meal is ticked on Today', await p.locator('.row.is-done', { hasText: 'Lunch:' }).count(), 1)
-const protein = await p.locator('.page-sub').first().textContent()
-is('the protein bar moved', /Protein [1-9]/.test(protein ?? ''), true)
+// Today shows the one figure chosen in settings; calories unless changed.
+const figure = await p.locator('.page-sub').first().textContent()
+is('the calorie figure moved', /^[1-9]\d* (\/ \d+ )?kcal$/.test(figure ?? ''), true)
 
 // Shopping from the plan.
 await p.click('.bottom-nav a[href="/shop"]')

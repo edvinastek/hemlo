@@ -81,8 +81,12 @@ export function SearchPick({
           {results.map((r, i) => (
             <li key={r.id} role="option" aria-selected={i === active} className={i === active ? 'is-active' : undefined}
               onPointerEnter={() => setActive(i)}
-              // pointerdown, not click: picking must win against the input losing focus.
-              onPointerDown={(e) => { e.preventDefault(); pick(r) }}>
+              // Picked on click, not pointerdown: picking on the way down removed
+              // the list under the finger, and the tap's click then landed on
+              // whatever lay beneath (the next meal's checkbox). mousedown is
+              // held back so the field keeps focus while the list is tapped.
+              onMouseDown={(e) => e.preventDefault()}
+              onClick={() => pick(r)}>
               <span className="sp-name">{r.name}</span>
               {r.tag && <span className="sp-tag">{r.tag}</span>}
               {r.meta && <span className="sp-meta">{r.meta}</span>}

@@ -1,0 +1,11 @@
+/* Food settings, inside More → Profile. */
+.fs-checks { display: flex; flex-wrap: wrap; gap: var(--space-2) var(--space-4); margin-top: var(--space-2); }
+.fs-check { display: inline-flex; align-items: center; gap: 6px; font-family: var(--font-sans); font-size: 14px; color: var(--e-ink); }
+.fs-check input:disabled { opacity: 0.6; }
+.fs-figure { width: 150px; }
+/* The list is wider than the button and the button sits at the right edge:
+   open it leftwards so it stays on a 360 px screen. */
+.fs-figure .dd-list { left: auto; right: 0; }
+.fs-times { border-bottom: 0; padding-bottom: 0; }
+.fs-time { padding-top: var(--space-2); padding-bottom: var(--space-2); }
+.fs-time .row-right input { min-width: 0; }
