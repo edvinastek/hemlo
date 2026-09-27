@@ -26,6 +26,9 @@ Types, then every check that needs nothing but Node. CI runs the same command.
 - `moduledefs` — module definitions read from storage are checked and cleaned (names, types, formulas, options,
   sizes); a built-in module's changes survive the stored overlay; a record's day; the rule that turns dated
   records into tasks; the keyword suggestion; every builder preset is a valid module.
+- `stats` — the Stats page's arithmetic: day, week, month and year ranges (weeks from Monday, month ends, leap
+  years), the arrows' reach, totals and averages that never count days still to come, best day, the bars per day or
+  month, shares done, habit and supplement due days, hours slept, record fields, the export rows.
 
 ## Browser checks
 
