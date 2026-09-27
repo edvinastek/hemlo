@@ -1,70 +1,137 @@
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import { format } from 'date-fns'
 import { useApp } from '../lib/store'
 import { edit } from '../lib/write'
 import { targetsFor } from '../lib/calc'
 import { db } from '../lib/db'
 import { queueChange } from '../lib/sync'
+import { mergeSettings, readSettings, type Commute, type WorkHours } from '../lib/settings'
+import { COUNTRIES, cleanCity, cleanCountry, countryName } from '../lib/countries'
+import { DEFAULT_TEMPLATE, TEMPLATES, modulesFor, suggestTemplate, templateByKey } from '../lib/templates'
+import { ACTIVITY_LEVELS, nearestActivity } from '../lib/activity'
+import { applyModules } from '../lib/setup'
+import { applyWorkPlan } from '../lib/work'
 import { MODULES } from '../modules/registry'
+import { Dropdown } from '../ui/Dropdown'
+import { SearchPick } from '../ui/SearchPick'
+import { WorkFields } from '../settings/WorkFields'
+import './onboarding.css'
 
-/** A blank profile, then the targets with the arithmetic shown, so no number
- *  in the app ever looks like it came from nowhere. The nav does not appear
- *  during onboarding. */
+const TITLES = ['Who is planning', 'Your day', 'Start from', 'Body targets']
+
+const SEX_OPTIONS = [{ value: 'female' as const, label: 'Female' }, { value: 'male' as const, label: 'Male' }]
+const GOAL_OPTIONS = [
+  { value: 'cut' as const, label: 'Lose fat', hint: '500 kcal under maintenance' },
+  { value: 'recomp' as const, label: 'Maintain and recomp', hint: 'at maintenance' },
+  { value: 'bulk' as const, label: 'Build muscle', hint: '300 kcal over maintenance' },
+]
+const ACTIVITY_OPTIONS = ACTIVITY_LEVELS.map((l) => ({ value: String(l.value), label: `${l.value} · ${l.label}` }))
+const COUNTRY_ITEMS = COUNTRIES.map((c) => ({ id: c.code, name: c.name, tag: c.code }))
+
+/** First run, four short steps, all optional but a name. The app is a planner
+ *  first: who is planning, the fixed parts of the day (if there are any), a
+ *  starting layout, and only then, if wanted, calorie and body targets. The
+ *  nav does not appear during onboarding. */
 export function Onboarding({ onDone }: { onDone: () => void }) {
   const profile = useApp((s) => s.profile)
+  const initial = useMemo(() => readSettings(profile), [profile?.id])
   const [step, setStep] = useState(0)
+  const [busy, setBusy] = useState(false)
+
+  // 1. Who is planning
   const [name, setName] = useState(profile?.name ?? '')
-  const [sex, setSex] = useState<'male' | 'female'>(profile?.sex ?? 'male')
+  const [country, setCountry] = useState<string | null>(cleanCountry(profile?.country))
+  const [city, setCity] = useState(profile?.city ?? '')
+
+  // 2. Your day
+  const [work, setWork] = useState<WorkHours>(initial.work)
+  const [commute, setCommute] = useState<Commute>(initial.commute)
+
+  // 3. Start from
+  const firstTemplate = templateByKey(initial.template)?.key ?? DEFAULT_TEMPLATE
+  const [template, setTemplate] = useState(firstTemplate)
+  const [pickedByHand, setPickedByHand] = useState(false)
+  const [describe, setDescribe] = useState('')
+  const [modules, setModules] = useState<string[]>(modulesFor(firstTemplate))
+  const [showModules, setShowModules] = useState(false)
+  const suggestion = suggestTemplate(describe)
+
+  // 4. Body targets
+  const [targetsOn, setTargetsOn] = useState(templateByKey(firstTemplate)!.targets)
+  const [sex, setSex] = useState<'male' | 'female' | null>(profile?.sex ?? null)
   const [birth, setBirth] = useState(profile?.birth_date ?? '')
-  const [height, setHeight] = useState(String(profile?.height_cm ?? ''))
+  const [height, setHeight] = useState(profile?.height_cm ? String(profile.height_cm) : '')
   const [weight, setWeight] = useState('')
-  const [activity, setActivity] = useState(String(profile?.activity_level ?? 1.5))
+  const [activity, setActivity] = useState(nearestActivity(profile?.activity_level))
   const [goal, setGoal] = useState<'cut' | 'recomp' | 'bulk'>(profile?.goal ?? 'recomp')
-  const [shifts, setShifts] = useState({ start: '08:00', end: '17:00' })
-  const [chosen, setChosen] = useState<string[]>(MODULES.filter((m) => m.defaultOn).map((m) => m.key))
 
   if (!profile) return <p className="empty">Setting up…</p>
 
+  const tpl = templateByKey(template)!
   const draft = {
     ...profile,
     sex, birth_date: birth || null,
     height_cm: Number(height) || null,
-    activity_level: Number(activity),
+    activity_level: activity,
     goal,
   }
-  const targets = Number(weight) > 0 ? targetsFor(draft, Number(weight)) : null
+  // No guessing at sex: the resting burn differs by 166 kcal between the two.
+  const targets = targetsOn && sex && Number(weight) > 0 ? targetsFor(draft, Number(weight)) : null
+
+  function choose(key: string, byHand: boolean) {
+    setTemplate(key)
+    setModules(modulesFor(key))
+    setTargetsOn(templateByKey(key)!.targets)
+    if (byHand) setPickedByHand(true)
+  }
+
+  function onDescribe(text: string) {
+    setDescribe(text)
+    // A suggestion takes over only until a card has been tapped: after that
+    // the person's own pick stands, and the suggestion is just highlighted.
+    const s = suggestTemplate(text)
+    if (s && !pickedByHand && s.key !== template) choose(s.key, false)
+  }
 
   async function finish() {
-    await edit('profile', profile!, {
-      name: name || profile!.name,
-      sex, birth_date: birth || null,
-      height_cm: Number(height) || null,
-      activity_level: Number(activity),
-      goal,
-      day_start: shifts.start,
-      day_end: shifts.end,
-    })
+    if (busy) return
+    setBusy(true)
+    try {
+      const settings = mergeSettings(readSettings(profile), {
+        onboarded: true, template: tpl.key, work, commute,
+        nutrients: [...tpl.nutrients], today_metric: tpl.today_metric,
+      })
 
-    if (targets) {
-      // The person's own calendar day, not the UTC date, which is still
-      // yesterday until 02:00 in the Netherlands in summer.
-      const today = format(new Date(), 'yyyy-MM-dd')
-      const row = {
-        id: crypto.randomUUID(),
-        profile_id: profile!.id,
-        from_date: today,
-        kcal: targets.kcal,
-        protein_g: targets.protein_g,
-        fat_g: targets.fat_g,
-        carbs_g: targets.carbs_g,
-        fiber_g: targets.fiber_g,
-        reason: targets.explain,
-        updated_at: new Date().toISOString(),
-      }
-      await db.target.put(row)
-      await queueChange('target', row, ['profile_id', 'from_date', 'kcal', 'protein_g', 'fat_g', 'carbs_g', 'fiber_g', 'reason'])
+      await applyModules(profile!.id, modules)
 
-      if (Number(weight) > 0) {
+      // Body fields, the target and the weigh-in only when targets are wanted:
+      // with the switch off, nothing about the body is written anywhere.
+      const body = targetsOn ? {
+        sex, birth_date: birth || null,
+        height_cm: Number(height) || null,
+        activity_level: activity,
+        goal,
+      } : {}
+
+      if (targets) {
+        // The person's own calendar day, not the UTC date, which is still
+        // yesterday until 02:00 in the Netherlands in summer.
+        const today = format(new Date(), 'yyyy-MM-dd')
+        const row = {
+          id: crypto.randomUUID(),
+          profile_id: profile!.id,
+          from_date: today,
+          kcal: targets.kcal,
+          protein_g: targets.protein_g,
+          fat_g: targets.fat_g,
+          carbs_g: targets.carbs_g,
+          fiber_g: targets.fiber_g,
+          reason: targets.explain,
+          updated_at: new Date().toISOString(),
+        }
+        await db.target.put(row)
+        await queueChange('target', row, ['profile_id', 'from_date', 'kcal', 'protein_g', 'fat_g', 'carbs_g', 'fiber_g', 'reason'])
+
         const log = {
           id: crypto.randomUUID(), profile_id: profile!.id, log_date: today,
           weight_kg: Number(weight), waist_cm: null, note: null,
@@ -72,132 +139,188 @@ export function Onboarding({ onDone }: { onDone: () => void }) {
         await db.body_log.put(log)
         await queueChange('body_log', log, ['profile_id', 'log_date', 'weight_kg'])
       }
-    }
 
-    const instances = await db.module_instance.where('profile_id').equals(profile!.id).toArray()
-    for (const inst of instances) {
-      const want = chosen.includes(inst.module_key)
-      if (inst.enabled !== want) await edit('module_instance', inst, { enabled: want })
+      await applyWorkPlan(profile!, settings)
+
+      // The profile goes last: marking it onboarded is what swaps this screen
+      // for the app, so everything else is already in place when it does.
+      await edit('profile', profile!, {
+        name: name.trim() || profile!.name,
+        country: cleanCountry(country),
+        city: cleanCity(city),
+        settings,
+        ...body,
+      })
+      onDone()
+    } finally {
+      setBusy(false)
     }
-    onDone()
   }
+
+  const canGoOn = step !== 0 || name.trim().length > 0
+  const last = step === TITLES.length - 1
 
   return (
     <div className="page">
-      <div style={{ maxWidth: 460, margin: '0 auto', padding: 'var(--space-6) 0' }}>
+      <div className="ob">
         <header className="page-head">
-          <h1 className="page-date">
-            {step === 0 ? 'Who is planning' : step === 1 ? 'Your day' : step === 2 ? 'Targets' : 'What to plan'}
-          </h1>
-          <p className="page-sub">Step {step + 1} of 4</p>
+          <p className="page-sub">Step {step + 1} of {TITLES.length}</p>
+          <h1 className="page-date">{TITLES[step]}</h1>
         </header>
 
         {step === 0 && (
-          <>
-            <Field label="Name" value={name} onChange={setName} />
-            <div className="setting-row">
-              <div className="row-name">Sex</div>
-              <select className="btn" value={sex} onChange={(e) => setSex(e.target.value as 'male' | 'female')}>
-                <option value="male">male</option><option value="female">female</option>
-              </select>
+          <div className="ob-form">
+            <label className="ob-field">Name
+              <input value={name} autoComplete="given-name" onChange={(e) => setName(e.target.value)} />
+            </label>
+            <div className="ob-field">
+              <span>Country <span className="ob-optional">optional</span></span>
+              <SearchPick items={COUNTRY_ITEMS} label="Country" placeholder="Type to find your country"
+                value={countryName(country)} onPick={(c) => setCountry(c.id)} onClear={() => setCountry(null)} />
             </div>
-            <Field label="Date of birth" value={birth} onChange={setBirth} type="date" />
-            <Field label="Height" value={height} onChange={setHeight} unit="cm" type="number" />
-          </>
+            <label className="ob-field">
+              <span>City or town <span className="ob-optional">optional</span></span>
+              <input value={city} maxLength={80} autoComplete="address-level2" onChange={(e) => setCity(e.target.value)} />
+            </label>
+            <p className="ob-note">Country and city are used for nearby shops and public holidays. You can change them in More.</p>
+          </div>
         )}
 
         {step === 1 && (
           <>
-            <p className="empty">
-              Work hours are locked in the planner: nothing is scheduled across them, and
-              meals land around them rather than inside them.
-            </p>
-            <Field label="Work starts" value={shifts.start} onChange={(v) => setShifts({ ...shifts, start: v })} type="time" />
-            <Field label="Work ends" value={shifts.end} onChange={(v) => setShifts({ ...shifts, end: v })} type="time" />
+            <p className="ob-lead">Only the fixed parts, if you have any. Everything else you plan as you go.</p>
+            <WorkFields work={work} commute={commute}
+              onWork={(c) => setWork((w) => ({ ...w, ...c }))}
+              onCommute={(c) => setCommute((x) => ({ ...x, ...c }))} />
           </>
         )}
 
         {step === 2 && (
           <>
-            <Field label="Weight today" value={weight} onChange={setWeight} unit="kg" type="number" />
-            <div className="setting-row">
-              <div>
-                <div className="row-name">Activity</div>
-                <div className="row-meta">1.2 desk job · 1.5 hard training twice a day · 1.9 very active</div>
-              </div>
-              <input className="btn" style={{ width: 90, textAlign: 'right' }} value={activity}
-                onChange={(e) => setActivity(e.target.value)} />
-            </div>
-            <div className="setting-row">
-              <div className="row-name">Goal</div>
-              <select className="btn" value={goal} onChange={(e) => setGoal(e.target.value as typeof goal)}>
-                <option value="cut">cut</option><option value="recomp">recomp</option><option value="bulk">bulk</option>
-              </select>
+            <div className="ob-form">
+              <label className="ob-field">Describe your days in a few words
+                <input value={describe} placeholder="e.g. student, exams, part-time job"
+                  onChange={(e) => onDescribe(e.target.value)} />
+              </label>
+              {describe.trim() && (
+                <p className="ob-note" aria-live="polite">
+                  {suggestion
+                    ? <>Suggested: <b>{templateByKey(suggestion.key)!.name}</b>, from “{suggestion.matched.join('”, “')}”.</>
+                    : 'No match for those words. Pick the closest below.'}
+                </p>
+              )}
             </div>
 
-            {targets ? (
-              <div style={{ padding: 'var(--space-4)' }}>
-                <div className="totals" style={{ padding: 0 }}>
-                  <span><b>{targets.kcal}</b> kcal</span>
-                  <span><b>{targets.protein_g}</b> g protein</span>
-                  <span><b>{targets.fat_g}</b> g fat</span>
-                  <span><b>{targets.carbs_g}</b> g carbs</span>
-                </div>
-                <p className="row-meta" style={{ marginTop: 8 }}>{targets.explain}</p>
-              </div>
-            ) : (
-              <p className="empty">Put in a weight and the targets appear, with the arithmetic that produced them.</p>
-            )}
-          </>
-        )}
+            <div className="ob-cards" role="radiogroup" aria-label="Starting layout">
+              {TEMPLATES.map((t) => (
+                <button key={t.key} type="button" role="radio" aria-checked={t.key === template}
+                  className={`ob-card${suggestion?.key === t.key ? ' is-suggested' : ''}`}
+                  onClick={() => choose(t.key, true)}>
+                  <span className="ob-card-name">
+                    {t.name}
+                    {suggestion?.key === t.key && <span className="ob-tag">suggested</span>}
+                  </span>
+                  <span className="ob-card-desc">{t.description}</span>
+                </button>
+              ))}
+            </div>
 
-        {step === 3 && (
-          <>
-            <p className="empty">
-              Turn on what you actually want to plan. Nothing is lost by leaving one off —
-              switch it on later and it is there.
-            </p>
-            {MODULES.filter((m) => m.key !== 'custom').map((m) => (
+            <button type="button" className="ob-expander" aria-expanded={showModules}
+              onClick={() => setShowModules((v) => !v)}>
+              <span>Adjust modules</span>
+              <span className="ob-expander-meta">{modules.length} on {showModules ? '▴' : '▾'}</span>
+            </button>
+            {showModules && MODULES.filter((m) => m.key !== 'custom').map((m) => (
               <div key={m.key} className="setting-row">
                 <div>
                   <div className="row-name">{m.name}</div>
                   <div className="row-meta">{m.summary}</div>
                 </div>
                 <button
-                  className="switch" role="switch" aria-checked={chosen.includes(m.key)}
+                  className="switch" role="switch" aria-checked={modules.includes(m.key)}
                   aria-label={m.name}
-                  onClick={() => setChosen((c) => c.includes(m.key) ? c.filter((k) => k !== m.key) : [...c, m.key])}
+                  onClick={() => setModules((c) => c.includes(m.key) ? c.filter((k) => k !== m.key) : [...c, m.key])}
                 />
               </div>
             ))}
           </>
         )}
 
-        <div style={{ display: 'flex', gap: 'var(--space-2)', padding: 'var(--space-4)' }}>
-          {step > 0 && <button className="btn" onClick={() => setStep(step - 1)}>Back</button>}
+        {step === 3 && (
+          <>
+            <div className="setting-row">
+              <div>
+                <div className="row-name">Set calorie and body targets</div>
+                <div className="row-meta">
+                  Optional. A calorie and protein budget for the meal plan. While this is off,
+                  nothing about your body is saved.
+                </div>
+              </div>
+              <button className="switch" role="switch" aria-checked={targetsOn}
+                aria-label="Set calorie and body targets" onClick={() => setTargetsOn((v) => !v)} />
+            </div>
+
+            {targetsOn && (
+              <div className="ob-form">
+                <div className="ob-two">
+                  <div className="ob-field">
+                    <span>Sex</span>
+                    <Dropdown label="Sex" value={sex} options={SEX_OPTIONS} onChange={setSex} />
+                  </div>
+                  <label className="ob-field">Date of birth
+                    <input type="date" value={birth} onChange={(e) => setBirth(e.target.value)} />
+                  </label>
+                </div>
+                <div className="ob-two">
+                  <label className="ob-field">Height, cm
+                    <input type="number" inputMode="numeric" value={height} onChange={(e) => setHeight(e.target.value)} />
+                  </label>
+                  <label className="ob-field">Weight today, kg
+                    <input type="number" inputMode="decimal" value={weight} onChange={(e) => setWeight(e.target.value)} />
+                  </label>
+                </div>
+                <div className="ob-field">
+                  <span>Activity</span>
+                  <Dropdown label="Activity" value={String(activity)} options={ACTIVITY_OPTIONS}
+                    onChange={(v) => setActivity(Number(v))} />
+                </div>
+                <div className="ob-field">
+                  <span>Body goal</span>
+                  <Dropdown label="Body goal" value={goal} options={GOAL_OPTIONS} onChange={setGoal} />
+                </div>
+
+                {targets ? (
+                  <div className="ob-targets">
+                    <div className="totals" style={{ padding: 0 }}>
+                      <span><b>{targets.kcal}</b> kcal</span>
+                      <span><b>{targets.protein_g}</b> g protein</span>
+                      <span><b>{targets.fat_g}</b> g fat</span>
+                      <span><b>{targets.carbs_g}</b> g carbs</span>
+                    </div>
+                    <p className="row-meta">{targets.explain}</p>
+                  </div>
+                ) : (
+                  <p className="ob-note">Choose sex and put in a weight, and the targets appear with the arithmetic that produced them.</p>
+                )}
+              </div>
+            )}
+            {!targetsOn && (
+              <p className="ob-note ob-pad">Targets can be added later: height and date of birth in More, then a weigh-in on the Body tab.</p>
+            )}
+          </>
+        )}
+
+        <div className="ob-actions">
+          {step > 0 && <button type="button" className="btn" onClick={() => setStep(step - 1)}>Back</button>}
           <button
+            type="button"
             className="btn btn-primary"
-            style={{ marginLeft: 'auto' }}
-            onClick={() => (step < 3 ? setStep(step + 1) : void finish())}
+            disabled={!canGoOn || busy}
+            onClick={() => (last ? void finish() : setStep(step + 1))}
           >
-            {step < 3 ? 'Next' : 'Start planning'}
+            {last ? 'Start planning' : 'Next'}
           </button>
         </div>
-      </div>
-    </div>
-  )
-}
-
-function Field({ label, value, onChange, unit, type = 'text' }: {
-  label: string; value: string; onChange: (v: string) => void; unit?: string; type?: string
-}) {
-  return (
-    <div className="setting-row">
-      <div className="row-name">{label}</div>
-      <div className="row-right">
-        <input className="btn" type={type} value={value} style={{ width: 150, textAlign: 'right' }}
-          onChange={(e) => onChange(e.target.value)} />
-        {unit && <span className="row-meta">{unit}</span>}
       </div>
     </div>
   )

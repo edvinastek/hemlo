@@ -46,7 +46,7 @@ await p.click('text=Forgot your password?')
 is('password reset is offered', await p.locator('button:has-text("Send reset link")').count(), 1)
 await p.click('text=Back to sign in')
 
-await signIn(p, email)
+await signIn(p, email, undefined, { template: 'Fitness & nutrition', targets: true })
 
 // Tasks: add, edit, delete.
 await p.click('.fab')

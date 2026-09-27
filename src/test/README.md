@@ -13,6 +13,8 @@ Types, then every check that needs nothing but Node. CI runs the same command.
 - `review` — which tasks the evening review offers, and what each action does.
 - `import` — reading the Excel workbook, ingredient lines, matching foods.
 - `allowlist` — the invite-list script.
+- `templates` — the starting layouts, the keyword suggestion, activity levels, the country list.
+- `work` — work hours and the commute as repeating series, night shifts included; which series are kept, stopped or started.
 
 ## Browser checks
 
@@ -23,14 +25,17 @@ Make throwaway ones, run, and delete them afterwards:
 ```sh
 export SB=<Supabase access token>  TEST_PASSWORD=<random>
 export TEST_EMAIL=e2e-a@example.invalid TEST_NEW_EMAIL=e2e-b@example.invalid TEST_FEAT_EMAIL=e2e-c@example.invalid
-node scripts/test-accounts.mjs create $TEST_EMAIL $TEST_NEW_EMAIL $TEST_FEAT_EMAIL
-for t in features offline privacy tracking widget layout tour; do node src/test/$t.e2e.mjs || break; done
-node scripts/test-accounts.mjs delete $TEST_EMAIL $TEST_NEW_EMAIL $TEST_FEAT_EMAIL
+export TEST_ONBOARD_EMAIL=e2e-d@example.invalid
+node scripts/test-accounts.mjs create $TEST_EMAIL $TEST_NEW_EMAIL $TEST_FEAT_EMAIL $TEST_ONBOARD_EMAIL
+for t in onboarding features offline privacy tracking widget layout tour; do node src/test/$t.e2e.mjs || break; done
+node scripts/test-accounts.mjs delete $TEST_EMAIL $TEST_NEW_EMAIL $TEST_FEAT_EMAIL $TEST_ONBOARD_EMAIL
 ```
 
 Never commit the password or the token. Every query in these checks is scoped
 to the test accounts, because they run against the live project.
 
+- `onboarding` — the first-run wizard as a planner: where you are, work and commute, a template
+  suggested from typed words, no body targets; then work hours changed and turned off in More.
 - `features` — a tester's first ten minutes: tasks, meals, shopping, reminders, the policy.
 - `offline` — works with the network cut, survives a reload offline, catches up after.
 - `privacy` — the first-run wizard, sign-out leaves nothing on the device, account deletion.

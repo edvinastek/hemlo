@@ -1,0 +1,56 @@
+/* First-run setup. One narrow column that fits a 360 px phone; tokens only,
+   no shadows. A chosen card is marked by the tint and an ink rule, as a picked
+   weekday is: the accent stays with the one primary button. */
+
+.ob { max-width: 460px; margin: 0 auto; padding: var(--space-2) 0 var(--space-6); }
+.ob .page-head { padding-bottom: var(--space-3); }
+.ob .page-sub { margin: 0 0 2px; }
+
+.ob-form { display: grid; gap: var(--space-3); padding: var(--space-2) var(--space-4); }
+.ob-two { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--space-3); }
+.ob-field {
+  display: grid; gap: 4px; min-width: 0;
+  font-family: var(--font-sans); font-size: 13px; color: var(--e-ink-soft);
+}
+.ob-field input:not([type="checkbox"]) {
+  width: 100%; min-width: 0; min-height: 40px; padding: 8px 10px;
+  font-family: var(--font-sans); font-size: 15px;
+}
+/* What the person types about themselves is theirs: the name reads in serif. */
+.ob-field input[autocomplete="given-name"] { font-family: var(--font-serif); font-size: 17px; }
+.ob-optional { font-size: 11px; color: var(--e-ink-soft); opacity: 0.8; margin-left: 4px; }
+
+.ob-note { margin: 0; font-family: var(--font-sans); font-size: 12px; color: var(--e-ink-soft); }
+.ob-note b { color: var(--e-ink); font-weight: 600; }
+.ob-pad { padding: var(--space-3) var(--space-4); }
+.ob-lead { margin: 0; padding: 0 var(--space-4) var(--space-1); font-family: var(--font-sans); font-size: 13px; color: var(--e-ink-soft); }
+
+.ob-cards { display: grid; gap: var(--space-2); padding: var(--space-2) var(--space-4); }
+.ob-card {
+  display: grid; gap: 2px; text-align: left; width: 100%;
+  padding: var(--space-3); border: 1px solid var(--e-rule); border-radius: var(--radius-md);
+  font-family: var(--font-sans);
+}
+.ob-card[aria-checked="true"] { background: var(--e-tint); border-color: var(--e-ink-soft); }
+.ob-card.is-suggested:not([aria-checked="true"]) { border-style: dashed; border-color: var(--e-ink-soft); }
+.ob-card-name { display: flex; align-items: center; gap: var(--space-2); font-size: 15px; color: var(--e-ink); font-weight: 500; }
+.ob-card[aria-checked="true"] .ob-card-name { font-weight: 600; }
+.ob-card-desc { font-size: 12px; color: var(--e-ink-soft); }
+.ob-tag {
+  font-size: 11px; font-weight: 500; color: var(--e-accent);
+  border: 1px solid currentColor; border-radius: var(--radius-pill); padding: 0 6px;
+}
+
+.ob-expander {
+  display: flex; justify-content: space-between; align-items: center; width: calc(100% - 2 * var(--space-4));
+  margin: var(--space-2) var(--space-4) 0; padding: var(--space-3) 0;
+  border-top: 1px solid var(--e-rule); font-family: var(--font-sans); font-size: 14px; color: var(--e-ink);
+}
+.ob-expander-meta { font-size: 12px; color: var(--e-ink-soft); }
+
+.ob-targets { display: grid; gap: var(--space-2); padding-top: var(--space-1); }
+.ob-targets .row-meta { margin: 0; }
+
+.ob-actions { display: flex; gap: var(--space-2); padding: var(--space-4); }
+.ob-actions .btn-primary { margin-left: auto; min-width: 120px; }
+.ob-actions .btn:disabled { opacity: 0.5; }

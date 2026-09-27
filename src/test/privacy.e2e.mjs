@@ -1,4 +1,5 @@
 import { chromium } from 'playwright'
+import { completeWizard } from './e2e.mjs'
 
 // Three things the security review fixed, checked in a real browser:
 //  1. A row created on the device (the wizard's targets and weigh-in) reaches
@@ -44,16 +45,7 @@ await p.fill('input[type=password]', process.env.TEST_PASSWORD)
 await p.click('button[type=submit]')
 
 // 1. The first-run wizard: its targets and weigh-in are rows made on the device.
-await p.waitForSelector('text=Step 1 of 4', { timeout: 20000 })
-const field = (label) => p.locator('.setting-row', { hasText: label }).locator('input')
-await field('Height').fill('180')
-await field('Date of birth').fill('1996-01-01')
-await p.click('button:has-text("Next")')
-await p.click('button:has-text("Next")')
-await field('Weight today').fill('80')
-await p.click('button:has-text("Next")')
-await p.click('button:has-text("Start planning")')
-await p.waitForSelector('.bottom-nav', { timeout: 20000 })
+await completeWizard(p, { template: 'Fitness & nutrition', targets: true })
 await p.waitForTimeout(5000)
 
 const server = await sql(`select

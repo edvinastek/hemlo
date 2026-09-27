@@ -47,26 +47,77 @@ export async function open(options = {}) {
   return { b, ctx, p, errors }
 }
 
-/** Signs in; a new account goes through the first-run wizard first. */
-export async function signIn(p, email, password = process.env.TEST_PASSWORD) {
+/** Signs in; a new account goes through the first-run wizard first, with the
+ *  answers given (by default the minimal ones: a name, the Minimal planner,
+ *  no targets). A check that needs meals sized to a target or the Body tab
+ *  asks for { template: 'Fitness & nutrition', targets: true }. */
+export async function signIn(p, email, password = process.env.TEST_PASSWORD, wizard = {}) {
   if (!p.url().startsWith(APP)) await p.goto(APP, { waitUntil: 'networkidle' })
   await p.fill('input[type=email]', email)
   await p.fill('input[type=password]', password)
   await p.click('button[type=submit]')
-  const wizard = p.getByText('Step 1 of 4')
-  await p.locator('.bottom-nav').or(wizard).first().waitFor({ timeout: 20000 })
-  if (await wizard.count()) {
-    const field = (label) => p.locator('.setting-row', { hasText: label }).locator('input')
-    await field('Height').fill('180')
-    await field('Date of birth').fill('1996-01-01')
-    await p.click('button:has-text("Next")')
-    await p.click('button:has-text("Next")')
-    await field('Weight today').fill('80')
-    await p.click('button:has-text("Next")')
-    await p.click('button:has-text("Start planning")')
-    await p.waitForSelector('.bottom-nav', { timeout: 20000 })
-  }
+  const first = p.getByText('Step 1 of 4')
+  await p.locator('.bottom-nav').or(first).first().waitFor({ timeout: 20000 })
+  if (await first.count()) await completeWizard(p, wizard)
   await p.waitForTimeout(3000)
+}
+
+/** The first-run wizard, four steps. Only a name is needed; everything else
+ *  is filled in when asked for. `targets` fills a 180 cm, 1996-born man
+ *  weighing 80 kg. */
+export async function completeWizard(p, {
+  name = 'Tester', country = null, city = null, template = 'Minimal planner', targets = false,
+  work = null, commute = null,
+} = {}) {
+  const field = (label) => p.locator('.ob-field', { hasText: label }).locator('input').first()
+  const next = () => p.click('.ob-actions button:has-text("Next")')
+
+  // 1. Who is planning.
+  await p.getByText('Step 1 of 4').waitFor({ timeout: 20000 })
+  await field('Name').fill(name)
+  if (country) {
+    // Typing filters the list; Enter takes the best match.
+    const box = p.locator('.ob-field', { hasText: 'Country' }).locator('input')
+    await box.fill(country)
+    await box.press('Enter')
+  }
+  if (city) await field('City').fill(city)
+  await next()
+
+  // 2. Your day: work = { start, end, locked }, commute = { before, after, km }.
+  await p.getByText('Step 2 of 4').waitFor()
+  if (work) {
+    await p.locator('.wf-check', { hasText: 'I have work or school hours' }).locator('input').check()
+    if (work.start) await p.locator('.wf-grid label', { hasText: 'Start' }).locator('input').fill(work.start)
+    if (work.end) await p.locator('.wf-grid label', { hasText: 'End' }).locator('input').fill(work.end)
+    if (work.locked) await p.locator('.wf-check', { hasText: 'Keep these hours free' }).locator('input').check()
+  }
+  if (work && commute) {
+    await p.locator('.wf-check', { hasText: 'Plan my commute too' }).locator('input').check()
+    if (commute.before != null) await p.locator('.wf-grid label', { hasText: 'Before' }).locator('input').fill(String(commute.before))
+    if (commute.after != null) await p.locator('.wf-grid label', { hasText: 'After' }).locator('input').fill(String(commute.after))
+    if (commute.km != null) await p.locator('.wf-grid label', { hasText: 'One way' }).locator('input').fill(String(commute.km))
+  }
+  await next()
+
+  // 3. Start from.
+  await p.getByText('Step 3 of 4').waitFor()
+  await p.locator('.ob-card', { hasText: template }).click()
+  await next()
+
+  // 4. Body targets, off unless asked for.
+  await p.getByText('Step 4 of 4').waitFor()
+  const toggle = p.locator('button[role=switch][aria-label="Set calorie and body targets"]')
+  if ((await toggle.getAttribute('aria-checked')) !== String(Boolean(targets))) await toggle.click()
+  if (targets) {
+    await p.locator('button[aria-label="Sex"]').click()
+    await p.getByRole('option', { name: 'Male', exact: true }).click()
+    await field('Date of birth').fill('1996-01-01')
+    await field('Height').fill('180')
+    await field('Weight today').fill('80')
+  }
+  await p.click('.ob-actions button:has-text("Start planning")')
+  await p.waitForSelector('.bottom-nav', { timeout: 20000 })
 }
 
 export async function localCount(p, table) {

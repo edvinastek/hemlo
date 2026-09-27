@@ -7,6 +7,7 @@ import { edit } from '../lib/write'
 import { MODULES } from '../modules/registry'
 import { Privacy } from './Privacy'
 import { ModuleEditor } from '../ui/ModuleEditor'
+import { PlanningSettings } from '../settings/PlanningSettings'
 import { exportBundle, importBundle } from '../lib/bundle'
 import { getReminderSettings, setReminderSettings, requestPermission, type ReminderSettings } from '../lib/notify'
 import type { ModuleInstance } from '../lib/types'
@@ -126,6 +127,7 @@ function ProfilePanel() {
         </div>
       ))}
 
+      <PlanningSettings />
       <p className="section-title">Body and goal</p>
       <Field label="Height" value={String(profile.height_cm ?? '')} unit="cm"
         onSave={(v) => edit('profile', profile, { height_cm: Number(v) })} />

@@ -24,7 +24,7 @@ const one = async (query) => (await sql(query))[0] ?? {}
 
 const A = await open({ acceptDownloads: true })
 const p = A.p
-await signIn(p, email)
+await signIn(p, email, undefined, { template: 'Fitness & nutrition', targets: true })
 
 // 1. Weigh-in: the wizard logged today's; updating it changes the same row.
 await p.click('.tabs button:has-text("Body")')

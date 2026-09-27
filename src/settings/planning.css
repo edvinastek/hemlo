@@ -1,0 +1,62 @@
+/* Work hours, commute and the where-you-are fields, shared by first-run setup
+   and More. Tokens only, no shadows; sans throughout, since every word here is
+   the app asking, not the person writing. */
+
+.wf { display: grid; gap: var(--space-2); padding: var(--space-2) var(--space-4); }
+
+.wf-check {
+  display: grid; grid-template-columns: auto minmax(0, 1fr); gap: var(--space-3);
+  align-items: start; padding: var(--space-2) 0; cursor: pointer;
+  font-family: var(--font-sans);
+}
+.wf-check input { width: 20px; height: 20px; margin: 1px 0 0; }
+.wf-check-label { display: block; font-size: 15px; color: var(--e-ink); }
+.wf-check-hint { display: block; font-size: 12px; color: var(--e-ink-soft); margin-top: 1px; }
+
+/* Everything work reveals sits under its box, set in by the box's width, so
+   it reads as belonging to it. */
+.wf-body {
+  display: grid; gap: var(--space-2);
+  margin-left: 10px; padding-left: calc(var(--space-3) + 10px);
+  border-left: 1px solid var(--e-rule);
+}
+
+.wf-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--space-3); }
+.wf-grid.wf-three { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--space-2); }
+.wf-grid label, .pl-field {
+  display: grid; gap: 4px; min-width: 0;
+  font-family: var(--font-sans); font-size: 13px; color: var(--e-ink-soft);
+}
+.wf-grid input, .pl-field input {
+  width: 100%; min-width: 0; min-height: 40px; padding: 8px 10px;
+  font-family: var(--font-sans); font-size: 15px;
+}
+
+/* Seven equal columns, so the week stays on one line on a 360 px phone. */
+.wf-days { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: var(--space-1); max-width: 360px; }
+/* A picked day is marked by weight and the tint, not the accent, as in the
+   task sheet: the accent is kept for the one primary button. */
+.wf-day {
+  font-family: var(--font-sans); font-size: 13px;
+  min-width: 0; padding: 6px 0;
+  border: 1px solid var(--e-rule); border-radius: var(--radius-pill);
+  color: var(--e-ink-soft);
+}
+.wf-day[aria-pressed="true"] { background: var(--e-tint); color: var(--e-ink); border-color: var(--e-ink-soft); font-weight: 600; }
+
+.wf-note { margin: 0; font-family: var(--font-sans); font-size: 12px; color: var(--e-ink-soft); }
+
+/* More → Profile: the planning block. */
+.pl-block { display: grid; gap: var(--space-3); padding: var(--space-2) var(--space-4) var(--space-3); }
+.pl-note { margin: 0; font-family: var(--font-sans); font-size: 12px; color: var(--e-ink-soft); }
+.pl-actions { display: flex; flex-wrap: wrap; gap: var(--space-2); align-items: center; }
+.pl-actions .grow { margin-left: auto; }
+.pl-confirm {
+  display: grid; gap: var(--space-2); padding: var(--space-3);
+  background: var(--e-tint); border-radius: var(--radius-md);
+  font-family: var(--font-sans); font-size: 14px;
+}
+.pl-confirm p { margin: 0; }
+.pl-now { padding: 0 var(--space-4); color: var(--e-ink); font-size: 13px; }
+.pl-grow { flex: 1 1 200px; }
+.pl-note b { color: var(--e-ink); font-weight: 600; }
