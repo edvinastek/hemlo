@@ -1,0 +1,51 @@
+/* Dropdown and SearchPick: compact lists that open under their field. Tokens
+   only; the list is the one place with a shadow-free raised surface, set off by
+   the field colour and a rule. */
+
+.dd, .sp { position: relative; min-width: 0; }
+
+.dd-button {
+  display: flex; align-items: center; gap: var(--space-2); width: 100%; min-width: 0;
+  padding: 8px 10px; min-height: 40px;
+  background: var(--e-field); color: var(--e-ink);
+  border: 1px solid var(--e-field-line); border-radius: var(--radius-md);
+  font-family: var(--font-sans); font-size: 15px; text-align: left;
+}
+.dd-button:disabled { opacity: 0.5; }
+.dd-value { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.dd-placeholder { color: var(--e-ink-soft); }
+.dd-caret { color: var(--e-ink-soft); font-size: 12px; }
+
+.dd-list, .sp-list {
+  position: absolute; left: 0; right: 0; z-index: 60;
+  top: calc(100% + 4px);
+  margin: 0; padding: 4px 0; list-style: none;
+  max-height: min(280px, 50vh); overflow-y: auto; overscroll-behavior: contain;
+  background: var(--e-field); border: 1px solid var(--e-field-line); border-radius: var(--radius-md);
+  min-width: 200px;
+}
+.dd-list.dd-up { top: auto; bottom: calc(100% + 4px); }
+
+.dd-list li, .sp-list li {
+  display: grid; gap: 1px; padding: 8px 12px; cursor: pointer;
+  font-family: var(--font-sans); font-size: 15px; color: var(--e-ink);
+}
+.dd-list li.is-active, .sp-list li.is-active { background: var(--e-tint); }
+.dd-list li[aria-selected="true"] .dd-label { color: var(--e-accent); font-weight: 600; }
+.dd-hint, .sp-meta { font-size: 12px; color: var(--e-ink-soft); }
+
+.sp-field { position: relative; }
+.sp-field input { width: 100%; min-width: 0; padding: 8px 32px 8px 10px; min-height: 40px; font-size: 15px; }
+.sp-field input.sp-has-value::placeholder { color: var(--e-ink); opacity: 1; }
+.sp-clear {
+  position: absolute; right: 6px; top: 50%; transform: translateY(-50%);
+  width: 26px; height: 26px; border-radius: var(--radius-pill); color: var(--e-ink-soft); font-size: 18px;
+}
+.sp-list li { grid-template-columns: minmax(0, 1fr) auto; column-gap: var(--space-2); }
+.sp-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.sp-tag {
+  font-size: 11px; color: var(--e-ink-soft); border: 1px solid var(--e-rule);
+  border-radius: var(--radius-pill); padding: 0 6px; align-self: center;
+}
+.sp-meta { grid-column: 1 / -1; }
+.sp-empty { color: var(--e-ink-soft); cursor: default; }

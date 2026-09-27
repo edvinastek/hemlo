@@ -17,6 +17,7 @@ import { Food } from './screens/Food'
 import { Shop } from './screens/Shop'
 import { More } from './screens/More'
 import { Onboarding } from './screens/Onboarding'
+import { readSettings } from './lib/settings'
 
 export default function App() {
   const { session, profile, recovering, setSession, setProfile, setProfiles } = useApp()
@@ -95,9 +96,12 @@ export default function App() {
   const [setupDone, setSetupDone] = useState(false)
   const needsSetup = useLiveQuery(async () => {
     if (!profile || setupDone) return false
+    if (readSettings(profile).onboarded) return false
+    // Accounts set up before the flag existed are done if they have targets
+    // or a height; targets are optional now, so the flag is the real sign.
     const targets = await db.target.where('profile_id').equals(profile.id).count()
     return targets === 0 && !profile.height_cm
-  }, [profile?.id, setupDone], undefined)
+  }, [profile?.id, setupDone, profile?.settings], undefined)
 
   useEffect(() => watchConnection(() => useApp.getState().profiles.map((p) => p.id)), [])
 

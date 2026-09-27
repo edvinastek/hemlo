@@ -7,6 +7,25 @@
 
 *, *::before, *::after { box-sizing: border-box; }
 
+/* Form fields sit a step darker than the page in both themes, never white:
+   a white box on the dark page glared, and on the light page it read as a
+   hole in the paper. color-scheme makes the phone's own date, time and list
+   pickers follow the theme too. */
+:root, [data-theme="light"] { color-scheme: light; --e-field: #ece4d4; --e-field-line: #d9cfbb; }
+[data-theme="dark"] { color-scheme: dark; --e-field: #24222b; --e-field-line: #34313c; }
+
+:where(input:not([type="checkbox"]):not([type="radio"]):not([type="range"]), select, textarea) {
+  background: var(--e-field);
+  color: var(--e-ink);
+  border: 1px solid var(--e-field-line);
+  border-radius: var(--radius-md);
+}
+input::placeholder, textarea::placeholder { color: var(--e-ink-soft); opacity: 0.8; }
+input:focus-visible, select:focus-visible, textarea:focus-visible {
+  outline: 2px solid var(--e-accent); outline-offset: 1px;
+}
+input[type="checkbox"], input[type="radio"] { accent-color: var(--e-accent); }
+
 html, body, #root { height: 100%; }
 
 body {
@@ -432,8 +451,8 @@ hr, .rule { border: 0; border-top: 1px solid var(--e-rule); margin: 0; }
 .form-grid label { min-width: 0; }
 .form-grid input, .form-grid select, .form-grid textarea {
   width: 100%; min-width: 0; box-sizing: border-box;
-  padding: 9px 10px; border: 1px solid var(--e-rule); border-radius: var(--radius-md);
-  background: transparent; color: var(--e-ink); font: inherit; font-size: 15px;
+  padding: 9px 10px; border: 1px solid var(--e-field-line); border-radius: var(--radius-md);
+  background: var(--e-field); color: var(--e-ink); font: inherit; font-size: 15px;
 }
 .form-grid textarea { min-height: 64px; font-family: var(--font-serif); }
 .sheet-actions { display: flex; gap: var(--space-2); margin-top: var(--space-4); }
@@ -455,7 +474,7 @@ hr, .rule { border: 0; border-top: 1px solid var(--e-rule); margin: 0; }
 /* ---------- meal slots ---------------------------------------------------- */
 .slot { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: var(--space-2); align-items: center;
         padding: var(--space-3) var(--space-4); border-bottom: 1px solid var(--e-rule); }
-.slot select, .slot input { padding: 6px 8px; border: 1px solid var(--e-rule); border-radius: var(--radius-md);
-                            background: transparent; color: var(--e-ink); font-family: var(--font-sans); font-size: 14px; }
+.slot select, .slot input { padding: 6px 8px; border: 1px solid var(--e-field-line); border-radius: var(--radius-md);
+                            background: var(--e-field); color: var(--e-ink); font-family: var(--font-sans); font-size: 14px; }
 .slot select { width: 100%; min-width: 0; text-overflow: ellipsis; }
 .slot .suggest { font-family: var(--font-sans); font-size: 12px; color: var(--e-accent); }

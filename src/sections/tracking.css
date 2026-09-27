@@ -40,9 +40,9 @@
 .track-form select {
   min-width: 0;
   padding: 8px 10px;
-  border: 1px solid var(--e-rule);
+  border: 1px solid var(--e-field-line);
   border-radius: var(--radius-md);
-  background: transparent;
+  background: var(--e-field);
   color: var(--e-ink);
   font-size: 15px;
 }

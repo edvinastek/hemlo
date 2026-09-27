@@ -2,7 +2,7 @@ import Dexie, { type Table } from 'dexie'
 import type {
   Profile, Task, Food, Recipe, RecipeLine, Target, BodyLog,
   FoodLogEntry, MealPlanSlot, ModuleInstance, PendingChange, ConflictEntry,
-  Series, SeriesException, Habit, HabitLog, Supplement, SupplementLog,
+  Series, SeriesException, Habit, HabitLog, Supplement, SupplementLog, Stock,
 } from './types'
 
 /** The local copy. Every device holds the whole account, so the app works
@@ -24,6 +24,7 @@ class GetItDB extends Dexie {
   habit_log!: Table<HabitLog, string>
   supplement!: Table<Supplement, string>
   supplement_log!: Table<SupplementLog, string>
+  stock!: Table<Stock, string>
   pending!: Table<PendingChange, number>
   conflicts!: Table<ConflictEntry, number>
   meta!: Table<{ key: string; value: unknown }, string>
@@ -67,6 +68,10 @@ class GetItDB extends Dexie {
       habit_log: 'id, habit_id, log_date, [habit_id+log_date]',
       supplement: 'id, profile_id',
       supplement_log: 'id, supplement_id, log_date, [supplement_id+log_date]',
+    })
+    // Version 4 adds the household's stock, edited by hand.
+    this.version(4).stores({
+      stock: 'id, household_id, food_id, [household_id+food_id]',
     })
   }
 }

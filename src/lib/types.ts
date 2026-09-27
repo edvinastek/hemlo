@@ -18,6 +18,12 @@ export interface Profile {
   day_end: string
   ai_persona_name: string | null
   is_default: boolean
+  /** Two-letter ISO code, for shops and public holidays. Optional. */
+  country?: string | null
+  city?: string | null
+  /** Personal choices that shape the app; read through lib/settings.ts,
+   *  which fills in a default for every key. */
+  settings?: Partial<import('./settings').ProfileSettings> | null
   updated_at: string
   deleted_at: string | null
 }
@@ -126,6 +132,13 @@ export interface FoodLogEntry {
   grams: number | null
   portions: number | null
   planned: boolean
+  /** A quick entry carries its own numbers instead of a food or recipe. */
+  label?: string | null
+  kcal?: number | null
+  protein_g?: number | null
+  carbs_g?: number | null
+  fat_g?: number | null
+  fiber_g?: number | null
   updated_at?: string
   deleted_at?: string | null
 }
@@ -138,6 +151,27 @@ export interface MealPlanSlot {
   recipe_id: UUID | null
   portion_multiplier: number
   status: 'planned' | 'eaten' | 'skipped'
+  /** This meal's time on this day; none unless set here or by a default. */
+  slot_time?: string | null
+  /** Planned as plain numbers instead of a recipe ("sandwich, 450 kcal"). */
+  label?: string | null
+  kcal?: number | null
+  protein_g?: number | null
+  carbs_g?: number | null
+  fat_g?: number | null
+  fiber_g?: number | null
+  grams?: number | null
+  updated_at: string
+  deleted_at: string | null
+}
+
+/** What is in the cupboard, shared by the household. */
+export interface Stock {
+  id: UUID
+  household_id: UUID
+  food_id: UUID
+  grams_on_hand: number
+  note: string | null
   updated_at: string
   deleted_at: string | null
 }

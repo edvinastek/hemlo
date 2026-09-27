@@ -1,0 +1,44 @@
+// Checks that personal settings always come out whole and sane, whatever was stored.
+import { readSettings, mergeSettings, mealTime, DEFAULT_SETTINGS } from '../lib/settings.ts'
+
+let fail = 0
+const is = (label, got, want) => {
+  const ok = JSON.stringify(got) === JSON.stringify(want)
+  if (!ok) fail++
+  console.log(`${ok ? 'ok  ' : 'FAIL'}  ${label}: got ${JSON.stringify(got)}, expected ${JSON.stringify(want)}`)
+}
+
+is('nothing stored gives the defaults', readSettings({ settings: null }), DEFAULT_SETTINGS)
+is('no profile gives the defaults', readSettings(undefined), DEFAULT_SETTINGS)
+is('work hours are off and unlocked by default', [DEFAULT_SETTINGS.work.on, DEFAULT_SETTINGS.work.locked], [false, false])
+is('no meal times by default', DEFAULT_SETTINGS.meal_times, {})
+is('calories, not protein, by default', [DEFAULT_SETTINGS.nutrients, DEFAULT_SETTINGS.today_metric], [['kcal'], 'kcal'])
+
+const junk = readSettings({ settings: {
+  onboarded: 'yes', work: { on: true, start: '25:99', end: '18:30:00', days: [1, 9, 'x', 3] },
+  commute: { on: true, before_min: -5, after_min: 45, km: 'far' },
+  nutrients: ['protein_g', 'sugar', 'kcal'], today_metric: 'sugar',
+  meal_times: { lunch: '12:30', dinner: 'late', brunch: '11:00' }, stock_auto: 1,
+} })
+is('a non-boolean flag falls back', junk.onboarded, false)
+is('a bad time falls back, seconds are dropped', [junk.work.start, junk.work.end], ['09:00', '18:30'])
+is('only real weekdays are kept', junk.work.days, [1, 3])
+is('negative minutes fall back; good ones stay', [junk.commute.before_min, junk.commute.after_min], [30, 45])
+is('a distance that is not a number is none', junk.commute.km, null)
+is('unknown nutrients are dropped, order is the app’s', junk.nutrients, ['kcal', 'protein_g'])
+is('an unknown Today figure falls back', junk.today_metric, 'kcal')
+is('only good meal times for real meals are kept', junk.meal_times, { lunch: '12:30' })
+is('none is a valid Today figure', readSettings({ settings: { today_metric: 'none' } }).today_metric, 'none')
+
+const base = readSettings({ settings: { work: { on: true, start: '07:00', end: '15:00' } } })
+const moved = mergeSettings(base, { work: { end: '16:00' } })
+is('changing the end keeps the start', [moved.work.start, moved.work.end, moved.work.on], ['07:00', '16:00', true])
+is('meal times are replaced as a whole, so one can be removed', mergeSettings(readSettings({ settings: { meal_times: { lunch: '12:00', dinner: '18:00' } } }), { meal_times: { lunch: '12:00' } }).meal_times, { lunch: '12:00' })
+
+const s = readSettings({ settings: { meal_times: { dinner: '18:30' } } })
+is('a meal’s own time wins', mealTime({ slot: 'dinner', slot_time: '19:15:00' }, s), '19:15')
+is('then the default', mealTime({ slot: 'dinner', slot_time: null }, s), '18:30')
+is('else no time at all', mealTime({ slot: 'lunch' }, s), null)
+
+console.log(fail ? `\n${fail} check(s) failed` : '\nall checks passed')
+process.exit(fail ? 1 : 0)

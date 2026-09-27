@@ -8,7 +8,7 @@ const SYNCED = ['task', 'target', 'body_log', 'food_log', 'meal_plan_slot', 'mod
 /** Rows that belong to a profile through their parent (a log to its habit).
  *  Row-level security already limits them to the account, so they are fetched
  *  without a profile filter, still incrementally. */
-const CHILDREN = ['habit_log', 'supplement_log', 'series_exception'] as const
+const CHILDREN = ['habit_log', 'supplement_log', 'series_exception', 'stock'] as const
 const CATALOGUE = ['food', 'recipe', 'recipe_line'] as const
 
 type Row = { id: string; updated_at?: string } & Record<string, unknown>
@@ -30,6 +30,7 @@ export const NATURAL_KEYS: Record<string, string[]> = {
   habit_log: ['habit_id', 'log_date'],
   supplement_log: ['supplement_id', 'log_date'],
   series_exception: ['series_id', 'exception_date'],
+  stock: ['household_id', 'food_id'],
 }
 const store = (table: string) => (db as unknown as Record<string, Store>)[table]
 
@@ -192,6 +193,10 @@ async function foldIntoTwin(table: string, local: Row, patch: Record<string, unk
   return true
 }
 
+/** Equal as values: settings and rule objects compare by content. */
+const same = (a: unknown, b: unknown) =>
+  a === b || (typeof a === 'object' && a !== null && typeof b === 'object' && b !== null && JSON.stringify(a) === JSON.stringify(b))
+
 /** Fetch what changed. The cursor per table is the newest updated_at the
  *  server has sent, never this device's clock: a phone running three minutes
  *  fast would otherwise skip every row written in those three minutes. */
@@ -210,7 +215,15 @@ export async function pull(ids: string[]): Promise<number> {
   // other table is filtered by profile id.
   const { data: remoteProfiles } = await supabase.from('profile').select('*')
   if (remoteProfiles) {
-    for (const row of remoteProfiles as Row[]) await db.profile.put(row as never)
+    for (const row of remoteProfiles as Row[]) {
+      // A settings change made here and not yet sent must survive the pull,
+      // or the screen would flick back to the old choice until the next one.
+      const mine = claimed.get(`profile:${row.id}`)
+      const local = mine?.size ? await db.profile.get(row.id) : undefined
+      const merged: Row = { ...row }
+      if (local && mine) for (const field of mine) merged[field] = (local as unknown as Row)[field]
+      await db.profile.put(merged as never)
+    }
     profileIds = (remoteProfiles as Row[]).map((p) => p.id)
   }
   if (profileIds.length === 0) return 0
@@ -250,7 +263,7 @@ export async function pull(ids: string[]): Promise<number> {
       const local = await store(table).get(remote.id)
       const merged: Row = { ...remote }
       for (const field of mine) {
-        if (local && local[field] !== remote[field]) {
+        if (local && !same(local[field], remote[field])) {
           await db.conflicts.add({
             table, row_id: remote.id, field,
             local_value: local[field], remote_value: remote[field],

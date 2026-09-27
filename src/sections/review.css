@@ -48,10 +48,10 @@
   font-family: var(--font-sans); font-size: 13px; color: var(--e-ink-soft);
 }
 .review-pick input {
-  padding: 7px 10px; border: 1px solid var(--e-rule); border-radius: var(--radius-md);
-  background: transparent; color: var(--e-ink); font-family: var(--font-sans); font-size: 14px;
+  padding: 7px 10px; border: 1px solid var(--e-field-line); border-radius: var(--radius-md);
+  background: var(--e-field); color: var(--e-ink); font-family: var(--font-sans); font-size: 14px;
   font-variant-numeric: tabular-nums;
 }
 .review-pick .btn:disabled { opacity: 0.5; }
 
-.review-time input { background: transparent; color: var(--e-ink); font-variant-numeric: tabular-nums; }
+.review-time input { background: var(--e-field); color: var(--e-ink); font-variant-numeric: tabular-nums; }
