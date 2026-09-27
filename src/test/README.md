@@ -26,6 +26,14 @@ Types, then every check that needs nothing but Node. CI runs the same command.
 - `moduledefs` — module definitions read from storage are checked and cleaned (names, types, formulas, options,
   sizes); a built-in module's changes survive the stored overlay; a record's day; the rule that turns dated
   records into tasks; the keyword suggestion; every builder preset is a valid module.
+- `ics` — calendar files (RFC 5545): tasks as floating local time or whole days, agenda events in UTC,
+  repeats as RRULE/RDATE/EXDATE with changed copies; folding at 75 bytes, escaping, CRLF, stable UIDs. A file
+  shaped like a Google Calendar export read back in the reader's zone (TZID, UTC, whole days, DURATION,
+  moved and cancelled repeats); every app rule written as RRULE lands on the same days both ways.
+- `transfer` — import and export: CSV per RFC 4180 with Excel's byte-order mark and no formula injection,
+  semicolon CSV, JSON; columns matched by name, label or Google Calendar's headers; dates, times and
+  numbers as spreadsheets write them; each row's problems, required columns, server limits, duplicates by
+  natural key; the dataset catalogue, ranges, file names, figures for charts.
 
 ## Browser checks
 
@@ -38,7 +46,7 @@ export SB=<Supabase access token>  TEST_PASSWORD=<random>
 export TEST_EMAIL=e2e-a@example.invalid TEST_NEW_EMAIL=e2e-b@example.invalid TEST_FEAT_EMAIL=e2e-c@example.invalid
 export TEST_ONBOARD_EMAIL=e2e-d@example.invalid TEST_MODULES_EMAIL=e2e-e@example.invalid
 node scripts/test-accounts.mjs create $TEST_EMAIL $TEST_NEW_EMAIL $TEST_FEAT_EMAIL $TEST_ONBOARD_EMAIL $TEST_MODULES_EMAIL
-for t in onboarding features offline privacy tracking widget tasksheet food stock daytabs modules nav layout tour; do node src/test/$t.e2e.mjs || break; done
+for t in onboarding features offline privacy tracking widget tasksheet food stock daytabs modules nav layout transfer tour; do node src/test/$t.e2e.mjs || break; done
 node scripts/test-accounts.mjs delete $TEST_EMAIL $TEST_NEW_EMAIL $TEST_FEAT_EMAIL $TEST_ONBOARD_EMAIL $TEST_MODULES_EMAIL
 ```
 
@@ -66,6 +74,9 @@ to the test accounts, because they run against the live project.
   Today as a task, a field added in the editor, a night on the Sleep page, a built-in field renamed.
 - `layout` — opens every screen and tab at 360 px wide and fails if anything runs off the side
   or sits under the floating add button.
+- `transfer` (uses `TEST_FEAT_EMAIL`) — a Finance entry exported as CSV from its page's Export link
+  (clear of the add button), read back in through More → Data → Import and export and found in Postgres,
+  the same file again adding nothing; a calendar file into Tasks, its weekly repeat kept as a series.
 
 ## Database — `supabase/test.sh`
 
