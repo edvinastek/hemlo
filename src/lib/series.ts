@@ -310,3 +310,22 @@ export async function stopSeries(series: Series, today: Date = new Date()) {
     .filter((t) => !t.deleted_at && t.status !== 'done' && !!t.planned_date && t.planned_date > day)
   await writeTasks(later.map((t) => ({ task: { ...t, deleted_at: now }, fields: ['deleted_at'] })))
 }
+
+/** Move tasks to other days, each keeping its time: Plan's week, when two
+ *  days are swapped or one task is moved. A repeating task is moved for that
+ *  day alone, written down against its series as a move, the same as
+ *  changing its day on its sheet.
+ *
+ *  Every task's original day is worked out before anything is written. A
+ *  swap moves one day's occurrence onto the day another is leaving, and once
+ *  the first move is written the second would be taken for the first. The
+ *  tasks go up in one push. */
+export async function moveToDays(moves: { task: Task; to: string }[]) {
+  const todo = moves.filter((m) => m.task.planned_date !== m.to)
+  const bases = await Promise.all(todo.map((m) => baseDayOf(m.task)))
+  for (let i = 0; i < todo.length; i++) {
+    const { task, to } = todo[i]
+    if (task.series_id && bases[i]) await recordMove(task.series_id, bases[i]!, to)
+  }
+  await writeTasks(todo.map((m) => ({ task: { ...m.task, planned_date: m.to }, fields: ['planned_date'] })))
+}

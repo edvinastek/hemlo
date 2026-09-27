@@ -9,6 +9,8 @@ import { useApp } from '../lib/store'
 import { PageHead } from '../ui/PageHead'
 import { useModuleColours, type ModuleColours } from '../lib/colours'
 import { modulesByWeight } from '../lib/colours-rules'
+import { readSettings } from '../lib/settings'
+import { useWeekSwap } from '../ui/WeekSwap'
 import type { Task } from '../lib/types'
 import '../ui/colours.css'
 
@@ -38,6 +40,9 @@ export function Plan() {
     return map
   }, [tasks])
 
+  // Hold a day to swap it with another, or a task to move it (ui/WeekSwap.tsx).
+  const swap = useWeekSwap({ byDay, work: readSettings(profile).work })
+
   /** The modules present on a day, most items first: for the month dots,
    *  the legends and the year square's title. */
   const modulesOn = (d: Date) => modulesByWeight((byDay.get(format(d, 'yyyy-MM-dd')) ?? []).map(colours.moduleOf))
@@ -60,18 +65,22 @@ export function Plan() {
 
         {section === 'Week' && (
           <>
-            <div className="week-grid" style={{ margin: 'var(--space-3) var(--space-4) 0' }}>
+            {swap.ui}
+            <div className={`week-grid${swap.gridClass}`} style={{ margin: 'var(--space-3) var(--space-4) 0' }}>
               {weekDays(date).map((d) => {
-                const items = (byDay.get(format(d, 'yyyy-MM-dd')) ?? [])
+                const key = format(d, 'yyyy-MM-dd')
+                const items = (byDay.get(key) ?? [])
                   .sort((a, b) => (a.planned_time ?? '99').localeCompare(b.planned_time ?? '99'))
                 return (
-                  <div key={d.toISOString()} className={`week-col${isSameDay(d, new Date()) ? ' is-today' : ''}`}>
-                    <h3>{format(d, 'EEE d')}</h3>
+                  <div key={d.toISOString()} className={`week-col${isSameDay(d, new Date()) ? ' is-today' : ''}${swap.colClass(key)}`}
+                    {...swap.colProps(key)}>
+                    <h3 {...swap.headProps(key)}>{format(d, 'EEE d')}</h3>
                     <div className="week-items">
                       {items.map((t) => {
                         const c = colours.ofTask(t)
                         return (
-                          <div key={t.id} className={`week-item${c ? ' has-mod' : ''}`}>
+                          <div key={t.id} className={`week-item${c ? ' has-mod' : ''}${swap.itemClass(t)}`}
+                            {...swap.itemProps(t)}>
                             {c && <i className="mod-dot" style={{ '--mod': c } as CSSProperties} aria-hidden="true" />}
                             <span><span className="t">{t.planned_time?.slice(0, 5)}</span> {t.title}</span>
                           </div>
