@@ -25,6 +25,10 @@ is('a switched-off module has no page',
 is('core and custom never get a page', keys(availablePages(on('core', 'custom', 'sleep'), [])), ['today', 'plan', 'm:sleep', 'more'])
 is('built-in modules follow the app order, not the row order',
   keys(availablePages(on('sleep', 'agenda', 'training'), [])), ['today', 'plan', 'm:training', 'm:agenda', 'm:sleep', 'more'])
+const statsPage = availablePages(on('stats', 'household'), []).find((p) => p.key === 'm:stats')
+is('Stats has a page of its own, after the other built-in modules',
+  keys(availablePages(on('stats', 'household'), [])), ['today', 'plan', 'm:household', 'm:stats', 'more'])
+is('called Stats, with its own glyph, at /m/stats', [statsPage.label, statsPage.glyph, statsPage.route], ['Stats', '◔', '/m/stats'])
 
 const built = [
   { key: 'u_aaaa', name: 'reading log', builtin: false, deleted_at: null, definition: {} },

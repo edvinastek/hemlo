@@ -35,6 +35,7 @@ const BUILTIN: Record<string, { label: string; glyph: string }> = {
   projects: { label: 'Projects', glyph: '▣' },
   finance: { label: 'Finance', glyph: '¤' },
   household: { label: 'Household', glyph: '⌂' },
+  stats: { label: 'Stats', glyph: '◔' },
 }
 
 /** The app's own order for modules with a page of their own; a module

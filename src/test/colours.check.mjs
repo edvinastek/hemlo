@@ -31,6 +31,7 @@ is('every swatch is lower-case #rrggbb', SWATCHES.every((s) => /^#[0-9a-f]{6}$/.
 const builtins = MODULES.map((m) => m.key)
 is('every built-in module has a default', builtins.filter((k) => !DEFAULT_COLOURS[k]), [])
 is('and a short name', builtins.filter((k) => !SHORT_NAMES[k]), [])
+is('Stats has its own colour and name', [DEFAULT_COLOURS.stats, SHORT_NAMES.stats], ['#5d9850', 'Stats'])
 is('work and evening have colours too', [!!DEFAULT_COLOURS.work, !!DEFAULT_COLOURS.evening], [true, true])
 is('every default is one of the swatches', Object.values(DEFAULT_COLOURS).every((h) => SWATCHES.some((s) => s.hex === h)), true)
 is('no two defaults share a colour', new Set(Object.values(DEFAULT_COLOURS)).size, Object.keys(DEFAULT_COLOURS).length)

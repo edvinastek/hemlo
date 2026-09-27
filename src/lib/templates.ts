@@ -115,7 +115,7 @@ export const TEMPLATES: Template[] = [
     name: 'Everything on',
     description: 'Every module switched on, to look around and turn off what you do not need.',
     modules: ['nutrition', 'shopping', 'training', 'habits', 'supplements', 'health', 'learning', 'agenda',
-      'sleep', 'projects', 'finance', 'household'],
+      'sleep', 'projects', 'finance', 'household', 'stats'],
     nutrients: ['kcal', 'protein_g'],
     today_metric: 'kcal',
     targets: true,

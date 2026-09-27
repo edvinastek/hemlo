@@ -283,6 +283,19 @@ export const MODULES: ModuleDef[] = [
     rules: [{ name: 'shared', sentence: 'A household chore appears for everyone in the household.', when: 'chore.created', then: 'task.create' }],
   },
   {
+    key: 'stats',
+    name: 'Stats',
+    keywords: ['stats', 'statistics', 'averages', 'totals', 'charts', 'trends'],
+    summary: 'Day, week, month and year figures from your other modules.',
+    depth: 'full',
+    // Nothing of its own to keep: the page is worked out from what the other
+    // modules hold (src/lib/stats.ts).
+    entities: [],
+    views: [],
+    rules: [],
+    skills: ['read the figures'],
+  },
+  {
     key: 'custom',
     name: 'Custom',
     summary: 'Anything you build yourself.',

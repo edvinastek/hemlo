@@ -52,6 +52,7 @@ export const DEFAULT_COLOURS: Record<string, string> = {
   projects: '#a4861e',
   nutrition: '#ce710c',
   household: '#9b5e30',
+  stats: '#5d9850',
   custom: '#78716a',
 }
 
@@ -71,6 +72,7 @@ export const SHORT_NAMES: Record<string, string> = {
   projects: 'Projects',
   finance: 'Finance',
   household: 'Household',
+  stats: 'Stats',
   custom: 'Custom',
   work: 'Work',
   evening: 'Evening',
