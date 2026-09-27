@@ -8,7 +8,8 @@ Types, then every check that needs nothing but Node. CI runs the same command.
 - `formula` — the calculated-field parser, including that a formula cannot reach the page.
 - `notify` — quiet hours across midnight, reminder wording.
 - `body` — weigh-in parsing, the 7-day trend, when targets are recalculated.
-- `series` — repeat rules, laying out days, "only this one" and "this and following".
+- `series` — repeat rules (every N days and days picked by hand included), laying out days, "only this one" and
+  "this and following", and the planned repeats shown past the eight weeks the fill turns into tasks.
 - `tracking` — habit schedules and streaks, supplement slots.
 - `review` — which tasks the evening review offers, and what each action does.
 - `import` — reading the Excel workbook, ingredient lines, matching foods.
@@ -26,6 +27,8 @@ Types, then every check that needs nothing but Node. CI runs the same command.
 - `moduledefs` — module definitions read from storage are checked and cleaned (names, types, formulas, options,
   sizes); a built-in module's changes survive the stored overlay; a record's day; the rule that turns dated
   records into tasks; the keyword suggestion; every builder preset is a valid module.
+- `calendar` — how far every view reaches (three years back, five ahead, whole months), the week strip stopping
+  at the ends, and how the scrolling month calendar lays out and finds its months.
 
 ## Browser checks
 

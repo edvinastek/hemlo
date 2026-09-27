@@ -2,7 +2,8 @@
 // 2026-09-24 is a Thursday; 2026-09-28 a Monday; 2028 is a leap year.
 import {
   occurrences, plan, baseDates, addDays, weekdayOf, ruleFromChoice, describeRule, toDayNumber, fromDayNumber,
-  occurrenceId, endsBeforeStart,
+  occurrenceId, endsBeforeStart, everyN, choiceFromRule, isDay, cleanDates, togglePicked, seriesBounds,
+  plannedRepeats, fillHorizon, WINDOW_DAYS,
 } from '../lib/series-rules.ts'
 
 let fail = 0
@@ -161,6 +162,117 @@ eq('occurrence id differs by series', (await occurrenceId('6f1c2a3e-0000-4000-80
 const ids = new Set()
 for (let i = 0; i < 400; i++) ids.add(await occurrenceId(sid, addDays('2026-09-24', i)))
 eq('four hundred days give four hundred ids', ids.size, 400)
+
+// Every N days, from the Repeat control.
+eq('choice: every 3 days', ruleFromChoice('every_n_days', '2026-09-24', [], { n: 3 }), { rule: 'daily', rule_config: { n: 3 } })
+eq('choice: every N days with no N is every 2', ruleFromChoice('every_n_days', '2026-09-24'), { rule: 'daily', rule_config: { n: 2 } })
+eq('every N days: 1 or less becomes 2, fractions round down, too many is capped',
+  [everyN(1), everyN(-4), everyN(4.7), everyN(9999), everyN('abc'), everyN('10')], [2, 2, 4, 365, 2, 10])
+eq('every N days shows as its own choice', choiceFromRule({ rule: 'daily', rule_config: { n: 4 } }), 'every_n_days')
+eq('every day stays every day', choiceFromRule({ rule: 'daily', rule_config: {} }), 'daily')
+eq('describe every 4 days', describeRule(series('daily', '2026-09-24', { rule_config: { n: 4 } })), 'Every 4 days')
+
+// Days picked by hand.
+eq('a real day', [isDay('2028-02-29'), isDay('2027-02-29'), isDay('2026-9-1'), isDay(20260901), isDay(null)],
+  [true, false, false, false, false])
+eq('picked days are cleaned: real days, once each, in order',
+  cleanDates(['2026-10-05', '2026-10-01', 'nonsense', '2026-10-05', '2026-02-30', 7, '2026-09-30']),
+  ['2026-09-30', '2026-10-01', '2026-10-05'])
+eq('not a list gives none', [cleanDates(undefined), cleanDates('2026-10-01'), cleanDates({})], [[], [], []])
+const many = Array.from({ length: 400 }, (_, i) => addDays('2026-09-24', i))
+eq('no more than 366 are kept, the earliest', [cleanDates(many).length, cleanDates(many)[365]], [366, addDays('2026-09-24', 365)])
+eq('a tap picks a day', togglePicked(['2026-10-05'], '2026-10-01'), ['2026-10-01', '2026-10-05'])
+eq('a second tap unpicks it', togglePicked(['2026-10-01', '2026-10-05'], '2026-10-01'), ['2026-10-05'])
+eq('a tap on a full list adds nothing', togglePicked(cleanDates(many), '2030-01-01').length, 366)
+eq('but still unpicks', togglePicked(cleanDates(many), '2026-09-24').length, 365)
+eq('a tap on something that is not a day changes nothing', togglePicked(['2026-10-01'], '2026-13-01'), ['2026-10-01'])
+
+const picked = ['2026-09-24', '2026-10-02', '2026-11-15', '2027-03-01']
+const byHand = series('dates', '2026-09-24', { rule_config: { dates: picked } })
+eq('choice: picked days', ruleFromChoice('dates', '2026-09-20', [], { dates: ['2026-10-02', '2026-09-24', '2026-10-02'] }),
+  { rule: 'dates', rule_config: { dates: ['2026-09-24', '2026-10-02'] } })
+eq('picked days are the occurrences', occurrences(byHand, '2026-09-01', '2027-12-31'), picked)
+eq('picked days in a window', occurrences(byHand, '2026-10-01', '2026-11-30'), ['2026-10-02', '2026-11-15'])
+eq('picked days before the start are not produced', occurrences(series('dates', '2026-10-01', { rule_config: { dates: picked } }), '2026-01-01', '2027-12-31'),
+  ['2026-10-02', '2026-11-15', '2027-03-01'])
+eq('picked days stop at the end date', occurrences({ ...byHand, end_date: '2026-11-15' }, '2026-09-01', '2027-12-31'),
+  ['2026-09-24', '2026-10-02', '2026-11-15'])
+eq('picked days honour a count', baseDates({ ...byHand, occurrence_count: 2 }, '2027-12-31'), ['2026-09-24', '2026-10-02'])
+eq('picked days: a skip removes one', occurrences(byHand, '2026-09-01', '2027-12-31',
+  [{ exception_date: '2026-10-02', action: 'skip', moved_to: null }]), ['2026-09-24', '2026-11-15', '2027-03-01'])
+eq('picked days: a move lands it elsewhere', plan(byHand, '2026-11-01', '2026-11-30',
+  [{ exception_date: '2026-11-15', action: 'move', moved_to: '2026-11-17' }]), [{ base: '2026-11-15', date: '2026-11-17' }])
+eq('picked days: a move in from a later picked day is found', occurrences(byHand, '2026-10-01', '2026-10-31',
+  [{ exception_date: '2027-03-01', action: 'move', moved_to: '2026-10-20' }]), ['2026-10-02', '2026-10-20'])
+eq('picked days stored untidily still work',
+  occurrences(series('dates', '2026-09-24', { rule_config: { dates: ['2026-10-02', 'x', '2026-09-24', '2026-10-02'] } }), '2026-09-01', '2026-12-31'),
+  ['2026-09-24', '2026-10-02'])
+eq('no picked days gives nothing', occurrences(series('dates', '2026-09-24'), '2026-09-01', '2026-12-31'), [])
+eq('a year of picked days, then the list stops', occurrences(series('dates', '2026-09-24', { rule_config: { dates: many } }), '2026-09-24', '2028-12-31').length, 366)
+eq('picked days far ahead are found without walking every day',
+  occurrences(series('dates', '2026-09-24', { rule_config: { dates: ['2031-09-30'] } }), '2031-09-01', '2031-09-30'), ['2031-09-30'])
+eq('describe one picked day', describeRule(series('dates', '2026-10-02', { rule_config: { dates: ['2026-10-02'] } })), 'On 2 Oct 2026')
+eq('describe picked days, with no "until"', describeRule({ ...byHand, end_date: '2027-03-01' }), 'On 4 picked days, 24 Sep 2026 to 1 Mar 2027')
+eq('describe none picked', describeRule(series('dates', '2026-10-02')), 'No days picked')
+eq('picked days show as their own choice', choiceFromRule({ rule: 'dates', rule_config: { dates: picked } }), 'dates')
+
+// Where a new series starts and ends.
+eq('bounds: most rules start on the task day and end when asked',
+  seriesBounds({ rule: 'weekly', rule_config: {} }, '2026-09-24', '2026-12-31'), { start_date: '2026-09-24', end_date: '2026-12-31' })
+eq('bounds: picked days run from the first to the last, whatever the task day',
+  seriesBounds({ rule: 'dates', rule_config: { dates: ['2026-11-15', '2026-10-02'] } }, '2026-09-24', null),
+  { start_date: '2026-10-02', end_date: '2026-11-15' })
+eq('bounds: picked days before the task day still count',
+  seriesBounds({ rule: 'dates', rule_config: { dates: ['2026-09-20', '2026-10-02'] } }, '2026-09-24', null),
+  { start_date: '2026-09-20', end_date: '2026-10-02' })
+
+// Planned repeats: days past the filled weeks, worked out rather than stored.
+eq('the fill goes eight weeks ahead', [WINDOW_DAYS, fillHorizon('2026-09-24')], [56, '2026-11-19'])
+const sA = {
+  ...series('weekly', '2026-09-24'), id: 'A', title: 'Swim', time_of_day: '07:30:00',
+  task_template: { duration_min: 45, category: 'Training' }, module_key: 'training', active: true, deleted_at: null,
+}
+const horizon = '2026-11-19'
+const dates = (list) => list.map((r) => r.date)
+eq('nothing is planned up to the horizon', plannedRepeats([sA], [], [], '2026-09-24', '2026-11-19', horizon), [])
+eq('after it, every day the series lands on',
+  dates(plannedRepeats([sA], [], [], '2026-11-01', '2026-12-10', horizon)), ['2026-11-26', '2026-12-03', '2026-12-10'])
+eq('a planned repeat looks like the series makes it',
+  plannedRepeats([sA], [], [], '2026-11-26', '2026-11-26', horizon),
+  [{ seriesId: 'A', base: '2026-11-26', date: '2026-11-26', title: 'Swim', time: '07:30', duration_min: 45, category: 'Training', module_key: 'training' }])
+eq('a day that already has a task of the series is left to the task',
+  dates(plannedRepeats([sA], [], [{ series_id: 'A', planned_date: '2026-12-03' }], '2026-11-20', '2026-12-10', horizon)),
+  ['2026-11-26', '2026-12-10'])
+eq('a deleted task counts too: that day was taken off',
+  dates(plannedRepeats([sA], [], [{ series_id: 'A', planned_date: '2026-11-26', deleted_at: 'x' }], '2026-11-20', '2026-12-03', horizon)),
+  ['2026-12-03'])
+eq('another series\' task does not count',
+  dates(plannedRepeats([sA], [], [{ series_id: 'B', planned_date: '2026-11-26' }], '2026-11-20', '2026-11-30', horizon)), ['2026-11-26'])
+eq('a skipped day is not planned', dates(plannedRepeats([sA], [{ series_id: 'A', exception_date: '2026-11-26', action: 'skip', moved_to: null }],
+  [], '2026-11-20', '2026-12-03', horizon)), ['2026-12-03'])
+eq('another series\' skip does not count', dates(plannedRepeats([sA], [{ series_id: 'B', exception_date: '2026-11-26', action: 'skip', moved_to: null }],
+  [], '2026-11-20', '2026-11-30', horizon)), ['2026-11-26'])
+eq('a moved day is planned where it lands', plannedRepeats([sA], [{ series_id: 'A', exception_date: '2026-11-26', action: 'move', moved_to: '2026-11-28' }],
+  [], '2026-11-20', '2026-11-30', horizon).map((r) => [r.base, r.date]), [['2026-11-26', '2026-11-28']])
+eq('a day moved in front of the horizon is the fill\'s, not planned', plannedRepeats([sA], [{ series_id: 'A', exception_date: '2026-11-26', action: 'move', moved_to: '2026-11-18' }],
+  [], '2026-11-01', '2026-11-30', horizon), [])
+eq('a day moved past the horizon from a filled week is the task\'s, not planned',
+  plannedRepeats([sA], [{ series_id: 'A', exception_date: '2026-11-19', action: 'move', moved_to: '2026-11-21' }], [], '2026-11-20', '2026-11-25', horizon), [])
+eq('a change to one day shows on that day', plannedRepeats([sA], [{ series_id: 'A', exception_date: '2026-11-26', action: 'change', moved_to: null,
+  changes: { title: 'Swim, long', planned_time: '08:00' } }], [], '2026-11-26', '2026-11-26', horizon).map((r) => [r.title, r.time]), [['Swim, long', '08:00']])
+eq('a stopped series plans nothing', plannedRepeats([{ ...sA, end_date: '2026-11-01' }], [], [], '2026-11-20', '2026-12-31', horizon), [])
+eq('a paused or deleted series plans nothing',
+  [plannedRepeats([{ ...sA, active: false }], [], [], '2026-11-20', '2026-12-31', horizon).length,
+    plannedRepeats([{ ...sA, deleted_at: 'x' }], [], [], '2026-11-20', '2026-12-31', horizon).length], [0, 0])
+const sB = { ...sA, id: 'B', title: 'Bills', rule: 'dates', time_of_day: null, rule_config: { dates: ['2026-11-26', '2027-06-01', '2031-09-30'] }, module_key: null }
+eq('several series, sorted by day, then time',
+  plannedRepeats([sA, sB], [], [], '2026-11-26', '2026-11-26', horizon).map((r) => r.title), ['Swim', 'Bills'])
+eq('picked days far ahead are planned', dates(plannedRepeats([sB], [], [], '2027-01-01', '2031-09-30', horizon)), ['2027-06-01', '2031-09-30'])
+eq('a window after the horizon is used as given', dates(plannedRepeats([sA], [], [], '2027-01-01', '2027-01-14', horizon)), ['2027-01-07', '2027-01-14'])
+eq('a window that ends before it starts gives nothing', plannedRepeats([sA], [], [], '2027-01-14', '2027-01-01', horizon), [])
+eq('five years of a daily series are worked out',
+  plannedRepeats([{ ...sA, rule: 'daily' }], [], [], '2026-09-27', '2031-09-30', horizon).length,
+  toDayNumber('2031-09-30') - toDayNumber(horizon))
 
 // An end before the start: the sheet refuses to save rather than lose the task.
 eq('end before start', endsBeforeStart('2026-09-24', '2026-09-23'), true)
