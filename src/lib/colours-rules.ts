@@ -197,11 +197,13 @@ export function taskColour(
 }
 
 /** A name for a module key: the short built-in name, else the built module's
- *  own name, else the key itself so nothing is ever unnamed. */
+ *  own name. A built module that is gone (deleted, or not synced yet) reads
+ *  "Your module": its internal key (u_…) means nothing to a person. */
 export function moduleLabel(key: string, names?: Map<string, string> | Record<string, string>): string {
   if (SHORT_NAMES[key]) return SHORT_NAMES[key]
   const n = names instanceof Map ? names.get(key) : names?.[key]
-  return n && n.trim() ? n.trim() : key
+  if (n && n.trim()) return n.trim()
+  return key.startsWith('u_') ? 'Your module' : key
 }
 
 /** A colour setting with one module changed, or with it reset to its default

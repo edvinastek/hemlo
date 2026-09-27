@@ -83,7 +83,7 @@ is('on, no module: no marker', taskColour({ category: null }, on), null)
 // Names.
 is('short built-in names', [moduleLabel('learning'), moduleLabel('health'), moduleLabel('evening')], ['Learning', 'Health', 'Evening'])
 is('a built module’s own name', moduleLabel('u_abc', { u_abc: ' Plants ' }), 'Plants')
-is('else the key', moduleLabel('u_abc'), 'u_abc')
+is('a built module with no name known reads as "Your module", never its key', moduleLabel('u_abc'), 'Your module')
 
 // Changing a colour.
 const c1 = withColour({ on: true, modules: { work: '#111111' } }, 'habits', '#ABCDEF')
