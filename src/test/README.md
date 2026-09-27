@@ -20,6 +20,9 @@ Types, then every check that needs nothing but Node. CI runs the same command.
 - `notes` — the note's checklists, bullets, headings and bold; ticking; the toolbar.
 - `quickfood` — meals as plain numbers (per 100 g and other sizes), and which figures the food pages and Today show.
 - `stock` — typing and showing amounts, the −/+ steps, what an eaten meal takes and gives back, what a trip puts in stock.
+- `moduledefs` — module definitions read from storage are checked and cleaned (names, types, formulas, options,
+  sizes); a built-in module's changes survive the stored overlay; a record's day; the rule that turns dated
+  records into tasks; the keyword suggestion; every builder preset is a valid module.
 
 ## Browser checks
 
@@ -30,10 +33,10 @@ Make throwaway ones, run, and delete them afterwards:
 ```sh
 export SB=<Supabase access token>  TEST_PASSWORD=<random>
 export TEST_EMAIL=e2e-a@example.invalid TEST_NEW_EMAIL=e2e-b@example.invalid TEST_FEAT_EMAIL=e2e-c@example.invalid
-export TEST_ONBOARD_EMAIL=e2e-d@example.invalid
-node scripts/test-accounts.mjs create $TEST_EMAIL $TEST_NEW_EMAIL $TEST_FEAT_EMAIL $TEST_ONBOARD_EMAIL
-for t in onboarding features offline privacy tracking widget tasksheet food stock layout tour; do node src/test/$t.e2e.mjs || break; done
-node scripts/test-accounts.mjs delete $TEST_EMAIL $TEST_NEW_EMAIL $TEST_FEAT_EMAIL $TEST_ONBOARD_EMAIL
+export TEST_ONBOARD_EMAIL=e2e-d@example.invalid TEST_MODULES_EMAIL=e2e-e@example.invalid
+node scripts/test-accounts.mjs create $TEST_EMAIL $TEST_NEW_EMAIL $TEST_FEAT_EMAIL $TEST_ONBOARD_EMAIL $TEST_MODULES_EMAIL
+for t in onboarding features offline privacy tracking widget tasksheet food stock modules layout tour; do node src/test/$t.e2e.mjs || break; done
+node scripts/test-accounts.mjs delete $TEST_EMAIL $TEST_NEW_EMAIL $TEST_FEAT_EMAIL $TEST_ONBOARD_EMAIL $TEST_MODULES_EMAIL
 ```
 
 Never commit the password or the token. Every query in these checks is scoped
@@ -54,6 +57,8 @@ to the test accounts, because they run against the live project.
 - `tasksheet` — a task with a time range, a checklist note ticked on its page, the chip on Today.
 - `stock` — the cupboard: add by search, adjust, remove; the trip less stock; ingredients
   taken out when a meal is eaten and put back when it is unticked.
+- `modules` — a module built from the Expenses preset, a dated record in Postgres, the rule that puts it on
+  Today as a task, a field added in the editor, a night on the Sleep page, a built-in field renamed.
 - `layout` — opens every screen and tab at 360 px wide and fails if anything runs off the side
   or sits under the floating add button.
 

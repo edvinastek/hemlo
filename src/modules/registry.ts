@@ -7,6 +7,7 @@ export const MODULES: ModuleDef[] = [
   {
     key: 'nutrition',
     name: 'Nutrition',
+    keywords: ['food', 'meals', 'meal prep', 'diet', 'macros', 'calories', 'protein', 'recipes', 'cooking'],
     summary: 'Foods, recipes, a meal plan and macro targets.',
     depth: 'full',
     defaultOn: true,
@@ -47,6 +48,7 @@ export const MODULES: ModuleDef[] = [
   {
     key: 'shopping',
     name: 'Shopping',
+    keywords: ['shopping', 'groceries', 'supermarket', 'stock', 'pantry', 'cupboard'],
     summary: 'Trips by aisle, packs, stock and prices.',
     depth: 'full',
     defaultOn: true,
@@ -80,22 +82,24 @@ export const MODULES: ModuleDef[] = [
     summary: 'Sessions, exercises, a log and phases.',
     depth: 'full',
     defaultOn: true,
+    keywords: ['gym', 'training', 'workout', 'workouts', 'lifting', 'sets', 'reps', 'exercise', 'strength'],
+    // The session log. Planned sessions and the exercise catalogue live on the
+    // server; the log is what the page reads and writes.
     entities: [
-      { name: 'workout', label: 'Session', table: 'workout', fields: [
-        { name: 'name', label: 'Session', type: 'text', required: true, width: 200 },
-        { name: 'duration_min', label: 'Length', type: 'duration', unit: 'min', width: 90 },
-      ]},
       { name: 'workout_log', label: 'Set', table: 'workout_log', fields: [
+        { name: 'log_date', label: 'Day', type: 'date', required: true, width: 120 },
         { name: 'exercise_id', label: 'Exercise', type: 'lookup', lookup: 'exercise', width: 220 },
         { name: 'set_number', label: 'Set', type: 'integer', width: 60 },
         { name: 'reps_achieved', label: 'Reps', type: 'integer', width: 70 },
         { name: 'load_kg', label: 'Load', type: 'number', unit: 'kg', width: 80 },
+        { name: 'seconds', label: 'Time', type: 'integer', unit: 's', width: 70 },
+        { name: 'note', label: 'Note', type: 'text', width: 200 },
       ]},
     ],
     views: [
-      { key: 'week', name: 'Week', type: 'list', entity: 'workout' },
-      { key: 'log', name: 'Log', type: 'table', entity: 'workout_log', columns: ['exercise_id','set_number','reps_achieved','load_kg'] },
-      { key: 'exercises', name: 'Exercises', type: 'table', entity: 'exercise', columns: ['name','type'] },
+      { key: 'sessions', name: 'Sessions', type: 'list', entity: 'workout_log' },
+      { key: 'log', name: 'Log', type: 'table', entity: 'workout_log', columns: ['log_date','exercise_id','set_number','reps_achieved','load_kg'] },
+      { key: 'month', name: 'Month', type: 'calendar', entity: 'workout_log', dateField: 'log_date' },
     ],
     rules: [
       { name: 'session_task', sentence: 'A planned session becomes a task at its time.', when: 'workout.planned', then: 'task.create' },
@@ -105,6 +109,7 @@ export const MODULES: ModuleDef[] = [
   {
     key: 'habits',
     name: 'Habits',
+    keywords: ['habit', 'habits', 'streak', 'routine', 'daily'],
     summary: 'A habit grid and streaks.',
     depth: 'full',
     defaultOn: true,
@@ -121,6 +126,7 @@ export const MODULES: ModuleDef[] = [
   {
     key: 'supplements',
     name: 'Supplements',
+    keywords: ['supplements', 'vitamins', 'pills', 'creatine'],
     summary: 'A checklist by time slot.',
     depth: 'full',
     defaultOn: true,
@@ -138,6 +144,7 @@ export const MODULES: ModuleDef[] = [
   {
     key: 'health',
     name: 'Health and body',
+    keywords: ['weight', 'weigh-in', 'waist', 'body', 'health', 'fat loss', 'lose weight'],
     summary: 'Weight and waist log, and the calorie budget they drive.',
     depth: 'full',
     defaultOn: true,
@@ -160,14 +167,19 @@ export const MODULES: ModuleDef[] = [
     summary: 'Study blocks, a reading log and progress.',
     depth: 'full',
     defaultOn: true,
+    keywords: ['study', 'studying', 'reading', 'books', 'course', 'learn', 'learning', 'exam', 'language'],
     entities: [
       { name: 'study', label: 'Block', fields: [
         { name: 'subject', label: 'Subject', type: 'text', required: true, width: 200 },
-        { name: 'minutes', label: 'Length', type: 'duration', unit: 'min', width: 90 },
+        { name: 'block_date', label: 'Day', type: 'date', width: 120 },
+        { name: 'minutes', label: 'Length', type: 'duration', unit: 'min', width: 90, stats: 'sum' },
         { name: 'source', label: 'Book or course', type: 'text', width: 220 },
       ]},
     ],
-    views: [{ key: 'blocks', name: 'Blocks', type: 'table', entity: 'study', columns: ['subject','minutes','source'] }],
+    views: [
+      { key: 'blocks', name: 'Blocks', type: 'table', entity: 'study', columns: ['subject','block_date','minutes','source'] },
+      { key: 'month', name: 'Month', type: 'calendar', entity: 'study', dateField: 'block_date' },
+    ],
     rules: [{ name: 'soft', sentence: 'Learning moves when the day is full, unless it is locked.', when: 'day.full', then: 'task.move' }],
     skills: ['read progress', 'log a block'],
   },
@@ -177,15 +189,20 @@ export const MODULES: ModuleDef[] = [
     summary: 'Month, week and year calendar.',
     depth: 'full',
     defaultOn: true,
+    keywords: ['calendar', 'agenda', 'appointments', 'events', 'meetings', 'schedule'],
     entities: [
       { name: 'calendar_event', label: 'Event', table: 'calendar_event', fields: [
         { name: 'title', label: 'Event', type: 'text', required: true, width: 240 },
-        { name: 'starts_at', label: 'Start', type: 'datetime', width: 160 },
+        { name: 'starts_at', label: 'Start', type: 'datetime', required: true, width: 160 },
         { name: 'ends_at', label: 'End', type: 'datetime', width: 160 },
         { name: 'all_day', label: 'All day', type: 'boolean', width: 80 },
+        { name: 'location', label: 'Where', type: 'text', width: 180 },
       ]},
     ],
-    views: [{ key: 'month', name: 'Month', type: 'calendar', entity: 'calendar_event' }],
+    views: [
+      { key: 'month', name: 'Month', type: 'calendar', entity: 'calendar_event', dateField: 'starts_at' },
+      { key: 'list', name: 'List', type: 'list', entity: 'calendar_event' },
+    ],
     rules: [{ name: 'no_overlap', sentence: 'Nothing is scheduled across an all-day event.', when: 'day.planned', then: 'planner.block' }],
     skills: ['read the calendar'],
   },
@@ -194,21 +211,26 @@ export const MODULES: ModuleDef[] = [
     name: 'Sleep',
     summary: 'A sleep log against a target.',
     depth: 'light',
+    keywords: ['sleep', 'bedtime', 'tired', 'rest', 'nights', 'insomnia'],
     entities: [
       { name: 'sleep_log', label: 'Night', table: 'sleep_log', fields: [
-        { name: 'log_date', label: 'Date', type: 'date', width: 120 },
+        { name: 'log_date', label: 'Date', type: 'date', required: true, width: 120 },
         { name: 'went_to_bed', label: 'To bed', type: 'time', width: 90 },
         { name: 'woke_at', label: 'Woke', type: 'time', width: 90 },
         { name: 'hours', label: 'Hours', type: 'formula', formula: 'hours_between(went_to_bed, woke_at)', width: 80 },
         { name: 'quality', label: 'Quality', type: 'integer', width: 80 },
       ]},
     ],
-    views: [{ key: 'log', name: 'Log', type: 'table', entity: 'sleep_log', columns: ['log_date','went_to_bed','woke_at','hours','quality'] }],
+    views: [
+      { key: 'log', name: 'Nights', type: 'table', entity: 'sleep_log', columns: ['log_date','went_to_bed','woke_at','hours','quality'] },
+      { key: 'month', name: 'Month', type: 'calendar', entity: 'sleep_log', dateField: 'log_date' },
+    ],
     rules: [{ name: 'bedtime', sentence: 'Bedtime is locked and nothing is scheduled across it.', when: 'day.planned', then: 'planner.block', locked: true }],
   },
   {
     key: 'projects',
     name: 'Projects',
+    keywords: ['projects', 'project', 'milestones', 'deadlines', 'clients'],
     summary: 'Projects, tasks and milestones.',
     depth: 'light',
     entities: [
@@ -218,28 +240,36 @@ export const MODULES: ModuleDef[] = [
         { name: 'due_date', label: 'Due', type: 'date', width: 120 },
       ]},
     ],
-    views: [{ key: 'list', name: 'Projects', type: 'table', entity: 'project', columns: ['name','status','due_date'] }],
+    views: [
+      { key: 'list', name: 'Projects', type: 'table', entity: 'project', columns: ['name','status','due_date'] },
+      { key: 'cards', name: 'Cards', type: 'list', entity: 'project' },
+    ],
     rules: [{ name: 'to_goal', sentence: 'A project with a date becomes a goal on the year view.', when: 'project.created', then: 'goal.create' }],
   },
   {
     key: 'finance',
     name: 'Finance',
+    keywords: ['money', 'budget', 'spending', 'expenses', 'finance', 'bills', 'savings'],
     summary: 'A budget and what was spent against it.',
     depth: 'light',
     entities: [
       { name: 'entry', label: 'Entry', fields: [
         { name: 'entry_date', label: 'Date', type: 'date', width: 120 },
         { name: 'category', label: 'Category', type: 'text', width: 160 },
-        { name: 'amount', label: 'Amount', type: 'number', width: 110 },
+        { name: 'amount', label: 'Amount', type: 'number', width: 110, stats: 'sum' },
         { name: 'note', label: 'Note', type: 'text', width: 240 },
       ]},
     ],
-    views: [{ key: 'list', name: 'Entries', type: 'table', entity: 'entry', columns: ['entry_date','category','amount','note'] }],
+    views: [
+      { key: 'list', name: 'Entries', type: 'table', entity: 'entry', columns: ['entry_date','category','amount','note'] },
+      { key: 'month', name: 'Month', type: 'calendar', entity: 'entry', dateField: 'entry_date' },
+    ],
     rules: [],
   },
   {
     key: 'household',
     name: 'Household',
+    keywords: ['household', 'chores', 'cleaning', 'family', 'home', 'laundry'],
     summary: 'Shared lists, chores and shared meals.',
     depth: 'light',
     entities: [

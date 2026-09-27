@@ -19,6 +19,10 @@ export interface FieldDef {
   required?: boolean
   unit?: string
   width?: number
+  /** Counted in Stats: summed, averaged, or the records counted. */
+  stats?: 'sum' | 'average' | 'count'
+  /** Kept in the records but left off the page and the form. */
+  hidden?: boolean
 }
 
 export interface ViewDef {
@@ -28,6 +32,10 @@ export interface ViewDef {
   entity: string
   columns?: string[]
   filters?: Record<string, unknown>
+  /** The date or date-time field a calendar view places records by. */
+  dateField?: string
+  /** Switched off in the editor: kept, but not shown as a tab. */
+  hidden?: boolean
 }
 
 export interface RuleDef {
@@ -37,6 +45,10 @@ export interface RuleDef {
   when: string
   then: string
   locked?: boolean
+  /** Switched off in the editor. Absent means on. */
+  off?: boolean
+  /** For a reminder rule: the time used when a record has none of its own. */
+  time?: string
 }
 
 export interface EntityDef {
@@ -60,4 +72,10 @@ export interface ModuleDef {
   skills?: string[]
   defaultOn?: boolean
   depth: 'full' | 'light'
+  /** One character for the page bar and the page's heading. */
+  glyph?: string
+  /** Words that point at this module, for the setup templates' suggestion. */
+  keywords?: string[]
+  /** Built by the person rather than shipped with the app. */
+  built?: boolean
 }
