@@ -1,4 +1,4 @@
-import { need, open, signIn, sql, profileOf, today, checks, drained } from './e2e.mjs'
+import { need, open, signIn, sql, profileOf, today, checks, drained, modulesOn } from './e2e.mjs'
 
 // Meals without preset times, meals as plain numbers, and the one figure on
 // Today. At 360 px, so the new fields are also checked for running off a
@@ -18,6 +18,8 @@ const reset = `
     where id = ${me};`
 await sql(reset)
 
+// This check needs these pages, whichever check used the account before it.
+await modulesOn(email, ['nutrition'])
 const { b, p, errors } = await open({ viewport: { width: 360, height: 740 } })
 await signIn(p, email)
 

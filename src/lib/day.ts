@@ -10,10 +10,11 @@ import type { DayInput } from './day-tabs'
  *  switches it off. */
 export async function enabledModules(profileId: string, built: ModuleRow[]): Promise<string[]> {
   const rows = await db.module_instance.where('profile_id').equals(profileId).toArray()
-  const byKey = new Map(rows.map((r) => [r.module_key, r.enabled]))
-  const on = rows.filter((r) => r.enabled).map((r) => r.module_key)
-  for (const m of built) if (!m.deleted_at && byKey.get(m.key) !== false && !on.includes(m.key)) on.push(m.key)
-  return on
+  // The same rule as the page bar (pages.ts): a module is on when its switch
+  // is on, and a built module also has to exist, so a tab never leads to a
+  // page the bar does not have.
+  const live = new Set(built.filter((m) => !m.deleted_at).map((m) => m.key))
+  return rows.filter((r) => r.enabled && (!r.module_key.startsWith('u_') || live.has(r.module_key))).map((r) => r.module_key)
 }
 
 /** Everything the tab rules in day-tabs.ts look at, for one day, read from

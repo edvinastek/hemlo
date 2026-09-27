@@ -2,7 +2,7 @@ import * as XLSX from 'xlsx'
 import { writeFileSync, mkdtempSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { need, sql, checks, open, signIn, profileOf, today, localCount, drained } from './e2e.mjs'
+import { need, sql, checks, open, signIn, profileOf, today, localCount, drained, APP } from './e2e.mjs'
 
 // The features added for the closed test, clicked through as a tester would:
 // a weigh-in, habits and supplements, the same habit ticked offline on two
@@ -37,7 +37,14 @@ is('the weigh-in updates today’s row rather than adding one', r.n, 1)
 is('with the new weight', Number(r.w), 81.2)
 is('it shows in the list', await p.locator('.weighin-list li.is-day').count(), 1)
 
-// 2. A habit and a supplement, ticked.
+// 2. A habit and a supplement, added on their module pages (Today only shows
+//    a Habits part once there is a habit due), then ticked.
+const goPage = async (path) => {
+  await p.goto(new URL(path, APP).href, { waitUntil: 'domcontentloaded' })
+  await p.locator('.bottom-nav').waitFor({ timeout: 20000 })
+  await p.waitForTimeout(1200)
+}
+await goPage('m/habits')
 await p.click('button:has-text("Add a habit")')
 await p.fill('input[aria-label="Habit name"]', 'Stretch')
 await p.click('.track-form button:has-text("Add")')
@@ -46,6 +53,7 @@ await p.fill('input[aria-label="Habit name"]', 'Water')
 await p.click('.track-form button:has-text("Add")')
 await p.click('.track-form button:has-text("Done")')
 await p.click('button[aria-label="Stretch, not done"]')
+await goPage('m/supplements')
 await p.click('button:has-text("Add a supplement")')
 await p.fill('input[aria-label="Supplement name"]', 'Vitamin D')
 await p.fill('input[aria-label="Dose"]', '25 µg')
@@ -53,6 +61,9 @@ await p.click('.track-form button:has-text("Add")')
 await p.click('.track-form button:has-text("Done")')
 await p.click('button[aria-label="Vitamin D, not taken"]')
 await settle(p)
+await goPage('')
+await p.click('.tabs button:has-text("Body")')
+await p.waitForTimeout(600)
 is('the habit shows ticked', await p.locator('button[aria-label="Stretch, done"]').getAttribute('aria-pressed'), 'true')
 r = await one(`select
   (select count(*) from public.habit where ${mine} and deleted_at is null) habits,

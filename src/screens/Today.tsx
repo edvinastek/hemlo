@@ -50,7 +50,8 @@ export function Today() {
     const nutrition = await db.module_instance.where('profile_id').equals(profile.id)
       .filter((m) => m.module_key === 'nutrition').first()
     // Nutrition is on unless switched off; a profile without the row has it.
-    if (nutrition && !nutrition.enabled) return null
+    // Same rule as the page bar: a module is on only when its switch says so.
+    if (!nutrition?.enabled) return null
     // The targets in force on the day shown: the newest one that has started
     // by then and was not deleted.
     const rows = (await db.target.where('profile_id').equals(profile.id).sortBy('from_date'))

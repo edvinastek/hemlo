@@ -1,5 +1,5 @@
 import { chromium } from 'playwright'
-import { completeWizard } from './e2e.mjs'
+import { completeWizard, drained } from './e2e.mjs'
 
 // Three things the security review fixed, checked in a real browser:
 //  1. A row created on the device (the wizard's targets and weigh-in) reaches
@@ -46,7 +46,8 @@ await p.click('button[type=submit]')
 
 // 1. The first-run wizard: its targets and weigh-in are rows made on the device.
 await completeWizard(p, { template: 'Fitness & nutrition', targets: true })
-await p.waitForTimeout(5000)
+await p.waitForTimeout(1000)
+await drained(p)
 
 const server = await sql(`select
   (select count(*) from public.target t join public.profile pr on pr.id = t.profile_id join auth.users u on u.id = pr.user_id where u.email = '${email}') as targets,

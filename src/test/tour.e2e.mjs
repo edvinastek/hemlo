@@ -1,5 +1,5 @@
 import { chromium } from 'playwright'
-import { signIn } from './e2e.mjs'
+import { signIn, modulesOn, ALL_MODULES } from './e2e.mjs'
 
 // Credentials come from the environment and are never committed: an account
 // whose password sits in the repository is an account anyone can sign in to.
@@ -14,6 +14,8 @@ const errors = []
 p.on('pageerror', e => errors.push(String(e).slice(0, 160)))
 p.on('console', m => { if (m.type() === 'error' && !m.text().includes('favicon')) errors.push(m.text().slice(0, 160)) })
 await p.goto('http://127.0.0.1:4173/', { waitUntil: 'networkidle' })
+// This check needs these pages, whichever check used the account before it.
+await modulesOn(process.env.TEST_EMAIL, ALL_MODULES)
 await signIn(p, process.env.TEST_EMAIL)
 for (const [label, href] of [['today','/'],['plan','/plan'],['food','/food'],['shop','/shop'],['more','/more']]) {
   await p.click(`.bottom-nav a[href="${href}"]`)

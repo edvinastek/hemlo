@@ -137,3 +137,20 @@ export async function drained(p, timeout = 30000) {
   }
   return false
 }
+
+/** Switch modules on for an account before a check signs in, so a check that
+ *  needs the Food or Shop page does not depend on which check ran first.
+ *  With { only: true }, every other module is switched off. */
+export async function modulesOn(email, keys, { only = false } = {}) {
+  const list = keys.map((k) => `('${k}')`).join(', ')
+  await sql(`
+    insert into public.module_instance (profile_id, module_key, enabled)
+      select ${profileOf(email)}, k, true from (values ${list}) v(k)
+      on conflict (profile_id, module_key) do update set enabled = true;
+    ${only ? `update public.module_instance set enabled = false
+      where profile_id = ${profileOf(email)} and module_key not in (${keys.map((k) => `'${k}'`).join(', ')}, 'core');` : ''}`)
+}
+
+/** Every built-in module a person can switch on. */
+export const ALL_MODULES = ['nutrition', 'shopping', 'training', 'habits', 'supplements', 'health', 'learning',
+  'agenda', 'sleep', 'projects', 'finance', 'household']

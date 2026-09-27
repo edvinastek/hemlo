@@ -1,9 +1,11 @@
-import { need, open, signIn } from './e2e.mjs'
+import { need, open, signIn, modulesOn, ALL_MODULES } from './e2e.mjs'
 
 // Nothing on any screen runs off a small phone or hides under the add button. At 360 px wide (the most
 // common Android width) every screen and tab is opened, and anything whose
 // right edge passes the screen is reported. Needs TEST_EMAIL and TEST_PASSWORD.
 need('TEST_EMAIL', 'TEST_PASSWORD')
+// This check needs these pages, whichever check used the account before it.
+await modulesOn(process.env.TEST_EMAIL, ALL_MODULES)
 const { b, p, errors } = await open({ viewport: { width: 360, height: 640 } })
 await signIn(p, process.env.TEST_EMAIL)
 

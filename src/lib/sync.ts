@@ -190,7 +190,10 @@ async function foldIntoTwin(table: string, local: Row, patch: Record<string, unk
   if (merged.error || !row) return false
 
   const differed = Object.keys(fields).filter((f) => f !== 'updated_at' && !keys.includes(f) && String(twin[f]) !== String(fields[f]))
-  if (differed.length) {
+  // A module switch made on a new phone before its first pull finished meets
+  // the server's own row for that module: that is the expected path, not a
+  // clash worth showing the person.
+  if (differed.length && table !== 'module_instance') {
     await db.conflicts.add({
       table, row_id: twin.id, field: differed.join(', '),
       local_value: Object.fromEntries(differed.map((f) => [f, fields[f]])),

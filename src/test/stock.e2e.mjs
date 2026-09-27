@@ -1,4 +1,4 @@
-import { need, sql, checks, open, signIn, profileOf, drained } from './e2e.mjs'
+import { need, sql, checks, open, signIn, profileOf, drained, modulesOn } from './e2e.mjs'
 
 // The household's stock, clicked through on a phone: add a food by search,
 // nudge it and type a new amount, remove another with a confirm; plan a meal
@@ -43,6 +43,8 @@ await sql(`delete from public.stock where household_id = ${household};
   update public.profile set settings = coalesce(settings, '{}'::jsonb) - 'stock_auto' where id = ${profile};`)
 
 const { b, p, errors } = await open({ viewport: { width: 360, height: 740 } })
+// This check needs these pages, whichever check used the account before it.
+await modulesOn(email, ['nutrition', 'shopping'])
 await signIn(p, email)
 const stockRow = (name) => p.locator('.stock-row', { has: p.locator('.stock-name', { hasText: name }) })
 const server = async (foodId) => one(`select grams_on_hand::float g, (deleted_at is not null) gone
