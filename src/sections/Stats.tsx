@@ -1,4 +1,4 @@
-import { useState, type CSSProperties } from 'react'
+import { useEffect, useState, type CSSProperties } from 'react'
 import { format } from 'date-fns'
 import { useApp } from '../lib/store'
 import { readSettings } from '../lib/settings'
@@ -34,7 +34,10 @@ export function Stats({ profileId, day }: { profileId: string; day: string }) {
   const today = format(new Date(), 'yyyy-MM-dd')
   const [period, setPeriod] = useState<Period>('week')
   const [anchor, setAnchor] = useState(() => clampAnchor(day, today))
-  const showDisabled = settings.stats.show_disabled
+  // The tick shows the change at once; the saved setting catches up.
+  const [tickedNow, setTickedNow] = useState<boolean | null>(null)
+  const showDisabled = tickedNow ?? settings.stats.show_disabled
+  useEffect(() => setTickedNow(null), [settings.stats.show_disabled])
   const stats = useStats(profileId, period, anchor, today, { showDisabled, nutrients: settings.nutrients })
   const colours = useModuleColours()
 
@@ -58,7 +61,11 @@ export function Stats({ profileId, day }: { profileId: string; day: string }) {
 
       <label className="st-check">
         <input type="checkbox" checked={showDisabled} disabled={!profile || profile.id !== profileId}
-          onChange={(e) => profile && void saveSettings(profile, { stats: { show_disabled: e.target.checked } })} />
+          onChange={(e) => {
+            if (!profile) return
+            setTickedNow(e.target.checked)
+            void saveSettings(profile, { stats: { show_disabled: e.target.checked } })
+          }} />
         <span>Show switched-off modules</span>
       </label>
 

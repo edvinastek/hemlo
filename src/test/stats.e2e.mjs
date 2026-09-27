@@ -42,7 +42,8 @@ for (const colorScheme of ['light', 'dark']) {
   await p.waitForSelector('.st-card', { timeout: 20000 })
 
   await p.click('.st-periods [role=tab]:has-text("Day")')
-  await p.waitForTimeout(1200)
+  // Habit ticks come down after the habits themselves; wait for them.
+  for (let i = 0; i < 40 && (await figure(p, 'Habits', 'Ticks').catch(() => '0')) === '0'; i++) await p.waitForTimeout(500)
   is(`${colorScheme}: tasks done today`, await figure(p, 'Tasks', 'Done'), '1')
   is(`${colorScheme}: tasks planned today`, await figure(p, 'Tasks', 'Planned'), '2')
   is(`${colorScheme}: half of them completed`, await figure(p, 'Tasks', 'Completed'), '50%')
@@ -81,4 +82,5 @@ for (const colorScheme of ['light', 'dark']) {
 
 await sql(`update public.task set deleted_at = now() where profile_id = ${me} and title like 'Stats probe%';
   update public.habit set active = false, deleted_at = now() where profile_id = ${me} and name = 'Stats stretch';`)
+console.log(failed() ? `\n${failed()} check(s) failed` : '\nall checks passed')
 process.exit(failed() ? 1 : 0)

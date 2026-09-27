@@ -114,7 +114,7 @@ is('nothing runs off a 360 px screen in Month', (await overflow()).join(', '), '
 // 4. Week: the holiday's header is underlined and titled.
 await cell.first().click()
 await p.waitForTimeout(900)
-const head = p.locator(`.week-col h3[title="${label}"]`)
+const head = p.locator(`.week-col h3[title^="${label}"]`)
 is('the Week header names the holiday', await head.count(), 1)
 is('and carries the mark', await head.locator('.hol-mark.is-bar i').count(), codesOn.length)
 

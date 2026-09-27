@@ -100,7 +100,8 @@ async function taskStats(c: Ctx): Promise<ModuleStats> {
 /* ---------- built-in modules with tables of their own ----------------------- */
 
 async function habitStats(c: Ctx): Promise<Omit<ModuleStats, 'key' | 'label' | 'off'>> {
-  const habits = (await db.habit.where('profile_id').equals(c.profileId).toArray())
+  // A deleted habit is gone, ticks and all; one put away keeps its ticks.
+  const habits = (await db.habit.where('profile_id').equals(c.profileId).toArray()).filter((h) => !h.deleted_at)
   const ids = new Set(habits.map((h) => h.id))
   const logs = await db.habit_log.where('log_date').between(c.span.start, c.span.end, true, true)
     .filter((l) => ids.has(l.habit_id)).toArray()
@@ -122,7 +123,7 @@ async function habitStats(c: Ctx): Promise<Omit<ModuleStats, 'key' | 'label' | '
 }
 
 async function supplementStats(c: Ctx): Promise<Omit<ModuleStats, 'key' | 'label' | 'off'>> {
-  const all = await db.supplement.where('profile_id').equals(c.profileId).toArray()
+  const all = (await db.supplement.where('profile_id').equals(c.profileId).toArray()).filter((x) => !x.deleted_at)
   const ids = new Set(all.map((x) => x.id))
   const logs = await db.supplement_log.where('log_date').between(c.span.start, c.span.end, true, true)
     .filter((l) => ids.has(l.supplement_id)).toArray()
