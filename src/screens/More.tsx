@@ -1,3 +1,4 @@
+import { saveFile } from '../lib/native'
 import { useState } from 'react'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { db, resetLocal } from '../lib/db'
@@ -252,12 +253,8 @@ function DataPanel() {
   async function doExport() {
     if (!profile) return
     const blob = await exportBundle(profile.id)
-    const url = URL.createObjectURL(blob)
-    const a = document.createElement('a')
-    a.href = url
-    a.download = `getit-${new Date().toISOString().slice(0, 10)}.getit.json`
-    a.click()
-    URL.revokeObjectURL(url)
+    // On the phone this opens the share sheet; in a browser it downloads.
+    await saveFile(`getit-${new Date().toISOString().slice(0, 10)}.getit.json`, blob)
   }
 
   async function doImport(file: File) {
