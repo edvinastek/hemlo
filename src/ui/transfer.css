@@ -1,0 +1,64 @@
+/* ---------- the Export link at the foot of a data page -------------------- */
+/* Small, bold and underlined, at the bottom right of the page's content. The
+   page keeps room under its content for the round add button (app.css), so
+   scrolled to the end the link sits above the button, never under it. */
+.xl-row { display: flex; justify-content: flex-end; padding: var(--space-4) var(--space-4) 0; min-width: 0; }
+.xl-link {
+  font-family: var(--font-sans); font-size: 12px; font-weight: 700;
+  text-decoration: underline; text-underline-offset: 2px;
+  color: var(--e-ink-soft); padding: 6px 2px;
+}
+.xl-link:hover, .xl-link:focus-visible { color: var(--e-accent); }
+/* On a wide screen the page has no bottom room and the button floats over the
+   content's corner, so the link keeps clear of it here. */
+@media (min-width: 900px) { .xl-row { padding-bottom: 84px; } }
+
+/* The format sheet. Above a note's own page, which sits at 30. */
+.xl-scrim { z-index: 40; }
+.xl-sheet { z-index: 41; }
+.xl-sheet h2 { margin-bottom: var(--space-1); }
+.xl-what { font-family: var(--font-sans); font-size: 13px; color: var(--e-ink-soft); margin-bottom: var(--space-3); }
+.xl-formats { display: grid; gap: var(--space-2); }
+.xl-format {
+  display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: var(--space-2); align-items: center;
+  text-align: left; width: 100%; min-width: 0;
+  padding: 10px 12px; border: 1px solid var(--e-rule); border-radius: var(--radius-md);
+  font-family: var(--font-sans); font-size: 14px; color: var(--e-ink);
+}
+.xl-format small { color: var(--e-ink-soft); font-size: 12px; }
+.xl-format:disabled { opacity: 0.6; }
+.xl-status { font-family: var(--font-sans); font-size: 13px; color: var(--e-ink-soft); margin-top: var(--space-3); overflow-wrap: anywhere; }
+.xl-status.is-bad { color: var(--e-warn); }
+
+/* ---------- Settings: Import and export ----------------------------------- */
+.tx { display: grid; gap: var(--space-3); padding: var(--space-3) var(--space-4); min-width: 0; }
+.tx-step { font-family: var(--font-sans); font-size: 13px; color: var(--e-ink-soft); margin: 0; }
+.tx-step b { color: var(--e-ink); font-weight: 600; }
+.tx-fields { display: flex; flex-wrap: wrap; gap: var(--space-2); min-width: 0; }
+.tx-field {
+  display: inline-flex; align-items: center; gap: 6px; max-width: 100%;
+  font-family: var(--font-sans); font-size: 13px; color: var(--e-ink);
+  border: 1px solid var(--e-rule); border-radius: var(--radius-pill); padding: 4px 10px;
+}
+.tx-field span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.tx-row { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2); min-width: 0; }
+.tx-row > .dd { min-width: 0; flex: 1 1 160px; }
+.tx-chip {
+  font-family: var(--font-sans); font-size: 13px; padding: 6px 10px;
+  border: 1px solid var(--e-rule); border-radius: var(--radius-pill); color: var(--e-ink-soft);
+}
+.tx-chip[aria-pressed="true"] { background: var(--e-tint); color: var(--e-ink); border-color: var(--e-rail); font-weight: 600; }
+.tx-date {
+  min-width: 0; max-width: 100%; min-height: 36px; padding: 4px 8px; box-sizing: border-box;
+  border: 1px solid var(--e-field-line); border-radius: var(--radius-md);
+  background: var(--e-field); color: var(--e-ink); font-family: var(--font-sans); font-size: 14px;
+}
+.tx-link { font-family: var(--font-sans); font-size: 13px; color: var(--e-accent); text-decoration: underline; padding: 2px; }
+.tx-note { font-family: var(--font-sans); font-size: 13px; color: var(--e-ink-soft); margin: 0; overflow-wrap: anywhere; }
+.tx-note.is-bad { color: var(--e-warn); }
+.tx-preview { margin: 0 calc(-1 * var(--space-4)); }
+.tx-preview .sheet td { vertical-align: top; font-family: var(--font-sans); font-size: 12px; padding: 5px var(--space-2); white-space: nowrap; max-width: 220px; overflow: hidden; text-overflow: ellipsis; }
+.tx-preview .sheet td.tx-bad { color: var(--e-warn); white-space: normal; min-width: 180px; }
+.tx-preview .sheet tr.is-dup td { color: var(--e-ink-soft); }
+.tx-problems { margin: 0; padding-left: 18px; font-family: var(--font-sans); font-size: 12px; color: var(--e-warn); display: grid; gap: 2px; }
+.tx-actions { display: flex; flex-wrap: wrap; gap: var(--space-2); justify-content: flex-end; }

@@ -15,6 +15,7 @@ import {
 } from '../lib/quick-food'
 import { SearchPick, type PickItem } from '../ui/SearchPick'
 import { Dropdown } from '../ui/Dropdown'
+import { ExportLink } from '../ui/ExportLink'
 import { moduleByKey } from '../modules/registry'
 import type { FieldDef } from '../modules/types'
 import type { Food as FoodRow, Recipe, RecipeLine, MealPlanSlot, Target } from '../lib/types'
@@ -129,6 +130,8 @@ export function Food() {
             )}
           </>
         )}
+        <ExportLink source={section === 'Day' ? { dataset: 'm:nutrition:meal_plan_slot', range: { from: day, to: day, label: format(date, 'd MMM yyyy') } }
+          : { dataset: section === 'Recipes' ? 'm:nutrition:recipe' : 'm:nutrition:food' }} />
       </div>
     </div>
   )

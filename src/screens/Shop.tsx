@@ -8,8 +8,18 @@ import { tripFromPlan, type TripLine } from '../lib/shopping'
 import { addStock, stockMap } from '../lib/stock'
 import { boughtGrams } from '../lib/stock-rules'
 import { StockPanel } from '../sections/Stock'
+import { ExportLink } from '../ui/ExportLink'
+import type { FieldDef } from '../modules/types'
 
 const SECTIONS = ['Trip', 'Stock', 'Stores']
+/** The trip as a file: what to buy, what stock covers, packs, and the ticks. */
+const TRIP_FIELDS: FieldDef[] = [
+  { name: 'name', label: 'Item', type: 'text' },
+  { name: 'buy_g', label: 'Needed', type: 'number', unit: 'g' },
+  { name: 'from_stock_g', label: 'From stock', type: 'number', unit: 'g' },
+  { name: 'pack_size_g', label: 'Pack', type: 'number', unit: 'g' },
+  { name: 'checked', label: 'Got it', type: 'boolean' },
+]
 
 /** What the plan needs up to the next trip, less what is already in the
  *  cupboard, rounded up to whole packs. Nothing here is typed by hand. */
@@ -127,6 +137,7 @@ export function Shop() {
             a price when you notice it; nothing here needs a shop's catalogue to work.
           </p>
         )}
+        {section !== 'Stores' && <ExportLink source={section === 'Stock' ? { dataset: 'stock' } : { label: 'Shopping trip', rows, fields: TRIP_FIELDS }} />}
       </div>
     </div>
   )

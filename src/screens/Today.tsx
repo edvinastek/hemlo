@@ -9,6 +9,8 @@ import { saveTask, blankTask, setTaskDone } from '../lib/tasks'
 import { TaskSheet } from '../ui/TaskSheet'
 import { PlannedDay } from '../ui/PlannedDay'
 import { DragList } from '../ui/DragList'
+import { ExportLink } from '../ui/ExportLink'
+import { rangeFor } from '../lib/transfer-rules'
 import { BodySection } from '../sections/BodySection'
 import { ReviewCard } from '../sections/ReviewCard'
 import { ModuleDay } from '../sections/ModuleDay'
@@ -162,6 +164,7 @@ export function Today() {
 
         {/* Past the eight weeks the series have filled: what will repeat here. */}
         {tab.key === 'today' && profile && <PlannedDay profileId={profile.id} day={day} />}
+        <ExportLink calendar source={{ dataset: 'calendar', range: rangeFor('day', day) }} />
       </div>
 
       {profile && (

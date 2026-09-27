@@ -15,6 +15,7 @@ import { FoodSettings } from '../settings/FoodSettings'
 import { NavSettings } from '../settings/NavSettings'
 import { ColourSettings } from '../settings/ColourSettings'
 import { HolidaySettings } from '../settings/HolidaySettings'
+import { TransferSettings } from '../settings/TransferSettings'
 import { exportBundle, importBundle } from '../lib/bundle'
 import { getReminderSettings, setReminderSettings, requestPermission, type ReminderSettings } from '../lib/notify'
 import type { ModuleInstance } from '../lib/types'
@@ -428,6 +429,7 @@ function DataPanel() {
         </>
       )}
       {note && <p className="empty">{note}</p>}
+      <TransferSettings />
 
       <p className="section-title">Privacy</p>
       <div className="setting-row">

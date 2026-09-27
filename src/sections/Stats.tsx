@@ -9,7 +9,19 @@ import {
   PERIODS, PERIOD_LABEL, beforeName, canShift, clampAnchor, formatDelta, formatNumber, isCurrent, shiftAnchor,
   type Bucket, type Metric, type ModuleStats, type Period,
 } from '../lib/stats-rules'
+import { statsRows } from '../lib/stats-rules'
+import { ExportLink } from '../ui/ExportLink'
+import type { FieldDef } from '../modules/types'
 import './stats.css'
+
+/** The columns of the figures shown, when they are exported. */
+const EXPORT_FIELDS: FieldDef[] = [
+  { name: 'period', label: 'Period', type: 'text' },
+  { name: 'module', label: 'Module', type: 'text' },
+  { name: 'metric', label: 'Figure', type: 'text' },
+  { name: 'value', label: 'Value', type: 'number' },
+  { name: 'unit', label: 'Unit', type: 'text' },
+]
 
 const MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December']
 
@@ -68,6 +80,11 @@ export function Stats({ profileId, day }: { profileId: string; day: string }) {
               Tick "Show switched-off modules" to see {stats.hiddenOff === 1 ? 'it' : 'them'}.
             </p>
           )}
+          {/* The figures on screen, one per row. */}
+          <ExportLink source={{
+            rows: statsRows(period, stats.range, stats.modules) as unknown as Record<string, unknown>[],
+            fields: EXPORT_FIELDS, label: `Stats, ${stats.title}`,
+          }} />
         </>
       )}
     </section>

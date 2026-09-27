@@ -1,6 +1,8 @@
 import { Fragment, useEffect, useMemo, useRef, useState } from 'react'
 import { checklistProgress, hasNote, parseNote, toggleCheck, type Span } from '../lib/notes'
 import { NoteEditor } from './NoteEditor'
+import { ExportLink } from './ExportLink'
+import { noteText } from '../lib/transfer-rules'
 import './notes.css'
 
 function Words({ spans }: { spans: Span[] }) {
@@ -112,6 +114,7 @@ export function NotesPage({ title, notes, onKeep, onClose }: {
             })}
           </div>
         )}
+        {hasNote(text) && <ExportLink source={{ text: noteText(title, null, text), label: title.trim() || 'Note' }} />}
       </div>
     </div>
   )
