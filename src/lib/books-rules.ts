@@ -9,6 +9,7 @@
 
 import { SWATCHES } from './colours-rules.ts'
 import { rawGrams } from './calc.ts'
+import { addCounts, countOf as unitCount, formatCount, readUnits, type Count } from './units-rules.ts'
 import type { Food, Recipe, RecipeLine } from './types'
 
 export type BookKind = 'recipe' | 'food'
@@ -195,6 +196,9 @@ export interface Ingredient {
   name: string
   amount: number | null
   unit: string
+  /** Set when every line added up was typed in the same unit of the food
+   *  ("6 eggs"); the list then shows it instead of the grams. */
+  count?: Count
 }
 
 /** A recipe's cooking note is left off the name when the amount is the raw
@@ -224,14 +228,18 @@ export function recipeIngredients(recipe: Pick<Recipe, 'id' | 'portions_per_batc
       const grams = l.grams_per_portion == null ? null : rawGrams(l, food) * batch
       const unit = cooked && !toRaw ? 'g cooked' : 'g'
       const key = l.food_id ? `food:${l.food_id}` : `text:${name.toLowerCase()}`
-      return { key, name, amount: grams, unit }
+      // A line typed in a unit counts as that many, times the batch; the
+      // grams go with it, so a list mixing units still adds up in grams.
+      const count = unitCount(l, readUnits(food?.units), batch)
+      return count ? { key, name, amount: grams, unit, count } : { key, name, amount: grams, unit }
     })
     .filter((x): x is Ingredient => x !== null)
 }
 
 /** Ingredients from several recipes as one list: the same food in the same
  *  unit is added up, and each keeps the place and the name it had where it
- *  first appeared. */
+ *  first appeared. A count ("6 eggs") is kept only while every line of the
+ *  food was in that same unit; otherwise the grams are shown. */
 export function combineIngredients(lists: Ingredient[][]): Ingredient[] {
   const out: Ingredient[] = []
   const at = new Map<string, number>()
@@ -242,8 +250,13 @@ export function combineIngredients(lists: Ingredient[][]): Ingredient[] {
       if (i === undefined) {
         at.set(k, out.length)
         out.push({ ...item })
-      } else if (item.amount !== null) {
-        out[i] = { ...out[i], amount: (out[i].amount ?? 0) + item.amount }
+      } else {
+        const was = out[i]
+        const next: Ingredient = { ...was, amount: item.amount === null ? was.amount : (was.amount ?? 0) + item.amount }
+        const count = addCounts(was.count ?? null, item.count ?? null)
+        if (count) next.count = count
+        else delete next.count
+        out[i] = next
       }
     }
   }
@@ -259,10 +272,19 @@ export function roundAmount(n: number): number {
   return Math.round(n / 10) * 10
 }
 
-/** The list as plain text, one ingredient a line: "Oats — 240 g". */
+/** One ingredient's amount as shown: "6 eggs", "240 g", or nothing. */
+export function ingredientAmount(i: Ingredient): string {
+  if (i.count && i.count.qty > 0) return formatCount(i.count.qty, i.count.unit)
+  return i.amount === null || roundAmount(i.amount) === 0 ? '' : `${roundAmount(i.amount)} ${i.unit}`
+}
+
+/** The list as plain text, one ingredient a line: "Oats — 240 g", "Eggs — 6 eggs". */
 export function ingredientText(items: Ingredient[]): string {
   return items
-    .map((i) => (i.amount === null || roundAmount(i.amount) === 0 ? i.name : `${i.name} — ${roundAmount(i.amount)} ${i.unit}`))
+    .map((i) => {
+      const amount = ingredientAmount(i)
+      return amount ? `${i.name} — ${amount}` : i.name
+    })
     .join('\n')
 }
 

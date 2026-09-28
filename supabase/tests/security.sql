@@ -442,6 +442,87 @@ begin
   execute 'reset role';
 end $$;
 
+-- Units (022): a food's own units only its owner changes, nonsense refused,
+-- and an entry's unit comes with how many --------------------------------------
+do $$
+declare
+  n int;
+  label text;
+  bad jsonb;
+begin
+  perform set_config('role', 'authenticated', true);
+  perform set_config('request.jwt.claims', json_build_object('sub', (select a from _ids), 'role', 'authenticated')::text, true);
+
+  update food set units = '[{"name":"scoop","plural":"scoops","g":40}]' where name = 'A''s own oats';
+  get diagnostics n = row_count;
+  insert into _r (check_name, expected, actual) values ('A can give their own food units', '1', n::text);
+
+  for label, bad in select * from (values
+      ('Units that are not a list are refused', '{"name":"egg","g":50}'::jsonb),
+      ('More than eight units are refused', (select jsonb_agg(jsonb_build_object('name', 'u' || i, 'g', 1)) from generate_series(1, 9) i)),
+      ('A unit weighing nothing is refused', '[{"name":"egg","g":0}]'::jsonb),
+      ('A unit past 5 kg is refused', '[{"name":"sack","g":25000}]'::jsonb),
+      ('A weight written as text is refused', '[{"name":"egg","g":"50"}]'::jsonb),
+      ('A unit without a name is refused', '[{"name":"  ","g":50}]'::jsonb),
+      ('A name past 24 characters is refused', '[{"name":"an-extremely-long-unit-name","g":50}]'::jsonb),
+      ('Grams as a unit are refused', '[{"name":"G","g":1}]'::jsonb),
+      ('A unit with other keys is refused', '[{"name":"egg","g":50,"kcal":70}]'::jsonb),
+      ('The same unit twice is refused', '[{"name":"egg","g":50},{"name":"Egg","g":60}]'::jsonb),
+      ('A unit that is not an object is refused', '["egg"]'::jsonb),
+      ('No units at all (null) are refused', null::jsonb)) v(l, u) loop
+    begin
+      update food set units = bad where name = 'A''s own oats';
+      insert into _r (check_name, expected, actual) values (label, 'denied', 'allowed');
+    exception when others then
+      insert into _r (check_name, expected, actual) values (label, 'denied', 'denied');
+    end;
+  end loop;
+
+  begin
+    update recipe_line set unit = 'egg' where recipe_id = (select recipe from _ids);
+    insert into _r (check_name, expected, actual) values ('An ingredient''s unit needs how many', 'denied', 'allowed');
+  exception when others then
+    insert into _r (check_name, expected, actual) values ('An ingredient''s unit needs how many', 'denied', 'denied');
+  end;
+  begin
+    update recipe_line set unit = 'egg', unit_qty = 0 where recipe_id = (select recipe from _ids);
+    insert into _r (check_name, expected, actual) values ('An ingredient of no eggs is refused', 'denied', 'allowed');
+  exception when others then
+    insert into _r (check_name, expected, actual) values ('An ingredient of no eggs is refused', 'denied', 'denied');
+  end;
+  update recipe_line set unit = 'egg', unit_qty = 2, grams_per_portion = 100 where recipe_id = (select recipe from _ids);
+  get diagnostics n = row_count;
+  insert into _r (check_name, expected, actual) values ('A can write an ingredient as 2 eggs', '1', n::text);
+
+  begin
+    update stock set unit = 'egg', unit_qty = -1 where household_id = (select ha from _ids);
+    insert into _r (check_name, expected, actual) values ('Stock of fewer than no eggs is refused', 'denied', 'allowed');
+  exception when others then
+    insert into _r (check_name, expected, actual) values ('Stock of fewer than no eggs is refused', 'denied', 'denied');
+  end;
+  update stock set unit = 'egg', unit_qty = 12, grams_on_hand = 600 where household_id = (select ha from _ids);
+  get diagnostics n = row_count;
+  insert into _r (check_name, expected, actual) values ('A can keep stock as 12 eggs', '1', n::text);
+  execute 'reset role';
+
+  -- B, a stranger, tries A's food and the shared catalogue.
+  perform set_config('role', 'authenticated', true);
+  perform set_config('request.jwt.claims', json_build_object('sub', (select b from _ids), 'role', 'authenticated')::text, true);
+  update food set units = '[{"name":"egg","g":1}]' where name = 'A''s own oats';
+  get diagnostics n = row_count;
+  insert into _r (check_name, expected, actual) values ('B cannot change the units of A''s food', '0', n::text);
+  update food set units = '[{"name":"egg","g":1}]' where owner_id is null and name = 'Egg Chicken';
+  get diagnostics n = row_count;
+  insert into _r (check_name, expected, actual) values ('B cannot change the catalogue''s units', '0', n::text);
+  execute 'reset role';
+
+  insert into _r (check_name, expected, actual) values
+    ('A''s food kept the units A gave it', 'scoop',
+       (select units -> 0 ->> 'name' from food where name = 'A''s own oats')),
+    ('The catalogue''s eggs are counted in eggs of 50 g', 'egg 50',
+       (select (units -> 0 ->> 'name') || ' ' || (units -> 0 ->> 'g') from food where owner_id is null and name = 'Egg Chicken'));
+end $$;
+
 -- A deletes their account while M is still in the household ------------------
 do $$
 begin

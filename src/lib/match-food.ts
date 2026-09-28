@@ -3,6 +3,7 @@
  *  Nothing here touches the database, so all of it can be checked in Node. */
 
 import type { ImportPreview } from './excel'
+import { readUnits, unitFromText } from './units-rules.ts'
 
 // ---- names and tokens ----------------------------------------------------
 
@@ -242,6 +243,8 @@ export interface RecipeRowPlan {
 export interface LineRowPlan {
   id: string; recipe_id: string; food_id: string | null
   raw_text: string; grams_per_portion: number | null; state: string; note: string | null; sort_order: number
+  /** Only on a line whose amount names one of the food's units ("2 slices"). */
+  unit?: string; unit_qty?: number
 }
 
 export interface ImportPlan {
@@ -284,14 +287,14 @@ export function pendingEntry<T extends { id: string }>(table: string, row: T, fi
  *  built from should add nothing, not a second copy of everything. */
 export function planImport(
   preview: ImportPreview,
-  existing: { foods: { id: string; name: string }[]; recipes: { name: string }[] },
+  existing: { foods: { id: string; name: string; units?: unknown }[]; recipes: { name: string }[] },
   ownerId: string,
   newId: () => string,
   now: string,
 ): ImportPlan {
   // Foods are matched in the order given, so the caller passes the person's
   // own foods before the catalogue to have theirs preferred.
-  const matcher = new FoodMatcher<{ id: string; name: string }>(existing.foods)
+  const matcher = new FoodMatcher<{ id: string; name: string; units?: unknown }>(existing.foods)
   const plan: ImportPlan = {
     foods: [], recipes: [], foodsExisting: 0, recipesExisting: 0,
     linesMatched: 0, linesUnmatched: 0, unmatched: [], exercises: preview.exercises.length,
@@ -328,10 +331,20 @@ export function planImport(
       // raw_text is the food as the recipe says it, which the shopping list
       // shows; the amount as written goes in the note, so a line that is not
       // in grams ("150ml") keeps what it said.
-      return {
+      const line: LineRowPlan = {
         id: newId(), recipe_id: recipe.id, food_id: m.food?.id ?? null,
         raw_text: p.food, grams_per_portion: p.grams, state: p.state, note: p.qty, sort_order: i,
       }
+      // "Hard-boiled egg – 1 large (50g)" or "Bread – 2 slices", for a food
+      // counted in units, is kept as 1 egg or 2 slices; the grams the line
+      // states stand, and without them come from the unit.
+      const counted = m.food ? unitFromText(p.qty, readUnits(m.food.units), p.grams) : null
+      if (counted?.unit && counted.unit_qty !== null && fit(counted.grams, MAX_GRAMS) !== null) {
+        line.grams_per_portion = counted.grams
+        line.unit = counted.unit
+        line.unit_qty = counted.unit_qty
+      }
+      return line
     })
     plan.recipes.push({ recipe, lines })
   }

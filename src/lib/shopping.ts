@@ -1,5 +1,6 @@
 import { db } from './db'
 import { rawGrams, shoppingQuantity } from './calc'
+import { addCounts, countOf, readUnits, wholeToBuy, type Count } from './units-rules'
 import type { Food } from './types'
 
 export interface TripLine {
@@ -11,6 +12,18 @@ export interface TripLine {
   packs: number | null
   section: string
   checked: boolean
+  /** Set when every line of the plan used this food in the same unit: the
+   *  list then says "6 eggs" rather than "300 g". */
+  count: Count | null
+  /** What one of that unit weighs here: the plan's grams over its count. */
+  unit_g: number | null
+}
+
+/** How many of a counted food to buy: what is still needed after stock, in
+ *  whole ones (a shop sells whole eggs). Null for a food bought by weight. */
+export function unitsToBuy(line: Pick<TripLine, 'count' | 'unit_g' | 'needed_g' | 'from_stock_g'>): number | null {
+  if (!line.count || !line.unit_g || line.unit_g <= 0) return null
+  return wholeToBuy(Math.max(0, line.needed_g - line.from_stock_g) / line.unit_g)
 }
 
 /** Build a trip from the plan rather than from memory: every meal slot in the
@@ -29,6 +42,8 @@ export async function tripFromPlan(
   const foods = new Map<string, Food>((await db.food.toArray()).map((f) => [f.id, f]))
   const allLines = await db.recipe_line.toArray()
   const needed = new Map<string, number>()
+  // Per food: its count while every line used the same unit, null once not.
+  const counts = new Map<string, Count | null>()
   const said = new Map<string, string>()   // what the recipe calls it: "Peanut butter", not "Butter Peanut Smooth"
 
   for (const slot of inWindow) {
@@ -39,6 +54,8 @@ export async function tripFromPlan(
       // Shopping is done in raw weight, because that is what a shop sells.
       const grams = rawGrams(line, food) * (slot.portion_multiplier ?? 1)
       needed.set(line.food_id, (needed.get(line.food_id) ?? 0) + grams)
+      const c = countOf(line, readUnits(food?.units), slot.portion_multiplier ?? 1)
+      counts.set(line.food_id, counts.has(line.food_id) ? addCounts(counts.get(line.food_id) ?? null, c) : c)
       if (line.raw_text && !said.has(line.food_id)) said.set(line.food_id, cleanName(line.raw_text))
     }
   }
@@ -48,6 +65,7 @@ export async function tripFromPlan(
       const food = foods.get(foodId)
       const have = stock.get(foodId) ?? 0
       const { packs } = shoppingQuantity(grams, have, food?.pack_size_g ?? null)
+      const count = counts.get(foodId) ?? null
       return {
         id: foodId,
         name: said.get(foodId) ?? food?.name ?? 'Unknown',
@@ -57,6 +75,8 @@ export async function tripFromPlan(
         packs,
         section: food?.store_section ?? 'Other',
         checked: false,
+        count,
+        unit_g: count && count.qty > 0 ? grams / count.qty : null,
       }
     })
     .filter((line) => line.needed_g > line.from_stock_g)

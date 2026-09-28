@@ -84,7 +84,20 @@ export interface Food {
   stores?: string[] | null
   source_ref?: string | null
   image_url?: string | null
+  /** How it is counted besides grams: [{ name: 'egg', plural: 'eggs', g: 50 }]
+   *  (022). Read through readUnits in units-rules.ts; rows from before 022
+   *  have none. */
+  units?: import('./units-rules').FoodUnit[] | null
   deleted_at?: string | null
+}
+
+/** An amount typed in one of the food's units (022). Both are set or both
+ *  are empty; empty means grams. The grams beside them are what count. */
+export interface UnitAmount {
+  /** The unit's name as the food has it: "egg". */
+  unit?: string | null
+  /** How many: 2 (eggs). */
+  unit_qty?: number | null
 }
 
 export interface Recipe {
@@ -105,7 +118,7 @@ export interface Recipe {
   deleted_at?: string | null
 }
 
-export interface RecipeLine {
+export interface RecipeLine extends UnitAmount {
   id: UUID
   recipe_id: UUID
   food_id: UUID | null
@@ -140,7 +153,7 @@ export interface BodyLog {
   deleted_at?: string | null
 }
 
-export interface FoodLogEntry {
+export interface FoodLogEntry extends UnitAmount {
   id: UUID
   profile_id: UUID
   log_date: string
@@ -161,7 +174,7 @@ export interface FoodLogEntry {
   deleted_at?: string | null
 }
 
-export interface MealPlanSlot {
+export interface MealPlanSlot extends UnitAmount {
   id: UUID
   profile_id: UUID
   slot_date: string
@@ -183,8 +196,9 @@ export interface MealPlanSlot {
   deleted_at: string | null
 }
 
-/** What is in the cupboard, shared by the household. */
-export interface Stock {
+/** What is in the cupboard, shared by the household. grams_on_hand is the
+ *  amount; unit and unit_qty only say how to show it ("12 eggs"). */
+export interface Stock extends UnitAmount {
   id: UUID
   household_id: UUID
   food_id: UUID

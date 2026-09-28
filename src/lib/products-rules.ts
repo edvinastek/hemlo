@@ -8,6 +8,7 @@
 
 import { countryName } from './countries.ts'
 import { toGrams, tidy, MAX_GRAMS } from './stock-rules.ts'
+import { parseServing, readUnits, type FoodUnit } from './units-rules.ts'
 import type { Food } from './types'
 
 // ---- barcodes ----------------------------------------------------------------
@@ -117,7 +118,7 @@ export function cleanQuery(text: string): string {
 /** Asked of a product, from a lookup or a search. */
 export const PRODUCT_FIELDS = [
   'code', 'product_name', 'brands', 'quantity', 'product_quantity', 'product_quantity_unit', 'nutriments',
-  'stores', 'stores_tags', 'countries_tags', 'image_front_small_url', 'categories_tags',
+  'stores', 'stores_tags', 'countries_tags', 'image_front_small_url', 'categories_tags', 'serving_size', 'serving_quantity',
 ]
 export const fieldsFor = (lang: string) =>
   [...PRODUCT_FIELDS, 'product_name_nl', ...(lang !== 'nl' && lang !== 'en' ? [`product_name_${lang}`] : []), 'product_name_en'].join(',')
@@ -174,6 +175,9 @@ export interface Product {
   per100: Per100
   image: string | null
   categories: string[]
+  /** The serving the pack states, as a unit of the food: "1 bar (30 g)" is a
+   *  bar of 30 g, "30 g" a portion. Only when the pack says one. */
+  serving?: FoodUnit
 }
 
 type Raw = Record<string, unknown>
@@ -325,6 +329,7 @@ export function readProduct(raw: unknown, lang = 'nl'): Product | null {
   if (!code) return null
   const name = str(p[`product_name_${lang}`]) ?? str(p.product_name) ?? str(p.product_name_nl) ?? str(p.product_name_en)
   const pack = packOf(p)
+  const serving = parseServing(p.serving_size, p.serving_quantity)
   return {
     code,
     name: name ? name.slice(0, NAME_MAX).trim() : null,
@@ -336,6 +341,7 @@ export function readProduct(raw: unknown, lang = 'nl'): Product | null {
     per100: per100Of(p.nutriments),
     image: safeImage(p.image_front_small_url),
     categories: list(p.categories_tags).map((c) => c.toLowerCase()).slice(0, 40),
+    ...(serving ? { serving } : {}),
   }
 }
 
@@ -402,6 +408,10 @@ export function foodFields(p: Product, ownerId: string): Partial<Food> {
     source: 'off',
     source_ref: p.code,
     image_url: p.image,
+    // The pack's serving becomes the food's unit, so it can be counted in
+    // it. Left out when there is none, so the row also saves on a server
+    // without units yet (before 022).
+    ...(p.serving ? { units: [p.serving] } : {}),
     deleted_at: null,
   }
 }
@@ -417,6 +427,7 @@ export function productFromFood(f: Food): Product | null {
     stores: f.stores ?? [],
     per100: { kcal: n(f.kcal), protein_g: n(f.protein_g), carbs_g: n(f.carbs_g), fat_g: n(f.fat_g), fiber_g: n(f.fiber_g) },
     image: safeImage(f.image_url), categories: [],
+    ...(readUnits(f.units).length ? { serving: readUnits(f.units)[0] } : {}),
   }
 }
 

@@ -71,7 +71,8 @@ export async function saveWorkbook(preview: ImportPreview, ownerId: string): Pro
     ...plan.foods.map((f) => pendingEntry('food', f, FOOD_FIELDS, at)),
     ...plan.recipes.flatMap(({ recipe, lines: own }) => [
       pendingEntry('recipe', recipe, RECIPE_FIELDS, at),
-      ...own.map((l) => pendingEntry('recipe_line', l, LINE_FIELDS, at)),
+      // A line counted in a unit carries it; the rest send what they always did.
+      ...own.map((l) => pendingEntry('recipe_line', l, l.unit ? [...LINE_FIELDS, 'unit', 'unit_qty'] : LINE_FIELDS, at)),
     ]),
   ]
 

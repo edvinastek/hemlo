@@ -2,7 +2,7 @@
 // food pages and Today show for the nutrients a person chose.
 import {
   num, factor, readQuick, formFrom, isQuick, quickMacros, quickTitle,
-  shownNutrients, amountLine, metricLine, EMPTY_FORM,
+  shownNutrients, amountLine, metricLine, EMPTY_FORM, quickFromFood, quickAmount,
 } from '../lib/quick-food.ts'
 
 let fail = 0
@@ -81,6 +81,18 @@ is('without a target, only what was eaten and no bar', metricLine('kcal', eaten,
 is('a nutrient with no target figure has no bar', metricLine('carbs_g', eaten, target), { text: 'Carbs 0 g', share: null })
 is('nothing when none', metricLine('none', eaten, target), null)
 is('the bar stops at full', metricLine('kcal', { kcal: 3000 }, target)?.share, 1)
+
+// A meal from a food, in grams or one of its units (022).
+const eggFood = { name: 'Egg Chicken', kcal: 143, protein_g: 12.6, carbs_g: 0.7, fat_g: 9.5, fiber_g: null }
+is('two eggs of 50 g', quickFromFood(eggFood, { grams: 100, unit: 'egg', unit_qty: 2 }), { entry: {
+  label: 'Egg Chicken', kcal: 143, grams: 100, protein_g: 12.6, carbs_g: 0.7, fat_g: 9.5, fiber_g: null, unit: 'egg', unit_qty: 2,
+} })
+is('in grams, no unit kept', 'unit' in quickFromFood(eggFood, { grams: 50, unit: null, unit_qty: null }).entry, false)
+is('half the grams, half the calories', quickFromFood(eggFood, { grams: 50, unit: null, unit_qty: null }).entry.kcal, 72)
+is('a food without calories', 'error' in quickFromFood({ name: 'Mystery', kcal: null }, { grams: 50, unit: null, unit_qty: null }), true)
+is('no amount', 'error' in quickFromFood(eggFood, null), true)
+is('the task says how many', quickTitle('Breakfast', { label: 'Egg Chicken', kcal: 143, unit: 'egg', unit_qty: 2 }), 'Breakfast: Egg Chicken, 2 eggs · 143 kcal')
+is('the amount shown', [quickAmount({ grams: 100, unit: 'egg', unit_qty: 2 }), quickAmount({ grams: 180 }), quickAmount({})], ['2 eggs (100 g)', '180 g', null])
 
 console.log(fail ? `\n${fail} check(s) failed` : '\nall checks passed')
 process.exit(fail ? 1 : 0)

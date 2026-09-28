@@ -134,6 +134,9 @@ export const STATS_FIELDS: FieldDef[] = [
 export const STOCK_FIELDS: FieldDef[] = [
   { name: 'food', label: 'Food', type: 'text' },
   { name: 'grams_on_hand', label: 'In stock', type: 'number', unit: 'g' },
+  // Shown as, when it is kept in one of the food's units: 12 (egg).
+  { name: 'unit_qty', label: 'How many', type: 'number' },
+  { name: 'unit', label: 'Unit', type: 'text' },
   { name: 'note', label: 'Note', type: 'text' },
 ]
 
