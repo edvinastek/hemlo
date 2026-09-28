@@ -5,6 +5,7 @@ import { useApp } from '../lib/store'
 import { supabase } from '../lib/supabase'
 import { recipeMacros } from '../lib/calc'
 import { authorLabel, cleanNote, macroLine, NOTE_MAX } from '../lib/sharing-rules'
+import { entryText, readUnits } from '../lib/units-rules'
 import type { Food, Recipe, RecipeLine } from '../lib/types'
 import '../ui/sharing.css'
 
@@ -111,7 +112,9 @@ function ReviewCard({ item, foods, onDone }: { item: Waiting; foods: Map<string,
         {lines.map((l) => (
           <li key={l.id}>
             {(l.food_id && foods.get(l.food_id)?.name) || l.raw_text || 'A food not on this device'}
-            {l.grams_per_portion !== null ? ` · ${Number(l.grams_per_portion)} g` : ''}
+            {l.grams_per_portion === null ? ''
+              : l.unit ? ` · ${entryText({ grams: Number(l.grams_per_portion), unit: l.unit, unit_qty: l.unit_qty }, readUnits(l.food_id ? foods.get(l.food_id)?.units : null))}`
+              : ` · ${Number(l.grams_per_portion)} g`}
           </li>
         ))}
       </ul>

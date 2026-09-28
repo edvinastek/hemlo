@@ -8,7 +8,9 @@
  *  app follows the same rules so the screen is right before the server
  *  answers. */
 
-export type Sharing = 'private' | 'proposed' | 'public' | 'rejected'
+import { findUnit, gramsOf, readQty, type FoodUnit } from './units-rules.ts'
+
+export type Sharing ='private' | 'proposed' | 'public' | 'rejected'
 /** What the person picks in the editor. */
 export type Choice = 'private' | 'propose'
 
@@ -154,7 +156,13 @@ export interface LineDraft {
   /** Set for a line that is already saved. */
   id: string | null
   food_id: string | null
+  /** The amount as typed, in the unit chosen: grams unless `unit` is set. */
   grams: string
+  /** One of the food's units ("egg") the amount is typed in; none for grams. */
+  unit?: string | null
+  /** The line as saved in a unit. Typed the same again, it keeps its saved
+   *  grams, even if the unit's weight has been changed since. */
+  saved?: { unit: string; qty: number; grams: number } | null
 }
 
 export interface RecipeDraft {
@@ -172,7 +180,8 @@ export interface RecipeValues {
   portions_per_batch: number
   cook_minutes: number | null
   steps: string | null
-  lines: { id: string | null; food_id: string; grams_per_portion: number }[]
+  /** unit and unit_qty only on a line typed in a unit. */
+  lines: { id: string | null; food_id: string; grams_per_portion: number; unit?: string; unit_qty?: number }[]
 }
 
 const num = (s: string) => {
@@ -182,9 +191,31 @@ const num = (s: string) => {
   return Number.isFinite(n) ? n : NaN
 }
 
+/** The grams one line comes to, or why it cannot be read. A line in a unit
+ *  is how many × what one weighs, worked out now and saved with the line; a
+ *  unit the food no longer has is read at the weight it was saved with. */
+export function lineGrams(l: LineDraft, units: FoodUnit[]): { grams: number; unit?: string; unit_qty?: number } | { error: string } {
+  if (!l.unit) {
+    const g = num(l.grams)
+    if (g === null || Number.isNaN(g) || g <= 0 || g > 10000) return { error: 'Each ingredient needs its grams per portion.' }
+    return { grams: Math.round(g * 100) / 100 }
+  }
+  const qty = readQty(l.grams)
+  const kept = l.saved && l.saved.unit.toLowerCase() === l.unit.toLowerCase() && l.saved.qty > 0
+    ? { name: l.saved.unit, g: l.saved.grams / l.saved.qty } : null
+  const unit = findUnit(units, l.unit) ?? kept
+  if (!unit) return { error: `Choose grams or one of the food's units, not ${l.unit}.` }
+  if (qty === null || qty <= 0) return { error: 'Each ingredient needs its amount per portion.' }
+  // Typed as saved: the saved grams stand, whatever the unit weighs now.
+  const grams = l.saved && kept && qty === l.saved.qty ? l.saved.grams : gramsOf(qty, unit)
+  if (grams <= 0 || grams > 10000) return { error: 'One portion holds at most 10 kg of an ingredient.' }
+  return { grams: Math.round(grams * 100) / 100, unit: unit.name, unit_qty: qty }
+}
+
 /** The form read as a recipe, or the first thing wrong with it. The limits
- *  are the database's: portions up to 999, grams up to 10 kg a portion. */
-export function readRecipe(d: RecipeDraft): { values: RecipeValues } | { error: string } {
+ *  are the database's: portions up to 999, grams up to 10 kg a portion.
+ *  `unitsOf` gives a food's units, for lines typed in one. */
+export function readRecipe(d: RecipeDraft, unitsOf: (foodId: string) => FoodUnit[] = () => []): { values: RecipeValues } | { error: string } {
   const name = d.name.trim()
   if (!name) return { error: 'Give it a name.' }
   if (name.length > 120) return { error: 'A name is at most 120 characters.' }
@@ -195,9 +226,11 @@ export function readRecipe(d: RecipeDraft): { values: RecipeValues } | { error: 
   const lines: RecipeValues['lines'] = []
   for (const l of d.lines) {
     if (!l.food_id) continue
-    const g = num(l.grams)
-    if (g === null || Number.isNaN(g) || g <= 0 || g > 10000) return { error: 'Each ingredient needs its grams per portion.' }
-    lines.push({ id: l.id, food_id: l.food_id, grams_per_portion: Math.round(g * 100) / 100 })
+    const read = lineGrams(l, unitsOf(l.food_id))
+    if ('error' in read) return { error: read.error }
+    lines.push(read.unit
+      ? { id: l.id, food_id: l.food_id, grams_per_portion: read.grams, unit: read.unit, unit_qty: read.unit_qty }
+      : { id: l.id, food_id: l.food_id, grams_per_portion: read.grams })
   }
   if (lines.length === 0) return { error: 'Add at least one ingredient.' }
   const steps = d.steps.trim()
@@ -214,7 +247,7 @@ export function readRecipe(d: RecipeDraft): { values: RecipeValues } | { error: 
  *  decides whether an approved recipe goes back for review. */
 export function recipeChanges(
   before: { name: string; role: string | null; portions_per_batch: number; cook_minutes: number | null; steps: string | null } | null,
-  beforeLines: { id: string; food_id: string | null; grams_per_portion: number | null; sort_order: number }[],
+  beforeLines: { id: string; food_id: string | null; grams_per_portion: number | null; sort_order: number; unit?: string | null; unit_qty?: number | string | null }[],
   after: RecipeValues,
 ) {
   const fields: Partial<Pick<RecipeValues, 'name' | 'role' | 'portions_per_batch' | 'cook_minutes' | 'steps'>> = {}
@@ -223,12 +256,14 @@ export function recipeChanges(
     if (!before || before[k] !== after[k]) (fields as Record<string, unknown>)[k] = after[k]
   }
   const byId = new Map(beforeLines.map((l) => [l.id, l]))
-  const upsert: { id: string | null; food_id: string; grams_per_portion: number; sort_order: number }[] = []
+  const upsert: (RecipeValues['lines'][number] & { sort_order: number })[] = []
   let linesChanged = false
   after.lines.forEach((l, i) => {
     const old = l.id ? byId.get(l.id) : undefined
     if (!old) { upsert.push({ ...l, sort_order: i }); linesChanged = true; return }
+    const oldQty = old.unit_qty === null || old.unit_qty === undefined ? null : Number(old.unit_qty)
     const same = old.food_id === l.food_id && Number(old.grams_per_portion) === l.grams_per_portion
+      && (old.unit ?? null) === (l.unit ?? null) && oldQty === (l.unit_qty ?? null)
     if (!same) linesChanged = true
     if (!same || old.sort_order !== i) upsert.push({ ...l, sort_order: i })
   })

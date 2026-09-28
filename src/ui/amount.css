@@ -1,0 +1,50 @@
+/* An amount and what it is counted in (AmountInput). The choices are one
+   joined strip of buttons, like the Stock tab's g and kg; the chosen one is
+   tinted. Colours come from the theme, so light and dark both work. */
+
+.amt-units {
+  display: flex;
+  min-height: 40px;
+  border: 1px solid var(--e-field-line);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+}
+.amt-units button {
+  min-width: 40px;
+  padding: 0 var(--space-2);
+  font-family: var(--font-sans);
+  font-size: 14px;
+  color: var(--e-ink-soft);
+  white-space: nowrap;
+}
+.amt-units button + button { border-left: 1px solid var(--e-field-line); }
+.amt-units button[aria-pressed="true"] { background: var(--e-tint); color: var(--e-ink); font-weight: 600; }
+.amt-units button:focus-visible { outline: 2px solid var(--e-accent); outline-offset: -2px; }
+
+/* Only grams to choose from: the word, not a button. */
+.amt-only {
+  align-self: center;
+  font-family: var(--font-sans);
+  font-size: 14px;
+  color: var(--e-ink-soft);
+}
+
+.amt-dd { min-width: 96px; }
+.amt-input { min-width: 0; text-align: right; }
+
+/* What the amount comes to: "2 eggs (100 g)". */
+.amt-hint { margin: 0; font-family: var(--font-sans); font-size: 12px; color: var(--e-ink-soft); }
+.amt-hint.is-warn { color: var(--e-warn); }
+
+/* A food's units, on its page. */
+.fu-list { display: grid; gap: var(--space-1); margin: 0; padding: 0; list-style: none; }
+.fu-list li {
+  display: flex; align-items: center; justify-content: space-between; gap: var(--space-2);
+  min-height: 40px; padding: 0 var(--space-1) 0 0;
+  font-family: var(--font-sans); font-size: 15px; color: var(--e-ink);
+  border-bottom: 1px solid var(--e-rule);
+}
+.fu-form { display: grid; grid-template-columns: minmax(0, 1.2fr) minmax(0, 1.2fr) minmax(0, 1fr); gap: var(--space-2); }
+.fu-form label { display: grid; gap: 2px; min-width: 0; font-family: var(--font-sans); font-size: 12px; color: var(--e-ink-soft); }
+.fu-form input { min-width: 0; width: 100%; padding: 8px; min-height: 40px; font-size: 15px; }
+.fu-facts { margin: 0; font-family: var(--font-sans); font-size: 13px; color: var(--e-ink-soft); }

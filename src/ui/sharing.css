@@ -32,6 +32,12 @@
 .re-line-name { font-family: var(--font-sans); font-size: 14px; color: var(--e-ink); overflow-wrap: anywhere; }
 .re-line-name .row-chip { margin-left: 4px; }
 .form-grid .re-line input { padding: 7px 8px; text-align: right; }
+/* A food with units: name and × on top, the amount, its unit and what it
+   comes to underneath, wrapping on a narrow phone. */
+.re-line.has-units { grid-template-columns: minmax(0, 1fr) 36px; row-gap: var(--space-1); }
+.re-amount { grid-column: 1 / -1; display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2); min-width: 0; }
+.form-grid .re-amount .amt-input { width: 76px; flex: 0 0 76px; }
+.re-amount .amt-hint { flex: 1 1 120px; }
 .re-remove { width: 36px; height: 36px; border-radius: var(--radius-md); color: var(--e-ink-soft); font-size: 18px; }
 .re-total { font-family: var(--font-sans); font-size: 13px; color: var(--e-ink-soft); }
 .re-error { font-family: var(--font-sans); font-size: 13px; color: var(--e-warn); }
