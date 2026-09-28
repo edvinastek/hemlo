@@ -426,10 +426,12 @@ export const PRODUCT_NAMESPACE = '8fc021ee-4147-4dc5-8664-850cbabd250d'
  *  same pack before either has synced make the same row, so the second one
  *  simply updates it instead of being refused as a duplicate (which lost the
  *  stock and recipes that pointed at it). Null when it is not a barcode. */
-export async function productFoodId(ownerId: string, barcode: string | null | undefined): Promise<string | null> {
+export async function productFoodId(ownerId: string, barcode: string | null | undefined, salt?: string | null): Promise<string | null> {
   const code = normaliseBarcode(barcode)
   if (!code || !ownerId) return null
-  return uuidV5(`${ownerId.toLowerCase()}:${code}`, PRODUCT_NAMESPACE)
+  // With the account's own secret mixed in, no one else can work the id out
+  // (and so learn what was scanned, or take the id first).
+  return uuidV5(salt ? `${ownerId.toLowerCase()}:${salt}:${code}` : `${ownerId.toLowerCase()}:${code}`, PRODUCT_NAMESPACE)
 }
 
 /** A food already kept, shown like a product: for "you have this already". */

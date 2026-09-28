@@ -1,6 +1,7 @@
 import { CapacitorHttp } from '@capacitor/core'
 import { version } from '../../package.json'
 import { db } from './db'
+import { supabase } from './supabase'
 import { edit } from './write'
 import { isNative } from './native'
 import {
@@ -200,8 +201,30 @@ export async function addProduct(product: Product, userId: string): Promise<{ fo
  *  out (no secure context), and then the sync folds any twin together. */
 export async function newProductId(userId: string, code: string): Promise<string> {
   try {
-    return (await productFoodId(userId, code)) ?? crypto.randomUUID()
+    const salt = await productSalt()
+    // Without the account's secret (offline on a first scan) the id is
+    // random; the sync folds it into any twin later.
+    if (!salt) return crypto.randomUUID()
+    return (await productFoodId(userId, code, salt)) ?? crypto.randomUUID()
   } catch {
     return crypto.randomUUID()
   }
+}
+
+/** A random secret kept in the account's own details (only its owner and
+ *  the server can read them), the same on every device signed in to it.
+ *  Made on first need; null while offline before it exists. */
+export async function productSalt(): Promise<string | null> {
+  const { data } = await supabase.auth.getSession()
+  const user = data.session?.user
+  if (!user) return null
+  const have = user.user_metadata?.product_salt
+  if (typeof have === 'string' && /^[0-9a-f]{32}$/.test(have)) return have
+  if (!navigator.onLine) return null
+  const fresh = [...crypto.getRandomValues(new Uint8Array(16))].map((b) => b.toString(16).padStart(2, '0')).join('')
+  const { data: saved, error } = await supabase.auth.updateUser({ data: { product_salt: fresh } })
+  if (error) return null
+  // Another device may have saved one a moment earlier; the answer is the truth.
+  const kept = saved.user?.user_metadata?.product_salt
+  return typeof kept === 'string' ? kept : fresh
 }

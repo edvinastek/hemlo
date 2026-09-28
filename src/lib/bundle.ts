@@ -4,6 +4,7 @@ import { NATURAL_KEYS, naturalKey } from './sync-rules'
 import { withoutReview } from './sharing-rules'
 import { readUnits } from './units-rules'
 import { productFoodId } from './products-rules'
+import { productSalt } from './products'
 import { useApp } from './store'
 
 /** One file that holds everything: profile, plan, logs, recipes and settings.
@@ -83,7 +84,8 @@ export async function exportBundle(profileId: string): Promise<Blob> {
 async function freshId(table: string, r: Row, userId: string): Promise<string> {
   if (table === 'module') return `u_${crypto.randomUUID().replace(/-/g, '').slice(0, 16)}`
   if (table === 'food' && !r.deleted_at) {
-    const id = await productFoodId(userId, r.barcode as string | null).catch(() => null)
+    const salt = await productSalt().catch(() => null)
+    const id = salt ? await productFoodId(userId, r.barcode as string | null, salt).catch(() => null) : null
     if (id) return id
   }
   return crypto.randomUUID()

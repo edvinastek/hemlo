@@ -8,7 +8,7 @@
  *  (VITE_CONTROLLER_NAME, VITE_CONTACT_EMAIL), so they are not hard-coded into
  *  the repository. The public site refuses to build without them. */
 
-export const POLICY_VERSION = '2026-09-28'
+export const POLICY_VERSION = '2026-09-29'
 
 export const controller = {
   name: (import.meta.env.VITE_CONTROLLER_NAME as string | undefined) ?? '',
@@ -64,7 +64,7 @@ export function privacySections(): Section[] {
     {
       heading: 'Who else can see it',
       body: [
-        'No one else. Access is enforced by the database itself, not only by the app. If you share a household, its members share the stock list and shopping trips; your profile, health details and plan stay private to you.',
+        'No one else. Access is enforced by the database itself, not only by the app. If you share a household, its members share the stock list and shopping trips, and can read a food you put in that stock list (its name, brand and figures) while it is there; your profile, health details and plan stay private to you.',
         'The one exception is a recipe you choose to propose to everyone. The app’s owner reads it first, with the name on your profile, to approve or decline it. Once approved, everyone signed in to GetIt can see the recipe and its ingredients, without your name. It stops being shared when you set it back to Only me or delete it, and it is deleted with your account.',
         'Google, which distributes the app through Google Play, receives nothing you enter in GetIt, unless you choose to link a calendar, as below.',
         'Calendar links, only if you make one. A link to show GetIt in Google Calendar lets whoever has it read the titles, times, sections and places of your tasks and of the events you put in your own agenda, from three months back to a year ahead, and your task notes only if you turn that on. Nothing else. Nothing about your health: planned meals, training, weigh-ins, sleep, habits and supplements are left out, whatever their title. Not your name: the calendar is called just GetIt. Not the events of calendars you follow. You give it to Google Calendar yourself; Google then fetches it every few hours and keeps what it reads under its own terms. Anyone you pass the link to can read it too, so keep it private; making a new link or turning it off stops the old one at once.',
