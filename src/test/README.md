@@ -28,7 +28,8 @@ Types, then every check that needs nothing but Node. CI runs the same command.
   sizes); a built-in module's changes survive the stored overlay; a record's day; the rule that turns dated
   records into tasks; the keyword suggestion; every builder preset is a valid module.
 - `calendar` — how far every view reaches (three years back, five ahead, whole months), the week strip stopping
-  at the ends, and how the scrolling month calendar lays out and finds its months.
+  at the ends, and how the scrolling month calendar lays out and finds its months (one column, or several
+  side by side on a wide screen).
 - `reorder` — moving tasks by hand: a drag on Today stays among its kind (timed or not), timed tasks swap
   times with the one they land on, untimed ones take new order numbers; the warnings asked first (locked,
   fixed, locked work hours, a new clash); swapping two days on Plan's week and moving one task to a day.
@@ -58,7 +59,7 @@ export SB=<Supabase access token>  TEST_PASSWORD=<random>
 export TEST_EMAIL=e2e-a@example.invalid TEST_NEW_EMAIL=e2e-b@example.invalid TEST_FEAT_EMAIL=e2e-c@example.invalid
 export TEST_ONBOARD_EMAIL=e2e-d@example.invalid TEST_MODULES_EMAIL=e2e-e@example.invalid
 node scripts/test-accounts.mjs create $TEST_EMAIL $TEST_NEW_EMAIL $TEST_FEAT_EMAIL $TEST_ONBOARD_EMAIL $TEST_MODULES_EMAIL
-for t in onboarding features offline privacy tracking widget tasksheet repeat reorder food stock daytabs modules nav holidays stats transfer layout tour; do node src/test/$t.e2e.mjs || break; done
+for t in onboarding features offline privacy tracking widget tasksheet repeat reorder food stock daytabs modules nav holidays stats transfer layout landscape tour; do node src/test/$t.e2e.mjs || break; done
 node scripts/test-accounts.mjs delete $TEST_EMAIL $TEST_NEW_EMAIL $TEST_FEAT_EMAIL $TEST_ONBOARD_EMAIL $TEST_MODULES_EMAIL
 ```
 
@@ -99,6 +100,11 @@ to the test accounts, because they run against the live project.
   bringing a switched-off card and reaching profile.settings.
 - `layout` — opens every screen and tab at 360 px wide and fails if anything runs off the side
   or sits under the floating add button.
+- `landscape` — the same walk through every screen and tab on a phone turned sideways (844 × 390 and 740 × 360)
+  and a desktop window (1280 × 800): nothing runs off the side, the page bar is a column at the left (the rail
+  on a phone), nothing in the page or the bar sits under the add button, the new task sheet and the "go to a
+  day" calendar fit with Save or Close in view, and on the 740 px phone the drawer style's pages open beside
+  the rail (the style is put back afterwards).
 - `transfer` (uses `TEST_FEAT_EMAIL`) — a Finance entry exported as CSV from its page's Export link
   (clear of the add button), read back in through More → Data → Import and export and found in Postgres,
   the same file again adding nothing; a calendar file into Tasks, its weekly repeat kept as a series.
