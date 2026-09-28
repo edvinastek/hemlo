@@ -1,25 +1,35 @@
-import { useCallback, useEffect, useLayoutEffect, useRef, useState, type CSSProperties, type ReactNode, type RefObject, type TouchEvent } from 'react'
+import { Children, useCallback, useEffect, useLayoutEffect, useRef, useState, type CSSProperties, type ReactNode, type RefObject, type TouchEvent } from 'react'
 import { NavLink, useLocation } from 'react-router-dom'
 import { FIXED_PAGES, pageForPath, type PageInfo, type Pages } from '../lib/pages'
 import { drawerLayout, fanLayout, fanRows, gridLayout, rowLayout } from '../lib/pages-rules'
 import { useNarrow } from './useNarrow'
+import { useLayout } from './useLayout'
 import './nav.css'
 
 /** The page bar. Which pages it holds comes from the modules that are on
  *  (src/lib/pages.ts); how it holds them is the person's choice of style in
  *  More: one row, two or three rows, a drawer, or a fan. On a desktop it is
  *  the sidebar whatever the style, since the styles exist to fit a phone.
- *  Onboarding is the only screen without it. */
+ *  A phone turned sideways gets a slim rail down the left instead (see
+ *  useLayout.ts). Onboarding is the only screen without it. */
 export function Nav({ pages }: { pages: Pages | undefined }) {
   const navRef = useRef<HTMLElement>(null)
   const narrow = useNarrow(899)
+  const layout = useLayout()
   const { pathname } = useLocation()
   const current = pageForPath(pathname)
   // Before the modules have loaded, the three pages that always exist.
   const bar = pages?.bar ?? FIXED_PAGES
   const style = pages?.nav.style ?? 'row'
-  useNavHeight(navRef, narrow)
+  useNavHeight(navRef, narrow && layout === 'bar')
 
+  if (layout === 'rail') {
+    // The drawer keeps its idea (a few pages, the rest behind a button); the
+    // other styles are all ways of fitting a row, so on the rail they become
+    // one list that scrolls.
+    if (style === 'drawer') return <DrawerRail navRef={navRef} bar={bar} current={current} pathname={pathname} />
+    return <RailBar navRef={navRef} bar={bar} current={current} />
+  }
   if (!narrow) {
     return (
       <nav ref={navRef} className="bottom-nav nav nav-side" aria-label="Pages">
@@ -65,37 +75,57 @@ function PageLink({ page, className, onClick, style }: {
 const columns = (pages: PageInfo[]) => pages.map((p) => (p.primary ? '1.25fr' : '1fr')).join(' ')
 const reducedMotion = () => window.matchMedia('(prefers-reduced-motion: reduce)').matches
 
-/** A strip that scrolls sideways, fading at whichever edge has more behind
- *  it, and bringing the open page into view when it changes. */
-function Scroller({ children, className, style, current }: {
-  children: ReactNode; className: string; style?: CSSProperties; current: string | null
+/** A strip that scrolls (sideways on the bar, up and down on the rail),
+ *  fading at whichever end has more behind it, and bringing the open page
+ *  into view when it changes. */
+function Scroller({ children, className, style, current, axis = 'x' }: {
+  children: ReactNode; className: string; style?: CSSProperties; current: string | null; axis?: 'x' | 'y'
 }) {
   const ref = useRef<HTMLDivElement>(null)
   const [fade, setFade] = useState('')
   const measure = useCallback(() => {
     const el = ref.current
     if (!el) return
-    const f = (el.scrollLeft > 2 ? 'l' : '') + (el.scrollLeft + el.clientWidth < el.scrollWidth - 2 ? 'r' : '')
+    // 'l' and 'r' on the bar, 't' and 'b' on the rail: the ends with more behind them.
+    const f = axis === 'x'
+      ? (el.scrollLeft > 2 ? 'l' : '') + (el.scrollLeft + el.clientWidth < el.scrollWidth - 2 ? 'r' : '')
+      : (el.scrollTop > 2 ? 't' : '') + (el.scrollTop + el.clientHeight < el.scrollHeight - 2 ? 'b' : '')
     setFade((x) => (x === f ? x : f))
-  }, [])
-  useLayoutEffect(() => {
-    measure()
-    const ro = new ResizeObserver(measure)
-    ro.observe(ref.current!)
-    return () => ro.disconnect()
-  }, [measure])
-  useEffect(() => {
+  }, [axis])
+  const reveal = useCallback((behavior: ScrollBehavior) => {
     const el = ref.current
     const a = el?.querySelector<HTMLElement>('[aria-current="page"]')
     if (!el || !a) return
-    const behavior: ScrollBehavior = reducedMotion() ? 'auto' : 'smooth'
     // Clear of the 28 px fade, so the open page is never half-faded.
     const pad = 32
+    if (axis === 'y') {
+      if (a.offsetTop - pad < el.scrollTop) el.scrollTo({ top: a.offsetTop - pad, behavior })
+      else if (a.offsetTop + a.offsetHeight + pad > el.scrollTop + el.clientHeight) {
+        el.scrollTo({ top: a.offsetTop + a.offsetHeight - el.clientHeight + pad, behavior })
+      }
+      return
+    }
     if (a.offsetLeft - pad < el.scrollLeft) el.scrollTo({ left: a.offsetLeft - pad, behavior })
     else if (a.offsetLeft + a.offsetWidth + pad > el.scrollLeft + el.clientWidth) {
       el.scrollTo({ left: a.offsetLeft + a.offsetWidth - el.clientWidth + pad, behavior })
     }
-  }, [current])
+  }, [axis])
+  useLayoutEffect(() => {
+    const onResize = () => {
+      measure()
+      // The rail gets shorter when a page with an add button opens (the
+      // button takes the rail's foot): keep the open page in view.
+      if (axis === 'y') reveal('auto')
+    }
+    onResize()
+    const ro = new ResizeObserver(onResize)
+    ro.observe(ref.current!)
+    return () => ro.disconnect()
+  }, [measure, reveal, axis])
+  // Again when the pages arrive: on a cold start the strip first holds only
+  // the pages that always exist, and the open one is not in it yet.
+  const count = Children.count(children)
+  useEffect(() => reveal(reducedMotion() ? 'auto' : 'smooth'), [current, count, reveal])
   return <div ref={ref} className={`nav-scroll ${className}`} style={style} data-fade={fade || undefined} onScroll={measure}>{children}</div>
 }
 
@@ -138,6 +168,72 @@ function GridBar({ navRef, bar, rows, current }: { navRef: RefObject<HTMLElement
         {g.rest.map((p) => <PageLink key={p.key} page={p} />)}
       </Scroller>
     </nav>
+  )
+}
+
+/* ---------- the rail (a phone on its side) --------------------------------- */
+
+/** Down the left edge: Today and Plan at the top, a size up as on the bar,
+ *  More at the foot, and every other page scrolling in between, so the
+ *  three ways home never scroll away. A page's round add button, when it has
+ *  one, sits under More (app.css), clear of the page's content. */
+function RailBar({ navRef, bar, current }: { navRef: RefObject<HTMLElement>; bar: PageInfo[]; current: string | null }) {
+  const top = bar.filter((p) => p.primary)
+  const rest = bar.filter((p) => !p.primary && p.key !== 'more')
+  const foot = bar.filter((p) => p.key === 'more')
+  return (
+    <nav ref={navRef} className="bottom-nav nav nav-rail" aria-label="Pages">
+      {top.map((p) => <PageLink key={p.key} page={p} />)}
+      <Scroller className="nav-rail-scroll" current={current} axis="y">
+        {rest.map((p) => <PageLink key={p.key} page={p} />)}
+      </Scroller>
+      {foot.map((p) => <PageLink key={p.key} page={p} />)}
+    </nav>
+  )
+}
+
+/** The drawer style on its side: Today, Plan and the page open now on the
+ *  rail, and a Modules button that opens the other pages beside it. */
+function DrawerRail({ navRef, bar, current, pathname }: {
+  navRef: RefObject<HTMLElement>; bar: PageInfo[]; current: string | null; pathname: string
+}) {
+  const [open, setOpen] = useState(false)
+  const handle = useRef<HTMLButtonElement>(null)
+  const d = drawerLayout(bar, current)
+  useEffect(() => setOpen(false), [pathname])
+  return (
+    <>
+      <nav ref={navRef} className="bottom-nav nav nav-rail nav-rail-drawer" aria-label="Pages">
+        {d.onBar.map((p) => <PageLink key={p.key} page={p} />)}
+        <span className="nav-rail-gap" aria-hidden="true" />
+        <button ref={handle} type="button" className="nav-item nav-handle" aria-haspopup="dialog" aria-expanded={open}
+          onClick={() => setOpen((o) => !o)}>
+          <span className="nav-glyph" aria-hidden="true">☰</span>
+          <span className="nav-label">Modules</span>
+        </button>
+      </nav>
+      {open && <RailPopover pages={d.inSheet} opener={handle} onClose={() => setOpen(false)} />}
+    </>
+  )
+}
+
+/** The drawer's pages in a box beside the rail, its foot level with the
+ *  button that opened it. It scrolls when there are more than fit. */
+function RailPopover({ pages, opener, onClose }: { pages: PageInfo[]; opener: RefObject<HTMLElement>; onClose: () => void }) {
+  const box = useRef<HTMLDivElement>(null)
+  useDialog(box, opener, onClose)
+  const btn = opener.current?.getBoundingClientRect()
+  const style = { ['--pop-bottom' as string]: `${Math.max(8, window.innerHeight - (btn?.bottom ?? window.innerHeight))}px` } as CSSProperties
+  return (
+    <>
+      <div className="sheet-scrim nav-pop-scrim" onClick={onClose} />
+      <div ref={box} className="nav-pop" role="dialog" aria-modal="true" aria-label="All pages" style={style}>
+        <h2>Pages</h2>
+        <div className="nav-sheet-grid">
+          {pages.map((p) => <PageLink key={p.key} page={p} onClick={onClose} />)}
+        </div>
+      </div>
+    </>
   )
 }
 
