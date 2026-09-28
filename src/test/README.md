@@ -66,6 +66,12 @@ Types, then every check that needs nothing but Node. CI runs the same command.
   recently used first, at most five with the open one counted), addresses masked as `e•••@gmail.com`, what storage
   gives back cleaned (no tokens in a browser), the screens never given a token, and what switching or adding needs
   (online, nothing waiting to be sent; the phone's unlock with a screen lock and a saved token, the password otherwise).
+- `products` — supermarket products from Open Food Facts: barcodes (EAN-13, EAN-8, UPC-A and UPC-E, the check digit,
+  one spelling per product), a product from a lookup or either search read into a food's figures per 100 g (kcal
+  worked out from kJ when that is all there is, fibre's other spellings, unknown left unknown, never salt or sugar),
+  the pack size from grams, millilitres or "6 x 50 g", shop names tidied ("Ah" is Albert Heijn), the food row it
+  becomes and finding one already kept (or deleted) with that barcode, packs into grams for stock, shared prices
+  (the latest per shop, per kilo, the day, offers), and the limiter and cache that keep under Open Food Facts' limits.
 
 ## Browser checks
 
