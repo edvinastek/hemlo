@@ -267,7 +267,8 @@ async function trainingStats(c: Ctx): Promise<Omit<ModuleStats, 'key' | 'label' 
 }
 
 async function agendaStats(c: Ctx): Promise<Omit<ModuleStats, 'key' | 'label' | 'off'>> {
-  const rows = live(await db.calendar_event.where('profile_id').equals(c.profileId).toArray())
+  // The person's own events; a followed calendar's are that calendar's.
+  const rows = live(await db.calendar_event.where('profile_id').equals(c.profileId).toArray()).filter((r) => !r.subscription_id)
   const events: Series = {}
   for (const r of rows) {
     const t = new Date(r.starts_at)

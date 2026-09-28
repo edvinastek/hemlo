@@ -3,7 +3,7 @@
    so it fits a 360 px phone: fields shrink, buttons wrap under the text. */
 
 .cl-block { border-bottom: 1px solid var(--e-rule); }
-.cl-top { border-bottom: 0; align-items: start; }
+.cl .cl-top { border-bottom: 0; align-items: start; }
 .cl-state { margin-top: var(--space-1); color: var(--e-ink); }
 
 .cl-link, .cl-form {
