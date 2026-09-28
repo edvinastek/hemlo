@@ -6,6 +6,7 @@ import { moduleEnabled, toggleHabit } from './tracking'
 import { addDays, pickLog } from './tracking-rules'
 import { localDay } from './review-rules'
 import { buildSnapshot, latestTicks, type WidgetSnapshot, type WidgetTick } from './widget-rules'
+import { builtinRuleOn } from '../modules/rule-switch'
 
 /** The Android home-screen widget (android/…/widget). The app keeps it
  *  current by writing a snapshot of today and tomorrow whenever the tasks or
@@ -29,7 +30,9 @@ async function snapshotFor(profileId: string): Promise<WidgetSnapshot> {
     .where('[profile_id+planned_date]')
     .between([profileId, today], [profileId, tomorrow], true, true)
     .toArray()
-  const habitsOn = await moduleEnabled(profileId, 'habits')
+  // Habits leave the widget with the module, or with its "appears on every
+  // day" rule switched off in Edit module.
+  const habitsOn = await moduleEnabled(profileId, 'habits') && await builtinRuleOn(profileId, 'habits', 'daily')
   const habits = habitsOn ? await db.habit.where('profile_id').equals(profileId).toArray() : null
   // A weekly habit looks back to the Monday of its week, never further.
   const since = addDays(today, -7)

@@ -3,6 +3,7 @@ import { loadReview } from './review'
 import type { ProfileSettings } from './settings'
 import type { ModuleRow } from './types'
 import type { DayInput } from './day-tabs'
+import { builtinRuleOn } from '../modules/rule-switch'
 
 /** The modules switched on for a profile. A built-in module counts only with
  *  a row that says it is on, the way More → Modules shows it. A module the
@@ -27,7 +28,10 @@ export async function loadDayInput(
   const [enabled, tasks, habits, supplements, bodyRows, sleepRows, review, records] = await Promise.all([
     enabledModules(profileId, built),
     db.task.where('[profile_id+planned_date]').equals([profileId, day]).toArray(),
-    db.habit.where('profile_id').equals(profileId).toArray(),
+    // The Habits rule "a daily habit appears on every day"; switched off in
+    // Edit module, habits stay on their page and leave the day.
+    builtinRuleOn(profileId, 'habits', 'daily')
+      .then((on) => (on ? db.habit.where('profile_id').equals(profileId).toArray() : [])),
     db.supplement.where('profile_id').equals(profileId).toArray(),
     db.body_log.where('log_date').equals(day).filter((r) => r.profile_id === profileId && !r.deleted_at).count(),
     db.sleep_log.where('[profile_id+log_date]').equals([profileId, day]).filter((r) => !r.deleted_at).count(),

@@ -6,6 +6,7 @@ import { blankTask, saveTask } from './tasks'
 import { mealTime, readSettings, type ProfileSettings } from './settings'
 import { isQuick, quickTitle, type QuickEntry } from './quick-food'
 import { consumeForMeal } from './stock'
+import { builtinRuleOn } from '../modules/rule-switch'
 import type { Food, FoodLogEntry, MealPlanSlot, Recipe } from './types'
 
 /** The day's meals. They have no time of their own: a time comes from the
@@ -67,9 +68,15 @@ async function syncMealTask(slot: MealPlanSlot, recipe: Recipe | undefined, reti
   const existing = (await db.task.where('profile_id').equals(slot.profile_id).toArray())
     .find((t) => t.source === 'meal' && t.source_ref === slot.id)
   const quick = isQuick(slot)
+  // The Nutrition rule "every planned meal becomes a task", which can be
+  // switched off in Edit module. Off, a meal already eaten keeps its ticked
+  // task as a record of the day; the rest go.
+  const on = await builtinRuleOn(slot.profile_id, 'nutrition', 'meal_tasks')
 
-  if (slot.deleted_at || (!recipe && !quick)) {
-    if (existing && !existing.deleted_at) await saveTask({ ...existing, deleted_at: new Date().toISOString() }, ['deleted_at'])
+  if (slot.deleted_at || (!recipe && !quick) || !on) {
+    if (existing && !existing.deleted_at && (on || existing.status !== 'done')) {
+      await saveTask({ ...existing, deleted_at: new Date().toISOString() }, ['deleted_at'])
+    }
     return
   }
   const time = mealTime(slot, await settingsFor(slot.profile_id))
@@ -156,6 +163,15 @@ export async function retimeMeals(profileId: string, before: ProfileSettings, af
     if (!task || (task.planned_time?.slice(0, 5) ?? null) !== was) continue
     await saveTask({ ...task, planned_time: now }, ['planned_time'])
   }
+}
+
+/** After the meal-task rule is switched on or off: every meal from today on
+ *  gets its task back, or loses it. Past days are left as they were. */
+export async function syncMealTasks(profileId: string) {
+  const today = format(new Date(), 'yyyy-MM-dd')
+  const slots = (await db.meal_plan_slot.where('profile_id').equals(profileId).toArray())
+    .filter((s) => !s.deleted_at && s.slot_date >= today)
+  for (const slot of slots) await syncMealTask(slot, slot.recipe_id ? await db.recipe.get(slot.recipe_id) : undefined)
 }
 
 /** A quick entry's log is kept under the slot's own id: unticking finds
