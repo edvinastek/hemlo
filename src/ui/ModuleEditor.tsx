@@ -3,13 +3,15 @@ import { useApp } from '../lib/store'
 import { moduleByKey } from '../modules/registry'
 import type { EntityDef, FieldDef, ModuleDef, RuleDef, ViewDef } from '../modules/types'
 import {
-  LIMITS, PAGE_VIEW_TYPES, RULE_DAY_TASK, RULE_REMIND, cleanKeywords, definitionFor, definitionProblem,
-  glyphProblem, isDateLike, isNumeric, overlayFrom, type StatsKind,
+  BUILTIN_RULES, LIMITS, RULE_DAY_TASK, RULE_REMIND, cleanKeywords, definitionFor, definitionProblem,
+  glyphProblem, isDateLike, isNumeric, overlayFrom, ruleSupport, viewDefaults, type StatsKind,
 } from '../modules/def-rules'
 import { deleteBuiltModule, saveModuleDef, useModuleDef } from '../modules/defs'
 import { syncModuleTasks } from '../modules/records'
+import { syncMealTasks } from '../lib/meals'
 import { FieldForm, STATS_OPTIONS, describeField } from '../modules/FieldForm'
-import { Dropdown, type Option } from './Dropdown'
+import { VIEW_TYPE_NAME, VIEW_TYPE_OPTIONS, ViewSettings } from '../modules/ViewSettings'
+import { Dropdown } from './Dropdown'
 import '../modules/modules.css'
 
 /** A module as what it is — fields, views, rules and its name — and every
@@ -27,13 +29,6 @@ const TABS: { key: Tab; label: string }[] = [
 /** Modules whose page is a screen of its own: fields and views are fixed. */
 const FIXED_PAGES = ['nutrition', 'shopping', 'habits', 'supplements', 'health']
 
-const VIEW_TYPE_OPTIONS: Option<ViewDef['type']>[] = [
-  { value: 'list', label: 'List', hint: 'Cards, newest first' },
-  { value: 'table', label: 'Table', hint: 'Edit in place, like a sheet' },
-  { value: 'calendar', label: 'Calendar', hint: 'A month, records on their days' },
-  { value: 'form', label: 'Form', hint: 'Add one record after another' },
-]
-const VIEW_TYPE_NAME: Record<string, string> = { list: 'List', table: 'Table', calendar: 'Calendar', form: 'Form', board: 'Board', grid: 'Grid', chart: 'Chart' }
 
 const clone = <T,>(v: T): T => JSON.parse(JSON.stringify(v)) as T
 
@@ -85,6 +80,8 @@ export function ModuleEditor({ moduleKey, onBack }: { moduleKey: string; onBack:
         || JSON.stringify(draft.entities) !== JSON.stringify(live.entities)
       await saveModuleDef(profile.id, draft)
       if (draft.built && rulesChanged) await syncModuleTasks(profile.id, draft)
+      // A built-in rule that makes tasks follows its switch at once, from today on.
+      if (draft.key === 'nutrition' && rulesChanged) await syncMealTasks(profile.id)
       setNote({ text: 'Saved.' })
       window.setTimeout(() => setNote((n) => (n?.text === 'Saved.' ? null : n)), 2500)
     } catch (e) {
@@ -204,6 +201,8 @@ function EntityFields({ entity, baseEntity, built, fixed, showTitle, change }: {
       if (v.entity !== e.name) continue
       if (v.columns) v.columns = v.columns.filter((c) => c !== name)
       if (v.dateField === name) delete v.dateField
+      if (v.groupBy === name) delete v.groupBy
+      if (v.field === name) delete v.field
     }
   })
 
@@ -294,9 +293,8 @@ function ViewsTab({ draft, base, fixed, change }: { draft: ModuleDef; base?: Mod
       const taken = d.views.map((v) => v.key)
       for (let i = 2; taken.includes(key); i++) key = `${key.replace(/_\d+$/, '')}_${i}`
       const entity = d.entities.find((e) => e.name === entityName) ?? d.entities[0]
-      const v: ViewDef = { key, name: label.slice(0, LIMITS.viewName), type, entity: entity.name }
-      if (type === 'calendar') { const df = entity.fields.find(isDateLike); if (df) v.dateField = df.name }
-      d.views.push(v)
+      // Settings filled in from the fields there are, so it draws at once.
+      d.views.push(viewDefaults({ key, name: label.slice(0, LIMITS.viewName), type, entity: entity.name }, entity))
     })
     setName('')
   }
@@ -307,14 +305,11 @@ function ViewsTab({ draft, base, fixed, change }: { draft: ModuleDef; base?: Mod
         const entity = draft.entities.find((e) => e.name === v.entity)
         const fields = entity?.fields ?? []
         const cols = v.columns?.length ? v.columns : fields.map((f) => f.name)
-        const dateFields = fields.filter(isDateLike)
-        const supported = PAGE_VIEW_TYPES.includes(v.type)
         return (
           <div key={v.key} className={`me-row${v.hidden ? ' is-off' : ''}`}>
             <label className="me-label">
               <span className="row-meta">
                 {VIEW_TYPE_NAME[v.type] ?? v.type}{draft.entities.length > 1 && entity ? ` of ${entity.label.toLowerCase()}s` : ''}
-                {!supported ? ' · shown as a list' : ''}
               </span>
               <input value={v.name} maxLength={LIMITS.viewName} aria-label={`Name of the ${v.name} view`}
                 onChange={(ev) => change((d) => { d.views[i].name = ev.target.value })} />
@@ -340,20 +335,7 @@ function ViewsTab({ draft, base, fixed, change }: { draft: ModuleDef; base?: Mod
                 })}
               </div>
             )}
-            {v.type === 'calendar' && (
-              <div className="me-more">
-                {dateFields.length === 0
-                  ? <span className="mf-hint">Add a date field for this calendar to go by.</span>
-                  : (
-                    <div className="mf-field" style={{ minWidth: 200 }}>
-                      <span className="mf-hint">Records go on the day of</span>
-                      <Dropdown label={`Date field of ${v.name}`} value={v.dateField ?? dateFields[0].name}
-                        options={dateFields.map((f) => ({ value: f.name, label: f.label }))}
-                        onChange={(val) => change((d) => { d.views[i].dateField = val })} />
-                    </div>
-                  )}
-              </div>
-            )}
+            {entity && <ViewSettings view={v} entity={entity} change={(fn) => change((d) => fn(d.views[i]))} />}
             {removable(v) && (
               <div className="me-more">
                 <button type="button" className="btn" disabled={draft.views.length <= 1}
@@ -395,6 +377,24 @@ function RulesTab({ draft, fixed, change }: { draft: ModuleDef; fixed: boolean; 
     .filter(({ f }) => isNumeric(f))
 
   const ruleRow = (r: RuleDef, i: number) => {
+    // A built-in module's rule has a switch only when the app acts on it;
+    // otherwise a line says why not (see BUILTIN_RULES in def-rules.ts).
+    if (!draft.built) {
+      const support = ruleSupport(draft.key, r.name)
+      const note = BUILTIN_RULES[`${draft.key}.${r.name}`]?.note ?? 'Not acted on yet.'
+      return (
+        <div key={r.name} className={`me-row${r.off && support === 'switch' ? ' is-off' : ''}`}>
+          <div>
+            <div className="row-name">{r.sentence}</div>
+            <div className="row-meta">{note}{r.locked ? ' Locked: the planner never works around it.' : ''}</div>
+          </div>
+          {support === 'switch'
+            ? <button type="button" className="switch" role="switch" aria-checked={!r.off} aria-label={r.sentence}
+                onClick={() => change((d) => { const rule = d.rules[i]; if (rule.off) delete rule.off; else rule.off = true })} />
+            : <span className="row-meta">{support === 'always' ? 'Always on' : 'No switch yet'}</span>}
+        </div>
+      )
+    }
     const needsDayTask = r.name === RULE_REMIND && !dayTaskOn
     return (
       <div key={r.name} className={`me-row${r.off ? ' is-off' : ''}`}>
@@ -450,7 +450,7 @@ function RulesTab({ draft, fixed, change }: { draft: ModuleDef; fixed: boolean; 
         </>
       )}
       {!draft.built && draft.rules.length > 0 && (
-        <p className="mp-note">A locked rule is one the planner may never work around. Switching a rule off is kept with your module settings.</p>
+        <p className="mp-note">A switch takes effect once saved and is kept with your module settings. Rules without a switch describe what the module is, or what it will do once the app can.</p>
       )}
     </>
   )

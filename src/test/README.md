@@ -26,7 +26,9 @@ Types, then every check that needs nothing but Node. CI runs the same command.
 - `colours` — module colours: the palette at 3:1 or more on both the light and the dark page, defaults, a task's module, choosing and resetting.
 - `moduledefs` — module definitions read from storage are checked and cleaned (names, types, formulas, options,
   sizes); a built-in module's changes survive the stored overlay; a record's day; the rule that turns dated
-  records into tasks; the keyword suggestion; every builder preset is a valid module.
+  records into tasks; the keyword suggestion; every builder preset is a valid module. What board, grid and
+  chart views go by, their stored settings, and a view that cannot draw stopping a save. Every built-in rule
+  says whether the app acts on it; only those have switches, and a switch stored off reads as off.
 - `calendar` — how far every view reaches (three years back, five ahead, whole months), the week strip stopping
   at the ends, and how the scrolling month calendar lays out and finds its months.
 - `reorder` — moving tasks by hand: a drag on Today stays among its kind (timed or not), timed tasks swap
@@ -46,6 +48,9 @@ Types, then every check that needs nothing but Node. CI runs the same command.
   semicolon CSV, JSON; columns matched by name, label or Google Calendar's headers; dates, times and
   numbers as spreadsheets write them; each row's problems, required columns, server limits, duplicates by
   natural key; the dataset catalogue, ranges, file names, figures for charts.
+- `views` — a module's board, grid and chart: columns by option (and one for none), where a card can move;
+  the grid's last 7/14/30 days, its rows, cells ticked or counted, what a tap does, runs of days; the chart's
+  sums per day, week (from Monday) and month (leap years), the future left out, calculated fields, the axis.
 
 ## Browser checks
 
@@ -58,7 +63,7 @@ export SB=<Supabase access token>  TEST_PASSWORD=<random>
 export TEST_EMAIL=e2e-a@example.invalid TEST_NEW_EMAIL=e2e-b@example.invalid TEST_FEAT_EMAIL=e2e-c@example.invalid
 export TEST_ONBOARD_EMAIL=e2e-d@example.invalid TEST_MODULES_EMAIL=e2e-e@example.invalid
 node scripts/test-accounts.mjs create $TEST_EMAIL $TEST_NEW_EMAIL $TEST_FEAT_EMAIL $TEST_ONBOARD_EMAIL $TEST_MODULES_EMAIL
-for t in onboarding features offline privacy tracking widget tasksheet repeat reorder food stock daytabs modules nav holidays stats transfer layout tour; do node src/test/$t.e2e.mjs || break; done
+for t in onboarding features offline privacy tracking widget tasksheet repeat reorder food stock daytabs modules views nav holidays stats transfer layout tour; do node src/test/$t.e2e.mjs || break; done
 node scripts/test-accounts.mjs delete $TEST_EMAIL $TEST_NEW_EMAIL $TEST_FEAT_EMAIL $TEST_ONBOARD_EMAIL $TEST_MODULES_EMAIL
 ```
 
@@ -91,6 +96,10 @@ to the test accounts, because they run against the live project.
   Work on a day without it; the rail's colour marker on and off, and a colour reaching profile.settings.
 - `modules` — a module built from the Expenses preset, a dated record in Postgres, the rule that puts it on
   Today as a task, a field added in the editor, a night on the Sleep page, a built-in field renamed.
+- `views` (uses `TEST_MODULES_EMAIL`, after `modules`) — at 360 px: a module built with Board, Grid and Chart
+  views; a card moved by holding and dragging and by its Move menu, both reaching Postgres; a grid cell ticked
+  (a record for that day); the chart's bars and a value read out on tap; no overflow. Then Habits' "appears on
+  every day" rule switched off: its Habits tab leaves Today, and comes back when switched on.
 - `holidays` — public holidays: the profile's country offered with one tap, Germany added by search,
   both in profile.settings in different colours; the next Dutch or German holiday marked in Plan's
   Month (colours, names, legend, 3:1 contrast) and Week; a chip on Today only on a holiday; removing one.

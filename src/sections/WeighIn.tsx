@@ -8,6 +8,7 @@ import {
   parseBirthDate, parseHeight, parseWaist, pickProfile, parseWeight, trendPoints, withChanges,
 } from '../lib/body-rules'
 import type { Profile } from '../lib/types'
+import { builtinRuleOn } from '../modules/rule-switch'
 import './weighin.css'
 
 const SHOWN = 8
@@ -67,7 +68,11 @@ export function WeighIn({ profileId, day }: { profileId: string; day: string }) 
     typed.current = null
     try {
       await saveWeighIn(profileId, day, w.value!, c.value)
-      if (profile) {
+      // The Health rule "when the weight changes, recalculate the targets",
+      // which can be switched off in Edit module.
+      if (profile && !await builtinRuleOn(profileId, 'health', 'retarget')) {
+        setNote('Weight saved. Targets are left as they are: recalculating is switched off in Edit module.')
+      } else if (profile) {
         const result = await retarget(profile, day, w.value!)
         setNote('missing' in result ? 'Weight saved. Targets were not recalculated.' : 'Weight saved and targets recalculated.')
       } else {

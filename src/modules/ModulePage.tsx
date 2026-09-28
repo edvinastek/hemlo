@@ -15,6 +15,9 @@ import { useLookups, useRecords, type Rec } from './records'
 import { InlineForm, RecordSheet } from './RecordSheet'
 import { ExportLink } from '../ui/ExportLink'
 import { CalendarView, ListView, TableView, Totals } from './views'
+import { BoardView } from './views/Board'
+import { GridView } from './views/Grid'
+import { ChartView } from './views/Chart'
 import './modules.css'
 
 /** Modules whose page is a section the app already has. */
@@ -168,7 +171,14 @@ function Generic({ def, profileId, onEdit }: { def: ModuleDef; profileId: string
           {type === 'calendar' && view && (
             <CalendarView entity={entity} view={view} recs={recs} lookups={lookups} onOpen={open} onAdd={add} />
           )}
-          {type !== 'form' && type !== 'calendar' && recs.length === 0 && (
+          {type === 'board' && view && (
+            <BoardView key={view.key} def={def} entity={entity} view={view} recs={recs} lookups={lookups} profileId={profileId} onOpen={open} />
+          )}
+          {type === 'grid' && view && (
+            <GridView key={view.key} def={def} entity={entity} view={view} recs={recs} lookups={lookups} profileId={profileId} onOpen={open} />
+          )}
+          {type === 'chart' && view && <ChartView key={view.key} entity={entity} view={view} recs={recs} />}
+          {(type === 'list' || type === 'table') && recs.length === 0 && (
             <div className="empty">
               <p style={{ margin: 0 }}>No {noun}s yet. Tap the round + button to add the first {noun}; it shows here as soon as it is saved, with or without a connection.</p>
             </div>

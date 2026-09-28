@@ -18,6 +18,7 @@ import { Dropdown } from '../ui/Dropdown'
 import { ExportLink } from '../ui/ExportLink'
 import { moduleByKey } from '../modules/registry'
 import type { FieldDef } from '../modules/types'
+import { useBuiltinRuleOn } from '../modules/rule-switch'
 import type { Food as FoodRow, Recipe, RecipeLine, MealPlanSlot, Target } from '../lib/types'
 
 const NUTRIENT_KEYS: string[] = ['kcal', 'protein_g', 'carbs_g', 'fat_g', 'fiber_g']
@@ -178,7 +179,9 @@ function MealDay({ profileId, userId, day, recipes, lines, foods, target, eaten,
   const mainPer = main && !isQuick(main) ? perPortion(main.recipe_id) : null
   const others = slots.filter((s) => s.slot !== MAIN_SLOT).reduce((acc, s) => add(acc, slotTotals(s) ?? ZERO), ZERO)
   const targetKcal = Math.round(Number(target?.kcal ?? 0))
-  const suggestion = targetKcal > 0 && mainPer && mainPer.kcal > 0
+  // The Nutrition rule "scale the main meal", which Edit module can switch off.
+  const sizeMain = useBuiltinRuleOn(profileId, 'nutrition', 'size_main')
+  const suggestion = sizeMain && targetKcal > 0 && mainPer && mainPer.kcal > 0
     ? Math.round(mealMultiplier({ kcal: targetKcal, protein_g: target?.protein_g ?? null }, others, mainPer) * 10) / 10 : null
 
   const goal = (k: Nutrient) => Math.round(Number(target?.[k] ?? 0))

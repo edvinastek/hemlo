@@ -7,6 +7,8 @@ import {
   glyphProblem, cleanKeywords, newModuleKey, fieldNameFrom, readOverlay, applyOverlay, overlayFrom,
   recordDate, cleanValues, computeFormulas, taskPlan, taskChange, builtRuleCatalogue, ruleOn,
   moduleKeywords, suggestModules, mainField, RULE_DAY_TASK, RULE_REMIND,
+  boardField, gridFields, chartFields, viewProblem, viewDefaults,
+  BUILTIN_RULES, ruleSupport, ruleSwitchable, isBuiltinRuleOn,
 } from '../modules/def-rules.ts'
 import { MODULES } from '../modules/registry.ts'
 import { PRESETS } from '../modules/presets.ts'
@@ -116,9 +118,8 @@ edited.entities[0].fields.reverse()
 edited.views[1].hidden = true
 edited.views.reverse()
 edited.views.find((v) => v.key === 'log').columns = ['log_date', 'quality']
-edited.rules[0].off = true
 const o = overlayFrom(sleep, edited)
-is('an overlay carries only the changes', Object.keys(o).sort(), ['glyph', 'hidden', 'labels', 'name', 'order', 'rulesOff', 'views'])
+is('an overlay carries only the changes', Object.keys(o).sort(), ['glyph', 'hidden', 'labels', 'name', 'order', 'views'])
 is('and survives being stored', applyOverlay(sleep, readOverlay(JSON.parse(JSON.stringify(o)), sleep)), edited)
 is('no changes, no overlay', overlayFrom(sleep, clone(sleep)), {})
 is('an empty overlay is the module itself', applyOverlay(sleep, readOverlay({}, sleep)).entities, sleep.entities)
@@ -198,6 +199,74 @@ is('renamed: rename the task', taskChange({ ...plan, title: 'Rent, October' }, t
 is('no plan any more: remove the task', taskChange(null, task), 'delete')
 is('no plan and the task already gone: nothing', taskChange(null, { ...task, deleted_at: 'x' }), 'none')
 is('a removed task comes back when the rule wants it', taskChange(plan, { ...task, deleted_at: 'x' }), 'update')
+
+// ---------- board, grid and chart views -----------------------------------------
+const item = { name: 'item', label: 'Item', fields: [
+  { name: 'name', label: 'Name', type: 'text', required: true },
+  { name: 'day', label: 'Day', type: 'date' },
+  { name: 'status', label: 'Status', type: 'select', options: ['to do', 'doing', 'done'] },
+  { name: 'kind', label: 'Kind', type: 'select', options: ['a', 'b'] },
+  { name: 'amount', label: 'Amount', type: 'number' },
+  { name: 'done', label: 'Done', type: 'boolean' },
+  { name: 'double', label: 'Double', type: 'formula', formula: 'amount * 2' },
+]}
+const bare = { name: 'item', label: 'Item', fields: [{ name: 'name', label: 'Name', type: 'text' }] }
+const view = (type, extra = {}) => ({ key: type, name: type, type, entity: 'item', ...extra })
+is('a board goes by the first choice field', boardField(item, view('board')).name, 'status')
+is('or the one it names', boardField(item, view('board', { groupBy: 'kind' })).name, 'kind')
+is('a board without a choice field cannot draw', viewProblem(view('board'), bare), 'A board needs a choice field; its options are the columns.')
+is('a grid ticks the first yes/no field, rows by name', Object.values(gridFields(item, view('grid'))).map((f) => f?.name), ['name', 'day', 'done'])
+is('a grid can count a number instead', gridFields(item, view('grid', { field: 'amount' })).mark.name, 'amount')
+is('a grid can tick nothing (a tap adds a record)', gridFields(item, view('grid', { field: '' })).mark, undefined)
+is('a grid needs a date', viewProblem(view('grid'), bare), 'A grid needs a date field: its columns are days.')
+is('a chart draws the first number', chartFields(item, view('chart')).value.name, 'amount')
+is('a chart can draw a calculated field', chartFields(item, view('chart', { field: 'double' })).value.name, 'double')
+is('a chart does not draw text', chartFields(item, view('chart', { field: 'name' })).value.name, 'amount')
+is('a chart needs a number', viewProblem(view('chart'), { ...bare, fields: [...bare.fields, { name: 'd', label: 'D', type: 'date' }] }), 'A chart needs a number field to draw.')
+is('lists and tables always draw', [view('list'), view('table'), view('form')].map((v) => viewProblem(v, bare)), [null, null, null])
+is('defaults fill a new chart in', viewDefaults(view('chart'), item), { key: 'chart', name: 'chart', type: 'chart', entity: 'item', dateField: 'day', field: 'amount', period: 'week', chart: 'bar' })
+is('defaults fill a new board in', viewDefaults(view('board'), item).groupBy, 'status')
+is('defaults keep what is set', viewDefaults(view('grid', { field: '' }), item).field, '')
+const withViews = (views) => readBuiltDefinition({ key: 'u_views0', name: 'V', definition: { entities: [item], views } }).views
+is('stored settings are kept when they fit', withViews([view('board', { groupBy: 'kind', columns: ['amount', 'day', 'done'] }), view('chart', { field: 'double', period: 'month', chart: 'line' })]),
+  [{ key: 'board', name: 'board', type: 'board', entity: 'item', columns: ['amount', 'day'], groupBy: 'kind' },
+    { key: 'chart', name: 'chart', type: 'chart', entity: 'item', field: 'double', period: 'month', chart: 'line' }])
+is('and dropped when they do not', withViews([view('board', { groupBy: 'amount' }), view('chart', { field: 'name', period: 'year', chart: 'pie' }), view('grid', { groupBy: 'done', field: 'name' })]),
+  [view('board'), view('chart'), view('grid')])
+is('settings of one kind do not stick to another', withViews([view('list', { groupBy: 'status', field: 'amount', period: 'day' })]), [view('list')])
+is('a grid keeps "a tap adds a record"', withViews([view('grid', { field: '' })])[0].field, '')
+const viewDef = (views) => ({ key: 'u_views0', name: 'V', summary: '', built: true, depth: 'light', entities: [bare], views, rules: builtRuleCatalogue() })
+is('a board that cannot draw stops a save', definitionProblem(viewDef([view('list'), view('board')])), 'board: A board needs a choice field; its options are the columns.')
+is('unless it is switched off', definitionProblem(viewDef([view('list'), view('board', { hidden: true })])), null)
+is('the app’s own views of a built-in module are not held to it', definitionProblem(clone(base('habits'))), null)
+const fin = clone(base('finance'))
+fin.views.push({ key: 'spend', name: 'Spend', type: 'chart', entity: 'entry', field: 'amount', period: 'month' })
+is('a chart added to a built-in module survives its overlay', applyOverlay(finance, readOverlay(JSON.parse(JSON.stringify(overlayFrom(finance, fin))), finance)).views.at(-1),
+  { key: 'spend', name: 'Spend', type: 'chart', entity: 'entry', field: 'amount', period: 'month' })
+
+// ---------- built-in rules: which are acted on, and the switch ------------------
+const allRules = MODULES.flatMap((m) => m.rules.map((r) => `${m.key}.${r.name}`))
+is('every registry rule says what the app does with it', allRules.filter((k) => !BUILTIN_RULES[k]), [])
+is('and nothing is listed that is not in the registry', Object.keys(BUILTIN_RULES).filter((k) => !allRules.includes(k)), [])
+is('the rules acted on have switches', allRules.filter((k) => ruleSwitchable(...k.split('.'))).sort(),
+  ['habits.daily', 'health.retarget', 'nutrition.meal_tasks', 'nutrition.size_main'])
+is('the trip from the plan is always on', ruleSupport('shopping', 'from_plan'), 'always')
+is('a built module’s rules all have switches', [ruleSwitchable('u_abcdef123456', RULE_DAY_TASK), ruleSwitchable('u_abcdef123456', RULE_REMIND)], [true, true])
+is('a rule is on with no changes', isBuiltinRuleOn('nutrition', 'meal_tasks', undefined), true)
+is('switched off in the overlay, it is off', isBuiltinRuleOn('nutrition', 'meal_tasks', { rulesOff: ['meal_tasks'] }), false)
+is('the other rule of the module stays on', isBuiltinRuleOn('nutrition', 'size_main', { rulesOff: ['meal_tasks'] }), true)
+is('garbage in the overlay leaves it on', isBuiltinRuleOn('habits', 'daily', 'drop table'), true)
+is('an unknown rule is never on', isBuiltinRuleOn('habits', 'nope', {}), false)
+is('an unknown module is never on', isBuiltinRuleOn('nope', 'daily', {}), false)
+is('a rule the app does not act on cannot be stored off', readOverlay({ rulesOff: ['bedtime'] }, sleep).rulesOff, undefined)
+is('and reads as on', isBuiltinRuleOn('sleep', 'bedtime', { rulesOff: ['bedtime'] }), true)
+const nut = clone(base('nutrition'))
+nut.rules.find((r) => r.name === 'meal_tasks').off = true
+nut.rules.find((r) => r.name === 'skipped_meal').off = true
+const nutO = overlayFrom(base('nutrition'), nut)
+is('the editor’s switch is saved for a rule with one', nutO.rulesOff, ['meal_tasks'])
+is('and read back off', isBuiltinRuleOn('nutrition', 'meal_tasks', JSON.parse(JSON.stringify(nutO))), false)
+is('switched back on, the overlay is empty', overlayFrom(base('nutrition'), clone(base('nutrition'))), {})
 
 // ---------- keywords ------------------------------------------------------------
 is('built-in modules have keywords', moduleKeywords().every((m) => m.keywords.length > 0), true)

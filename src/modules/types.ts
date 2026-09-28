@@ -32,8 +32,18 @@ export interface ViewDef {
   entity: string
   columns?: string[]
   filters?: Record<string, unknown>
-  /** The date or date-time field a calendar view places records by. */
+  /** The date or date-time field a calendar, grid or chart goes by. */
   dateField?: string
+  /** Board: the choice field whose options are its columns. Grid: the
+   *  field its rows are named by (the record's name when there is none). */
+  groupBy?: string
+  /** Chart: the number it draws. Grid: the yes/no or number a tap ticks
+   *  (none: a tap just adds a record for that day). */
+  field?: string
+  /** Chart: added up per day, week or month, until changed on the page. */
+  period?: 'day' | 'week' | 'month'
+  /** Chart: bars or a line. */
+  chart?: 'bar' | 'line'
   /** Switched off in the editor: kept, but not shown as a tab. */
   hidden?: boolean
 }

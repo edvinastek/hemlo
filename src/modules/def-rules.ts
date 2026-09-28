@@ -16,8 +16,14 @@ export const FIELD_TYPES: FieldType[] = [
 export type LookupKind = NonNullable<FieldDef['lookup']>
 export const LOOKUPS: LookupKind[] = ['food', 'recipe', 'exercise', 'task', 'goal']
 export const VIEW_TYPES: ViewDef['type'][] = ['list', 'table', 'calendar', 'board', 'grid', 'chart', 'form']
-/** The view types the generic module page draws. */
-export const PAGE_VIEW_TYPES: ViewDef['type'][] = ['list', 'table', 'calendar', 'form']
+/** The view types the generic module page draws: all of them. */
+export const PAGE_VIEW_TYPES: ViewDef['type'][] = ['list', 'table', 'calendar', 'board', 'grid', 'chart', 'form']
+export type ChartPeriod = NonNullable<ViewDef['period']>
+export const CHART_PERIODS: ChartPeriod[] = ['day', 'week', 'month']
+export type ChartKind = NonNullable<ViewDef['chart']>
+export const CHART_KINDS: ChartKind[] = ['bar', 'line']
+/** A board card shows its name and at most this many other fields. */
+export const BOARD_CARD_FIELDS = 2
 export type StatsKind = NonNullable<FieldDef['stats']>
 export const STATS: StatsKind[] = ['sum', 'average', 'count']
 
@@ -212,7 +218,107 @@ export function cleanView(raw: unknown, entities: EntityDef[]): ViewDef | null {
   }
   const df = entity.fields.find((f) => f.name === raw.dateField && isDateLike(f))
   if (df) v.dateField = df.name
+  // Each kind keeps only the settings it uses, naming fields that fit.
+  const named = (n: unknown, ok: (f: FieldDef) => boolean) => entity.fields.find((f) => f.name === n && ok(f))?.name
+  if (type === 'board') {
+    const g = named(raw.groupBy, (f) => f.type === 'select')
+    if (g) v.groupBy = g
+    if (v.columns) v.columns = v.columns.slice(0, BOARD_CARD_FIELDS)
+  }
+  if (type === 'grid') {
+    const g = named(raw.groupBy, isGridRow)
+    if (g) v.groupBy = g
+    const m = named(raw.field, isGridMark)
+    // An empty name is a choice: a tap just adds a record for the day.
+    if (m || raw.field === '') v.field = m ?? ''
+  }
+  if (type === 'chart') {
+    const m = named(raw.field, isNumeric)
+    if (m) v.field = m
+    if (CHART_PERIODS.includes(raw.period as ChartPeriod)) v.period = raw.period as ChartPeriod
+    if (CHART_KINDS.includes(raw.chart as ChartKind)) v.chart = raw.chart as ChartKind
+  }
   if (raw.hidden === true) v.hidden = true
+  return v
+}
+
+/* ---------- what board, grid and chart views go by ------------------------ */
+
+/** A field that can name a grid's rows: text, a choice or a link. */
+export const isGridRow = (f: Pick<FieldDef, 'type'>) => f.type === 'text' || f.type === 'select' || f.type === 'lookup'
+/** A field a tap on a grid cell can tick: yes/no, or a number to count up. */
+export const isGridMark = (f: Pick<FieldDef, 'type'>) =>
+  f.type === 'boolean' || f.type === 'number' || f.type === 'integer' || f.type === 'duration'
+
+const shownFirst = (fields: FieldDef[], ok: (f: FieldDef) => boolean) =>
+  fields.find((f) => ok(f) && !f.hidden) ?? fields.find(ok)
+
+/** The date field a view goes by: the one it names, else the first. */
+export function viewDateField(entity: EntityDef, view: Pick<ViewDef, 'dateField'>): FieldDef | undefined {
+  return entity.fields.find((f) => f.name === view.dateField && isDateLike(f)) ?? shownFirst(entity.fields, isDateLike)
+}
+
+/** Board: the choice field whose options are the columns. */
+export function boardField(entity: EntityDef, view: Pick<ViewDef, 'groupBy'>): FieldDef | undefined {
+  return entity.fields.find((f) => f.name === view.groupBy && f.type === 'select') ?? shownFirst(entity.fields, (f) => f.type === 'select')
+}
+
+/** Grid: what names the rows, which day a record is on, and what a tap
+ *  ticks. With `field` absent the first yes/no (else number) field is
+ *  used; with it empty, nothing is ticked and a tap just adds a record for
+ *  the day. */
+export function gridFields(entity: EntityDef, view: Pick<ViewDef, 'groupBy' | 'dateField' | 'field'>):
+  { row?: FieldDef; date?: FieldDef; mark?: FieldDef } {
+  const main = mainField(entity.fields)
+  const row = entity.fields.find((f) => f.name === view.groupBy && isGridRow(f))
+    ?? (main && isGridRow(main) ? main : shownFirst(entity.fields, isGridRow))
+  const mark = view.field === undefined
+    ? shownFirst(entity.fields, (f) => f.type === 'boolean') ?? shownFirst(entity.fields, isGridMark)
+    : entity.fields.find((f) => f.name === view.field && isGridMark(f))
+  return { row, date: viewDateField(entity, view), mark }
+}
+
+/** Chart: the number drawn and the day it belongs to. */
+export function chartFields(entity: EntityDef, view: Pick<ViewDef, 'field' | 'dateField'>): { value?: FieldDef; date?: FieldDef } {
+  const value = entity.fields.find((f) => f.name === view.field && isNumeric(f)) ?? shownFirst(entity.fields, isNumeric)
+  return { value, date: viewDateField(entity, view) }
+}
+
+/** What stops a board, grid or chart from being drawn, in words; null when
+ *  nothing does. Other kinds always draw. */
+export function viewProblem(view: ViewDef, entity: EntityDef): string | null {
+  if (view.type === 'board' && !boardField(entity, view)) return 'A board needs a choice field; its options are the columns.'
+  if (view.type === 'grid') {
+    const g = gridFields(entity, view)
+    if (!g.date) return 'A grid needs a date field: its columns are days.'
+    if (!g.row) return 'A grid needs a text or choice field to name its rows.'
+  }
+  if (view.type === 'chart') {
+    const c = chartFields(entity, view)
+    if (!c.value) return 'A chart needs a number field to draw.'
+    if (!c.date) return 'A chart needs a date field to draw it over time.'
+  }
+  return null
+}
+
+/** A new view with its settings filled in from the fields there are, so it
+ *  draws something straight away. What is already set is kept. */
+export function viewDefaults(view: ViewDef, entity: EntityDef): ViewDef {
+  const v: ViewDef = { ...view }
+  const date = viewDateField(entity, v)
+  if ((v.type === 'calendar' || v.type === 'grid' || v.type === 'chart') && !v.dateField && date) v.dateField = date.name
+  if (v.type === 'board' && !v.groupBy) { const g = boardField(entity, v); if (g) v.groupBy = g.name }
+  if (v.type === 'grid') {
+    const g = gridFields(entity, v)
+    if (!v.groupBy && g.row) v.groupBy = g.row.name
+    if (v.field === undefined && g.mark) v.field = g.mark.name
+  }
+  if (v.type === 'chart') {
+    const c = chartFields(entity, v)
+    if (!v.field && c.value) v.field = c.value.name
+    if (!v.period) v.period = 'week'
+    if (!v.chart) v.chart = 'bar'
+  }
   return v
 }
 
@@ -255,6 +361,56 @@ export function cleanBuiltRules(raw: unknown): RuleDef[] {
 
 export const ruleOn = (def: Pick<ModuleDef, 'rules'>, name: string) =>
   def.rules.some((r) => r.name === name && !r.off)
+
+/* ---------- the rules of built-in modules --------------------------------- */
+
+/** What the app does with a rule of a built-in module:
+ *  - switch: it acts on it, so switching it off stops it;
+ *  - always: it is what the module is, so it has no switch (switch the
+ *    module off instead);
+ *  - later: nothing in the app acts on it yet, so a switch would do nothing
+ *    and none is shown. */
+export type RuleSupport = 'switch' | 'always' | 'later'
+
+/** Every rule in the registry, by "module.rule", with a line for the editor
+ *  on what switching it off does, or why there is no switch. A rule added to
+ *  the registry without a line here counts as "later", and
+ *  moduledefs.check.mjs fails until it has one. */
+export const BUILTIN_RULES: Record<string, { support: RuleSupport; note: string }> = {
+  'nutrition.meal_tasks': { support: 'switch', note: 'Off: planned meals stay on Food and the shopping list, but from today on they are not put on Today as tasks.' },
+  'nutrition.skipped_meal': { support: 'later', note: 'Not acted on yet: a meal cannot be marked skipped in the app.' },
+  'nutrition.size_main': { support: 'switch', note: 'Off: Food no longer offers to size the main meal to the day’s target.' },
+  'shopping.from_plan': { support: 'always', note: 'This is how the trip is made, so it stays on. Switch Shopping off in More to stop it.' },
+  'shopping.trip_days': { support: 'later', note: 'Not acted on yet: shopping days are not put on the planner.' },
+  'training.session_task': { support: 'later', note: 'Not acted on yet: sessions are logged, not planned ahead.' },
+  'habits.daily': { support: 'switch', note: 'Off: habits no longer appear on Today or the widget; the Habits page still has them.' },
+  'supplements.slot_task': { support: 'later', note: 'Not acted on yet: supplements are ticked on Today, not made into tasks.' },
+  'health.retarget': { support: 'switch', note: 'Off: a weigh-in is saved and the calorie and protein targets are left as they are.' },
+  'learning.soft': { support: 'later', note: 'Not acted on yet: the planner does not move tasks by itself.' },
+  'agenda.no_overlap': { support: 'later', note: 'Not acted on yet: the planner does not place tasks by itself.' },
+  'sleep.bedtime': { support: 'later', note: 'Not acted on yet: the planner does not place tasks by itself.' },
+  'projects.to_goal': { support: 'later', note: 'Not acted on yet: goals have no page of their own to show on.' },
+  'household.shared': { support: 'later', note: 'Not acted on yet: records are kept per person.' },
+}
+
+export function ruleSupport(moduleKey: string, ruleName: string): RuleSupport {
+  // A built module's rules (a task per dated record, reminders) are all acted on.
+  if (BUILT_KEY.test(moduleKey)) return 'switch'
+  return BUILTIN_RULES[`${moduleKey}.${ruleName}`]?.support ?? 'later'
+}
+
+export const ruleSwitchable = (moduleKey: string, ruleName: string) => ruleSupport(moduleKey, ruleName) === 'switch'
+
+/** Whether a built-in module's rule is on for a profile, from the changes
+ *  kept in its settings (module_instance.settings.overlay). A rule the app
+ *  does not act on reads as the registry has it. */
+export function isBuiltinRuleOn(moduleKey: string, ruleName: string, overlay: unknown): boolean {
+  const base = MODULES.find((m) => m.key === moduleKey)
+  const rule = base?.rules.find((r) => r.name === ruleName)
+  if (!base || !rule || rule.off) return false
+  if (!ruleSwitchable(moduleKey, ruleName)) return true
+  return !(readOverlay(overlay, base).rulesOff ?? []).includes(ruleName)
+}
 
 /* ---------- a module someone built --------------------------------------- */
 
@@ -321,6 +477,15 @@ export function definitionProblem(def: ModuleDef): string | null {
   }
   if (def.views.length > LIMITS.views) return `At most ${LIMITS.views} views.`
   if (def.views.length && def.views.every((v) => v.hidden)) return 'Keep at least one view switched on.'
+  // The app's own views of a built-in module are its business; the ones a
+  // person added must be able to draw.
+  const base = def.built ? undefined : MODULES.find((m) => m.key === def.key)
+  for (const v of def.views) {
+    if (v.hidden || base?.views.some((b) => b.key === v.key)) continue
+    const e = def.entities.find((x) => x.name === v.entity)
+    const p = e ? viewProblem(v, e) : null
+    if (p) return `${v.name || 'A view'}: ${p}`
+  }
   if (def.built && bytes(definitionFor(def)) > LIMITS.definition) return 'This module has grown too large to keep. Remove some fields or options.'
   return null
 }
@@ -471,7 +636,9 @@ export function readOverlay(raw: unknown, base: ModuleDef): Overlay {
   }
 
   if (Array.isArray(raw.rulesOff)) {
-    const off = [...new Set(raw.rulesOff.filter((n): n is string => typeof n === 'string' && base.rules.some((r) => r.name === n)))]
+    // Only rules the app acts on keep a switch; anything else stored is dropped.
+    const off = [...new Set(raw.rulesOff.filter((n): n is string =>
+      typeof n === 'string' && base.rules.some((r) => r.name === n) && ruleSwitchable(base.key, n)))]
     if (off.length) o.rulesOff = off
   }
   return o
@@ -596,7 +763,8 @@ export function overlayFrom(base: ModuleDef, edited: ModuleDef): Overlay {
   if (Object.keys(dateField).length) views.dateField = dateField
   if (Object.keys(views).length) o.views = views
 
-  const off = edited.rules.filter((r) => r.off && base.rules.some((b) => b.name === r.name && !b.off)).map((r) => r.name)
+  const off = edited.rules.filter((r) => r.off && ruleSwitchable(base.key, r.name) && base.rules.some((b) => b.name === r.name && !b.off))
+    .map((r) => r.name)
   if (off.length) o.rulesOff = off
   return o
 }
