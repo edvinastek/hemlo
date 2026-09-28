@@ -20,6 +20,8 @@ export const MODULES: ModuleDef[] = [
         { name: 'fat_g', label: 'Fat', type: 'number', unit: 'g', width: 70 },
         { name: 'fiber_g', label: 'Fibre', type: 'number', unit: 'g', width: 70 },
         { name: 'state', label: 'State', type: 'select', options: ['raw','cooked','canned','dried','frozen'], width: 90 },
+        // How it is counted besides grams, as text: "egg/eggs = 50 g; tray = 600 g".
+        { name: 'units', label: 'Units', type: 'text', width: 180 },
       ]},
       { name: 'recipe', label: 'Recipe', table: 'recipe', fields: [
         { name: 'name', label: 'Recipe', type: 'text', required: true, width: 240 },
@@ -31,6 +33,11 @@ export const MODULES: ModuleDef[] = [
         { name: 'slot', label: 'Slot', type: 'text', width: 110 },
         { name: 'recipe_id', label: 'Recipe', type: 'lookup', lookup: 'recipe', width: 240 },
         { name: 'portion_multiplier', label: 'Portions', type: 'number', width: 80 },
+        { name: 'label', label: 'What it was', type: 'text', width: 160 },
+        { name: 'kcal', label: 'kcal', type: 'number', width: 70 },
+        { name: 'grams', label: 'Grams', type: 'number', unit: 'g', width: 70 },
+        { name: 'unit', label: 'Unit', type: 'text', width: 80 },
+        { name: 'unit_qty', label: 'How many', type: 'number', width: 70 },
       ]},
     ],
     views: [

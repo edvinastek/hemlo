@@ -28,7 +28,7 @@ type Status = { text: string; bad?: boolean } | null
  *  rows in a book, take them out, copy them, export them or delete the ones
  *  that are the person's own. Shared catalogue rows are never deleted. */
 export function BookTable<T extends Row>({
-  kind, rows, fields, priority, emptyNote, head, search = '', limit, lines = [], foods,
+  kind, rows, fields, priority, emptyNote, head, search = '', limit, lines = [], foods, onOpen, openLabel,
 }: {
   kind: BookKind
   /** Every row that still exists, in the table's order. */
@@ -45,6 +45,9 @@ export function BookTable<T extends Row>({
   /** For "Copy ingredients" on recipes. */
   lines?: RecipeLine[]
   foods?: Map<string, Food>
+  /** An Open button on each row, for the row's own page (a food's units). */
+  onOpen?: (row: T) => void
+  openLabel?: (row: T) => string
 }) {
   const profile = useApp((s) => s.profile)
   const userId = useApp((s) => s.session?.user.id ?? null)
@@ -204,6 +207,8 @@ export function BookTable<T extends Row>({
         onSelect={selecting ? (row) => tick(row as T, !selected.has((row as T).id)) : undefined}
         selectLabel={(row) => `Select ${(row as T).name}`}
         rowProps={selecting ? undefined : (row) => hold.bind((row as T).id)}
+        onOpen={selecting || !onOpen ? undefined : (row) => onOpen(row as T)}
+        openLabel={openLabel ? (row) => openLabel(row as T) : undefined}
       />
       {limit && matched.length > shown.length && (
         <p className="empty">Showing {shown.length} of {matched.length}. Search to narrow it.</p>

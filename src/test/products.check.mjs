@@ -159,6 +159,16 @@ is('a kept food shown as a product (numbers from Postgres as text)', productFrom
   per100: { kcal: 428, protein_g: 5, carbs_g: 67, fat_g: 15, fiber_g: null }, image: null, categories: [],
 })
 is('a food without a barcode is not a product', productFromFood({ ...mine, barcode: null }), null)
+
+// The pack's serving as the food's unit (022).
+const bar = readProduct({ ...lookup, serving_size: '1 bar (30 g)', serving_quantity: 30 }, 'nl')
+is('a serving is read', bar.serving, { name: 'bar', g: 30 })
+is('and becomes the food’s unit', foodFields(bar, 'user-a').units, [{ name: 'bar', g: 30 }])
+is('two biscuits a serving are biscuits', readProduct({ code: '8710496979125', serving_size: '2 biscuits (25 g)' }).serving,
+  { name: 'biscuit', plural: 'biscuits', g: 12.5 })
+is('grams alone are a portion', readProduct({ code: '8710496979125', serving_size: '30g', serving_quantity: '30' }).serving, { name: 'portion', g: 30 })
+is('no serving, no unit', 'units' in foodFields(hagel, 'user-a'), false)
+is('a kept food’s unit shows as its serving', productFromFood({ ...mine, units: [{ name: 'bar', g: 30 }] }).serving, { name: 'bar', g: 30 })
 const foods = [
   { id: 'gone', owner_id: 'user-a', barcode: '8710496979125', deleted_at: '2026-09-01T00:00:00Z' },
   { id: 'other', owner_id: 'user-b', barcode: '8710496979125', deleted_at: null },

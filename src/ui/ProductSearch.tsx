@@ -5,12 +5,14 @@ import { useApp } from '../lib/store'
 import { countryName } from '../lib/countries'
 import { addStock } from '../lib/stock'
 import { formatGrams } from '../lib/stock-rules'
+import { amountChoices, amountHint, readAmount, readUnits, unitLine, type Amount } from '../lib/units-rules'
+import { AmountInput } from './AmountInput'
 import {
   addProduct, foodByBarcode, productByBarcode, searchProducts, sharedPrices, whereFor, ProductProblem,
 } from '../lib/products'
 import {
-  displayName, formatDay, maybeShopLabel, normaliseBarcode, pricesPage, productFromFood, productPage, stockGrams,
-  type AmountUnit, type PriceRow, type Product,
+  displayName, formatDay, maybeShopLabel, normaliseBarcode, pricesPage, productFromFood, productPage,
+  type PriceRow, type Product,
 } from '../lib/products-rules'
 import { BarcodeScan } from './BarcodeScan'
 import type { Food } from '../lib/types'
@@ -220,11 +222,11 @@ export function ProductFinder({ start, purpose, onClose, onShow, householdId, on
 
         {view === 'amount' && chosen && householdId && (
           <StockAmount chosen={chosen} onBack={() => setView('detail')}
-            onSave={async (grams) => {
+            onSave={async (amount, said) => {
               const food = chosen.food ?? await add(chosen.product)
               if (!food) return
-              await addStock(householdId, food.id, grams)
-              onStocked?.(`Put ${formatGrams(grams)} of ${food.name} in stock.`)
+              await addStock(householdId, food.id, amount.grams, undefined, amount.unit ?? undefined)
+              onStocked?.(`Put ${said} of ${food.name} in stock.`)
             }} />
         )}
       </div>
@@ -279,6 +281,13 @@ function ProductPage({ chosen, purpose, busy, problem, onBack, onAdd, onShow, on
         </tbody>
       </table>
 
+      {(() => {
+        // The food's units once kept, else the serving the pack states.
+        const units = food ? readUnits(food.units) : p.serving ? [p.serving] : []
+        return units.length > 0 && (
+          <p className="pf-line"><b>Counted as</b> {units.map(unitLine).join(', ')}</p>
+        )
+      })()}
       <p className="pf-line"><b>Sold at</b> {p.stores.length ? p.stores.join(', ') : 'no shops listed yet'}</p>
 
       <Prices product={p} />
@@ -336,21 +345,27 @@ function Prices({ product }: { product: Product }) {
   )
 }
 
-/** How much went in the cupboard: packs when the pack size is known, else grams. */
-function StockAmount({ chosen, onBack, onSave }: { chosen: Chosen; onBack: () => void; onSave: (grams: number) => Promise<void> }) {
+/** How much went in the cupboard: packs when the pack size is known, grams
+ *  or kilos, or the product's serving ("3 bars") when the pack states one. */
+function StockAmount({ chosen, onBack, onSave }: {
+  chosen: Chosen; onBack: () => void; onSave: (amount: Amount, said: string) => Promise<void>
+}) {
   const p = chosen.product
   const pack = p.pack ?? (chosen.food?.pack_size_g ? Number(chosen.food.pack_size_g) : null)
-  const [unit, setUnit] = useState<AmountUnit>(pack ? 'packs' : 'g')
+  const units = chosen.food ? readUnits(chosen.food.units) : p.serving ? [p.serving] : []
+  const choices = amountChoices(units, { kilos: true, pack })
+  const [unit, setUnit] = useState(pack ? 'packs' : 'g')
   const [text, setText] = useState(pack ? '1' : '')
   const [busy, setBusy] = useState(false)
-  const grams = stockGrams(text, unit, pack)
-  const units: AmountUnit[] = pack ? ['packs', 'g', 'kg'] : ['g', 'kg']
+  const choice = choices.find((c) => c.key === unit) ?? choices[0]
+  const read = readAmount(text, choice)
+  const amount = read && read.grams > 0 ? read : null
 
   async function submit(e: FormEvent) {
     e.preventDefault()
-    if (grams === null || busy) return
+    if (!amount || busy) return
     setBusy(true)
-    try { await onSave(grams) } finally { setBusy(false) }
+    try { await onSave(amount, amountHint(text, choice)) } finally { setBusy(false) }
   }
 
   return (
@@ -359,19 +374,14 @@ function StockAmount({ chosen, onBack, onSave }: { chosen: Chosen; onBack: () =>
       <h3 className="pf-name">{displayName(p)}</h3>
       {!chosen.food && <p className="row-meta">It goes in your foods too.</p>}
       <div className="stock-fields pf-amount">
-        <input value={text} onChange={(e) => setText(e.target.value)} inputMode="decimal" autoFocus autoComplete="off"
-          aria-label="How much" onFocus={(e) => e.currentTarget.select()} />
-        <div className="stock-units" role="group" aria-label="Unit">
-          {units.map((u) => (
-            <button key={u} type="button" aria-pressed={unit === u} onClick={() => setUnit(u)}>{u}</button>
-          ))}
-        </div>
+        <AmountInput text={text} choice={choice.key} choices={choices} onText={setText} onChoice={setUnit}
+          label="How much" groupClass="stock-units" input={{ autoFocus: true, onFocus: (e) => e.currentTarget.select() }} />
       </div>
       <p className="stock-hint" aria-live="polite">
-        {grams !== null ? `${formatGrams(grams)}${unit === 'packs' && pack ? ` (${formatGrams(pack)} a pack)` : ''}` : text.trim() ? 'That is not an amount.' : ''}
+        {amount ? `${amountHint(text, choice)}${unit === 'packs' && pack ? `, ${formatGrams(pack)} a pack` : ''}` : text.trim() ? 'That is not an amount.' : ''}
       </p>
       <div className="sheet-actions">
-        <button type="submit" className="btn btn-primary grow" disabled={grams === null || busy}>Add to stock</button>
+        <button type="submit" className="btn btn-primary grow" disabled={!amount || busy}>Add to stock</button>
       </div>
     </form>
   )

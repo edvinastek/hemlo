@@ -10,9 +10,12 @@ import { recipeMacros, mealMultiplier, type Macros } from '../lib/calc'
 import { SLOTS, MAIN_SLOT, slotsFor, planMeal, planQuick, markEaten, macrosFor, setMealTime, type SlotKey } from '../lib/meals'
 import { readSettings, mealTime, type Nutrient, type ProfileSettings } from '../lib/settings'
 import {
-  BASES, EMPTY_FORM, MACROS, amountLine, formFrom, isQuick, nutrientLabel, quickMacros, readQuick, shownNutrients,
-  type Basis, type QuickEntry, type QuickForm,
+  BASES, EMPTY_FORM, MACROS, amountLine, formFrom, isQuick, nutrientLabel, quickCount, quickFromFood, quickMacros, readQuick,
+  shownNutrients, type Basis, type QuickEntry, type QuickForm,
 } from '../lib/quick-food'
+import { amountChoices, amountHint, readAmount, readUnits, unitKey, unitsText } from '../lib/units-rules'
+import { AmountInput } from '../ui/AmountInput'
+import { FoodUnitsSheet } from '../ui/FoodUnits'
 import { SearchPick, type PickItem } from '../ui/SearchPick'
 import { Dropdown } from '../ui/Dropdown'
 import { ExportLink } from '../ui/ExportLink'
@@ -59,6 +62,9 @@ export function Food() {
   // but are left off the tables.
   const liveRecipes = useMemo(() => recipes.filter(live), [recipes])
   const liveFoods = useMemo(() => foods.filter(live), [foods])
+  // A food's units as the table shows them: "egg/eggs = 50 g".
+  const foodRows = useMemo(() => liveFoods.map((f) => ({ ...f, units: unitsText(readUnits(f.units)) })), [liveFoods])
+  const [openFood, setOpenFood] = useState<FoodRow | null>(null)
 
   /** Recipe macros are calculated from the lines every time they are shown,
    *  never read from a stored column, so a changed ingredient is reflected at
@@ -130,12 +136,15 @@ export function Food() {
             </>}
             fields={mod.entities[0].fields.filter(nutrientColumn)}
             priority={narrowColumns}
-            rows={liveFoods}
+            rows={foodRows}
             search={search}
             limit={200}
             emptyNote="No food matches that."
+            onOpen={(row) => setOpenFood(foodMap.get(row.id) ?? null)}
+            openLabel={(row) => `Open ${row.name}: its units`}
           />
         )}
+        {openFood && <FoodUnitsSheet food={openFood} onClose={() => setOpenFood(null)} />}
         <ExportLink source={section === 'Day' ? { dataset: 'm:nutrition:meal_plan_slot', range: { from: day, to: day, label: format(date, 'd MMM yyyy') } }
           : { dataset: section === 'Recipes' ? 'm:nutrition:recipe' : 'm:nutrition:food' }} />
       </div>
@@ -212,7 +221,7 @@ function MealDay({ profileId, userId, day, recipes, lines, foods, target, eaten,
           // starts from what is stored, not from the last one's open fields.
           <MealSlot key={`${day}:${def.key}:${slot?.id ?? ''}`} slotKey={def.key} label={def.label} slot={slot} day={day} profileId={profileId}
             time={slot ? mealTime(slot, settings) : settings.meal_times[def.key] ?? null}
-            items={items} recipes={recipes} totals={slotTotals(slot)} shown={shown}
+            items={items} recipes={recipes} totals={slotTotals(slot)} shown={shown} foods={foods}
             suggest={sizeTo !== null ? { portions: sizeTo, kcal: targetKcal } : null} />
         )
       })}
@@ -224,9 +233,10 @@ function MealDay({ profileId, userId, day, recipes, lines, foods, target, eaten,
   )
 }
 
-function MealSlot({ slotKey, label, slot, day, profileId, time, items, recipes, totals, shown, suggest }: {
+function MealSlot({ slotKey, label, slot, day, profileId, time, items, recipes, totals, shown, suggest, foods }: {
   slotKey: SlotKey; label: string; slot: MealPlanSlot | undefined; day: string; profileId: string
   time: string | null; items: PickItem[]; recipes: Recipe[]; totals: Totals | null; shown: Nutrient[]
+  foods: Map<string, FoodRow>
   suggest: { portions: number; kcal: number } | null
 }) {
   const quickSaved = !!slot && isQuick(slot)
@@ -234,7 +244,7 @@ function MealSlot({ slotKey, label, slot, day, profileId, time, items, recipes, 
   const planned = !!slot && (!!slot.recipe_id || quickSaved)
   const recipe = slot?.recipe_id ? recipes.find((r) => r.id === slot.recipe_id) : undefined
   const chosen = recipe?.name
-    ?? (quickSaved ? `${slot!.label ? `${slot!.label} · ` : ''}${Math.round(Number(slot!.kcal))} kcal` : null)
+    ?? (quickSaved ? [slot!.label, quickCount(slot!), `${Math.round(Number(slot!.kcal))} kcal`].filter(Boolean).join(' · ') : null)
 
   const toggle = (
     <label className="slot-toggle">
@@ -252,7 +262,7 @@ function MealSlot({ slotKey, label, slot, day, profileId, time, items, recipes, 
       </div>
 
       {quick ? (
-        <QuickFields key={slot?.id ?? 'new'} slot={slot} shown={shown} toggle={toggle}
+        <QuickFields key={slot?.id ?? 'new'} slot={slot} shown={shown} toggle={toggle} foods={foods}
           onSave={(entry) => void planQuick(profileId, day, slotKey, entry)} />
       ) : (
         <div className="slot-pick">
@@ -314,15 +324,27 @@ function MealTime({ label, own, time, onSet }: {
   )
 }
 
-const BASIS_OPTIONS = BASES.map((b) => ({ value: b.value, label: b.label }))
+/** The ways the numbers can be given, and one more: worked out from a food
+ *  and how much of it, in grams or one of its units ("2 eggs"). */
+type Mode = Basis | 'food'
+const BASIS_OPTIONS: { value: Mode; label: string }[] = [
+  ...BASES.map((b) => ({ value: b.value as Mode, label: b.label })),
+  { value: 'food', label: 'From a food' },
+]
 
 /** A meal as plain numbers. Only calories are needed; any macro typed in is
  *  kept. Figures can be the total, or per 100 g (or another size) with the
  *  grams eaten, and the total is worked out as they type. */
-function QuickFields({ slot, shown, toggle, onSave }: {
+function QuickFields({ slot, shown, toggle, onSave, foods }: {
   slot: MealPlanSlot | undefined; shown: Nutrient[]; toggle: ReactNode; onSave: (entry: QuickEntry) => void
+  foods: Map<string, FoodRow>
 }) {
   const [form, setForm] = useState<QuickForm>(() => (slot && isQuick(slot) ? formFrom(slot) : EMPTY_FORM))
+  const [fromFood, setFromFood] = useState(false)
+  if (fromFood) {
+    return <FoodFields slot={slot} shown={shown} toggle={toggle} foods={foods} onSave={onSave}
+      onMode={(m) => { if (m !== 'food') { setFromFood(false); setForm((f) => ({ ...f, basis: m })) } }} />
+  }
   // Tracked macros first; the rest are one tap away, and kept if filled in.
   const first = MACROS.filter((k) => shown.includes(k))
   const rest = MACROS.filter((k) => !shown.includes(k))
@@ -357,7 +379,8 @@ function QuickFields({ slot, shown, toggle, onSave }: {
             field, opens across the screen and not off its edge. */}
         <div className="qf-field">
           <span>Calories are</span>
-          <Dropdown<Basis> value={form.basis} options={BASIS_OPTIONS} label="Calories are" onChange={(basis) => set({ basis })} />
+          <Dropdown<Mode> value={form.basis} options={BASIS_OPTIONS} label="Calories are"
+            onChange={(m) => (m === 'food' ? setFromFood(true) : set({ basis: m }))} />
         </div>
         {field('kcal', `kcal${per}`)}
         {form.basis === 'portion' && field('portion_g', 'One portion, g')}
@@ -378,6 +401,77 @@ function QuickFields({ slot, shown, toggle, onSave }: {
           {same ? 'Saved' : 'Save'}
         </button>
       </div>
+    </div>
+  )
+}
+
+/** A meal from one food and how much of it: pick the food, say how much in
+ *  grams or one of its units ("2" eggs), and the numbers are worked out from
+ *  the food's figures per 100 g. Saved as plain numbers like any quick meal,
+ *  with the unit and how many kept beside the grams. */
+function FoodFields({ slot, shown, toggle, foods, onSave, onMode }: {
+  slot: MealPlanSlot | undefined; shown: Nutrient[]; toggle: ReactNode; foods: Map<string, FoodRow>
+  onSave: (entry: QuickEntry) => void; onMode: (m: Mode) => void
+}) {
+  const [foodId, setFoodId] = useState<string | null>(null)
+  const [text, setText] = useState('')
+  const [unit, setUnit] = useState('g')
+  const [open, setOpen] = useState<FoodRow | null>(null)
+  const food = foodId ? foods.get(foodId) : undefined
+  const units = readUnits(food?.units)
+  const choices = amountChoices(units)
+  const choice = choices.find((c) => c.key === unit) ?? choices[0]
+  const items: PickItem[] = useMemo(() => [...foods.values()].filter(live).map((f) => ({
+    id: f.id, name: f.name, tag: f.owner_id ? 'mine' : undefined,
+    meta: [f.kcal != null ? `${Math.round(Number(f.kcal))} kcal / 100 g` : null,
+      ...readUnits(f.units).slice(0, 2).map((u) => u.name)].filter(Boolean).join(' · ') || undefined,
+  })), [foods])
+  const result = food ? quickFromFood(food, readAmount(text, choice)) : null
+  const entry = result && 'entry' in result ? result.entry : null
+  const same = !!entry && !!slot && isQuick(slot) && JSON.stringify(formFrom(entry)) === JSON.stringify(formFrom(slot))
+    && (slot.unit ?? null) === (entry.unit ?? null)
+
+  return (
+    <div className="qf">
+      <div className="slot-pick">
+        <SearchPick items={items} label="Food eaten" placeholder="Which food" value={food?.name ?? null}
+          onPick={(f) => {
+            setFoodId(f.id)
+            // Counted foods start in their first unit: "2" eggs.
+            const first = readUnits(foods.get(f.id)?.units)[0]
+            setUnit(first ? unitKey(first.name) : 'g')
+          }}
+          onClear={() => setFoodId(null)} />
+        {toggle}
+      </div>
+      <div className="qf-grid">
+        <div className="qf-field">
+          <span>Calories are</span>
+          <Dropdown<Mode> value="food" options={BASIS_OPTIONS} label="Calories are" onChange={onMode} />
+        </div>
+        <div className="qf-field is-wide">
+          <span>How much</span>
+          <div className="qf-amount">
+            <AmountInput text={text} choice={choice.key} choices={choices} onText={setText} onChoice={setUnit}
+              label="How much was eaten" input={{ placeholder: choice.unit ? 'how many' : 'g' }} />
+          </div>
+        </div>
+      </div>
+      <div className="qf-actions">
+        {food && (
+          <button type="button" className="slot-link" onClick={() => setOpen(food)}>
+            {units.length ? 'Units' : 'Add a unit'}
+          </button>
+        )}
+        <span className="row-meta qf-result" aria-live="polite">
+          {entry ? `${amountHint(text, choice)} comes to ${amountLine(quickMacros(entry), shown)}`
+            : food && text.trim() && result && 'error' in result ? result.error : ''}
+        </span>
+        <button type="button" className="btn btn-primary" disabled={!entry || same} onClick={() => entry && onSave(entry)}>
+          {same ? 'Saved' : 'Save'}
+        </button>
+      </div>
+      {open && <FoodUnitsSheet food={open} onClose={() => setOpen(null)} />}
     </div>
   )
 }

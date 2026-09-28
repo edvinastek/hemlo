@@ -40,10 +40,19 @@ export async function slotsFor(profileId: string, day: string): Promise<MealPlan
     .filter((s) => s.slot_date === day && !s.deleted_at)
 }
 
+/** The unit columns go with a row only when it has them (set, or cleared
+ *  from a unit it had), so a server without them yet (before 022) still takes
+ *  every meal that was not counted in a unit. */
+const unitKeys = (row: { unit?: unknown; unit_qty?: unknown }): ('unit' | 'unit_qty')[] =>
+  row.unit !== undefined || row.unit_qty !== undefined ? ['unit', 'unit_qty'] : []
+
+/** A slot's unit cleared: only when it had one. */
+const noUnit = (slot: MealPlanSlot | undefined) => (slot?.unit ? { unit: null, unit_qty: null } : {})
+
 async function saveSlot(slot: MealPlanSlot) {
   const row = { ...slot, updated_at: new Date().toISOString() }
   await db.meal_plan_slot.put(row)
-  await queueChange('meal_plan_slot', row, SLOT_FIELDS)
+  await queueChange('meal_plan_slot', row, [...SLOT_FIELDS, ...unitKeys(row)])
   return row
 }
 
@@ -109,7 +118,7 @@ export async function planMeal(profileId: string, day: string, slotKey: SlotKey,
   }
   const slot: MealPlanSlot = current
     ? {
-        ...current, recipe_id: recipeId, portion_multiplier: portions, ...NO_NUMBERS,
+        ...current, recipe_id: recipeId, portion_multiplier: portions, ...NO_NUMBERS, ...noUnit(current),
         // Cleared, the slot stays only if it still holds a time for the day.
         deleted_at: recipeId || current.slot_time ? null : new Date().toISOString(),
       }
@@ -126,9 +135,13 @@ export async function planQuick(profileId: string, day: string, slotKey: SlotKey
     await markEaten(current, false)
     current = { ...current, status: 'planned' }
   }
+  // Counted in a unit ("2 eggs"), the slot keeps it; typed as numbers, a
+  // unit it had goes.
+  const { unit, unit_qty, ...numbers } = entry
   const saved = await saveSlot({
     ...(current ?? newSlot(profileId, day, slotKey)),
-    recipe_id: null, portion_multiplier: 1, ...entry, deleted_at: null,
+    recipe_id: null, portion_multiplier: 1, ...numbers,
+    ...(unit && unit_qty != null ? { unit, unit_qty } : noUnit(current)), deleted_at: null,
   })
   if (saved.status === 'eaten') await logQuick(saved)
   await syncMealTask(saved, undefined)
@@ -182,10 +195,12 @@ async function logQuick(slot: MealPlanSlot) {
     food_id: null, recipe_id: null, grams: slot.grams ?? null, portions: 1, planned: true,
     label: slot.label ?? null, kcal: slot.kcal ?? null, protein_g: slot.protein_g ?? null,
     carbs_g: slot.carbs_g ?? null, fat_g: slot.fat_g ?? null, fiber_g: slot.fiber_g ?? null,
+    // What was eaten in a unit is logged in it too.
+    ...(unitKeys(slot).length ? { unit: slot.unit ?? null, unit_qty: slot.unit_qty ?? null } : {}),
     updated_at: new Date().toISOString(), deleted_at: null,
   }
   await db.food_log.put(log)
-  await queueChange('food_log', log, QUICK_LOG_FIELDS)
+  await queueChange('food_log', log, [...QUICK_LOG_FIELDS, ...unitKeys(log)])
 }
 
 /** Eating a planned meal logs it, which is what moves the day's totals. */
