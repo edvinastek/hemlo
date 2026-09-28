@@ -124,5 +124,23 @@ is('select all shown ticks every shown row, keeping others', [...toggleAll(new S
 is('when all shown are ticked it clears them', [...toggleAll(new Set(['x', 'r1', 'r2', 'r3']), recipes)], ['x'])
 is('nothing shown changes nothing', [...toggleAll(new Set(['x']), [])], ['x'])
 
+// Ingredients typed in a unit (022): "2 eggs" a portion, counted as eggs.
+const eggFoods = new Map([['egg', { id: 'egg', name: 'Eggs', cook_yield: null, units: [{ name: 'egg', plural: 'eggs', g: 50 }] }]])
+const eggLines = [
+  { recipe_id: 'e1', food_id: 'egg', raw_text: null, grams_per_portion: 100, state: null, sort_order: 0, unit: 'egg', unit_qty: 2 },
+  { recipe_id: 'e2', food_id: 'egg', raw_text: null, grams_per_portion: 50, state: null, sort_order: 0, unit: 'egg', unit_qty: 1 },
+  { recipe_id: 'e3', food_id: 'egg', raw_text: null, grams_per_portion: 30, state: null, sort_order: 0 },
+]
+const eggs1 = recipeIngredients({ id: 'e1', portions_per_batch: 1 }, eggLines, eggFoods)
+is('a line in eggs reads as eggs', ingredientText(eggs1), 'Eggs — 2 eggs')
+is('and still carries its grams', eggs1[0].amount, 100)
+is('times the batch', ingredientText(recipeIngredients({ id: 'e1', portions_per_batch: 3 }, eggLines, eggFoods)), 'Eggs — 6 eggs')
+is('eggs from two recipes add up as eggs',
+  ingredientText(combineIngredients([eggs1, recipeIngredients({ id: 'e2', portions_per_batch: 1 }, eggLines, eggFoods)])), 'Eggs — 3 eggs')
+is('eggs and grams of the same food add up in grams',
+  ingredientText(combineIngredients([eggs1, recipeIngredients({ id: 'e3', portions_per_batch: 1 }, eggLines, eggFoods)])), 'Eggs — 130 g')
+is('grams then eggs, the same', ingredientText(combineIngredients([recipeIngredients({ id: 'e3', portions_per_batch: 1 }, eggLines, eggFoods), eggs1])), 'Eggs — 130 g')
+is('a line in grams has no count', 'count' in one[0], false)
+
 console.log(fail ? `\n${fail} check(s) failed` : '\nall checks passed')
 process.exit(fail ? 1 : 0)

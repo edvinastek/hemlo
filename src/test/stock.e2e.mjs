@@ -122,7 +122,7 @@ const cells = await p.evaluate(() => {
 })
 const line = cells.find((c) => Number(c['From stock g']) === half)
 is('the trip shows what comes from stock', Boolean(line), true)
-is('and needs only the rest', line && Number(line['Needed g']), Math.round(needG) - half)
+is('and needs only the rest', line && parseFloat(line['Needed']), Math.round(needG) - half)
 
 // 4. Auto-deduct: off by default, on by choice; eating takes, unticking gives back.
 await openStock()

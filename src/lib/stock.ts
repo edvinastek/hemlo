@@ -3,6 +3,7 @@ import { queueChange } from './sync'
 import { edit } from './write'
 import { readSettings } from './settings'
 import { applyDelta, cleanNote, mealNeeds, nudge, putBack, takeOut, tidy, MAX_GRAMS } from './stock-rules'
+import { findUnit, nudgeCount, readUnits, unitColumns, QTY_MAX } from './units-rules'
 import type { Food, MealPlanSlot, Stock } from './types'
 
 /** The household's cupboard, kept like every other table: written here first
@@ -46,13 +47,30 @@ async function rowFor(householdId: string, foodId: string): Promise<Stock | unde
   return newestPerFood(live.length ? live : rows)[0]
 }
 
+/** The unit columns that go with an amount: how many of the unit the grams
+ *  come to ("600 g" of 50 g eggs is 12), so what Postgres holds reads the
+ *  same as the screen. `unit` undefined keeps the unit the row shows in; null
+ *  goes back to grams. A unit the food no longer has goes back to grams too.
+ *  Grams on a row that never had a unit write no unit columns, so a server
+ *  without them (before 022) still takes it. */
+async function unitFor(row: Stock | undefined, foodId: string, grams: number, unit: string | null | undefined): Promise<Partial<Stock>> {
+  const want = unit === undefined ? row?.unit ?? null : unit
+  const had = !!row?.unit
+  if (!want) return unitColumns({ unit: null, unit_qty: null }, had)
+  const u = findUnit(readUnits((await db.food.get(foodId))?.units), want)
+  const qty = u ? Math.round((grams / u.g) * 1000) / 1000 : null
+  if (!u || qty === null || qty > QTY_MAX) return unitColumns({ unit: null, unit_qty: null }, had)
+  return { unit: u.name, unit_qty: qty }
+}
+
 /** Set the amount of a food outright, making the row if there is none.
- *  A note left undefined is kept; null or empty clears it. */
-export async function setStock(householdId: string, foodId: string, grams: number, note?: string | null): Promise<Stock> {
+ *  A note left undefined is kept; null or empty clears it. `unit` is the
+ *  food's unit to show it in ("egg"), null for grams, undefined to keep. */
+export async function setStock(householdId: string, foodId: string, grams: number, note?: string | null, unit?: string | null): Promise<Stock> {
   const g = Math.min(MAX_GRAMS, Math.max(0, tidy(grams)))
   const row = await rowFor(householdId, foodId)
   if (row) {
-    const changes: Partial<Stock> = { grams_on_hand: g }
+    const changes: Partial<Stock> = { grams_on_hand: g, ...(await unitFor(row, foodId, g, unit)) }
     if (row.deleted_at) {
       changes.deleted_at = null
       // A note from before it was removed described a different bag.
@@ -62,29 +80,35 @@ export async function setStock(householdId: string, foodId: string, grams: numbe
     }
     return edit('stock', row, changes)
   }
+  const units = await unitFor(undefined, foodId, g, unit)
   const fresh: Stock = {
     id: crypto.randomUUID(), household_id: householdId, food_id: foodId, grams_on_hand: g,
-    note: cleanNote(note), updated_at: new Date().toISOString(), deleted_at: null,
+    note: cleanNote(note), ...units, updated_at: new Date().toISOString(), deleted_at: null,
   }
   await db.stock.put(fresh)
-  await queueChange('stock', fresh, NEW_FIELDS)
+  await queueChange('stock', fresh, [...NEW_FIELDS, ...(Object.keys(units) as (keyof Stock & string)[])])
   return fresh
 }
 
 /** Add to what is there (or start from nothing): the add form and a finished
  *  shopping trip both mean "more of this". */
-export async function addStock(householdId: string, foodId: string, grams: number, note?: string | null): Promise<Stock> {
+export async function addStock(householdId: string, foodId: string, grams: number, note?: string | null, unit?: string | null): Promise<Stock> {
   const row = await rowFor(householdId, foodId)
   const have = row && !row.deleted_at ? Number(row.grams_on_hand) || 0 : 0
-  return setStock(householdId, foodId, applyDelta(have, grams).next, note)
+  // Added in a unit, the row shows in it; added in grams to a row shown in
+  // eggs, it stays in eggs (the grams are what count either way).
+  return setStock(householdId, foodId, applyDelta(have, grams).next, note, unit ?? undefined)
 }
 
 /** One tap of − or +, worked out from the row as stored rather than from
- *  what the screen last drew, so quick taps each count. */
+ *  what the screen last drew, so quick taps each count. Stock shown in a
+ *  unit moves by one of it: one egg more or less. */
 export async function nudgeStock(householdId: string, foodId: string, dir: 1 | -1): Promise<Stock | undefined> {
   const row = await rowFor(householdId, foodId)
   if (!row || row.deleted_at) return undefined
-  return setStock(householdId, foodId, nudge(Number(row.grams_on_hand) || 0, dir))
+  const have = Number(row.grams_on_hand) || 0
+  const u = row.unit ? findUnit(readUnits((await db.food.get(foodId))?.units), row.unit) : undefined
+  return setStock(householdId, foodId, u ? nudgeCount(have, u, dir) : nudge(have, dir))
 }
 
 /** Take the row off the list. Soft, so the removal reaches the other phones. */
@@ -140,7 +164,7 @@ export async function consumeForMeal(slot: MealPlanSlot, sign: 1 | -1): Promise<
 
   for (const [foodId, grams] of next) {
     const row = byFood.get(foodId)
-    if (row && grams !== have.get(foodId)) await edit('stock', row, { grams_on_hand: grams })
+    if (row && grams !== have.get(foodId)) await edit('stock', row, { grams_on_hand: grams, ...(await unitFor(row, foodId, grams, undefined)) })
   }
 }
 

@@ -5,15 +5,25 @@ import { readSettings } from '../lib/settings'
 import { saveSettings } from '../lib/write'
 import { addStock, nudgeStock, removeStock, setStock, stockFor } from '../lib/stock'
 import {
-  NOTE_MAX, filterStock, formatGrams, inUnit, sortStock, toGrams, unitFor,
-  type StockView, type Unit,
+  NOTE_MAX, filterStock, formatGrams, inUnit, sortStock, unitFor,
+  type StockView,
 } from '../lib/stock-rules'
+import {
+  amountChoices, amountHint, countIn, findUnit, formatCount, formatQty, readAmount, readUnits, unitKey, type FoodUnit,
+} from '../lib/units-rules'
 import { SearchPick, type PickItem } from '../ui/SearchPick'
 import { ScanToStock } from '../ui/ProductSearch'
+import { AmountInput } from '../ui/AmountInput'
 import type { Food, Profile, Stock } from '../lib/types'
 import './stock.css'
 
-type Item = StockView & { row: Stock }
+/** A row as the list shows it. `unit` is the food's unit it is kept in, when
+ *  it is ("12 eggs"); the grams are the amount either way. */
+type Item = StockView & { row: Stock; units: FoodUnit[]; unit: FoodUnit | undefined }
+
+/** "12 eggs" for stock kept in a unit, "450 g" or "1.25 kg" otherwise. */
+const amountOf = (item: Pick<Item, 'grams' | 'unit'>) =>
+  item.unit ? formatCount(countIn(item.grams, item.unit), item.unit) : formatGrams(item.grams)
 
 /** Shopping's Stock tab: what is in the household's cupboard, typed in by
  *  hand and adjusted whenever someone looks. Every trip is worked out against
@@ -29,8 +39,9 @@ export function StockPanel({ profile }: { profile: Profile }) {
   const foodById = useMemo(() => new Map(foods.map((f) => [f.id, f])), [foods])
   const items: Item[] = useMemo(() => sortStock((rows ?? []).map((r) => {
     const food = foodById.get(r.food_id)
+    const units = readUnits(food?.units)
     return {
-      id: r.id, food_id: r.food_id, row: r,
+      id: r.id, food_id: r.food_id, row: r, units, unit: findUnit(units, r.unit),
       name: food?.name ?? 'Unknown food',
       section: food?.store_section?.trim() || 'Other',
       grams: Number(r.grams_on_hand) || 0,
@@ -104,8 +115,10 @@ function StockRow({ item, householdId, onEdit }: { item: Item; householdId: stri
       <div className="stock-amount">
         <button type="button" className="stock-step" aria-label={`Less ${item.name}`} disabled={isOut}
           onClick={() => void nudgeStock(householdId, item.food_id, -1)}>−</button>
-        <button type="button" className="stock-qty" aria-label={`${item.name}, ${isOut ? 'out' : formatGrams(item.grams)}. Change`}
-          onClick={onEdit}>{isOut ? 'out' : formatGrams(item.grams)}</button>
+        <button type="button" className="stock-qty"
+          aria-label={`${item.name}, ${isOut ? 'out' : amountOf(item)}${!isOut && item.unit ? ` (${formatGrams(item.grams)})` : ''}. Change`}
+          title={item.unit && !isOut ? formatGrams(item.grams) : undefined}
+          onClick={onEdit}>{isOut ? 'out' : amountOf(item)}</button>
         <button type="button" className="stock-step" aria-label={`More ${item.name}`}
           onClick={() => void nudgeStock(householdId, item.food_id, 1)}>+</button>
       </div>
@@ -113,22 +126,10 @@ function StockRow({ item, householdId, onEdit }: { item: Item; householdId: stri
   )
 }
 
-/** Grams or kilograms, as two buttons: a list that opens for two choices is
- *  one tap too many, and a narrow one runs off a small phone. */
-function Units({ value, onChange }: { value: Unit; onChange: (u: Unit) => void }) {
-  return (
-    <div className="stock-units" role="group" aria-label="Unit">
-      {(['g', 'kg'] as Unit[]).map((u) => (
-        <button key={u} type="button" aria-pressed={value === u} onClick={() => onChange(u)}>{u}</button>
-      ))}
-    </div>
-  )
-}
-
 function StockAdd({ householdId, foods, items }: { householdId: string; foods: Food[]; items: Item[] }) {
   const [food, setFood] = useState<Food | null>(null)
   const [amount, setAmount] = useState('')
-  const [unit, setUnit] = useState<Unit>('g')
+  const [unit, setUnit] = useState('g')
   const [note, setNote] = useState('')
   const [said, setSaid] = useState<string | null>(null)
 
@@ -140,26 +141,36 @@ function StockAdd({ householdId, foods, items }: { householdId: string; foods: F
     tag: inStock.has(f.id) ? 'in stock' : f.owner_id ? 'mine' : undefined,
   })), [foods, inStock])
 
-  const grams = toGrams(amount, unit)
+  // Grams and kilos, and the food's own units ("egg") when it has any.
+  const choices = useMemo(() => amountChoices(readUnits(food?.units), { kilos: true }), [food])
+  const choice = choices.find((c) => c.key === unit) ?? choices[0]
+  const read = readAmount(amount, choice)
+  const grams = read?.grams ?? null
   const already = food ? inStock.get(food.id) : undefined
 
   function choose(item: PickItem) {
     const f = foods.find((x) => x.id === item.id) ?? null
     setFood(f)
     setSaid(null)
-    // A food sold in packs usually arrives as one: start from that, ready to change.
+    const units = readUnits(f?.units)
     if (f?.pack_size_g && !amount.trim()) {
+      // A food sold in packs usually arrives as one: start from that, ready to change.
       const u = unitFor(f.pack_size_g)
       setUnit(u)
       setAmount(inUnit(f.pack_size_g, u))
+    } else if (units.length) {
+      // A food counted in units is added in them: "12" eggs.
+      setUnit(unitKey(units[0].name))
+    } else if (unit.startsWith('u:')) {
+      setUnit('g')
     }
   }
 
   async function submit(e: React.FormEvent) {
     e.preventDefault()
-    if (!food || grams === null || grams <= 0) return
-    await addStock(householdId, food.id, grams, note.trim() ? note : undefined)
-    setSaid(`${already ? 'Added' : 'Put'} ${formatGrams(grams)} of ${food.name} ${already ? 'to what was there' : 'in stock'}.`)
+    if (!food || !read || read.grams <= 0) return
+    await addStock(householdId, food.id, read.grams, note.trim() ? note : undefined, read.unit ?? undefined)
+    setSaid(`${already ? 'Added' : 'Put'} ${amountHint(amount, choice)} of ${food.name} ${already ? 'to what was there' : 'in stock'}.`)
     setFood(null)
     setAmount('')
     setNote('')
@@ -171,14 +182,14 @@ function StockAdd({ householdId, foods, items }: { householdId: string; foods: F
         placeholder="Add to stock: search foods" value={food?.name ?? null}
         onClear={() => setFood(null)} />
       <div className="stock-fields">
-        <input value={amount} onChange={(e) => setAmount(e.target.value)} inputMode="decimal"
-          placeholder="Amount" aria-label="Amount" autoComplete="off" />
-        <Units value={unit} onChange={setUnit} />
+        <AmountInput text={amount} choice={choice.key} choices={choices} onText={setAmount} onChoice={setUnit}
+          label="Amount" groupClass="stock-units" input={{ placeholder: 'Amount' }} />
         <button type="submit" className="btn btn-primary" disabled={!food || grams === null || grams <= 0}>Add</button>
       </div>
       <input className="stock-note-input" value={note} onChange={(e) => setNote(e.target.value)} maxLength={NOTE_MAX}
         placeholder="Note, if any: opened, in the freezer" aria-label="Note" />
-      {already && <p className="stock-hint">{formatGrams(already.grams)} already here; this adds to it.</p>}
+      {choice.unit && read && <p className="stock-hint">{amountHint(amount, choice)}</p>}
+      {already && <p className="stock-hint">{amountOf(already)} already here; this adds to it.</p>}
       {amount.trim() !== '' && grams === null && <p className="stock-hint is-warn">That is not an amount.</p>}
       {said && !food && <p className="stock-hint" role="status">{said}</p>}
     </form>
@@ -186,17 +197,25 @@ function StockAdd({ householdId, foods, items }: { householdId: string; foods: F
 }
 
 function StockEdit({ item, householdId, onDone }: { item: Item; householdId: string; onDone: () => void }) {
-  const start = unitFor(item.grams)
-  const [unit, setUnit] = useState<Unit>(start)
-  const [amount, setAmount] = useState(item.grams > 0 ? inUnit(item.grams, start) : '0')
+  // Opens in what the row shows: eggs for stock kept in eggs, else g or kg.
+  const choices = amountChoices(item.units, { kilos: true })
+  const start = item.unit ? unitKey(item.unit.name) : unitFor(item.grams)
+  const first = item.grams <= 0 ? '0'
+    : item.unit ? formatQty(countIn(item.grams, item.unit)) : inUnit(item.grams, unitFor(item.grams))
+  const [unit, setUnit] = useState(start)
+  const [amount, setAmount] = useState(first)
   const [note, setNote] = useState(item.note ?? '')
   const [confirm, setConfirm] = useState(false)
-  const grams = toGrams(amount, unit)
+  const choice = choices.find((c) => c.key === unit) ?? choices[0]
+  const read = readAmount(amount, choice)
+  // Left as it opened, the stored grams stand: no drift from rounding.
+  const grams = read && unit === start && amount === first ? item.grams : read?.grams ?? null
 
   async function save(e: React.FormEvent) {
     e.preventDefault()
-    if (grams === null) return
-    await setStock(householdId, item.food_id, grams, note)
+    if (grams === null || !read) return
+    // Saved in grams or kilos the row goes back to grams; in eggs it shows eggs.
+    await setStock(householdId, item.food_id, grams, note, read.unit)
     onDone()
   }
 
@@ -204,15 +223,15 @@ function StockEdit({ item, householdId, onDone }: { item: Item; householdId: str
     <form className="stock-form stock-edit" onSubmit={save}>
       <div className="stock-name">{item.name}</div>
       <div className="stock-fields">
-        <input value={amount} onChange={(e) => setAmount(e.target.value)} inputMode="decimal"
-          aria-label={`Amount of ${item.name}`} autoFocus autoComplete="off"
-          onFocus={(e) => e.currentTarget.select()} />
-        <Units value={unit} onChange={setUnit} />
+        <AmountInput text={amount} choice={choice.key} choices={choices} onText={setAmount} onChoice={setUnit}
+          label={`Amount of ${item.name}`} groupClass="stock-units"
+          input={{ autoFocus: true, onFocus: (e) => e.currentTarget.select() }} />
         <button type="submit" className="btn btn-primary" disabled={grams === null}>Save</button>
       </div>
       <input className="stock-note-input" value={note} onChange={(e) => setNote(e.target.value)} maxLength={NOTE_MAX}
         placeholder="Note" aria-label={`Note for ${item.name}`} />
       {grams === null && <p className="stock-hint is-warn">That is not an amount.</p>}
+      {grams !== null && choice.unit && <p className="stock-hint">{amountHint(amount, choice)}</p>}
       <div className="stock-actions">
         {confirm ? (
           <>

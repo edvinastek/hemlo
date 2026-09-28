@@ -4,9 +4,10 @@ import { addDays, format } from 'date-fns'
 import { getMeta, setMeta } from '../lib/db'
 import { useApp } from '../lib/store'
 import { DataTable } from '../ui/DataTable'
-import { tripFromPlan, type TripLine } from '../lib/shopping'
+import { tripFromPlan, unitsToBuy, type TripLine } from '../lib/shopping'
 import { addStock, stockMap } from '../lib/stock'
-import { boughtGrams } from '../lib/stock-rules'
+import { boughtGrams, tidy } from '../lib/stock-rules'
+import { formatCount } from '../lib/units-rules'
 import { StockPanel } from '../sections/Stock'
 import { ExportLink } from '../ui/ExportLink'
 import type { FieldDef } from '../modules/types'
@@ -16,6 +17,8 @@ const SECTIONS = ['Trip', 'Stock', 'Stores']
 const TRIP_FIELDS: FieldDef[] = [
   { name: 'name', label: 'Item', type: 'text' },
   { name: 'buy_g', label: 'Needed', type: 'number', unit: 'g' },
+  { name: 'buy_count', label: 'How many', type: 'number' },
+  { name: 'unit', label: 'Unit', type: 'text' },
   { name: 'from_stock_g', label: 'From stock', type: 'number', unit: 'g' },
   { name: 'pack_size_g', label: 'Pack', type: 'number', unit: 'g' },
   { name: 'checked', label: 'Got it', type: 'boolean' },
@@ -48,7 +51,16 @@ export function Shop() {
   const tripKey = `shop:checked:${today}`
   const checked = useLiveQuery(() => getMeta<string[]>(tripKey, []), [tripKey], [] as string[])
   // What to buy is what the plan needs less what is already here.
-  const rows = lines.map((l) => ({ ...l, buy_g: Math.max(0, l.needed_g - l.from_stock_g), checked: checked.includes(l.id) }))
+  // A food every meal counted the same way reads "6 eggs"; the rest in grams.
+  const rows = lines.map((l) => {
+    const buy_g = Math.max(0, l.needed_g - l.from_stock_g)
+    const buy_count = unitsToBuy(l)
+    return {
+      ...l, buy_g, buy_count, unit: l.count && buy_count !== null ? l.count.unit.name : null,
+      buy: l.count && buy_count !== null ? formatCount(buy_count, l.count.unit) : `${buy_g} g`,
+      checked: checked.includes(l.id),
+    }
+  })
   const fromStock = rows.some((r) => r.from_stock_g > 0)
   const ticked = lines.filter((l) => checked.includes(l.id))
   async function tick(row: TripLine, _field: string, value: unknown) {
@@ -62,8 +74,10 @@ export function Shop() {
   async function stockTicked() {
     if (!profile || ticked.length === 0) return
     for (const line of ticked) {
-      const grams = boughtGrams(line)
-      if (grams > 0) await addStock(profile.household_id, line.id, grams)
+      // Counted food without a pack size goes in as the whole ones bought.
+      const count = line.pack_size_g ? null : unitsToBuy(line)
+      const grams = count !== null && line.unit_g ? tidy(count * line.unit_g) : boughtGrams(line)
+      if (grams > 0) await addStock(profile.household_id, line.id, grams, undefined, count !== null ? line.count?.unit.name : undefined)
     }
     const done = new Set(ticked.map((l) => l.id))
     await setMeta(tripKey, checked.filter((id) => !done.has(id)))
@@ -95,7 +109,7 @@ export function Shop() {
               // dashes tells a shopper nothing.
               fields={[
                 { name: 'name', label: 'Item', type: 'text', width: 220 },
-                { name: 'buy_g', label: 'Needed', type: 'number', unit: 'g', width: 90 },
+                { name: 'buy', label: 'Needed', type: 'text', width: 100 },
                 // Shown only once something is in stock; then it explains
                 // why a need is smaller than the recipe says.
                 ...(fromStock ? [{ name: 'from_stock_g', label: 'From stock', type: 'number' as const, unit: 'g', width: 90 }] : []),
@@ -105,7 +119,7 @@ export function Shop() {
                 ] : []),
                 { name: 'checked', label: 'Got it', type: 'boolean', width: 70 },
               ]}
-              priority={['name', 'buy_g', ...(fromStock ? ['from_stock_g'] : []), 'checked']}
+              priority={['name', 'buy', ...(fromStock ? ['from_stock_g'] : []), 'checked']}
               rows={rows as never}
               editable={['checked']}
               onChange={(row, field, value) => void tick(row as never, field, value)}
