@@ -76,12 +76,17 @@ export function monthsBetween(first: string, last: string): MonthBlock[] {
 /** Where each month starts, top to bottom, when every month has a heading
  *  of `headH` pixels and every week row is `rowH` tall. Known heights are
  *  what let the calendar draw only the months near the screen. */
-export function monthTops(months: MonthBlock[], headH: number, rowH: number): { tops: number[]; total: number } {
+export function monthTops(months: MonthBlock[], headH: number, rowH: number, columns = 1): { tops: number[]; total: number } {
   const tops: number[] = []
   let y = 0
-  for (const m of months) {
-    tops.push(y)
-    y += headH + m.weeks * rowH
+  // With more than one column (a wide screen), months stand side by side in
+  // rows of `columns`; every month in a row starts at the row's top, and the
+  // row is as tall as its tallest month.
+  const cols = Math.max(1, Math.floor(columns))
+  for (let i = 0; i < months.length; i += cols) {
+    const row = months.slice(i, i + cols)
+    for (let k = 0; k < row.length; k++) tops.push(y)
+    y += headH + Math.max(...row.map((m) => m.weeks)) * rowH
   }
   return { tops, total: y }
 }

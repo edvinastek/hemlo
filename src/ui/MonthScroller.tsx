@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode } from 'react'
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode, type RefObject } from 'react'
 import { monthAt, monthDays, monthIndex, monthsBetween, monthTops, type MonthBlock } from '../lib/calendar-rules'
 import './colours.css'
 import './monthscroller.css'
@@ -10,6 +10,9 @@ const ROW_H = 44
 /** Months drawn beyond the ones on screen, above and below, so a quick
  *  flick does not show blank space before the next months are drawn. */
 const SPARE = 2
+/** With `columns`, a month gets at least this much width before a second
+ *  (or third) stands beside it. */
+const MONTH_MIN_W = 250
 
 const MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August',
   'September', 'October', 'November', 'December']
@@ -56,6 +59,9 @@ interface Props {
   extra?: (day: string) => ReactNode
   onDayClick?: (day: string) => void
   className?: string
+  /** At most this many months side by side, as many as the width allows
+   *  (each at least 250 px). One, the default, is the phone's single column. */
+  columns?: number
 }
 
 /** Months stacked top to bottom, scrolled like a phone's calendar. About two
@@ -65,22 +71,29 @@ interface Props {
  *  advance (a heading and four to six rows), which is what makes that work. */
 export function MonthScroller({
   first, last, openAt, jump, today, label, marks, heat, selected, chosen, disabled, describe, extra, onDayClick, className,
+  columns = 1,
 }: Props) {
+  const root = useRef<HTMLDivElement>(null)
   const scroller = useRef<HTMLDivElement>(null)
+  const cols = useColumns(root, columns)
   const months = useMemo(() => monthsBetween(first, last), [first, last])
-  const { tops, total } = useMemo(() => monthTops(months, HEAD_H, ROW_H), [months])
+  const { tops, total } = useMemo(() => monthTops(months, HEAD_H, ROW_H, cols), [months, cols])
   const openIndex = monthIndex(months, openAt)
   const [shown, setShown] = useState<[number, number]>([openIndex - SPARE, openIndex + 2 + SPARE])
   const frame = useRef(0)
 
-  /** Which months are near the screen, worked out from where it is scrolled to. */
+  /** Which months are near the screen, worked out from where it is scrolled to.
+   *  Side by side, whole rows: from the first month of the top row to the
+   *  last of the bottom one (monthAt finds a row's last month). */
   const measure = useCallback(() => {
     const el = scroller.current
     if (!el) return
-    const top = monthAt(tops, el.scrollTop)
+    const topLast = monthAt(tops, el.scrollTop)
+    const top = topLast - (topLast % cols)
     const bottom = monthAt(tops, el.scrollTop + Math.max(el.clientHeight, ROW_H * 12))
-    setShown((was) => (was[0] === top - SPARE && was[1] === bottom + SPARE ? was : [top - SPARE, bottom + SPARE]))
-  }, [tops])
+    const spare = SPARE * cols
+    setShown((was) => (was[0] === top - spare && was[1] === bottom + spare ? was : [top - spare, bottom + spare]))
+  }, [tops, cols])
 
   // Open on the month asked for, before the first paint, so it never flashes
   // the top of the range first.
@@ -102,15 +115,22 @@ export function MonthScroller({
   const to = Math.min(months.length - 1, shown[1])
   const style = { '--ms-head': `${HEAD_H}px`, '--ms-row': `${ROW_H}px` } as CSSProperties
 
+  const letters = WEEKDAYS.map((w) => <span key={w}>{w[0]}</span>)
+
   return (
-    <div className={`ms${className ? ` ${className}` : ''}`} style={style} role="group" aria-label={label}>
-      <div className="ms-weekdays" aria-hidden="true">
-        {WEEKDAYS.map((w) => <span key={w}>{w[0]}</span>)}
-      </div>
+    <div ref={root} className={`ms${cols > 1 ? ' ms-cols' : ''}${className ? ` ${className}` : ''}`} style={style} role="group" aria-label={label}>
+      {cols > 1 ? (
+        <div className="ms-weekdays" aria-hidden="true" style={{ gridTemplateColumns: `repeat(${cols}, minmax(0, 1fr))` }}>
+          {Array.from({ length: cols }, (_, c) => <span key={c} className="ms-weekdays-group">{letters}</span>)}
+        </div>
+      ) : (
+        <div className="ms-weekdays" aria-hidden="true">{letters}</div>
+      )}
       <div className="ms-scroll" ref={scroller} onScroll={onScroll}>
         <div className="ms-inner" style={{ height: total }}>
           {months.slice(from, to + 1).map((m, i) => (
-            <Month key={m.key} block={m} top={tops[from + i]} first={first} last={last} today={today}
+            <Month key={m.key} block={m} top={tops[from + i]} column={(from + i) % cols} columns={cols}
+              first={first} last={last} today={today}
               marks={marks} heat={heat} selected={selected} chosen={chosen} disabled={disabled} describe={describe} extra={extra}
               onDayClick={onDayClick} />
           ))}
@@ -120,10 +140,30 @@ export function MonthScroller({
   )
 }
 
-function Month({ block, top, first, last, today, marks, heat, selected, chosen, disabled, describe, extra, onDayClick }:
-  Omit<Props, 'openAt' | 'jump' | 'label' | 'className'> & { block: MonthBlock; top: number }) {
+/** How many months fit side by side: as many as `max`, each at least
+ *  MONTH_MIN_W wide, following the calendar's width as it changes. */
+function useColumns(root: RefObject<HTMLDivElement>, max: number): number {
+  const [cols, setCols] = useState(1)
+  useLayoutEffect(() => {
+    const el = root.current
+    if (!el || max <= 1) { setCols(1); return }
+    const fit = () => setCols(Math.max(1, Math.min(max, Math.floor(el.clientWidth / MONTH_MIN_W))))
+    fit()
+    const ro = new ResizeObserver(fit)
+    ro.observe(el)
+    return () => ro.disconnect()
+  }, [root, max])
+  return cols
+}
+
+function Month({ block, top, column, columns, first, last, today, marks, heat, selected, chosen, disabled, describe, extra, onDayClick }:
+  Omit<Props, 'openAt' | 'jump' | 'label' | 'className' | 'columns'> & { block: MonthBlock; top: number; column: number; columns: number }) {
+  // Side by side, each month takes its share of the width.
+  const place: CSSProperties = columns > 1
+    ? { left: `${(column * 100) / columns}%`, right: 'auto', width: `${100 / columns}%` }
+    : {}
   return (
-    <section className="ms-month" style={{ top, height: HEAD_H + block.weeks * ROW_H }} aria-label={monthName(block.key)}>
+    <section className="ms-month" style={{ top, height: HEAD_H + block.weeks * ROW_H, ...place }} aria-label={monthName(block.key)}>
       <h3 className="ms-title">{monthName(block.key)}</h3>
       <div className="ms-grid">
         {block.lead > 0 && <span style={{ gridColumn: `span ${block.lead}` }} aria-hidden="true" />}
