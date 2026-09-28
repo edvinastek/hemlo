@@ -10,7 +10,7 @@ import { recipeMacros, mealMultiplier, type Macros } from '../lib/calc'
 import { SLOTS, MAIN_SLOT, slotsFor, planMeal, planQuick, markEaten, macrosFor, setMealTime, type SlotKey } from '../lib/meals'
 import { readSettings, mealTime, type Nutrient, type ProfileSettings } from '../lib/settings'
 import {
-  BASES, EMPTY_FORM, MACROS, amountLine, formFrom, isQuick, nutrientLabel, quickCount, quickFromFood, quickMacros, readQuick,
+  BASES, EMPTY_FORM, MACROS, amountLine, formFrom, isQuick, nutrientLabel, quickAmount, quickCount, quickFromFood, quickMacros, readQuick,
   shownNutrients, type Basis, type QuickEntry, type QuickForm,
 } from '../lib/quick-food'
 import { amountChoices, amountHint, readAmount, readUnits, unitKey, unitsText } from '../lib/units-rules'
@@ -275,7 +275,10 @@ function MealSlot({ slotKey, label, slot, day, profileId, time, items, recipes, 
 
       {planned && (
         <div className="slot-foot">
-          <span className="row-meta slot-amounts">{totals ? amountLine(totals, shown) : ''}</span>
+          <span className="row-meta slot-amounts">
+            {/* A counted meal says how much: "2 eggs (100 g) · 143 kcal". */}
+            {quickSaved && slot!.unit ? `${quickAmount(slot!)} · ` : ''}{totals ? amountLine(totals, shown) : ''}
+          </span>
           {!quickSaved && (
             <input type="number" min={0.25} step={0.25} value={slot!.portion_multiplier} aria-label={`${label} portions`}
               className="slot-portions"

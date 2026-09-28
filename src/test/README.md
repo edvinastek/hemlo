@@ -81,6 +81,13 @@ Types, then every check that needs nothing but Node. CI runs the same command.
   the pack size from grams, millilitres or "6 x 50 g", shop names tidied ("Ah" is Albert Heijn), the food row it
   becomes and finding one already kept (or deleted) with that barcode, packs into grams for stock, shared prices
   (the latest per shop, per kilo, the day, offers), and the limiter and cache that keep under Open Food Facts' limits.
+- `units` — food counted in units as well as grams (022): a food's units read strictly (at most eight, a name of up to
+  24 characters that is not a weight, 0.1 to 5000 g each, each name once), plurals ("2 eggs", "0.5 cup", "2 tbsp"),
+  numbers as typed (a comma, ½, 3/4), an amount in a unit and the grams it comes to, the saved grams standing when a
+  unit's weight changes later, which columns a write carries (none for plain grams, so a server before 022 still takes
+  it), counts added up only when every line used the same unit, stock kept in a unit and its −/+ by one, Open Food
+  Facts' serving sizes ("1 egg (50 g)", "2 biscuits (25 g)", "30g"), the units cell of an export, and a workbook's
+  "1 large (50g)" or "2 slices". `books`, `quickfood`, `import`, `products` and `sharing` check their parts too.
 
 ## Browser checks
 
@@ -93,7 +100,7 @@ export SB=<Supabase access token>  TEST_PASSWORD=<random>
 export TEST_EMAIL=e2e-a@example.invalid TEST_NEW_EMAIL=e2e-b@example.invalid TEST_FEAT_EMAIL=e2e-c@example.invalid
 export TEST_ONBOARD_EMAIL=e2e-d@example.invalid TEST_MODULES_EMAIL=e2e-e@example.invalid
 node scripts/test-accounts.mjs create $TEST_EMAIL $TEST_NEW_EMAIL $TEST_FEAT_EMAIL $TEST_ONBOARD_EMAIL $TEST_MODULES_EMAIL
-for t in onboarding features offline privacy tracking widget tasksheet repeat reorder food stock daytabs modules views nav holidays stats transfer books sharing accounts calendarlinks products landscape layout tour; do node src/test/$t.e2e.mjs || break; done
+for t in onboarding features offline privacy tracking widget tasksheet repeat reorder food stock daytabs modules views nav holidays stats transfer books sharing accounts calendarlinks products units landscape layout tour; do node src/test/$t.e2e.mjs || break; done
 node scripts/test-accounts.mjs delete $TEST_EMAIL $TEST_NEW_EMAIL $TEST_FEAT_EMAIL $TEST_ONBOARD_EMAIL $TEST_MODULES_EMAIL
 ```
 
@@ -172,9 +179,14 @@ to the test accounts, because they run against the live project.
   food already kept instead of adding a second; the product page's prices section shows prices or "No shared
   prices yet", with both attribution lines; nothing runs off the side.
 
+- `units` (uses `TEST_FEAT_EMAIL`; needs migration 022) — at 360 px: an own food "E2E eggs" given the unit egg of 50 g on
+  its page (Foods → Open), in Postgres; a recipe written as 2 eggs a portion, saved as unit egg, 2, 100 g, counting
+  143 kcal a portion and reading 2 eggs when opened again; its copied ingredient list saying "E2E eggs — 2 eggs"; 12
+  eggs put in stock reading "12 eggs" and held as 600 g with the unit in Postgres, and + adding one egg (650 g).
+
 ## Database — `supabase/test.sh`
 
-Runs `supabase/tests/security.sql`: 80 checks on the database — reading another
+Runs `supabase/tests/security.sql`: 102 checks on the database — reading another
 account's data, taking over a household, writing to shared catalogue rows,
 signing up uninvited, deleting an account and what it leaves behind, calendar
 links (a feed link only its owner can make, whose hash no one can read back or
@@ -184,5 +196,8 @@ sharing: a proposal no one else can read, an owner who cannot approve their own
 or call the review, a reviewer (one of the throwaway users, made one for the run)
 who can, an approved recipe changed and sent back, the reviewer list readable
 only for your own row; and scanned products (021): another account's cannot be read or changed, the same product
-kept once per person, a barcode that is not 8 to 14 digits or a picture link that is not https refused. It runs in
+kept once per person, a barcode that is not 8 to 14 digits or a picture link that is not https refused; and food units (022): a food's
+units only its owner can change (not a stranger, not the catalogue), a list that is not one, more than eight, a weight
+of nothing or past 5 kg or written as text, no name, a long name, grams as a unit, extra keys, a name twice refused;
+an ingredient's unit without how many refused, 2 eggs and 12 eggs of stock taken, and the catalogue's eggs of 50 g. It runs in
 a transaction that rolls back, so it is safe against the live project.
