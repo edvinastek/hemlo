@@ -144,6 +144,23 @@ const odd = planImport({
 is('food macros out of range become unknown', [odd.foods[0].kcal, odd.foods[0].carbs_g, odd.foods[0].fat_g], [null, null, 3])
 is('recipe macros out of range become unknown', [odd.recipes[0].recipe.kcal, odd.recipes[0].recipe.carbs_g], [null, 10])
 
+// A food counted in units (022): the workbook's "1 large (50g)" is an egg,
+// "2 slices" two slices worked out from the unit; grams stay grams.
+const counted = planImport({
+  sheets: [], skipped: 0, exercises: [], foods: [],
+  recipes: [{ name: 'Egg toast', kcal: null, carbs_g: null, fiber_g: null, fat_g: null, protein_g: null,
+    ingredients: 'Hard-boiled egg – 1 large (50g)\nWhole-wheat bread – 2 slices\nOats – 40g' }],
+}, {
+  foods: [{ id: 'egg', name: 'Egg Chicken', units: [{ name: 'egg', plural: 'eggs', g: 50 }] },
+    { id: 'bread', name: 'Whole-wheat bread', units: [{ name: 'slice', plural: 'slices', g: 35 }] },
+    { id: 'oats', name: 'Oats', units: [{ name: 'tbsp', g: 5 }] }],
+  recipes: [],
+}, 'user-1', id, '2026-09-24T10:00:00.000Z')
+const [eggLine, breadLine, oatLine] = counted.recipes[0].lines
+is('a large egg is one egg of 50 g', [eggLine.food_id, eggLine.unit, eggLine.unit_qty, eggLine.grams_per_portion], ['egg', 'egg', 1, 50])
+is('two slices are 70 g', [breadLine.unit, breadLine.unit_qty, breadLine.grams_per_portion], ['slice', 2, 70])
+is('grams stay grams', ['unit' in oatLine, oatLine.grams_per_portion], [false, 40])
+
 // The queue entry carries exactly the listed fields, like queueChange.
 const entry = pendingEntry('food', { id: 'x', name: 'Skyr', kcal: 63, secret: 'no' }, ['name', 'kcal'], 'T')
 is('pending entry shape', entry, { table: 'food', row_id: 'x', op: 'upsert', payload: { name: 'Skyr', kcal: 63 }, fields: ['name', 'kcal'], changed_at: 'T' })

@@ -14,6 +14,7 @@ import { addRecord, isoToLocal, listRecords } from '../modules/records'
 import { computeFormulas, mainField } from '../modules/def-rules'
 import type { FieldDef } from '../modules/types'
 import type { Profile, Series, SeriesException, Task } from './types'
+import { parseUnitsText, readUnits, unitsText } from './units-rules'
 import {
   buildCalendar, calendarEvent, minutesBetween, parseIcs, recordEvent, seriesEvents, taskEvent, uidFor, type IcsEvent, type ParsedEvent,
 } from './ics-rules'
@@ -146,8 +147,9 @@ async function readRows(profile: Profile, d: Dataset, userId: string | null): Pr
       return recs.reverse().map((r) => ({ id: r.id, date: r.date, values: { ...r.values, ...computeFormulas(entity.fields, r.values) }, source: r.row }))
     }
     case 'food':
+      // Units as one cell: "egg/eggs = 50 g; slice = 35 g".
       return (await db.food.toArray()).filter((f) => live(f) && (!f.owner_id || f.owner_id === userId))
-        .map((f) => ({ id: f.id, date: null, values: { ...f } }))
+        .map((f) => ({ id: f.id, date: null, values: { ...f, units: unitsText(readUnits(f.units)) } }))
     case 'recipe':
       return (await db.recipe.toArray()).filter((r) => live(r) && (!r.owner_id || r.owner_id === userId))
         .map((r) => ({ id: r.id, date: null, values: { ...r } }))
@@ -166,7 +168,10 @@ async function readRows(profile: Profile, d: Dataset, userId: string | null): Pr
     case 'stock': {
       const foods = new Map((await db.food.toArray()).map((f) => [f.id, f.name]))
       return (await db.stock.where('household_id').equals(profile.household_id).toArray()).filter(live)
-        .map((r) => ({ id: r.id, date: null, values: { food: foods.get(r.food_id) ?? r.food_id, grams_on_hand: r.grams_on_hand, note: r.note } }))
+        .map((r) => ({ id: r.id, date: null, values: {
+          food: foods.get(r.food_id) ?? r.food_id, grams_on_hand: r.grams_on_hand,
+          unit: r.unit ?? null, unit_qty: r.unit_qty ?? null, note: r.note,
+        } }))
     }
     case 'backup': return []
   }
@@ -541,7 +546,11 @@ async function saveRow(profile: Profile, userId: string | null, d: Dataset, v: R
     }
     case 'food': {
       if (!userId) return false
+      // A units cell that cannot be read fails the row rather than dropping them.
+      const units = parseUnitsText(v.units)
+      if (units.error !== undefined) return false
       await edit('food', { id: crypto.randomUUID() } as never, {
+        ...(units.units.length ? { units: units.units } : {}),
         owner_id: userId, name: str(v.name), kcal: num(v.kcal), protein_g: num(v.protein_g), carbs_g: num(v.carbs_g),
         fat_g: num(v.fat_g), fiber_g: num(v.fiber_g), state: str(v.state) ?? 'raw', cook_yield: null, pack_size_g: null,
         store_section: null, source: 'import', deleted_at: null,

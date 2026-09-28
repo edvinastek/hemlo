@@ -1,6 +1,7 @@
 import { db } from './db'
 import { queueChange, NATURAL_KEYS } from './sync'
 import { withoutReview } from './sharing-rules'
+import { readUnits } from './units-rules'
 
 /** One file that holds everything: profile, plan, logs, recipes and settings.
  *  It is the backup, how a device hands its state to another one, and the
@@ -156,7 +157,9 @@ export async function importBundle(file: File, profileId: string, userId: string
 
   // Parents before the rows that point at them, so the server sees them first:
   // recipes before the meal plan, series before their tasks, habits before ticks.
-  for (const r of rows('food')) await put('food', r, { owner_id: userId })
+  // A food's units are read strictly, so a hand-edited file cannot carry
+  // ones the database would refuse.
+  for (const r of rows('food')) await put('food', r, { owner_id: userId, ...('units' in r ? { units: readUnits(r.units) } : {}) })
   // A recipe's review is the server's to say: a backup never carries one, so
   // a recipe read back in keeps its place, or starts private if it is new.
   for (const r of rows('recipe')) await put('recipe', withoutReview(r), { owner_id: userId })
