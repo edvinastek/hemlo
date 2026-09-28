@@ -8,7 +8,7 @@
  *  (VITE_CONTROLLER_NAME, VITE_CONTACT_EMAIL), so they are not hard-coded into
  *  the repository. The public site refuses to build without them. */
 
-export const POLICY_VERSION = '2026-09-25'
+export const POLICY_VERSION = '2026-09-28'
 
 export const controller = {
   name: (import.meta.env.VITE_CONTROLLER_NAME as string | undefined) ?? '',
@@ -62,6 +62,7 @@ export function privacySections(): Section[] {
       heading: 'Who else can see it',
       body: [
         'No one else. Access is enforced by the database itself, not only by the app. If you share a household, its members share the stock list and shopping trips; your profile, health details and plan stay private to you.',
+        'The one exception is a recipe you choose to propose to everyone. The app’s owner reads it first, with the name on your profile, to approve or decline it. Once approved, everyone signed in to GetIt can see the recipe and its ingredients, without your name. It stops being shared when you set it back to Only me or delete it, and it is deleted with your account.',
         'Google, which distributes the app through Google Play, receives nothing you enter in GetIt.',
       ],
     },

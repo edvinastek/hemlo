@@ -85,6 +85,14 @@ export interface Recipe {
   portions_per_batch: number
   cook_minutes: number | null
   steps: string | null
+  /** Who can see it (migration 019). Rows from before it have none of these;
+   *  lib/sharing-rules.ts reads them with the database's defaults. */
+  sharing?: import('./sharing-rules').Sharing
+  proposed_at?: string | null
+  reviewed_at?: string | null
+  /** The reviewer's note, shown to the owner when it was not accepted. */
+  review_note?: string | null
+  deleted_at?: string | null
 }
 
 export interface RecipeLine {

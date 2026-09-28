@@ -16,6 +16,7 @@ import {
 import { SearchPick, type PickItem } from '../ui/SearchPick'
 import { Dropdown } from '../ui/Dropdown'
 import { ExportLink } from '../ui/ExportLink'
+import { MyRecipes } from '../ui/MyRecipes'
 import { moduleByKey } from '../modules/registry'
 import type { FieldDef } from '../modules/types'
 import { useBuiltinRuleOn } from '../modules/rule-switch'
@@ -96,16 +97,19 @@ export function Food() {
         )}
 
         {section === 'Recipes' && (
-          <BookTable
-            kind="recipe"
-            head={<span><b>{liveRecipes.length}</b> recipes · macros calculated from the ingredient lines</span>}
-            fields={recipeFields}
-            priority={narrowColumns}
-            rows={recipeRows}
-            lines={lines}
-            foods={foodMap}
-            emptyNote="No recipes yet — import them from your Excel file in More."
-          />
+          <>
+            <MyRecipes userId={userId} recipes={liveRecipes} lines={lines} foods={foodMap} />
+            <BookTable
+              kind="recipe"
+              head={<span><b>{liveRecipes.length}</b> recipes · macros calculated from the ingredient lines</span>}
+              fields={recipeFields}
+              priority={narrowColumns}
+              rows={recipeRows}
+              lines={lines}
+              foods={foodMap}
+              emptyNote="No recipes yet — import them from your Excel file in More."
+            />
+          </>
         )}
 
         {section === 'Foods' && (
