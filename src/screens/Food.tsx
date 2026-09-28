@@ -16,6 +16,7 @@ import {
 import { SearchPick, type PickItem } from '../ui/SearchPick'
 import { Dropdown } from '../ui/Dropdown'
 import { ExportLink } from '../ui/ExportLink'
+import { MyRecipes } from '../ui/MyRecipes'
 import { moduleByKey } from '../modules/registry'
 import type { FieldDef } from '../modules/types'
 import type { Food as FoodRow, Recipe, RecipeLine, MealPlanSlot, Target } from '../lib/types'
@@ -97,6 +98,7 @@ export function Food() {
 
         {section === 'Recipes' && (
           <>
+            <MyRecipes userId={userId} recipes={recipes} lines={lines} foods={foodMap} />
             <div className="totals"><span><b>{recipes.length}</b> recipes · macros calculated from the ingredient lines</span></div>
             <DataTable
               fields={recipeFields}

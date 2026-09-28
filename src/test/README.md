@@ -46,6 +46,11 @@ Types, then every check that needs nothing but Node. CI runs the same command.
   semicolon CSV, JSON; columns matched by name, label or Google Calendar's headers; dates, times and
   numbers as spreadsheets write them; each row's problems, required columns, server limits, duplicates by
   natural key; the dataset catalogue, ranges, file names, figures for charts.
+- `sharing` — recipes kept private or proposed to everyone: the status chips (Private, Waiting for review,
+  Shared with everyone, Not accepted with the reviewer's note), what saving does (a changed approved recipe goes
+  back for review; the owner can never reach "shared" or "not accepted" by choosing), foods only the author can
+  see, which recipes a device keeps (never someone else's proposal, even for a reviewer), the reviewer's note,
+  the author's name (never an address), and the recipe editor's form and what a save changes.
 
 ## Browser checks
 
@@ -58,7 +63,7 @@ export SB=<Supabase access token>  TEST_PASSWORD=<random>
 export TEST_EMAIL=e2e-a@example.invalid TEST_NEW_EMAIL=e2e-b@example.invalid TEST_FEAT_EMAIL=e2e-c@example.invalid
 export TEST_ONBOARD_EMAIL=e2e-d@example.invalid TEST_MODULES_EMAIL=e2e-e@example.invalid
 node scripts/test-accounts.mjs create $TEST_EMAIL $TEST_NEW_EMAIL $TEST_FEAT_EMAIL $TEST_ONBOARD_EMAIL $TEST_MODULES_EMAIL
-for t in onboarding features offline privacy tracking widget tasksheet repeat reorder food stock daytabs modules nav holidays stats transfer layout tour; do node src/test/$t.e2e.mjs || break; done
+for t in onboarding features offline privacy tracking widget tasksheet repeat reorder food stock daytabs modules nav holidays stats transfer sharing layout tour; do node src/test/$t.e2e.mjs || break; done
 node scripts/test-accounts.mjs delete $TEST_EMAIL $TEST_NEW_EMAIL $TEST_FEAT_EMAIL $TEST_ONBOARD_EMAIL $TEST_MODULES_EMAIL
 ```
 
@@ -102,10 +107,19 @@ to the test accounts, because they run against the live project.
 - `transfer` (uses `TEST_FEAT_EMAIL`) — a Finance entry exported as CSV from its page's Export link
   (clear of the add button), read back in through More → Data → Import and export and found in Postgres,
   the same file again adding nothing; a calendar file into Tasks, its weekly repeat kept as a series.
+- `sharing` (uses `TEST_NEW_EMAIL` as the author and `TEST_FEAT_EMAIL` as the other account; needs migration
+  019) — a recipe written in the editor and proposed, which the other account cannot read; that account made a
+  reviewer for the run (a row in `app_admin`, removed at the end), finding it in More → Data → Recipes to review
+  and not among its own recipes, and approving it; then it can read it and has it locally, and the author sees
+  "Shared with everyone". At 360 px.
 
 ## Database — `supabase/test.sh`
 
-Runs `supabase/tests/security.sql`: 30 attacks on the database — reading another
+Runs `supabase/tests/security.sql`: 56 checks on the database — reading another
 account's data, taking over a household, writing to shared catalogue rows,
-signing up uninvited, deleting an account and what it leaves behind. It runs in
+signing up uninvited, deleting an account and what it leaves behind, and recipe
+sharing: a proposal no one else can read, an owner who cannot approve their own
+or call the review, a reviewer (one of the throwaway users, made one for the run)
+who can, an approved recipe changed and sent back, the reviewer list readable
+only for your own row. It runs in
 a transaction that rolls back, so it is safe against the live project.

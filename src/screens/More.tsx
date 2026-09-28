@@ -17,6 +17,7 @@ import { NavSettings } from '../settings/NavSettings'
 import { ColourSettings } from '../settings/ColourSettings'
 import { HolidaySettings } from '../settings/HolidaySettings'
 import { TransferSettings } from '../settings/TransferSettings'
+import { RecipeReview } from '../settings/RecipeReview'
 import { exportBundle, importBundle } from '../lib/bundle'
 import { getReminderSettings, setReminderSettings, requestPermission, type ReminderSettings } from '../lib/notify'
 import type { ModuleInstance } from '../lib/types'
@@ -296,6 +297,7 @@ function DataPanel() {
 
   return (
     <>
+      <RecipeReview />
       <p className="section-title">Sync</p>
       <div className="setting-row">
         <div>
