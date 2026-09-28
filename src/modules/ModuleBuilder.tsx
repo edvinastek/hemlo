@@ -1,11 +1,13 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useApp } from '../lib/store'
-import type { FieldDef, ModuleDef, ViewDef } from './types'
+import type { EntityDef, FieldDef, ModuleDef, ViewDef } from './types'
 import {
   LIMITS, RULE_DAY_TASK, RULE_REMIND, builtRuleCatalogue, cleanKeywords, definitionFor, definitionProblem,
-  fieldNameFrom, glyphProblem, isDateLike, isNumeric, readBuiltDefinition, type LookupKind, type StatsKind,
+  fieldNameFrom, glyphProblem, isDateLike, isNumeric, readBuiltDefinition, viewDefaults, viewProblem,
+  type LookupKind, type StatsKind,
 } from './def-rules'
+import { VIEW_TYPE_NAME, VIEW_TYPE_OPTIONS, ViewSettings } from './ViewSettings'
 import { createBuiltModule, setModuleEnabled, useModuleDefs } from './defs'
 import { PRESETS, presetByKey } from './presets'
 import { FieldForm, LOOKUP_OPTIONS, STATS_OPTIONS, describeField } from './FieldForm'
@@ -51,10 +53,11 @@ export function BuiltModules({ onEdit }: { onEdit: (key: string) => void }) {
 
 const STEPS = ['Name', 'What you track', 'Keywords', 'Fields', 'Links and rules'] as const
 
-function viewsFor(preset: { views: Omit<ViewDef, 'entity'>[] }, fields: FieldDef[]): ViewDef[] {
-  const date = fields.find(isDateLike)
-  return preset.views.map((v) => ({ ...v, entity: 'item', ...(v.type === 'calendar' && date ? { dateField: date.name } : {}) }))
+/** The views chosen, each with its settings filled in from the fields. */
+function viewsFor(views: Omit<ViewDef, 'entity'>[], entity: EntityDef): ViewDef[] {
+  return views.map((v) => viewDefaults({ ...v, entity: entity.name }, entity))
 }
+const SET_UP_VIEWS: ViewDef['type'][] = ['board', 'grid', 'chart']
 
 /** Build a module in five short steps. Everything chosen here can be
  *  changed later in the editor; nothing is saved until Create. */
@@ -69,6 +72,7 @@ export function ModuleBuilder({ onClose }: { onClose: () => void }) {
   const [item, setItem] = useState(PRESETS[0].item)
   const [keywords, setKeywords] = useState('')
   const [fields, setFields] = useState<FieldDef[]>(PRESETS[0].fields.map((f) => ({ ...f })))
+  const [views, setViews] = useState<Omit<ViewDef, 'entity'>[]>(PRESETS[0].views.map((v) => ({ ...v })))
   const [rules, setRules] = useState(builtRuleCatalogue())
   const [open, setOpen] = useState<number | 'new' | null>(null)
   const [error, setError] = useState<string | null>(null)
@@ -81,6 +85,7 @@ export function ModuleBuilder({ onClose }: { onClose: () => void }) {
     if (!p) return
     setPresetKey(key)
     setFields(p.fields.map((f) => ({ ...f, ...(f.options ? { options: [...f.options] } : {}) })))
+    setViews(p.views.map((v) => ({ ...v })))
     setItem(p.item)
     setKeywords(p.keywords.join(', '))
     setOpen(null)
@@ -95,7 +100,22 @@ export function ModuleBuilder({ onClose }: { onClose: () => void }) {
   }
   // Views follow the fields: columns and calendar dates only name fields
   // that are there.
-  draft.views = readBuiltDefinition({ key: draft.key, name: draft.name || 'x', definition: { ...definitionFor(draft), views: viewsFor(preset, fields) } }).views
+  const entity = draft.entities[0]
+  draft.views = readBuiltDefinition({ key: draft.key, name: draft.name || 'x', definition: { ...definitionFor(draft), views: viewsFor(views, entity) } }).views
+
+  /** A kind of view on or off. At least one view stays. */
+  function toggleView(type: ViewDef['type']) {
+    setViews((vs) => {
+      if (vs.some((v) => v.type === type)) {
+        const rest = vs.filter((v) => v.type !== type)
+        return rest.length ? rest : vs
+      }
+      let key: string = type
+      for (let i = 2; vs.some((v) => v.key === key); i++) key = `${type}_${i}`
+      return [...vs, { key, name: VIEW_TYPE_NAME[type], type }]
+    })
+  }
+  const viewCantDraw = (type: ViewDef['type']) => viewProblem(viewDefaults({ key: 'x', name: 'x', type, entity: entity.name }, entity), entity)
   const problem = definitionProblem({ ...draft, name: draft.name || 'x' })
 
   function stepProblem(): string | null {
@@ -253,6 +273,34 @@ export function ModuleBuilder({ onClose }: { onClose: () => void }) {
               {fields.some((f) => f.type === 'lookup') && (
                 <p className="mf-hint">Linked: {fields.filter((f) => f.type === 'lookup').map((f) => f.label).join(', ')}.</p>
               )}
+            </div>
+            <div className="mf-field">
+              <span>Views: how the records are shown on the module’s page</span>
+              <div className="me-cols" role="group" aria-label="Views">
+                {VIEW_TYPE_OPTIONS.map((o) => {
+                  const on = views.some((v) => v.type === o.value)
+                  const cant = on ? null : viewCantDraw(o.value)
+                  return (
+                    <button key={o.value} type="button" className="me-col" aria-pressed={on} disabled={!!cant}
+                      title={cant ?? o.hint} onClick={() => toggleView(o.value)}>{o.label}</button>
+                  )
+                })}
+              </div>
+              <p className="mf-hint">
+                {VIEW_TYPE_OPTIONS.filter((o) => views.some((v) => v.type === o.value)).map((o) => `${o.label}: ${o.hint?.toLowerCase()}`).join('. ')}.
+                {' '}A board needs a choice field; a grid and a chart need a date. All of it can be changed later in Edit module.
+              </p>
+              {draft.views.filter((v) => SET_UP_VIEWS.includes(v.type)).map((v) => (
+                <div key={v.key} className="mb-view">
+                  <span className="mf-hint">{v.name}</span>
+                  <ViewSettings view={v} entity={entity} change={(fn) => setViews((vs) => vs.map((x) => {
+                    if (x.key !== v.key) return x
+                    const next = viewDefaults({ ...x, entity: entity.name }, entity)
+                    fn(next)
+                    return next
+                  }))} />
+                </div>
+              ))}
             </div>
             {rules.map((r) => {
               const blocked = r.name === RULE_REMIND && !dayTaskOn
