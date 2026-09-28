@@ -20,7 +20,9 @@ import { useWeekSwap } from '../ui/WeekSwap'
 import { useLayout } from '../ui/useLayout'
 import { countriesIn, holidayMarks, holidaysText, useHolidays } from '../lib/holidays'
 import { HolidayLegend, HolidayMark } from '../ui/HolidayMark'
-import type { Task } from '../lib/types'
+import { calendarsIn, useFollowedEvents, type FollowedItem } from '../lib/calendar-links'
+import { FollowedLegend, FollowedSheet, FollowedWeekItem } from '../ui/FollowedEvents'
+import type { CalendarEvent, Task } from '../lib/types'
 import '../ui/colours.css'
 
 const SECTIONS = ['Week', 'Month', 'Year']
@@ -49,6 +51,16 @@ export function Plan() {
     section === 'Year' ? range.last : format(endOfWeek(endOfYear(date), { weekStartsOn: 1 }), 'yyyy-MM-dd'))
   const holidayLegend = (days: Date[]) =>
     countriesIn(days.map((d) => holidayMarks(holidays, d)), readSettings(profile).holidays.countries)
+  // Events from calendars the person follows, over the same days. Read-only:
+  // a tap shows one (ui/FollowedEvents.tsx).
+  const followed = useFollowedEvents(profile?.id,
+    section === 'Year' ? range.first : format(startOfWeek(startOfYear(date), { weekStartsOn: 1 }), 'yyyy-MM-dd'),
+    section === 'Year' ? range.last : format(endOfWeek(endOfYear(date), { weekStartsOn: 1 }), 'yyyy-MM-dd'))
+  const followedOn = (day: string): FollowedItem[] => followed.get(day) ?? []
+  const followedLegend = (days: Date[]) => calendarsIn(days.map((d) => followed.get(key(d))))
+  /** The followed calendars on a day, each once, by colour. */
+  const followedColours = (day: string) => [...new Set(followedOn(day).map((f) => f.sub.colour))]
+  const [openEvent, setOpenEvent] = useState<CalendarEvent | null>(null)
 
   const tasks = useLiveQuery(async () => {
     if (!profile) return []
@@ -80,8 +92,11 @@ export function Plan() {
     modulesByWeight([...(byDay.get(day) ?? []), ...plannedOn(day)].map(colours.moduleOf))
   const modulesOn = (d: Date) => modulesOnDay(key(d))
 
+  // A followed event counts by its length when it has a time; a whole-day
+  // one (a holiday, a birthday) adds nothing to the load.
   const loadOn = (day: string) => [...(byDay.get(day) ?? []), ...plannedOn(day)]
     .reduce((sum, t) => sum + (t.duration_min ?? 15), 0)
+    + followedOn(day).reduce((sum, f) => sum + f.minutes, 0)
   const load = (d: Date) => loadOn(key(d))
 
   /** The heat ramp belongs to Month and Year, and never appears without its
@@ -125,7 +140,8 @@ export function Plan() {
                         )
                       })}
                       {later.map((r) => <PlannedItem key={`${r.seriesId}:${r.base}`} repeat={r} colours={colours} />)}
-                      {items.length === 0 && later.length === 0 && <span className="t" style={{ color: 'var(--e-ink-soft)' }}>—</span>}
+                      {followedOn(day).map((f) => <FollowedWeekItem key={`${f.event.id}:${day}`} item={f} onOpen={setOpenEvent} />)}
+                      {items.length === 0 && later.length === 0 && followedOn(day).length === 0 && <span className="t" style={{ color: 'var(--e-ink-soft)' }}>—</span>}
                     </div>
                   </div>
                 )
@@ -139,6 +155,7 @@ export function Plan() {
             )}
             <ModuleLegend colours={colours} keys={modulesByWeight(weekDays(date).flatMap(modulesOn))} />
             <HolidayLegend countries={holidayLegend(weekDays(date))} />
+            <FollowedLegend calendars={followedLegend(weekDays(date))} />
           </>
         )}
 
@@ -159,7 +176,7 @@ export function Plan() {
                   className="month-cell"
                   onClick={() => { go(d); setSection('Week') }}
                   style={{ opacity: isSameMonth(d, date) ? 1 : 0.4, textAlign: 'left' }}
-                  title={holidaysText(holidayMarks(holidays, d)) || undefined}
+                  title={[holidaysText(holidayMarks(holidays, d)), followedWords(followedOn(key(d)).length)].filter(Boolean).join(', ') || undefined}
                 >
                   <HolidayMark marks={holidayMarks(holidays, d)} variant="top" />
                   <span className="d">{format(d, 'd')}</span>
@@ -173,12 +190,18 @@ export function Plan() {
                       ))}
                     </span>
                   )}
+                  {followedColours(key(d)).length > 0 && (
+                    <span className="fe-marks" aria-hidden="true">
+                      {followedColours(key(d)).slice(0, 4).map((c) => <i key={c} style={{ '--fe': c } as CSSProperties} />)}
+                    </span>
+                  )}
                 </button>
               ))}
             </div>
             <ModuleLegend colours={colours}
               keys={modulesByWeight(monthDays(date).filter((d) => isSameMonth(d, date)).flatMap(modulesOn))} />
             <HolidayLegend countries={holidayLegend(monthDays(date))} />
+            <FollowedLegend calendars={followedLegend(monthDays(date))} />
           </>
         )}
 
@@ -197,24 +220,29 @@ export function Plan() {
                   const step = heatStep(loadOn(day))
                   return { colour: `var(--e-heat-${step})`, strong: step === 4 }
                 }}
-                marks={(day) => (colours.on ? modulesOnDay(day).map(colours.of) : [])}
+                marks={(day) => [...(colours.on ? modulesOnDay(day).map(colours.of) : []), ...followedColours(day)]}
                 describe={(day) => [dayWords(loadOn(day), colours.on ? modulesOnDay(day)[0] : undefined,
-                  plannedOn(day).length, colours), holidaysText(holidayMarks(holidays, day))].filter(Boolean).join(', ') || undefined}
+                  plannedOn(day).length, colours), followedWords(followedOn(day).length), holidaysText(holidayMarks(holidays, day))].filter(Boolean).join(', ') || undefined}
                 extra={(day) => <HolidayMark marks={holidayMarks(holidays, day)} variant="top" />}
                 onDayClick={(day) => { go(parseISO(day)); setSection('Week') }}
               />
             </div>
             <ModuleLegend colours={colours} keys={yearLegend} />
             <HolidayLegend countries={countriesIn([...holidays.values()], readSettings(profile).holidays.countries)} />
+            <FollowedLegend calendars={calendarsIn([...followed.values()])} />
             <p className="section-title">Goals and phases</p>
             <Goals />
           </>
         )}
         <ExportLink calendar source={{ dataset: 'calendar', range: rangeFor(section === 'Week' ? 'week' : section === 'Month' ? 'month' : 'year', format(date, 'yyyy-MM-dd')) }} />
       </div>
+      {openEvent && <FollowedSheet event={openEvent} onClose={() => setOpenEvent(null)} />}
     </div>
   )
 }
+
+/** How many events from followed calendars a day has, in words, or nothing. */
+const followedWords = (n: number) => (n ? `${n} ${n === 1 ? 'event' : 'events'} from your calendars` : '')
 
 /** Minutes of the day's tasks as a step on the heat ramp, 0 to 4. */
 function heatStep(minutes: number): number {

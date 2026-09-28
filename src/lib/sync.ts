@@ -6,7 +6,7 @@ import { keepInCatalogue, staleForeign, type SharingRow } from './sharing-rules'
 /** Tables the app keeps a full local copy of. Catalogue tables are shared
  *  reference data: pulled, never pushed, except rows a person owns. */
 const SYNCED = ['task', 'target', 'body_log', 'food_log', 'meal_plan_slot', 'module_instance', 'series', 'habit', 'supplement',
-  'module_record', 'calendar_event', 'goal', 'sleep_log', 'workout_log'] as const
+  'module_record', 'calendar_event', 'goal', 'sleep_log', 'workout_log', 'calendar_subscription'] as const
 /** Rows that belong to a profile through their parent (a log to its habit).
  *  Row-level security already limits them to the account, so they are fetched
  *  without a profile filter, still incrementally. */
@@ -45,6 +45,10 @@ const store = (table: string) => (db as unknown as Record<string, Store>)[table]
 /** Record an edit made on this device. The fields list is what makes the merge
  *  field-level: two devices editing different fields of the same row both win. */
 export async function queueChange<T extends Syncable>(table: string, row: T, fields: (keyof T & string)[]) {
+  // An event from a calendar the person follows stays on this device: every
+  // device fetches that calendar itself, so the server never holds a copy of
+  // someone's Google Calendar (see calendar-links.ts).
+  if (table === 'calendar_event' && (row as { subscription_id?: string | null }).subscription_id) return
   await db.pending.add({
     table,
     row_id: row.id,

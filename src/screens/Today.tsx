@@ -23,6 +23,7 @@ import { readSettings } from '../lib/settings'
 import { metricLine } from '../lib/quick-food'
 import { holidayMarks, useHolidays } from '../lib/holidays'
 import { HolidayChips } from '../ui/HolidayMark'
+import { FollowedDay } from '../ui/FollowedEvents'
 import type { Task } from '../lib/types'
 import './today.css'
 
@@ -148,6 +149,8 @@ export function Today() {
           </div>
 
           <div className="today-main">
+            {/* Events from calendars the person follows: read-only, above the tasks. */}
+            {tab.key === 'today' && profile && <FollowedDay profileId={profile.id} day={day} />}
             {/* A module tab may hold only records; its rail shows when it has tasks. */}
             {shown && !(tab.module && shown.length === 0) && (
               <div className={`rail${colours.on ? ' is-coloured' : ''}`}>

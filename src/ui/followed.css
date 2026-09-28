@@ -1,0 +1,43 @@
+/* Events from calendars the person follows (FollowedEvents.tsx). The
+   calendar's colour comes in as --fe; every swatch is at 3:1 or more on both
+   the light and the dark page (colours-rules.ts). Their mark is a short
+   upright bar, so it is not taken for a module's dot or a holiday's bar. */
+
+.fe-bar { display: inline-block; flex: none; width: 4px; height: 16px; border-radius: 2px; background: var(--fe); }
+
+/* Today: a small list under its own heading, quieter than the tasks. */
+.fe-day { margin: var(--space-3) var(--space-4) 0; min-width: 0; font-family: var(--font-sans); }
+.fe-day-title { margin: 0 0 var(--space-1); font-size: 12px; letter-spacing: 0.04em; text-transform: uppercase; color: var(--e-ink-soft); }
+.fe-day ul { list-style: none; margin: 0; padding: 0; }
+.fe-row {
+  display: grid; grid-template-columns: 52px 4px minmax(0, 1fr); gap: var(--space-2); align-items: center;
+  width: 100%; min-height: 44px; padding: 6px 0; text-align: left; border-bottom: 1px solid var(--e-rule);
+}
+.fe-time { font-size: 12px; color: var(--e-ink-soft); }
+.fe-main { display: grid; min-width: 0; }
+.fe-name { font-family: var(--font-serif); font-size: 15px; color: var(--e-ink); overflow-wrap: anywhere; }
+.fe-meta { font-size: 12px; color: var(--e-ink-soft); overflow-wrap: anywhere; }
+
+/* Plan's week: a row like a task's, with the bar in front. */
+.week-item.fe-week {
+  display: flex; gap: 6px; align-items: baseline; width: 100%; text-align: left;
+  color: var(--e-ink); font: inherit; font-size: 13px;
+}
+.week-item.fe-week .fe-bar { height: 12px; align-self: center; }
+
+/* Plan's month: small upright bars under the load. */
+.fe-marks { display: flex; gap: 2px; margin-top: 3px; }
+.fe-marks i { display: block; width: 3px; height: 8px; border-radius: 1px; background: var(--fe); }
+
+/* The legend's key is the same upright bar. */
+.fe-legend > span:first-child { color: var(--e-ink-soft); }
+.fe-key { display: inline-block; flex: none; width: 4px; height: 12px; border-radius: 2px; background: var(--fe); }
+
+/* The read-only sheet. */
+.fe-sheet h2 { overflow-wrap: anywhere; }
+.fe-from { display: flex; gap: var(--space-2); align-items: center; margin: 0 0 var(--space-3); font-family: var(--font-sans); font-size: 14px; color: var(--e-ink); }
+.fe-facts { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 4px var(--space-3); margin: 0; font-family: var(--font-sans); font-size: 14px; }
+.fe-facts dt { color: var(--e-ink-soft); }
+.fe-facts dd { margin: 0; color: var(--e-ink); overflow-wrap: anywhere; }
+.fe-why { margin: var(--space-3) 0 0; font-family: var(--font-sans); font-size: 12px; color: var(--e-ink-soft); max-width: 52ch; }
+.fe-sheet .sheet-actions { flex-wrap: wrap; }

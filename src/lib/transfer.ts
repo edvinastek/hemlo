@@ -79,6 +79,13 @@ function taskValues(t: Task): Record<string, unknown> {
   }
 }
 
+/** The person's own agenda events. Events from a calendar they follow are
+ *  that calendar's, fetched again at any time, so they are not exported
+ *  (and a calendar made from GetIt never sends Google's events back). */
+async function ownEvents(profileId: string) {
+  return (await db.calendar_event.where('profile_id').equals(profileId).toArray()).filter((e) => live(e) && !e.subscription_id)
+}
+
 /** The calendar's flat rows: tasks with a day, and agenda events. */
 async function calendarRows(profile: Profile): Promise<Row[]> {
   const out: Row[] = []
@@ -91,7 +98,7 @@ async function calendarRows(profile: Profile): Promise<Row[]> {
       notes: t.notes, location: null,
     } })
   }
-  for (const e of (await db.calendar_event.where('profile_id').equals(profile.id).toArray()).filter(live)) {
+  for (const e of (await ownEvents(profile.id))) {
     const start = isoToLocal(e.starts_at)
     const end = isoToLocal(e.ends_at)
     if (!start) continue
@@ -135,7 +142,7 @@ async function readRows(profile: Profile, d: Dataset, userId: string | null): Pr
       const def = await moduleDef(d.moduleKey!, profile.id)
       const entity = def?.entities.find((e) => e.name === d.entity)
       if (!def || !entity) return []
-      const recs = await listRecords(profile.id, def.key, entity)
+      const recs = (await listRecords(profile.id, def.key, entity)).filter((r) => !r.row.subscription_id)
       return recs.reverse().map((r) => ({ id: r.id, date: r.date, values: { ...r.values, ...computeFormulas(entity.fields, r.values) }, source: r.row }))
     }
     case 'food':
@@ -291,7 +298,7 @@ async function icsEvents(profile: Profile, userId: string | null, d: Dataset, ra
   if (d.store === 'tasks') return taskEvents(profile, range)
   if (d.store === 'calendar') {
     const events = await taskEvents(profile, range)
-    for (const e of (await db.calendar_event.where('profile_id').equals(profile.id).toArray()).filter(live)) {
+    for (const e of (await ownEvents(profile.id))) {
       const start = isoToLocal(e.starts_at)
       if (!start || !inRange(start.slice(0, 10), range)) continue
       const ev = calendarEvent({ ...e, start_day: start.slice(0, 10), end_day: isoToLocal(e.ends_at)?.slice(0, 10) ?? null })

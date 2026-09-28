@@ -57,6 +57,8 @@ is('country codes are upper-cased, deduplicated, checked and capped at 6', hol.h
 is('only good colours for chosen countries are kept', hol.holidays.colours, { NL: '#ff6600' })
 is('no holidays by default', DEFAULT_SETTINGS.holidays, { countries: [], colours: {} })
 is('stats hide switched-off modules by default', readSettings({ settings: { stats: { show_disabled: 'y' } } }).stats.show_disabled, false)
+is('task notes stay out of the calendar feed by default, and a non-yes is no', [DEFAULT_SETTINGS.calendar.feed_notes, readSettings({ settings: { calendar: { feed_notes: 'yes' } } }).calendar.feed_notes], [false, false])
+is('turning feed notes on is kept', mergeSettings(DEFAULT_SETTINGS, { calendar: { feed_notes: true } }).calendar, { feed_notes: true })
 is('changing holiday colours keeps the countries', mergeSettings(hol, { holidays: { colours: { DE: '#00aa00' } } }).holidays, { countries: ['NL', 'DE', 'LT', 'BE', 'FR', 'PL'], colours: { DE: '#00aa00' } })
 
 // Recipe and food books.

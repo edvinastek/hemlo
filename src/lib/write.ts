@@ -9,7 +9,8 @@ import type { Profile } from './types'
 export async function edit<T extends { id: string; updated_at?: string }>(
   table: 'task' | 'target' | 'body_log' | 'food_log' | 'profile' | 'module_instance' | 'food' | 'recipe'
     | 'series' | 'series_exception' | 'habit' | 'habit_log' | 'supplement' | 'supplement_log' | 'recipe_line'
-    | 'stock' | 'meal_plan_slot' | 'module' | 'module_record' | 'calendar_event' | 'goal' | 'sleep_log' | 'workout_log',
+    | 'stock' | 'meal_plan_slot' | 'module' | 'module_record' | 'calendar_event' | 'goal' | 'sleep_log' | 'workout_log'
+    | 'calendar_subscription',
   row: T,
   changes: Partial<T>,
 ): Promise<T> {

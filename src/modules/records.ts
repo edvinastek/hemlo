@@ -182,8 +182,13 @@ export async function addRecord(profileId: string, def: ModuleDef, entity: Entit
   return { ok: true, rec: fromRecord(row) }
 }
 
+/** Events from a calendar the person follows belong to that calendar: no
+ *  view (list, table, board) may change or delete them here. */
+const FOLLOWED = 'This event comes from a calendar you follow. Change it in that calendar.'
+
 /** Change some fields of a record; the rest stay as they are. */
 export async function updateRecord(profileId: string, def: ModuleDef, entity: EntityDef, rec: Rec, changes: Record<string, unknown>): Promise<Result> {
+  if (rec.row.subscription_id) return { ok: false, errors: { _: FOLLOWED } }
   const { data, errors } = cleanValues(entity.fields, changes, true)
   if (Object.keys(errors).length) return { ok: false, errors }
   const table = tableOf(entity)
@@ -216,6 +221,7 @@ export async function updateRecord(profileId: string, def: ModuleDef, entity: En
 
 /** Deleting keeps the row with a date on it, so the deletion reaches every device. */
 export async function deleteRecord(profileId: string, def: ModuleDef, entity: EntityDef, rec: Rec): Promise<void> {
+  if (rec.row.subscription_id) return
   const table = tableOf(entity)
   if (table) {
     const current = (await store(table).get(rec.id)) ?? rec.row

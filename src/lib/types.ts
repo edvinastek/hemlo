@@ -325,6 +325,28 @@ export interface CalendarEvent {
   ends_at: string | null
   all_day: boolean
   location: string | null
+  /** Set on an event from a calendar the person follows (migration 020).
+   *  Such events are kept on this device only, never sent, and read-only. */
+  subscription_id?: UUID | null
+  /** That calendar's own id for the event (its UID). */
+  external_uid?: string | null
+  updated_at: string
+  deleted_at: string | null
+}
+
+/** A calendar the person follows by its secret iCal address. Synced, so it
+ *  follows them to every device; its events are fetched on each device. */
+export interface CalendarSubscription {
+  id: UUID
+  profile_id: UUID
+  name: string
+  /** https only; the server fetches it (calendar-fetch). */
+  url: string
+  /** #rrggbb, one of the swatches. */
+  colour: string
+  last_synced_at: string | null
+  last_error: string | null
+  created_at?: string
   updated_at: string
   deleted_at: string | null
 }

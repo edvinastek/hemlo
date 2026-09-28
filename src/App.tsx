@@ -23,6 +23,7 @@ import { usePages, pageForPath, pageAllowed, neighbour, type Pages } from './lib
 import { useSwipe } from './ui/useSwipe'
 import { useAccounts, watchAccounts } from './lib/accounts'
 import { Switching } from './screens/Switching'
+import { watchCalendarFollows } from './lib/calendar-links'
 
 export default function App() {
   const { session, profile, recovering, setSession, setProfile, setProfiles } = useApp()
@@ -129,6 +130,8 @@ export default function App() {
   }, [profile?.id, setupDone, profile?.settings], undefined)
 
   useEffect(() => watchConnection(() => useApp.getState().profiles.map((p) => p.id)), [])
+  // Calendars the person follows: fetched on opening and every three hours.
+  useEffect(() => watchCalendarFollows(), [session?.user.id])
 
   if (!hasCredentials) {
     return <div className="empty">No Supabase credentials. Copy .env.example to .env and fill it in.</div>
