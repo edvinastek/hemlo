@@ -3,7 +3,7 @@
  *  Nothing here touches the database, so all of it can be checked in Node. */
 
 import type { ImportPreview } from './excel'
-import { readUnits, unitFromText } from './units-rules.ts'
+import { AMOUNT_AT_START, PORTION_MAX_G, leadingAmount, plainFractions, readUnits, unitFromText } from './units-rules.ts'
 
 // ---- names and tokens ----------------------------------------------------
 
@@ -135,6 +135,10 @@ export class FoodMatcher<T extends { name: string }> {
     const exactBare = bare !== key ? this.byName.get(bare) : undefined
     if (exactBare) return { food: exactBare, how: 'exact', score: 1 }
 
+    // "2 eggs" names the food "Egg": a plural of an exact name is that name.
+    const one = /[^s]s$/.test(bare) ? this.byName.get(bare.slice(0, -1)) : undefined
+    if (one) return { food: one, how: 'exact', score: 1 }
+
     const want = tokens(raw)
     if (want.size === 0) return { food: null, how: 'none', score: 0 }
     let best: T | null = null
@@ -165,6 +169,9 @@ export interface ParsedLine {
   /** What came after the dash: "1 large (50g)", "150ml". */
   qty: string | null
   state: 'raw' | 'cooked' | 'canned'
+  /** Set when the amount cannot be right (more than 10 kg a portion): the
+   *  line is kept without grams and the preview says so. */
+  problem?: string
 }
 
 const GRAMS = /(\d+(?:[.,]\d+)?)\s*g\b/gi
@@ -197,30 +204,55 @@ export function stateOf(raw: string): ParsedLine['state'] {
   return 'raw'
 }
 
-/** "Brown rice (cooked) – 60g" or "Hard-boiled egg – 1 large (50g)". */
+/** "Brown rice (cooked) – 60g", "Hard-boiled egg – 1 large (50g)",
+ *  "Milk – 200" (grams), "Avocado – ½", "½ avocado (75g)" or "2 eggs".
+ *
+ *  Fractions are made plain first ("½" is "1/2", "1½" is "1 1/2"): Unicode's
+ *  tidying (NFKC) would turn "½" into "1⁄2" with a fraction slash, which read
+ *  as a bare "1", and "1½" into "11⁄2". A bare number after the dash is
+ *  grams; a bare fraction is that much of the food, counted in its unit when
+ *  it has one (see unitFromText). More than 10 kg a portion is a slip, not an
+ *  amount: the line keeps no grams and says why in `problem`. */
 export function parseIngredientLine(line: string): ParsedLine | null {
-  const text = line.normalize('NFKC').replace(/^[\s•·*]+/, '').trim()
+  const text = plainFractions(line).normalize('NFKC').replace(/\s*⁄\s*/g, '/').replace(/^[\s•·*]+/, '').trim()
   if (!text) return null
   let food: string
   let qty: string | null
   const dash = text.split(/\s[–—-]\s/)
+  const tail = dash.length > 1 ? null : /^(.*?\D)\s+(\d+(?:[.,]\d+)?\s*g)$/i.exec(text)
+  const lead = new RegExp(`^${AMOUNT_AT_START}\\s*(g|gr|grams?)?\\s+(\\p{L}.*)$`, 'iu').exec(text)
   if (dash.length > 1) {
     food = dash[0]
     qty = dash.slice(1).join(' - ').trim() || null
-  } else {
+  } else if (tail) {
     // No dash: "Rice 60g" still has its amount at the end.
-    const tail = text.match(/^(.*?\D)\s+(\d+(?:[.,]\d+)?\s*g)$/i)
-    food = tail ? tail[1] : text
-    qty = tail ? tail[2] : null
+    food = tail[1]
+    qty = tail[2]
+  } else if (lead) {
+    // The amount first: "2 eggs", "½ avocado (75g)", "100g oats". Grams in
+    // brackets at the end belong to the amount, not to the food's name.
+    food = lead[3].replace(/\s*\(\s*\d+(?:[.,]\d+)?\s*g\s*\)\s*$/i, '')
+    qty = lead[2] ? `${lead[1]} g` : text
+  } else {
+    food = text
+    qty = null
   }
   food = food.replace(/^[\s–—-]+|[\s–—-]+$/g, '').trim()
   if (!food) return null
   // When the line has an amount, only the amount can give the grams: in
   // "Protein bar (20g protein) – 1 bar" the 20g describes the food, and
   // reading it as the portion would count a fifth of a bar.
-  const grams = fit(qty ? lastGrams(qty) : lastGrams(text), MAX_GRAMS)
-  return { food, grams, qty, state: stateOf(food) }
+  let grams = qty ? lastGrams(qty) : lastGrams(text)
+  // "Milk – 200": a number and nothing else is grams. A bare fraction is not.
+  const bare = qty ? leadingAmount(qty) : null
+  if (grams === null && qty && bare && !bare.fraction && new RegExp(`^${AMOUNT_AT_START}$`).test(qty)) grams = bare.qty
+  if (grams !== null && grams > PORTION_MAX_G) {
+    return { food, grams: null, qty, state: stateOf(food), problem: `${gramsText(grams)} a portion is more than 10 kg` }
+  }
+  return { food, grams: fit(grams, MAX_GRAMS), qty, state: stateOf(food) }
 }
+
+const gramsText = (g: number) => (g >= 1000 ? `${Math.round(g / 100) / 10} kg` : `${g} g`)
 
 export function parseIngredients(text: string): ParsedLine[] {
   return text.split(/\r?\n/).map(parseIngredientLine).filter((l): l is ParsedLine => l !== null)
@@ -256,6 +288,9 @@ export interface ImportPlan {
   linesUnmatched: number
   /** The lines no food was found for, as the recipe wrote them. */
   unmatched: string[]
+  /** Lines whose amount cannot be right (more than 10 kg a portion), as the
+   *  recipe wrote them and why: saved without grams, for the person to fix. */
+  problems: string[]
   exercises: number
 }
 
@@ -297,7 +332,7 @@ export function planImport(
   const matcher = new FoodMatcher<{ id: string; name: string; units?: unknown }>(existing.foods)
   const plan: ImportPlan = {
     foods: [], recipes: [], foodsExisting: 0, recipesExisting: 0,
-    linesMatched: 0, linesUnmatched: 0, unmatched: [], exercises: preview.exercises.length,
+    linesMatched: 0, linesUnmatched: 0, unmatched: [], problems: [], exercises: preview.exercises.length,
   }
 
   for (const f of preview.foods) {
@@ -338,12 +373,19 @@ export function planImport(
       // "Hard-boiled egg – 1 large (50g)" or "Bread – 2 slices", for a food
       // counted in units, is kept as 1 egg or 2 slices; the grams the line
       // states stand, and without them come from the unit.
-      const counted = m.food ? unitFromText(p.qty, readUnits(m.food.units), p.grams) : null
+      const units = m.food ? readUnits(m.food.units) : []
+      const counted = m.food ? unitFromText(p.qty, units, p.grams) : null
       if (counted?.unit && counted.unit_qty !== null && fit(counted.grams, MAX_GRAMS) !== null) {
         line.grams_per_portion = counted.grams
         line.unit = counted.unit
         line.unit_qty = counted.unit_qty
       }
+      // An amount that cannot be right ("300 eggs" a portion, 200 kg of
+      // rice) is kept without grams and shown in the preview, never saved as
+      // if it were meant.
+      const tooMuch = p.problem ?? (!counted && m.food && (unitFromText(p.qty, units, p.grams, Infinity)?.grams ?? 0) > PORTION_MAX_G
+        ? 'more than 10 kg a portion' : null)
+      if (tooMuch) plan.problems.push(`${p.food} – ${p.qty}: ${tooMuch}, saved without an amount`)
       return line
     })
     plan.recipes.push({ recipe, lines })

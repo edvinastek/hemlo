@@ -9,6 +9,7 @@
 import { countryName } from './countries.ts'
 import { toGrams, tidy, MAX_GRAMS } from './stock-rules.ts'
 import { parseServing, readUnits, type FoodUnit } from './units-rules.ts'
+import { uuidV5 } from './sync-rules.ts'
 import type { Food } from './types'
 
 // ---- barcodes ----------------------------------------------------------------
@@ -414,6 +415,21 @@ export function foodFields(p: Product, ownerId: string): Partial<Food> {
     ...(p.serving ? { units: [p.serving] } : {}),
     deleted_at: null,
   }
+}
+
+/** GetIt's own namespace for product ids. Fixed for good: changing it would
+ *  give every product a new id. */
+export const PRODUCT_NAMESPACE = '8fc021ee-4147-4dc5-8664-850cbabd250d'
+
+/** The id a person's food for this product always has: worked out from who
+ *  they are and the barcode, not drawn at random. Two phones that scan the
+ *  same pack before either has synced make the same row, so the second one
+ *  simply updates it instead of being refused as a duplicate (which lost the
+ *  stock and recipes that pointed at it). Null when it is not a barcode. */
+export async function productFoodId(ownerId: string, barcode: string | null | undefined): Promise<string | null> {
+  const code = normaliseBarcode(barcode)
+  if (!code || !ownerId) return null
+  return uuidV5(`${ownerId.toLowerCase()}:${code}`, PRODUCT_NAMESPACE)
 }
 
 /** A food already kept, shown like a product: for "you have this already". */

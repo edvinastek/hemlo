@@ -401,6 +401,18 @@ function DataPanel() {
               </div>
             </div>
           )}
+          {preview.plan.problems.length > 0 && (
+            <div className="setting-row">
+              <div>
+                <div className="row-name">Amounts that cannot be right</div>
+                <div className="row-meta">
+                  Saved without an amount; open the recipe to fix them:
+                  {' '}{preview.plan.problems.slice(0, 8).join('; ')}
+                  {preview.plan.problems.length > 8 && ` and ${preview.plan.problems.length - 8} more`}
+                </div>
+              </div>
+            </div>
+          )}
         </>
       )}
       {summary && (

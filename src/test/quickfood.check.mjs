@@ -93,6 +93,13 @@ is('a food without calories', 'error' in quickFromFood({ name: 'Mystery', kcal: 
 is('no amount', 'error' in quickFromFood(eggFood, null), true)
 is('the task says how many', quickTitle('Breakfast', { label: 'Egg Chicken', kcal: 143, unit: 'egg', unit_qty: 2 }), 'Breakfast: Egg Chicken, 2 eggs · 143 kcal')
 is('the amount shown', [quickAmount({ grams: 100, unit: 'egg', unit_qty: 2 }), quickAmount({ grams: 180 }), quickAmount({})], ['2 eggs (100 g)', '180 g', null])
+// An older version changed the grams and left "2 eggs": with the food's egg
+// known, the stale count gives way to the grams.
+const eggs = [{ name: 'egg', plural: 'eggs', g: 50 }]
+is('a stale count shows grams', quickAmount({ grams: 300, unit: 'egg', unit_qty: 2 }, eggs), '300 g')
+is('and leaves the task title', quickTitle('Breakfast', { label: 'Egg Chicken', kcal: 430, grams: 300, unit: 'egg', unit_qty: 2 }, eggs),
+  'Breakfast: Egg Chicken · 430 kcal')
+is('a count that fits stays', quickAmount({ grams: 100, unit: 'egg', unit_qty: 2 }, eggs), '2 eggs (100 g)')
 
 console.log(fail ? `\n${fail} check(s) failed` : '\nall checks passed')
 process.exit(fail ? 1 : 0)

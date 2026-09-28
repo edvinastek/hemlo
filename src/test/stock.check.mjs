@@ -2,7 +2,7 @@
 // meal takes and gives back, and what a finished trip puts in the cupboard.
 import {
   toGrams, formatGrams, inUnit, unitFor, stepFor, nudge, applyDelta, mealNeeds, takeOut, putBack,
-  boughtGrams, sortStock, filterStock, cleanNote, MAX_GRAMS,
+  boughtGrams, sortStock, filterStock, cleanNote, stockStep, MAX_GRAMS,
 } from '../lib/stock-rules.ts'
 
 let fail = 0
@@ -99,6 +99,15 @@ is('every word must match', filterStock(rows, 'rice bowl').length, 0)
 is('an empty filter keeps everything', filterStock(rows, '  ').length, 4)
 is('a note is trimmed; empty is none', [cleanNote('  opened '), cleanNote('   '), cleanNote(null)], ['opened', null, null])
 is('a long note is cut to fit', cleanNote('x'.repeat(300)).length, 200)
+
+// A tap on a row kept in eggs: one egg, when the food is here; a gram step
+// when it is not (a housemate's scan still on its way), leaving the unit alone.
+const eggUnits = [{ name: 'egg', plural: 'eggs', g: 50 }]
+is('+ one egg when the food is here', stockStep(1210, 'egg', eggUnits, 1), 1250)
+is('a food not here moves by grams', stockStep(1210, 'egg', null, 1), 1300)
+is('− by grams too', stockStep(600, 'egg', null, -1), nudge(600, -1))
+is('a unit the food lost moves by grams', stockStep(430, 'slice', eggUnits, 1), nudge(430, 1))
+is('no unit, grams', stockStep(430, null, eggUnits, 1), 450)
 
 console.log(fail ? `\n${fail} check(s) failed` : '\nall checks passed')
 process.exit(fail ? 1 : 0)

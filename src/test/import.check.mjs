@@ -41,6 +41,39 @@ is('grams in the name do not count when the amount says otherwise', parseIngredi
 is('ml line with grams in the name stays unknown', parseIngredientLine('Almond milk (1g sugar) – 150ml').grams, null)
 is('grams in brackets with no dash still count', parseIngredientLine('Rice (60g)').grams, 60)
 is('grams past the server column are unknown', parseIngredientLine('Rice – 12345678g').grams, null)
+// Fractions and bare numbers (review fix): NFKC turned "½" into "1⁄2", which
+// read as a bare "1"; a bare number read as that many of the first unit.
+is('Avocado – ½', parseIngredientLine('Avocado – ½'), { food: 'Avocado', grams: null, qty: '1/2', state: 'raw' })
+is('½ avocado (75g)', parseIngredientLine('½ avocado (75g)'), { food: 'avocado', grams: 75, qty: '1/2 avocado (75g)', state: 'raw' })
+is('1/2 egg', parseIngredientLine('1/2 egg'), { food: 'egg', grams: null, qty: '1/2 egg', state: 'raw' })
+is('1½ eggs is one and a half, not eleven halves', parseIngredientLine('Egg – 1½').qty, '1 1/2')
+is('Milk – 200 is 200 g', parseIngredientLine('Milk – 200'), { food: 'Milk', grams: 200, qty: '200', state: 'raw' })
+is('2 eggs', parseIngredientLine('2 eggs'), { food: 'eggs', grams: null, qty: '2 eggs', state: 'raw' })
+is('100g oats', parseIngredientLine('100g oats'), { food: 'oats', grams: 100, qty: '100 g', state: 'raw' })
+is('a word starting with g is not grams', parseIngredientLine('2 green apples').food, 'green apples')
+is('a name starting with a number stays whole', parseIngredientLine('7up 330ml').food, '7up 330ml')
+is('past 10 kg a portion is a problem, with no grams', parseIngredientLine('Rice – 20000g'),
+  { food: 'Rice', grams: null, qty: '20000g', state: 'raw', problem: '20 kg a portion is more than 10 kg' })
+is('a bare number past 10 kg too', parseIngredientLine('Milk – 50000').problem, '50 kg a portion is more than 10 kg')
+const unitsPlan = planImport({
+  sheets: [], skipped: 0, exercises: [], foods: [],
+  recipes: [{ name: 'Units test', kcal: 1, carbs_g: 0, fiber_g: 0, fat_g: 0, protein_g: 0,
+    ingredients: 'Avocado – ½\n½ avocado (75g)\nEgg – 1/2 egg\nMilk – 200\n2 eggs\nEgg – 300 eggs\nRice – 20000g' }],
+}, {
+  foods: [{ id: 'av', name: 'Avocado', units: [{ name: 'avocado', g: 150 }] }, { id: 'eg', name: 'Egg', units: [{ name: 'egg', plural: 'eggs', g: 50 }] },
+    { id: 'mi', name: 'Milk', units: [{ name: 'glass', g: 250 }] }, { id: 'ri', name: 'Rice' }],
+  recipes: [],
+}, 'user-1', () => `id${Math.random()}`, '2026-09-28T10:00:00.000Z')
+const ul = unitsPlan.recipes[0].lines.map((l) => [l.food_id, l.grams_per_portion, l.unit ?? null, l.unit_qty ?? null])
+is('Avocado – ½ is half an avocado, 75 g', ul[0], ['av', 75, 'avocado', 0.5])
+is('½ avocado (75g) is half an avocado, 75 g', ul[1], ['av', 75, 'avocado', 0.5])
+is('1/2 egg is half an egg', ul[2], ['eg', 25, 'egg', 0.5])
+is('Milk – 200 is 200 g, not 200 glasses', ul[3], ['mi', 200, null, null])
+is('2 eggs are 2 eggs of the food Egg', ul[4], ['eg', 100, 'egg', 2])
+is('300 eggs a portion keeps no amount', ul[5], ['eg', null, null, null])
+is('20 kg of rice keeps no amount', ul[6], ['ri', null, null, null])
+is('both are shown in the preview', unitsPlan.problems.length, 2)
+
 is('fit keeps a normal value', fit(52.5, MAX_MACRO), 52.5)
 is('fit drops a negative', fit(-3, MAX_MACRO), null)
 is('fit drops a figure past numeric(7,2)', fit(100000, MAX_MACRO), null)

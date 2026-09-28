@@ -243,8 +243,12 @@ function MealSlot({ slotKey, label, slot, day, profileId, time, items, recipes, 
   const [quick, setQuick] = useState(quickSaved)
   const planned = !!slot && (!!slot.recipe_id || quickSaved)
   const recipe = slot?.recipe_id ? recipes.find((r) => r.id === slot.recipe_id) : undefined
+  // A counted quick meal keeps its food's name as the label; that food's
+  // units say what one weighs, so a count left stale shows as grams.
+  const labelUnits = quickSaved && slot!.unit && slot!.label
+    ? readUnits([...foods.values()].find((f) => f.name === slot!.label)?.units) : []
   const chosen = recipe?.name
-    ?? (quickSaved ? [slot!.label, quickCount(slot!), `${Math.round(Number(slot!.kcal))} kcal`].filter(Boolean).join(' · ') : null)
+    ?? (quickSaved ? [slot!.label, quickCount(slot!, labelUnits), `${Math.round(Number(slot!.kcal))} kcal`].filter(Boolean).join(' · ') : null)
 
   const toggle = (
     <label className="slot-toggle">
@@ -277,7 +281,7 @@ function MealSlot({ slotKey, label, slot, day, profileId, time, items, recipes, 
         <div className="slot-foot">
           <span className="row-meta slot-amounts">
             {/* A counted meal says how much: "2 eggs (100 g) · 143 kcal". */}
-            {quickSaved && slot!.unit ? `${quickAmount(slot!)} · ` : ''}{totals ? amountLine(totals, shown) : ''}
+            {quickSaved && slot!.unit ? `${quickAmount(slot!, labelUnits)} · ` : ''}{totals ? amountLine(totals, shown) : ''}
           </span>
           {!quickSaved && (
             <input type="number" min={0.25} step={0.25} value={slot!.portion_multiplier} aria-label={`${label} portions`}
@@ -420,15 +424,16 @@ function FoodFields({ slot, shown, toggle, foods, onSave, onMode }: {
   const [text, setText] = useState('')
   const [unit, setUnit] = useState('g')
   const [open, setOpen] = useState<FoodRow | null>(null)
+  const userId = useApp((s) => s.session?.user.id ?? null)
   const food = foodId ? foods.get(foodId) : undefined
   const units = readUnits(food?.units)
   const choices = amountChoices(units)
   const choice = choices.find((c) => c.key === unit) ?? choices[0]
   const items: PickItem[] = useMemo(() => [...foods.values()].filter(live).map((f) => ({
-    id: f.id, name: f.name, tag: f.owner_id ? 'mine' : undefined,
+    id: f.id, name: f.name, tag: userId && f.owner_id === userId ? 'mine' : undefined,
     meta: [f.kcal != null ? `${Math.round(Number(f.kcal))} kcal / 100 g` : null,
       ...readUnits(f.units).slice(0, 2).map((u) => u.name)].filter(Boolean).join(' · ') || undefined,
-  })), [foods])
+  })), [foods, userId])
   const result = food ? quickFromFood(food, readAmount(text, choice)) : null
   const entry = result && 'entry' in result ? result.entry : null
   const same = !!entry && !!slot && isQuick(slot) && JSON.stringify(formFrom(entry)) === JSON.stringify(formFrom(slot))

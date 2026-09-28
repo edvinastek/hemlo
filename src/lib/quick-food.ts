@@ -1,5 +1,5 @@
 import { NUTRIENTS, type Nutrient, type ProfileSettings } from './settings.ts'
-import { formatCount, gramsLabel, type Amount } from './units-rules.ts'
+import { countFits, findUnit, formatCount, gramsLabel, type Amount, type FoodUnit } from './units-rules.ts'
 
 /** Meals as plain numbers, and which numbers the food screens show. Pure: no
  *  database, no React, so every figure here is checked in quickfood.check.
@@ -171,25 +171,32 @@ export function quickMacros(row: Partial<Record<Nutrient, number | string | null
   return { kcal: n(row.kcal), protein_g: n(row.protein_g), carbs_g: n(row.carbs_g), fat_g: n(row.fat_g), fiber_g: n(row.fiber_g) }
 }
 
-/** How much of it, when it was counted in a unit: "2 eggs". Null otherwise. */
-export function quickCount(row: { unit?: string | null; unit_qty?: number | string | null }): string | null {
+/** How much of it, when it was counted in a unit: "2 eggs". Null otherwise,
+ *  and null when the count no longer agrees with the grams saved beside it
+ *  (an older version changed the grams): the grams are shown then. `units`
+ *  are the food's the entry was worked out from, when it is known (a quick
+ *  entry keeps the food's name as its label); without them the count stands. */
+export function quickCount(row: { unit?: string | null; unit_qty?: number | string | null; grams?: number | string | null }, units: FoodUnit[] = []): string | null {
   const qty = row.unit_qty == null || row.unit_qty === '' ? NaN : Number(row.unit_qty)
-  return row.unit && Number.isFinite(qty) ? formatCount(qty, { name: row.unit }) : null
+  if (!row.unit || !Number.isFinite(qty)) return null
+  const u = findUnit(units, row.unit)
+  if (!countFits(qty, u?.g, row.grams)) return null
+  return formatCount(qty, u ?? { name: row.unit })
 }
 
 /** The meal's task title: "Lunch: sandwich · 450 kcal", or "Lunch · 450 kcal"
  *  when it has no name; "Breakfast: Eggs, 2 eggs · 143 kcal" when counted. */
-export function quickTitle(slotLabel: string, row: { label?: string | null; kcal?: number | string | null; unit?: string | null; unit_qty?: number | string | null }): string {
+export function quickTitle(slotLabel: string, row: { label?: string | null; kcal?: number | string | null; unit?: string | null; unit_qty?: number | string | null; grams?: number | string | null }, units: FoodUnit[] = []): string {
   const kcal = Math.round(num(row.kcal as string | number | null) ?? 0)
-  const count = quickCount(row)
+  const count = quickCount(row, units)
   const label = [row.label?.trim(), count].filter(Boolean).join(', ')
   return label ? `${slotLabel}: ${label} · ${kcal} kcal` : `${slotLabel} · ${kcal} kcal`
 }
 
 /** "2 eggs (100 g)" for a counted entry, "180 g" with grams only, or null. */
-export function quickAmount(row: { grams?: number | string | null; unit?: string | null; unit_qty?: number | string | null }): string | null {
+export function quickAmount(row: { grams?: number | string | null; unit?: string | null; unit_qty?: number | string | null }, units: FoodUnit[] = []): string | null {
   const g = num(row.grams as string | number | null)
-  const count = quickCount(row)
+  const count = quickCount(row, units)
   if (count) return g ? `${count} (${gramsLabel(g)})` : count
   return g ? gramsLabel(g) : null
 }

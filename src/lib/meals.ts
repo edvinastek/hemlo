@@ -6,6 +6,7 @@ import { blankTask, saveTask } from './tasks'
 import { mealTime, readSettings, type ProfileSettings } from './settings'
 import { isQuick, quickTitle, type QuickEntry } from './quick-food'
 import { consumeForMeal } from './stock'
+import { readUnits } from './units-rules'
 import { builtinRuleOn } from '../modules/rule-switch'
 import type { Food, FoodLogEntry, MealPlanSlot, Recipe } from './types'
 
@@ -90,8 +91,11 @@ async function syncMealTask(slot: MealPlanSlot, recipe: Recipe | undefined, reti
   }
   const time = mealTime(slot, await settingsFor(slot.profile_id))
   const portions = Math.round(slot.portion_multiplier * 10) / 10
+  // A counted quick meal keeps the food's name as its label: that food's
+  // units say what one weighs, so a stale count shows as grams.
+  const labelled = quick && slot.unit && slot.label ? await db.food.where('name').equals(slot.label).first() : undefined
   const title = quick
-    ? quickTitle(def.label, slot)
+    ? quickTitle(def.label, slot, readUnits(labelled?.units))
     : `${def.label}: ${recipe!.name}${portions !== 1 ? ` (${portions}×)` : ''}`
   const status = slot.status === 'eaten' ? 'done' : existing?.status === 'done' ? 'todo' : existing?.status ?? 'todo'
   if (existing) {

@@ -230,7 +230,7 @@ export function recipeIngredients(recipe: Pick<Recipe, 'id' | 'portions_per_batc
       const key = l.food_id ? `food:${l.food_id}` : `text:${name.toLowerCase()}`
       // A line typed in a unit counts as that many, times the batch; the
       // grams go with it, so a list mixing units still adds up in grams.
-      const count = unitCount(l, readUnits(food?.units), batch)
+      const count = unitCount({ ...l, grams: l.grams_per_portion }, readUnits(food?.units), batch)
       return count ? { key, name, amount: grams, unit, count } : { key, name, amount: grams, unit }
     })
     .filter((x): x is Ingredient => x !== null)
