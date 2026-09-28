@@ -1,5 +1,5 @@
 import { db } from './db'
-import { queueChange } from './sync'
+import { queueChange, queueRemoval } from './sync'
 import { mergeSettings, readSettings, type SettingsChange } from './settings'
 import type { Profile } from './types'
 
@@ -17,6 +17,13 @@ export async function edit<T extends { id: string; updated_at?: string }>(
   await (db as never as Record<string, { put: (r: T) => Promise<unknown> }>)[table].put(next)
   await queueChange(table, next, Object.keys(changes) as (keyof T & string)[])
   return next
+}
+
+/** Take a row out for good, here and then on the server. Only for rows with
+ *  no deleted_at to set instead: an ingredient removed from a recipe. */
+export async function remove(table: 'recipe_line', id: string): Promise<void> {
+  await db.recipe_line.delete(id)
+  await queueRemoval(table, id)
 }
 
 /** Change some of a profile's settings; the rest stay as they are. */

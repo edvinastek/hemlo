@@ -1,6 +1,7 @@
 import { db, setMeta, getMeta } from './db'
 import { supabase } from './supabase'
 import { useApp } from './store'
+import { keepInCatalogue, staleForeign, type SharingRow } from './sharing-rules'
 
 /** Tables the app keeps a full local copy of. Catalogue tables are shared
  *  reference data: pulled, never pushed, except rows a person owns. */
@@ -55,6 +56,13 @@ export async function queueChange<T extends Syncable>(table: string, row: T, fie
   if (navigator.onLine) void push()
 }
 
+/** Record that a row was removed on this device. Only used where a row has
+ *  no deleted_at to mark instead: an ingredient taken out of a recipe. */
+export async function queueRemoval(table: string, id: string) {
+  await db.pending.add({ table, row_id: id, op: 'delete', payload: {}, fields: [], changed_at: new Date().toISOString() })
+  if (navigator.onLine) void push()
+}
+
 /** Postgres refused it for a reason retrying will not change.
  *  A missing parent (23503) is not one of them: the parent's own insert may
  *  simply not have landed yet, so the child waits in the queue and tries again. */
@@ -97,8 +105,10 @@ async function pushOnce(): Promise<number> {
   const byRow = new Map<string, Entry>()
   for (const p of pending) {
     const key = `${p.table}:${p.row_id}`
-    const entry = byRow.get(key) ?? { table: p.table, id: p.row_id, patch: {}, ids: [] }
+    const entry = byRow.get(key) ?? { table: p.table, id: p.row_id, patch: {}, ids: [], remove: false }
     Object.assign(entry.patch, p.payload)
+    // The last word wins: a removal after edits removes the row.
+    entry.remove = p.op === 'delete'
     entry.ids.push(p.id!)
     byRow.set(key, entry)
   }
@@ -127,11 +137,25 @@ async function pushOnce(): Promise<number> {
   return sent
 }
 
-type Entry = { table: string; id: string; patch: Record<string, unknown>; ids: number[] }
+type Entry = { table: string; id: string; patch: Record<string, unknown>; ids: number[]; remove: boolean }
 const PARALLEL = 6
 
 async function sendOne(entry: Entry): Promise<'sent' | 'refused' | 'orphan' | 'waiting'> {
   const keyCol = KEY_COLUMN[entry.table] ?? 'id'
+  if (entry.remove) {
+    // Gone already (never sent, or removed from another device) is success too.
+    const { error } = await supabase.from(entry.table).delete().eq(keyCol, entry.id)
+    if (!error) { await db.pending.bulkDelete(entry.ids); return 'sent' }
+    if (isPermanent(error.code)) {
+      await db.conflicts.add({
+        table: entry.table, row_id: entry.id, field: 'removed', local_value: null,
+        remote_value: error.message, kept: 'rejected', at: new Date().toISOString(),
+      })
+      await db.pending.bulkDelete(entry.ids)
+      return 'refused'
+    }
+    return 'waiting'
+  }
   const { updated_at: _ignored, ...patch } = entry.patch
   if (keyCol !== 'id') delete patch.id
   const updated = await supabase.from(entry.table).update(patch).eq(keyCol, entry.id).select(keyCol)
@@ -217,6 +241,12 @@ export async function pull(ids: string[]): Promise<number> {
   let profileIds = ids
   const pending = await db.pending.toArray()
   const claimed = new Map<string, Set<string>>()
+  // Rows this device is still sending in any form, and rows it is removing:
+  // a removal not yet sent must not be undone by the pull.
+  const queued = new Set(pending.map((p) => `${p.table}:${p.row_id}`))
+  const removing = new Set(pending.filter((p) => p.op === 'delete').map((p) => `${p.table}:${p.row_id}`))
+  const userId = useApp.getState().session?.user.id ?? null
+  let serverRecipes: Set<string> | null = null
   for (const p of pending) {
     const key = `${p.table}:${p.row_id}`
     const set = claimed.get(key) ?? new Set<string>()
@@ -256,7 +286,13 @@ export async function pull(ids: string[]): Promise<number> {
     const { data: fetched, error } = await query
     if (error || !fetched) continue
     const keyCol = KEY_COLUMN[table]
-    const data = keyCol ? (fetched as Row[]).map((r) => ({ ...r, id: String(r[keyCol]) })) : fetched
+    let data = (keyCol ? (fetched as Row[]).map((r) => ({ ...r, id: String(r[keyCol]) })) : fetched) as Row[]
+    if (table === 'recipe') {
+      data = await keepRecipes(data, userId)
+      if (fetched.length < WHOLE_BELOW) serverRecipes = new Set((fetched as Row[]).map((r) => r.id))
+    }
+    if (table === 'recipe_line') data = await keepLines(data, serverRecipes, queued)
+    data = data.filter((r) => !removing.has(`${table}:${r.id}`))
 
     let newest = cursor
     // Rows this device has no unsent edits to are written in one transaction.
@@ -295,6 +331,45 @@ export async function pull(ids: string[]): Promise<number> {
     if (incremental && newest) await setMeta(cursorKey, newest)
   }
   return count
+}
+
+/** The server sends at most this many rows per request; a shorter answer is
+ *  the whole table, so it is safe to drop what it no longer holds. */
+const WHOLE_BELOW = 1000
+
+/** Recipes this device keeps: the shared list, approved ones and the
+ *  person's own. A reviewer is sent proposals too; those stay in the review
+ *  queue. Someone else's recipe that the server no longer shows (taken back,
+ *  or changed and waiting for review again) is dropped with its lines. */
+async function keepRecipes(rows: Row[], userId: string | null): Promise<Row[]> {
+  // Not knowing who is signed in, nothing is dropped: better a stray row than
+  // the person's own recipes gone.
+  if (!userId) return rows
+  const kept = rows.filter((r) => keepInCatalogue(r as unknown as SharingRow, userId))
+  if (rows.length < WHOLE_BELOW) {
+    const stale = staleForeign(await db.recipe.toArray(), new Set(kept.map((r) => r.id)), userId)
+    if (stale.length) {
+      await db.recipe.bulkDelete(stale)
+      await db.recipe_line.where('recipe_id').anyOf(stale).delete()
+    }
+  }
+  return kept
+}
+
+/** Lines follow their recipe: only lines of recipes this device keeps. A
+ *  line the server no longer has, of a recipe it does have, was taken out on
+ *  another device and goes here too, unless this device is still sending it. */
+async function keepLines(rows: Row[], serverRecipes: Set<string> | null, queued: Set<string>): Promise<Row[]> {
+  const known = new Set(await db.recipe.toCollection().primaryKeys())
+  const kept = rows.filter((l) => known.has(l.recipe_id as string))
+  if (serverRecipes && rows.length < WHOLE_BELOW) {
+    const onServer = new Set(rows.map((l) => l.id))
+    const gone = (await db.recipe_line.toArray())
+      .filter((l) => !onServer.has(l.id) && serverRecipes.has(l.recipe_id) && !queued.has(`recipe_line:${l.id}`))
+      .map((l) => l.id)
+    if (gone.length) await db.recipe_line.bulkDelete(gone)
+  }
+  return kept
 }
 
 /** One round trip: send what is waiting, then take what is new. */
