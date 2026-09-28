@@ -25,7 +25,7 @@ import type { ModuleInstance } from '../lib/types'
 import type { ImportPreview } from '../lib/excel'
 import type { ImportPlan, ImportSummary } from '../lib/import'
 
-const SECTIONS = ['Modules', 'Profile', 'Assistant', 'Data']
+const SECTIONS = ['Modules', 'Profile', 'Reminders', 'Data']
 
 export function More() {
   const [section, setSection] = useState('Modules')
@@ -49,7 +49,7 @@ export function More() {
           ? <ModuleEditor moduleKey={editing} onBack={() => setEditing(null)} />
           : <Modules onEdit={setEditing} />)}
         {section === 'Profile' && <ProfilePanel />}
-        {section === 'Assistant' && <AssistantPanel />}
+        {section === 'Reminders' && <RemindersPanel />}
         {section === 'Data' && <DataPanel />}
       </div>
     </div>
@@ -177,7 +177,7 @@ function ProfilePanel() {
   )
 }
 
-function AssistantPanel() {
+function RemindersPanel() {
   const profile = useApp((s) => s.profile)
   const settings = useLiveQuery(() => getReminderSettings(), [], null)
   const [note, setNote] = useState<string | null>(null)
@@ -226,16 +226,6 @@ function AssistantPanel() {
       </div>
       {note && <p className="empty" style={{ color: 'var(--e-warn)' }}>{note}</p>}
 
-      <div className="setting-row">
-        <div>
-          <div className="row-name">Assistant</div>
-          <div className="row-meta">
-            Not in this version. The tables and the per-module skill list are there, so
-            adding it later is wiring rather than a rewrite.
-          </div>
-        </div>
-        <span className="chip">later</span>
-      </div>
     </>
   )
 }

@@ -114,7 +114,7 @@ is('ticking an item counts it off', (left ?? '').includes(`${items - 1} of ${ite
 
 // Reminders on this device.
 await p.click('.bottom-nav a[href="/more"]')
-await p.click('.tabs button:has-text("Assistant")')
+await p.click('.tabs button:has-text("Reminders")')
 const sw = p.locator('button[aria-label="Reminders"]')
 await sw.click()
 await p.waitForTimeout(800)

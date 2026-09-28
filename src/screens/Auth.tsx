@@ -49,7 +49,7 @@ export function Auth({ adding = false }: { adding?: boolean } = {}) {
       return
     }
 
-    const { error } = mode === 'in'
+    const { data, error } = mode === 'in'
       ? await supabase.auth.signInWithPassword({ email, password })
       : await supabase.auth.signUp({
           email, password,
@@ -67,7 +67,9 @@ export function Auth({ adding = false }: { adding?: boolean } = {}) {
       // auth service reports that as a generic database error.
       const invite = /invite-only|saving new user/i.test(error.message)
       setNote(invite ? 'GetIt is invite-only for now. Ask to have your address added.' : error.message)
-    } else if (mode === 'up') {
+    } else if (mode === 'up' && !data.session) {
+      // Only when the project still asks new addresses to be confirmed; with
+      // confirmation off, the new account is signed in and the app opens.
       setNote('Check your email and open the link on this device to confirm the address.')
     }
   }
