@@ -1,0 +1,27 @@
+/* More → Data → Account, and the sign-in screen's "On this device" list.
+   The rows are the ordinary settings rows; this only lets a long name or
+   address shorten instead of pushing the buttons off a 360 px screen, and
+   lays out the password and "remove?" lines under a row. */
+
+.acc .acc-who { min-width: 0; }
+.acc .acc-who .row-name,
+.acc .acc-who .row-meta { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.acc .row-right { flex-wrap: wrap; justify-content: flex-end; }
+
+/* Spans the whole row, under the name and the buttons. */
+.acc-extra { grid-column: 1 / -1; display: grid; gap: var(--space-2); }
+.acc-field { display: grid; gap: 4px; }
+.acc-field input {
+  padding: 9px 10px; border: 1px solid var(--e-rule); border-radius: var(--radius-md);
+  background: transparent; color: var(--e-ink); font-size: 15px; width: 100%; min-width: 0;
+}
+.acc-field input:focus-visible { outline: 2px solid var(--e-accent); outline-offset: 1px; }
+
+.acc-note { color: var(--e-warn); padding: var(--space-3) var(--space-4); }
+.acc-note:empty { display: none; }
+
+/* The sign-in screen is already narrow and padded. */
+.acc-saved { margin: 0 calc(-1 * var(--space-4)) var(--space-4); }
+.acc-saved .section-title { padding-top: 0; }
+
+.switching { max-width: 360px; margin: 0 auto; padding: var(--space-6) var(--space-4); display: grid; gap: var(--space-3); justify-items: start; }

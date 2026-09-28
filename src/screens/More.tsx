@@ -18,6 +18,7 @@ import { ColourSettings } from '../settings/ColourSettings'
 import { HolidaySettings } from '../settings/HolidaySettings'
 import { TransferSettings } from '../settings/TransferSettings'
 import { RecipeReview } from '../settings/RecipeReview'
+import { Accounts } from '../settings/Accounts'
 import { exportBundle, importBundle } from '../lib/bundle'
 import { getReminderSettings, setReminderSettings, requestPermission, type ReminderSettings } from '../lib/notify'
 import type { ModuleInstance } from '../lib/types'
@@ -440,6 +441,7 @@ function DataPanel() {
       </div>
 
       <p className="section-title">Account</p>
+      <Accounts />
       <div className="setting-row">
         <div>
           <div className="row-name">Sign out</div>
