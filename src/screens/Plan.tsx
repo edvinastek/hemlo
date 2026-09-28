@@ -17,6 +17,7 @@ import { usePlannedRepeats } from '../lib/planned'
 import type { PlannedRepeat } from '../lib/series-rules'
 import { readSettings } from '../lib/settings'
 import { useWeekSwap } from '../ui/WeekSwap'
+import { useLayout } from '../ui/useLayout'
 import { countriesIn, holidayMarks, holidaysText, useHolidays } from '../lib/holidays'
 import { HolidayLegend, HolidayMark } from '../ui/HolidayMark'
 import type { Task } from '../lib/types'
@@ -37,6 +38,7 @@ export function Plan() {
   const [date, setDate] = useState(new Date())
   const [section, setSection] = useState('Week')
   const colours = useModuleColours()
+  const layout = useLayout()
   const { range, clamp, today } = useDayRange()
   const go = (d: Date) => setDate(clamp(d))
   // Public holidays for the whole year shown, padded to full weeks, so Week,
@@ -189,6 +191,8 @@ export function Plan() {
               <MonthScroller
                 first={range.first} last={range.last} openAt={key(date)} today={today}
                 label="Every day, month by month"
+                // Sideways or wide, up to three months stand side by side.
+                columns={layout === 'bar' ? 1 : 3}
                 heat={(day): DayHeat => {
                   const step = heatStep(loadOn(day))
                   return { colour: `var(--e-heat-${step})`, strong: step === 4 }

@@ -1,0 +1,141 @@
+/* Short-and-wide screens: a phone turned sideways, and wide ones (a desktop
+   window, a tablet).
+
+   src/ui/useLayout.ts writes one word on <html>:
+   - data-layout="rail": a phone on its side (landscape, at most 500 px tall).
+     The page bar is a slim rail down the left (src/ui/nav.css).
+   - data-layout="wide": 900 px or wider and not short. The sidebar the
+     desktop always had (app.css).
+   - data-layout="bar": a phone held upright. Nothing in this file applies,
+     so the upright phone looks exactly as it did.
+
+   The safe areas: body already keeps clear of a camera cut-out on either
+   side (app.css pads it with the left and right insets), and the rail sits
+   inside that padding, so neither it nor the page is ever under the notch.
+   Anything fixed to the screen here adds the insets itself. */
+
+:root {
+  --inset-l: var(--safe-area-inset-left, env(safe-area-inset-left, 0px));
+  --inset-r: var(--safe-area-inset-right, env(safe-area-inset-right, 0px));
+  --inset-t: var(--safe-area-inset-top, env(safe-area-inset-top, 0px));
+  --inset-b: var(--safe-area-inset-bottom, env(safe-area-inset-bottom, 0px));
+}
+
+/* ---------- the shell: rail on the left, page on the right --------------- */
+/* :has() so a screen without the rail (setting up, signing in) keeps the
+   whole width. */
+[data-layout="rail"] .app:has(> .nav-rail) {
+  grid-template-columns: var(--rail-w) minmax(0, 1fr);
+  grid-template-rows: minmax(0, 1fr);
+}
+[data-layout="rail"] .app > .nav-rail { grid-column: 1; grid-row: 1; }
+[data-layout="rail"] .app > .page {
+  grid-column: 2;
+  grid-row: 1;
+  /* The add button lives in the rail now, so the page only needs a little
+     room at its foot, plus the gesture bar's. */
+  padding-bottom: calc(var(--space-6) + var(--inset-b));
+}
+/* A sideways phone can be 900 px wide: the desktop's limits do not apply. */
+[data-layout="rail"] .page-inner { max-width: none; }
+/* The Export link kept clear of the desktop's floating button; here the
+   button is in the rail. */
+[data-layout="rail"] .xl-row { padding-bottom: 0; }
+
+/* ---------- the add button ------------------------------------------------- */
+/* At the foot of the rail, under More: it never covers the page. */
+[data-layout="rail"] .fab {
+  left: calc(var(--inset-l) + (var(--rail-w) - 52px) / 2);
+  right: auto;
+  bottom: calc(var(--space-2) + var(--inset-b));
+}
+
+/* On a wide screen it floats at the bottom right as before; the page keeps
+   room under its content so, scrolled to the end, nothing sits under it. */
+[data-layout="wide"] .page { padding-bottom: calc(var(--space-6) + 72px); }
+[data-layout="wide"] .xl-row { padding-bottom: 0; }
+
+/* ---------- the page header ------------------------------------------------ */
+/* Sideways, height is what is short: the date and the week strip share one
+   line, and the section tabs stay under them, full width. Only headers with
+   a week strip (Today, Plan, Food); the others are short already. */
+[data-layout="rail"] .page-head { padding-top: var(--space-2); }
+[data-layout="rail"] .page-head:has(> .week-strip) {
+  display: grid;
+  grid-template-columns: minmax(0, auto) minmax(260px, 1fr);
+  column-gap: var(--space-4);
+  align-items: center;
+}
+[data-layout="rail"] .page-head:has(> .week-strip) > * { grid-column: 1; }
+[data-layout="rail"] .page-head > .week-strip { grid-column: 2; grid-row: 1 / span 3; margin: 0; }
+[data-layout="rail"] .page-head:has(> .week-strip) > .tabs { grid-column: 1 / -1; }
+[data-layout="rail"] .page-head .page-date { font-size: 20px; }
+[data-layout="rail"] .page-head .week-strip button { padding: 2px 0; gap: 1px; }
+[data-layout="rail"] .page-head .week-strip .disc { width: 24px; height: 24px; }
+[data-layout="rail"] .page-head .tabs { margin-top: var(--space-1); }
+
+/* ---------- Today: tasks and the tab's section side by side ---------------- */
+/* Two columns once the page is 720 px wide or more (a 844 px phone on its
+   side, a desktop), so neither column is narrower than an upright phone.
+   The page measures itself as a
+   container, which only these two layouts ask for, so an upright phone
+   never matches the rule below. */
+:is([data-layout="rail"], [data-layout="wide"]) .today-page > .page-inner { container-type: inline-size; }
+@container (min-width: 720px) {
+  /* Both sides must have something real: tasks on the left, and on the right
+     more than the figure's bar and the one-line review (on the Today tab
+     those stay above the tasks, as upright). */
+  .today-body:has(> .today-main > .rail):has(> .today-side > :not(.metrics, .review-compact)) {
+    display: grid;
+    grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr);
+    column-gap: var(--space-2);
+    align-items: start;
+  }
+  .today-body > .today-main { grid-column: 1; grid-row: 1; min-width: 0; }
+  .today-body > .today-side { grid-column: 2; grid-row: 1; min-width: 0; }
+}
+
+/* ---------- Plan ------------------------------------------------------------ */
+/* Week: seven days side by side, however narrow the phone on its side. */
+[data-layout="rail"] .week-grid { grid-template-columns: repeat(7, minmax(0, 1fr)); }
+[data-layout="rail"] .week-col { display: block; min-width: 0; min-height: 150px; padding: var(--space-1) 6px; }
+[data-layout="rail"] .week-col h3 { margin: 0 0 var(--space-1); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+[data-layout="rail"] .week-item { font-size: 12px; overflow-wrap: anywhere; }
+
+/* Month: the grid already spans the width; shorter days fit more on screen. */
+[data-layout="rail"] .month-cell { min-height: 46px; }
+
+/* Year: the months scroller gets the height the screen has. */
+[data-layout="rail"] .plan-year { --ms-height: max(240px, calc(100vh - 150px)); }
+
+/* ---------- bottom sheets ---------------------------------------------------- */
+/* Centred and no wider than 560 px rather than edge to edge, and never
+   taller than the screen: the sheet scrolls inside itself, and its buttons
+   (Save, Cancel) stay pinned to its foot, so the keyboard, which leaves
+   very little height on a sideways phone, never hides Save. */
+:is([data-layout="rail"], [data-layout="wide"]) .bottom-sheet {
+  left: 0;
+  right: 0;
+  width: min(560px, calc(100vw - var(--inset-l) - var(--inset-r)));
+  margin: 0 auto;
+  border-left: 1px solid var(--e-rule);
+  border-right: 1px solid var(--e-rule);
+  overscroll-behavior: contain;
+}
+[data-layout="rail"] .bottom-sheet {
+  max-height: calc(100vh - var(--inset-t));
+  max-height: calc(100dvh - var(--inset-t));
+  padding-top: var(--space-3);
+}
+[data-layout="rail"] .bottom-sheet h2 { margin-bottom: var(--space-2); }
+:is([data-layout="rail"], [data-layout="wide"]) .bottom-sheet > .sheet-actions {
+  position: sticky;
+  bottom: calc(-1 * (var(--space-4) + var(--inset-b)));
+  z-index: 1;
+  margin-bottom: calc(-1 * (var(--space-4) + var(--inset-b)));
+  padding: var(--space-3) 0 calc(var(--space-4) + var(--inset-b));
+  background: var(--e-paper);
+  border-top: 1px solid var(--e-rule);
+}
+/* The day picker's calendar: short enough that its buttons show too. */
+[data-layout="rail"] .ph-pick .ms { --ms-height: max(160px, calc(100dvh - 190px)); }

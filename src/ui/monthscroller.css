@@ -52,5 +52,11 @@
    from the colour behind it. */
 .ms-day.is-strong .mod-dot, .ms-day.is-picked .mod-dot { box-shadow: 0 0 0 1px var(--e-paper); }
 
+/* Months side by side (the `columns` prop, on a sideways phone or a wide
+   screen): a letter row over each column, and a little room between months. */
+.ms-cols .ms-weekdays { gap: 0; }
+.ms-weekdays-group { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); padding: 0 var(--space-2); }
+.ms-cols .ms-month { padding: 0 var(--space-2); }
+
 /* The header's "go to a day" calendar keeps a phone's width on a wide screen. */
 .ph-pick .ms { max-width: 440px; margin: 0 auto; }

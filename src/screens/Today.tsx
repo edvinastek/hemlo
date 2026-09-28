@@ -121,50 +121,60 @@ export function Today() {
           note={<HolidayChips marks={holidayMarks(holidays, day)} />}
         />
 
-        {figure && figure.share !== null && (
-          <div className="metrics" style={{ padding: '0 var(--space-4)' }}>
-            <div className="metric">
-              <div className="metric-track" role="progressbar" aria-label={figure.text}
-                aria-valuemin={0} aria-valuemax={100} aria-valuenow={Math.round(figure.share * 100)}>
-                <div className="metric-fill" style={{ width: `${figure.share * 100}%` }} />
+        {/* Two groups, one under the other on an upright phone. On a phone
+            turned sideways or a wide screen they stand side by side when
+            there is room: the day's tasks on the left, the tab's own
+            section on the right (today.css). */}
+        <div className="today-body">
+          <div className="today-side">
+            {figure && figure.share !== null && (
+              <div className="metrics" style={{ padding: '0 var(--space-4)' }}>
+                <div className="metric">
+                  <div className="metric-track" role="progressbar" aria-label={figure.text}
+                    aria-valuemin={0} aria-valuemax={100} aria-valuenow={Math.round(figure.share * 100)}>
+                    <div className="metric-fill" style={{ width: `${figure.share * 100}%` }} />
+                  </div>
+                </div>
               </div>
-            </div>
-          </div>
-        )}
-
-        {/* The review card now carries slipped tasks too; one prompt, not two. */}
-        {tab.key === 'today' && profile && <ReviewCard profileId={profile.id} day={day} variant="compact" />}
-
-        {tab.key === 'body' && profile && <BodySection profileId={profile.id} day={day} parts={tab.parts} />}
-        {tab.key === 'evening' && profile && <ReviewCard profileId={profile.id} day={day} variant="full" />}
-        {tab.key === 'sleep' && profile && <SleepDay profileId={profile.id} day={day} />}
-        {tab.module && profile && <ModuleDay profileId={profile.id} day={day} moduleKey={tab.module} label={tab.label} />}
-
-        {/* A module tab may hold only records; its rail shows when it has tasks. */}
-        {shown && !(tab.module && shown.length === 0) && (
-          <div className={`rail${colours.on ? ' is-coloured' : ''}`}>
-            {shown.length === 0 && (
-              <p className="empty">
-                {tab.key === 'today'
-                  ? 'Nothing planned for this day yet. Add something with the + button.'
-                  : `Nothing in ${tab.label} for this day.`}
-              </p>
             )}
-            {/* Hold a row and drag it, or use its ⋮ menu (ui/DragList.tsx). */}
-            <DragList tasks={shown} day={tasks} date={day} work={work} renderRow={(t, more) => {
-              const key = colours.moduleOf(t)
-              return (
-                <TaskRow task={t} onTick={tick} onPush={push} more={more}
-                  colour={colours.ofTask(t)} moduleName={key ? colours.label(key) : null}
-                  onEdit={(task) => setEditing({ task, isNew: false })} />
-              )
-            }} />
-          </div>
-        )}
 
-        {/* Past the eight weeks the series have filled: what will repeat here. */}
-        {tab.key === 'today' && profile && <PlannedDay profileId={profile.id} day={day} />}
-        <ExportLink calendar source={{ dataset: 'calendar', range: rangeFor('day', day) }} />
+            {/* The review card now carries slipped tasks too; one prompt, not two. */}
+            {tab.key === 'today' && profile && <ReviewCard profileId={profile.id} day={day} variant="compact" />}
+
+            {tab.key === 'body' && profile && <BodySection profileId={profile.id} day={day} parts={tab.parts} />}
+            {tab.key === 'evening' && profile && <ReviewCard profileId={profile.id} day={day} variant="full" />}
+            {tab.key === 'sleep' && profile && <SleepDay profileId={profile.id} day={day} />}
+            {tab.module && profile && <ModuleDay profileId={profile.id} day={day} moduleKey={tab.module} label={tab.label} />}
+          </div>
+
+          <div className="today-main">
+            {/* A module tab may hold only records; its rail shows when it has tasks. */}
+            {shown && !(tab.module && shown.length === 0) && (
+              <div className={`rail${colours.on ? ' is-coloured' : ''}`}>
+                {shown.length === 0 && (
+                  <p className="empty">
+                    {tab.key === 'today'
+                      ? 'Nothing planned for this day yet. Add something with the + button.'
+                      : `Nothing in ${tab.label} for this day.`}
+                  </p>
+                )}
+                {/* Hold a row and drag it, or use its ⋮ menu (ui/DragList.tsx). */}
+                <DragList tasks={shown} day={tasks} date={day} work={work} renderRow={(t, more) => {
+                  const key = colours.moduleOf(t)
+                  return (
+                    <TaskRow task={t} onTick={tick} onPush={push} more={more}
+                      colour={colours.ofTask(t)} moduleName={key ? colours.label(key) : null}
+                      onEdit={(task) => setEditing({ task, isNew: false })} />
+                  )
+                }} />
+              </div>
+            )}
+
+            {/* Past the eight weeks the series have filled: what will repeat here. */}
+            {tab.key === 'today' && profile && <PlannedDay profileId={profile.id} day={day} />}
+            <ExportLink calendar source={{ dataset: 'calendar', range: rangeFor('day', day) }} />
+          </div>
+        </div>
       </div>
 
       {profile && (
