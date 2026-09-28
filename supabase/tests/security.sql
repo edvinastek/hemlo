@@ -5,7 +5,7 @@
 begin;
 
 create temp table _r (n serial, check_name text, expected text, actual text);
-create temp table _ids (a uuid, b uuid, m uuid, ha uuid, pa uuid, pb uuid, recipe uuid, store uuid, workout uuid);
+create temp table _ids (a uuid, b uuid, m uuid, ha uuid, pa uuid, pb uuid, recipe uuid, store uuid, workout uuid, shared uuid);
 grant all on _r, _ids to authenticated, anon;
 grant usage on sequence _r_n_seq to authenticated, anon;
 
@@ -45,6 +45,15 @@ insert into workout_line (workout_id, sets, reps) select workout, 3, 10 from _id
 
 insert into module (key, name, builtin, created_by, definition) select 'u_secrettest1', 'A''s own module', false, a, '{"fields":[]}' from _ids;
 insert into module_record (profile_id, module_key, entity, data) select pa, 'u_secrettest1', 'item', '{"note":"private"}' from _ids;
+
+-- Recipe sharing (019): A has a second recipe, from shared foods only, that A
+-- will propose. M is made a reviewer for this run; B stays a stranger.
+with r as (insert into recipe (owner_id, name) select a, 'A proposed recipe' from _ids returning id)
+update _ids set shared = (select id from r);
+insert into recipe_line (recipe_id, food_id, grams_per_portion)
+select shared, (select id from food where owner_id is null limit 1), 120 from _ids;
+insert into food (owner_id, name, kcal) select a, 'A''s own oats', 380 from _ids;
+insert into app_admin (user_id) select m from _ids;
 
 -- As B, the stranger ---------------------------------------------------------
 do $$
@@ -197,6 +206,117 @@ begin
   execute 'reset role';
 end $$;
 
+-- Sharing a recipe: private, proposed, reviewed, approved, changed -----------
+do $$
+declare n int;
+begin
+  -- A proposes it.
+  perform set_config('role', 'authenticated', true);
+  perform set_config('request.jwt.claims', json_build_object('sub', (select a from _ids), 'role', 'authenticated')::text, true);
+  update recipe set sharing = 'proposed' where id = (select shared from _ids);
+  begin
+    update recipe set sharing = 'public' where id = (select shared from _ids);
+    insert into _r (check_name, expected, actual) values ('A cannot share their own recipe with everyone', 'denied', 'allowed');
+  exception when others then
+    insert into _r (check_name, expected, actual) values ('A cannot share their own recipe with everyone', 'denied', 'denied');
+  end;
+  update recipe set reviewed_at = now(), review_note = 'looks fine' where id = (select shared from _ids);
+  insert into _r (check_name, expected, actual) values ('A cannot mark their own recipe as reviewed', 'untouched',
+    (select case when reviewed_at is null and review_note is null then 'untouched' else 'written' end
+     from recipe where id = (select shared from _ids)));
+  begin
+    perform public.review_recipe((select shared from _ids), true, null);
+    insert into _r (check_name, expected, actual) values ('A cannot approve their own recipe', 'denied', 'allowed');
+  exception when others then
+    insert into _r (check_name, expected, actual) values ('A cannot approve their own recipe', 'denied', 'denied');
+  end;
+  begin
+    insert into recipe (id, owner_id, name, sharing) values (gen_random_uuid(), (select a from _ids), 'A oats bowl', 'proposed');
+    insert into recipe_line (recipe_id, food_id, grams_per_portion)
+    select id, (select id from food where name = 'A''s own oats'), 80 from recipe where name = 'A oats bowl';
+    insert into _r (check_name, expected, actual) values ('A shared recipe cannot use a food only A can see', 'denied', 'allowed');
+  exception when others then
+    insert into _r (check_name, expected, actual) values ('A shared recipe cannot use a food only A can see', 'denied', 'denied');
+  end;
+  insert into _r (check_name, expected, actual) values
+    ('A reads no reviewer row but their own', '0', (select count(*) from app_admin)::text);
+  begin
+    insert into app_admin (user_id) values ((select a from _ids));
+    insert into _r (check_name, expected, actual) values ('A cannot make themselves a reviewer', 'denied', 'allowed');
+  exception when others then
+    insert into _r (check_name, expected, actual) values ('A cannot make themselves a reviewer', 'denied', 'denied');
+  end;
+  execute 'reset role';
+
+  -- B, a stranger, while it waits.
+  perform set_config('role', 'authenticated', true);
+  perform set_config('request.jwt.claims', json_build_object('sub', (select b from _ids), 'role', 'authenticated')::text, true);
+  insert into _r (check_name, expected, actual) values
+    ('B cannot see A''s proposed recipe', '0', (select count(*) from recipe where id = (select shared from _ids))::text),
+    ('B cannot see the lines of A''s proposed recipe', '0',
+       (select count(*) from recipe_line where recipe_id = (select shared from _ids))::text);
+  begin
+    perform public.review_recipe((select shared from _ids), true, null);
+    insert into _r (check_name, expected, actual) values ('B, not a reviewer, cannot approve it', 'denied', 'allowed');
+  exception when others then
+    insert into _r (check_name, expected, actual) values ('B, not a reviewer, cannot approve it', 'denied', 'denied');
+  end;
+  begin
+    perform count(*) from public.recipe_review_queue();
+    insert into _r (check_name, expected, actual) values ('B cannot read the review queue', 'denied', 'allowed');
+  exception when others then
+    insert into _r (check_name, expected, actual) values ('B cannot read the review queue', 'denied', 'denied');
+  end;
+  execute 'reset role';
+
+  -- M, the reviewer, sees it and approves it.
+  perform set_config('role', 'authenticated', true);
+  perform set_config('request.jwt.claims', json_build_object('sub', (select m from _ids), 'role', 'authenticated')::text, true);
+  insert into _r (check_name, expected, actual) values
+    ('The reviewer reads their own reviewer row', '1', (select count(*) from app_admin)::text),
+    ('The reviewer sees the proposed recipe and its line', '1+1',
+       (select count(*) from recipe where id = (select shared from _ids))::text || '+' ||
+       (select count(*) from recipe_line where recipe_id = (select shared from _ids))::text),
+    ('The reviewer still cannot see A''s private recipe', '0', (select count(*) from recipe where name = 'A secret recipe')::text),
+    ('The queue never shows a name made from an email address', 'hidden',
+       (select case when q.author is null then 'hidden' else q.author end
+        from public.recipe_review_queue() q where q.id = (select shared from _ids)));
+  perform public.review_recipe((select shared from _ids), true, 'Nice one');
+  execute 'reset role';
+
+  -- B, after approval.
+  perform set_config('role', 'authenticated', true);
+  perform set_config('request.jwt.claims', json_build_object('sub', (select b from _ids), 'role', 'authenticated')::text, true);
+  insert into _r (check_name, expected, actual) values
+    ('B sees A''s recipe once approved, with its line', '1+1',
+       (select count(*) from recipe where id = (select shared from _ids))::text || '+' ||
+       (select count(*) from recipe_line where recipe_id = (select shared from _ids))::text),
+    ('B still cannot see A''s private recipe', '0', (select count(*) from recipe where name = 'A secret recipe')::text);
+  update recipe set name = 'Taken over' where id = (select shared from _ids);
+  get diagnostics n = row_count;
+  insert into _r (check_name, expected, actual) values ('B cannot change A''s approved recipe', '0', n::text);
+  execute 'reset role';
+
+  -- A changes it: back to the queue, out of B's sight.
+  perform set_config('role', 'authenticated', true);
+  perform set_config('request.jwt.claims', json_build_object('sub', (select a from _ids), 'role', 'authenticated')::text, true);
+  update recipe set name = 'A proposed recipe, more rice' where id = (select shared from _ids);
+  insert into _r (check_name, expected, actual) values ('Changing an approved recipe sends it back for review', 'proposed',
+    (select sharing from recipe where id = (select shared from _ids)));
+  execute 'reset role';
+  perform set_config('role', 'authenticated', true);
+  perform set_config('request.jwt.claims', json_build_object('sub', (select b from _ids), 'role', 'authenticated')::text, true);
+  insert into _r (check_name, expected, actual) values
+    ('B no longer sees it while it waits again', '0', (select count(*) from recipe where id = (select shared from _ids))::text);
+  execute 'reset role';
+
+  -- Approved once more, so the deletion below has a shared recipe to remove.
+  perform set_config('role', 'authenticated', true);
+  perform set_config('request.jwt.claims', json_build_object('sub', (select m from _ids), 'role', 'authenticated')::text, true);
+  perform public.review_recipe((select shared from _ids), true, null);
+  execute 'reset role';
+end $$;
+
 -- A deletes their account while M is still in the household ------------------
 do $$
 begin
@@ -212,12 +332,16 @@ insert into _r (check_name, expected, actual) values
   ('Deleting removes their tasks', '0', (select count(*) from task where title = 'A private task')::text),
   ('Deleting removes their weight log', '0', (select count(*) from body_log where profile_id = (select pa from _ids))::text),
   ('Deleting removes their own recipes', '0', (select count(*) from recipe where name = 'A secret recipe')::text),
+  ('Deleting removes the recipes they shared too', '0', (select count(*) from recipe where id = (select shared from _ids))::text),
   ('Deleting removes the modules they built', '0', (select count(*) from module where key = 'u_secrettest1')::text),
   ('Deleting removes them from the invite list', '0', (select count(*) from private.signup_allowlist where email = 'sec-a@test.local')::text),
   ('A shared household passes to the remaining member', 'M',
      case when (select owner_id from household where id = (select ha from _ids)) = (select m from _ids) then 'M' else 'lost' end),
   ('The remaining member keeps their own profile', '1',
      (select count(*) from profile where user_id = (select m from _ids))::text);
+
+-- The reviewer row made for this run goes (the rollback would take it anyway).
+delete from app_admin where user_id = (select m from _ids);
 
 select n, check_name, expected, actual, case when expected = actual then 'ok' else 'FAIL' end as result
 from _r order by n;
