@@ -134,13 +134,13 @@ to the test accounts, because they run against the live project.
 - `books` (uses `TEST_FEAT_EMAIL`) — at 360 px: a recipe book made, two own recipes added by long-press and
   Select, the book filtering the table, their ingredients copied (read back from the clipboard), one own recipe
   deleted after the confirm sheet (deleted_at in Postgres), a catalogue recipe refused with a note.
-- `sharing` (uses `TEST_NEW_EMAIL` as the author and `TEST_FEAT_EMAIL` as the other account; needs migration
+- `sharing` (uses `TEST_ONBOARD_EMAIL` as the author and `TEST_FEAT_EMAIL` as the other account; needs migration
   019) — a recipe written in the editor and proposed, which the other account cannot read; that account made a
   reviewer for the run (a row in `app_admin`, removed at the end), finding it in More → Data → Recipes to review
   and not among its own recipes, and approving it; then it can read it and has it locally, and the author sees
   "Shared with everyone". At 360 px.
 
-- `accounts` (uses `TEST_EMAIL` and `TEST_NEW_EMAIL`, in a browser, so switching asks for the password) — the
+- `accounts` (uses `TEST_EMAIL` and `TEST_ONBOARD_EMAIL`, in a browser, so switching asks for the password) — the
   second account added from More → Data → Account, switching back and forth with nothing waiting to be sent,
   each account's own task on Today and never the other's, a wrong password and going offline changing nothing,
   the second account removed, and no token ever written to the browser's storage.

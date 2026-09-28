@@ -55,6 +55,7 @@ is('the board goes by the choice field', (await p.getByRole('button', exact('Col
 await p.getByRole('button', exact('Create')).click()
 await p.waitForURL(/\/m\/u_[a-z0-9]{12}$/, { timeout: 15000 })
 const key = p.url().match(/\/m\/(u_[a-z0-9]{12})$/)[1]
+await drained(p)
 let r = await one(`select definition->'views' v from public.module where key = '${key}'`)
 const stored = (r.v ?? []).map((v) => `${v.type}${v.groupBy ? `:${v.groupBy}` : ''}${v.field ? `:${v.field}` : ''}`)
 is('the views are stored with their settings', stored.filter((s) => /^(board|grid|chart)/.test(s)).join(' '), 'board:category grid:item:amount chart:amount')
@@ -62,10 +63,11 @@ is('the views are stored with their settings', stored.filter((s) => /^(board|gri
 // 2. Three records.
 async function add(what, amount, category) {
   await p.getByRole('button', exact('Add expense')).click()
-  await p.getByLabel('What').fill(what)
-  await p.getByLabel('Amount').fill(String(amount))
-  await p.getByRole('button', exact('Category')).click()
-  await p.getByRole('option', exact(category)).click()
+  const form = p.locator('form.bottom-sheet[role=dialog]')
+  await form.getByLabel('What').fill(what)
+  await form.getByLabel('Amount').fill(String(amount))
+  await form.getByRole('button', exact('Category')).click()
+  await p.getByRole('listbox', { name: 'Category' }).getByRole('option', exact(category)).click()
   await p.getByRole('button', exact('Save')).click()
   await settle(p, 400)
 }
@@ -99,7 +101,7 @@ r = await one(`select data->>'category' c from public.module_record where ${mine
 is('a held card dragged to another column changes its category', r.c, 'home')
 is('no card is left floating', await p.locator('.bd-ghost').count(), 0)
 await p.getByRole('button', exact('Move Rent')).click()
-is('the Move menu lists the other columns', await p.getByRole('menu', exact('Move to')).getByRole('menuitem').count(), 6)
+is('the Move menu lists the other columns and "No category"', await p.getByRole('menu', exact('Move to')).getByRole('menuitem').count(), 7)
 await p.getByRole('menuitem', exact('fun')).click()
 await settle(p)
 r = await one(`select data->>'category' c from public.module_record where ${mine} and module_key = '${key}' and data->>'item' = 'Rent' and deleted_at is null`)

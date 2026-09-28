@@ -3,17 +3,17 @@ import { need, open, signIn, completeWizard, sql, profileOf, today, checks, drai
 // Several accounts in one browser (More → Data → Account). In a browser,
 // switching asks for the other account's password; on the phone it asks for
 // the phone's unlock instead, which this check cannot reach.
-//  1. Sign in to TEST_EMAIL, add TEST_NEW_EMAIL from More: the second opens,
+//  1. Sign in to TEST_EMAIL, add TEST_ONBOARD_EMAIL from More: the second opens,
 //     the first stays on the list.
 //  2. Switch back and forth; each time nothing is waiting to be sent first,
 //     and the page shows that account's own task and never the other's.
 //  3. Offline, switching is refused. A wrong password changes nothing.
 //  4. Remove the second account: the list is down to one, and no token was
 //     ever written to the browser's storage.
-// Needs TEST_EMAIL, TEST_NEW_EMAIL, TEST_PASSWORD and SB.
-need('TEST_EMAIL', 'TEST_NEW_EMAIL', 'TEST_PASSWORD', 'SB')
+// Needs TEST_EMAIL, TEST_ONBOARD_EMAIL, TEST_PASSWORD and SB.
+need('TEST_EMAIL', 'TEST_ONBOARD_EMAIL', 'TEST_PASSWORD', 'SB')
 const A = process.env.TEST_EMAIL
-const B = process.env.TEST_NEW_EMAIL
+const B = process.env.TEST_ONBOARD_EMAIL
 const { is, failed } = checks()
 const day = today()
 const TASK_A = 'Accounts probe A'

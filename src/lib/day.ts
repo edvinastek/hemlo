@@ -25,20 +25,21 @@ export async function loadDayInput(
   profileId: string, day: string, today: string, settings: Pick<ProfileSettings, 'work'>,
 ): Promise<DayInput> {
   const built = (await db.module.toArray()).filter((m) => !m.builtin && !m.deleted_at)
-  const [enabled, tasks, habits, supplements, bodyRows, sleepRows, review, records] = await Promise.all([
+  const [enabled, tasks, allHabits, supplements, bodyRows, sleepRows, review, records, habitsDaily] = await Promise.all([
     enabledModules(profileId, built),
     db.task.where('[profile_id+planned_date]').equals([profileId, day]).toArray(),
-    // The Habits rule "a daily habit appears on every day"; switched off in
-    // Edit module, habits stay on their page and leave the day.
-    builtinRuleOn(profileId, 'habits', 'daily')
-      .then((on) => (on ? db.habit.where('profile_id').equals(profileId).toArray() : [])),
+    db.habit.where('profile_id').equals(profileId).toArray(),
     db.supplement.where('profile_id').equals(profileId).toArray(),
     db.body_log.where('log_date').equals(day).filter((r) => r.profile_id === profileId && !r.deleted_at).count(),
     db.sleep_log.where('[profile_id+log_date]').equals([profileId, day]).filter((r) => !r.deleted_at).count(),
     loadReview(profileId, day),
     db.module_record.where('record_date').equals(day)
       .filter((r) => r.profile_id === profileId && !r.deleted_at).toArray(),
+    // The Habits rule "a daily habit appears on every day"; switched off in
+    // Edit module, habits stay on their page and leave the day.
+    builtinRuleOn(profileId, 'habits', 'daily'),
   ])
+  const habits = habitsDaily ? allHabits : []
   return {
     day,
     today,

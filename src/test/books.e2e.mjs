@@ -21,7 +21,7 @@ await sql(`
   with a as (insert into public.recipe (owner_id, name, role, portions_per_batch) values (${user}, 'E2E bowl A', 'lunch', 2) returning id),
        b as (insert into public.recipe (owner_id, name, role, portions_per_batch) values (${user}, 'E2E bowl B', 'lunch', 1) returning id)
   insert into public.recipe_line (recipe_id, food_id, raw_text, grams_per_portion, state, sort_order)
-    select a.id, null, 'E2E oats', 60, 'raw', 0 from a union all
+    select a.id, null::uuid, 'E2E oats', 60, 'raw', 0 from a union all
     select a.id, null, 'E2E milk', 200, 'raw', 1 from a union all
     select b.id, null, 'E2E oats', 30, 'raw', 0 from b union all
     select b.id, null, 'E2E honey', 10, 'raw', 1 from b;`)
@@ -58,6 +58,9 @@ is('nothing runs off the side with a book chosen', (await overflow()).join(', ')
 
 // 2. Back to All; hold one recipe to start selecting, tick the other.
 await chip('All').click()
+await row('E2E bowl A').waitFor()
+await p.waitForTimeout(400)
+await row('E2E bowl A').scrollIntoViewIfNeeded()
 const box = await row('E2E bowl A').locator('td').nth(1).boundingBox()
 await p.mouse.move(box.x + 10, box.y + box.height / 2)
 await p.mouse.down()

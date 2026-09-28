@@ -37,15 +37,15 @@ export const useAccounts = create<AccountsState>(() => ({ list: [], switching: n
 
 // ---------- storage --------------------------------------------------------
 
-async function secure() {
-  const { SecureStorage } = await import('@aparajita/capacitor-secure-storage')
-  return SecureStorage
-}
+// The module is handed back, never the plugin itself: awaiting a Capacitor
+// plugin (returning it from an async function does) calls its "then", which
+// native plugins do not have, and fails on the phone.
+const secure = () => import('@aparajita/capacitor-secure-storage')
 
 async function load(): Promise<SavedAccount[]> {
   try {
     if (isNative()) {
-      const raw = await (await secure()).getItem(KEY)
+      const raw = await (await secure()).SecureStorage.getItem(KEY)
       return cleanList(raw ? JSON.parse(raw) : [], true)
     }
     const raw = window.localStorage.getItem(KEY)
@@ -59,7 +59,7 @@ async function load(): Promise<SavedAccount[]> {
 
 async function save(list: SavedAccount[]) {
   if (isNative()) {
-    await (await secure()).setItem(KEY, JSON.stringify(list))
+    await (await secure()).SecureStorage.setItem(KEY, JSON.stringify(list))
     return
   }
   // A browser keeps who the accounts are, never a token.

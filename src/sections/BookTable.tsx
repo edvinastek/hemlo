@@ -125,7 +125,10 @@ export function BookTable<T extends Row>({
   }
 
   function copyIngredients() {
-    const list = combineIngredients(picked.map((r) => recipeIngredients(r as never, lines, foods ?? new Map())))
+    // Recipes in name order, as the table lists them, so the same choice
+    // always gives the same list.
+    const byName = [...picked].sort((a, b) => String(a.name ?? '').localeCompare(String(b.name ?? '')))
+    const list = combineIngredients(byName.map((r) => recipeIngredients(r as never, lines, foods ?? new Map())))
     if (list.length === 0) { setStatus({ text: 'These recipes have no ingredients listed.', bad: true }); return }
     void copy(ingredientText(list), `${list.length} ${list.length === 1 ? 'ingredient' : 'ingredients'} from ${countOf(picked.length, kind)}`)
   }

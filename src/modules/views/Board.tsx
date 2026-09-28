@@ -1,4 +1,5 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react'
+import type { CSSProperties } from 'react'
 import type { EntityDef, FieldDef, ModuleDef, ViewDef } from '../types'
 import { BOARD_CARD_FIELDS, boardField, computeFormulas, mainField } from '../def-rules'
 import { boardColumns, moveTargets } from '../view-rules'
@@ -172,11 +173,25 @@ function MoveToMenu({ targets, onPick, onClose }: {
   targets: { value: string | null; label: string }[]; onPick: (t: { value: string | null; label: string }) => void; onClose: () => void
 }) {
   const box = useRef<HTMLDivElement>(null)
-  const [above, setAbove] = useState(false)
+  // Placed on the screen itself, next to its button: inside the board's
+  // sideways scroller it would be cut off at the scroller's edges.
+  const [place, setPlace] = useState<CSSProperties>({ visibility: 'hidden' })
   useLayoutEffect(() => {
     const el = box.current
+    const anchor = document.querySelector('.bd-move[aria-expanded="true"]')
     if (!el) return
-    setAbove(el.getBoundingClientRect().bottom > window.innerHeight - 96)
+    const a = anchor?.getBoundingClientRect() ?? el.getBoundingClientRect()
+    const w = el.offsetWidth
+    const h = el.offsetHeight
+    const room = { below: window.innerHeight - a.bottom - 8, above: a.top - 8 }
+    const below = room.below >= Math.min(h, 200) || room.below >= room.above
+    const maxHeight = Math.max(120, below ? room.below : room.above)
+    setPlace({
+      position: 'fixed',
+      left: Math.max(8, Math.min(a.right - w, window.innerWidth - w - 8)),
+      top: below ? a.bottom + 4 : Math.max(8, a.top - 4 - Math.min(h, maxHeight)),
+      right: 'auto', bottom: 'auto', maxHeight, overflowY: 'auto',
+    })
     el.querySelector<HTMLButtonElement>('button')?.focus()
   }, [])
   useEffect(() => {
@@ -200,7 +215,7 @@ function MoveToMenu({ targets, onPick, onClose }: {
   }, [onClose])
 
   return (
-    <div ref={box} className={`move-menu bd-menu${above ? ' is-above' : ''}`} role="menu" aria-label="Move to" data-no-swipe
+    <div ref={box} className="move-menu bd-menu" style={place} role="menu" aria-label="Move to" data-no-swipe
       onPointerDown={(e) => e.stopPropagation()}>
       <p className="move-menu-hint bd-menu-head">Move to…</p>
       {targets.map((t) => (

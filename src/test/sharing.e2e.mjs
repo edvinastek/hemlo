@@ -5,11 +5,11 @@ import { need, open, signIn, sql, checks, drained, modulesOn, localCount } from 
 // cannot read it; that account is then made a reviewer for this run, finds it
 // in More → Data → Recipes to review (never among its own recipes) and
 // approves it; now it can read it, and the author sees "Shared with
-// everyone". Needs TEST_FEAT_EMAIL, TEST_NEW_EMAIL, TEST_PASSWORD and SB
+// everyone". Needs TEST_FEAT_EMAIL, TEST_ONBOARD_EMAIL, TEST_PASSWORD and SB
 // (migration 019 applied). The reviewer row and the recipe are removed at
 // the end, whatever happens.
-need('TEST_FEAT_EMAIL', 'TEST_NEW_EMAIL', 'TEST_PASSWORD', 'SB')
-const author = process.env.TEST_NEW_EMAIL
+need('TEST_FEAT_EMAIL', 'TEST_ONBOARD_EMAIL', 'TEST_PASSWORD', 'SB')
+const author = process.env.TEST_ONBOARD_EMAIL
 const reviewer = process.env.TEST_FEAT_EMAIL
 const name = `e2e shared rice ${Date.now()}`
 const uid = (email) => `(select id from auth.users where email = '${email}')`
@@ -58,7 +58,7 @@ try {
   await recipesTab(one.p)
   await one.p.getByRole('button', { name: 'New recipe' }).click()
   const sheet = one.p.locator('.bottom-sheet')
-  await sheet.locator('label', { hasText: 'Name' }).locator('input').fill(name)
+  await sheet.getByRole('textbox', { name: 'Name', exact: true }).fill(name)
   await sheet.locator('input[aria-label="Add an ingredient"]').fill('Brown Rice')
   await one.p.locator('.sp-list li[role=option]', { hasText: 'Brown Rice' }).first().click()
   await sheet.locator('input[aria-label="Brown Rice, grams per portion"]').fill('75')
@@ -88,6 +88,7 @@ try {
   await two.p.getByText(/^Recipes to review \(\d+\)$/).waitFor({ timeout: 10000 })
   const card = two.p.locator('.rv-card', { hasText: name })
   is('the queue shows it', await card.count(), 1)
+  await card.locator('.rv-lines', { hasText: 'Brown Rice' }).waitFor({ timeout: 15000 }).catch(() => {})
   is('with its ingredient and grams', (await card.locator('.rv-lines').textContent()).includes('Brown Rice · 75 g'), true)
   is('never with an email address', (await card.textContent()).includes('@'), false)
   is('the queue fits 360 px', JSON.stringify(await overflow(two.p)), '[]')
@@ -101,12 +102,15 @@ try {
   is('the other account reads it once approved', await readsAs(reviewer), 1)
   await two.p.reload({ waitUntil: 'domcontentloaded' }); await two.p.waitForTimeout(4000)
   await recipesTab(two.p)
+  for (let i = 0; i < 40 && (await localRecipe(two.p)) === 0; i++) await two.p.waitForTimeout(500)
   is('it arrives in the other account’s recipes', await localRecipe(two.p), 1)
   is('the review section is gone for a non-reviewer', await two.p.getByText(/^Recipes to review/).count(), 0)
 
   // 5. The author sees it shared.
   await one.p.reload({ waitUntil: 'domcontentloaded' }); await one.p.waitForTimeout(4000)
   await recipesTab(one.p)
+  await one.p.locator('.my-recipes .setting-row', { hasText: name }).locator('.sh-chip', { hasText: 'Shared with everyone' })
+    .waitFor({ timeout: 20000 }).catch(() => {})
   is('the author sees it shared', await one.p.locator('.my-recipes .setting-row', { hasText: name }).locator('.sh-chip').textContent(),
     'Shared with everyone')
   is('the author still has one copy', await localRecipe(one.p), 1)

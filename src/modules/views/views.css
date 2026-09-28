@@ -39,7 +39,7 @@
   font-family: var(--font-sans); font-size: 12px; color: var(--e-ink-soft); border-radius: var(--radius-sm);
 }
 .bd-move[aria-expanded="true"] { background: var(--e-tint); color: var(--e-ink); }
-.bd-menu { top: calc(100% - 2px); }
+.bd-menu { top: calc(100% - 2px); z-index: 60; }
 .bd-menu-head { border-top: 0; margin-top: 0; }
 .bd-empty { margin: var(--space-2) 4px; font-family: var(--font-sans); font-size: 12px; color: var(--e-ink-soft); }
 /* The card that follows the finger. */

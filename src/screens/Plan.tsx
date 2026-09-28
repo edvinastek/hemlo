@@ -178,7 +178,7 @@ export function Plan() {
             </div>
             <ModuleLegend colours={colours}
               keys={modulesByWeight(monthDays(date).filter((d) => isSameMonth(d, date)).flatMap(modulesOn))} />
-            <HolidayLegend countries={holidayLegend(monthDays(date).filter((d) => isSameMonth(d, date)))} />
+            <HolidayLegend countries={holidayLegend(monthDays(date))} />
           </>
         )}
 
