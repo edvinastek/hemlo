@@ -6,6 +6,7 @@ import {
   readUnits, findUnit, pluralOf, unitWord, formatQty, formatCount, gramsLabel, readQty, gramsOf, readUnitForm,
   addUnit, removeUnit, unitsText, parseUnitsText, amountChoices, readAmount, amountHint, entryText, unitColumns,
   addCounts, countOf, wholeToBuy, countIn, nudgeCount, parseServing, unitFromText, unitLine, MAX_UNITS,
+  countFits, leadingAmount, plainFractions, stockUnitColumns,
 } from '../lib/units-rules.ts'
 
 let fail = 0
@@ -114,7 +115,14 @@ is('no hint for nothing', amountHint('', choices[1]), '')
 // A saved entry, shown.
 is('an entry in eggs', entryText({ grams: 100, unit: 'egg', unit_qty: 2 }, [egg]), '2 eggs (100 g)')
 is('without the grams', entryText({ grams: 100, unit: 'egg', unit_qty: 2 }, [egg], false), '2 eggs')
-is('the saved grams win over a changed weight', entryText({ grams: 100, unit: 'egg', unit_qty: 2 }, [{ name: 'egg', g: 60 }]), '2 eggs (100 g)')
+is('the saved grams win over a slightly changed weight', entryText({ grams: 100, unit: 'egg', unit_qty: 2 }, [{ name: 'egg', g: 52 }]), '2 eggs (100 g)')
+is('a count far from its grams shows grams (an older version changed them)', entryText({ grams: 300, unit: 'egg', unit_qty: 2 }, [egg]), '300 g')
+is('so does one after a big change of weight', entryText({ grams: 100, unit: 'egg', unit_qty: 2 }, [{ name: 'egg', g: 60 }]), '100 g')
+is('within 5% a count stands', [countFits(2, 50, 95.3), countFits(2, 50, 105), countFits(2, 50, 94), countFits(2, 50, 106)], [true, true, false, false])
+is('no weight to judge by, or no grams: the count stands', [countFits(2, null, 300), countFits(2, 50, null), countFits(2, undefined, '')], [true, true, true])
+is('a count of something beside no grams does not', [countFits(2, 50, 0), countFits(0, 50, 0)], [false, true])
+is('a stale count adds nothing to a list', countOf({ unit: 'egg', unit_qty: 2, grams: 300 }, [egg]), null)
+is('a fitting one does', countOf({ unit: 'egg', unit_qty: 2, grams: '100' }, [egg])?.qty, 2)
 is('a unit the food no longer has still reads', entryText({ grams: 70, unit: 'slice', unit_qty: '2' }, []), '2 slices (70 g)')
 is('an entry in grams', entryText({ grams: 75, unit: null, unit_qty: null }), '75 g')
 
@@ -158,7 +166,33 @@ is('an absurd serving', parseServing('9000 g', null), null)
 // A workbook's amount.
 is('1 large (50g) is an egg', unitFromText('1 large (50g)', [egg], 50), { grams: 50, unit: 'egg', unit_qty: 1 })
 is('2 slices', unitFromText('2 slices', [slice], null), { grams: 70, unit: 'slice', unit_qty: 2 })
-is('a bare count', unitFromText('3', [egg], null), { grams: 150, unit: 'egg', unit_qty: 3 })
+is('a bare whole number is grams, not a count', unitFromText('3', [egg], null), null)
+is('"Milk – 200" is not 200 glasses', unitFromText('200', [{ name: 'glass', g: 250 }], 200), null)
+const avocado = { name: 'avocado', g: 150 }
+is('a bare half is half of one', unitFromText('½', [avocado], null), { grams: 75, unit: 'avocado', unit_qty: 0.5 })
+is('as NFKC writes it (fraction slash)', unitFromText('1⁄2', [avocado], null), { grams: 75, unit: 'avocado', unit_qty: 0.5 })
+is('1/2 egg', unitFromText('1/2 egg', [egg], null), { grams: 25, unit: 'egg', unit_qty: 0.5 })
+is('1 1/2 eggs', unitFromText('1 1/2 eggs', [egg], null), { grams: 75, unit: 'egg', unit_qty: 1.5 })
+is('1½ eggs', unitFromText('1½ eggs', [egg], null), { grams: 75, unit: 'egg', unit_qty: 1.5 })
+is('½ avocado (75g) keeps its grams', unitFromText('½ avocado (75g)', [avocado], 75), { grams: 75, unit: 'avocado', unit_qty: 0.5 })
+is('2 eggs', unitFromText('2 eggs', [egg], null), { grams: 100, unit: 'egg', unit_qty: 2 })
+is('past 10 kg a portion is no amount', unitFromText('300 eggs', [egg], null), null)
+is('unless asked with no limit', unitFromText('300 eggs', [egg], null, Infinity)?.grams, 15000)
+is('the start of a text read', [leadingAmount('1/2 egg'), leadingAmount('200'), leadingAmount('Salt')],
+  [{ qty: 0.5, word: 'egg', fraction: true }, { qty: 200, word: '', fraction: false }, null])
+is('fractions made plain', [plainFractions('½'), plainFractions('1½'), plainFractions('1 ½ cups'), plainFractions('1⁄2'), plainFractions('10¼')],
+  ['1/2', '1 1/2', '1 1/2 cups', '1/2', '10 1/4'])
+
+// Numbers with fractions, every way they are written.
+is('fractions read', [readQty('1⁄2'), readQty('1 1/2'), readQty('1 ½'), readQty('1½'), readQty('⅓'), readQty('1/0')],
+  [0.5, 1.5, 1.5, 1.5, 0.333, null])
+
+// Stock of a food this device does not have (a housemate's scan): its unit is left alone.
+is('a food not here: no unit columns written', stockUnitColumns({ unit: 'egg' }, null, 650, undefined), {})
+is('choosing grams outright still clears it', stockUnitColumns({ unit: 'egg' }, null, 650, null), { unit: null, unit_qty: null })
+is('a food here: the count follows the grams', stockUnitColumns({ unit: 'egg' }, [egg], 650, undefined), { unit: 'egg', unit_qty: 13 })
+is('a unit the food lost goes back to grams', stockUnitColumns({ unit: 'slice' }, [egg], 650, undefined), { unit: null, unit_qty: null })
+is('grams on a plain row write nothing', stockUnitColumns({ unit: null }, [egg], 650, undefined), {})
 is('grams are not a unit', unitFromText('60g', [egg], 60), null)
 is('millilitres are not either', unitFromText('150ml', [{ name: 'cup', g: 240 }], null), null)
 is('a food without units', unitFromText('2 slices', [], null), null)

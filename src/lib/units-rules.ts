@@ -120,21 +120,36 @@ export function gramsLabel(g: number): string {
   return `${round(g / 1000, 2)} kg`
 }
 
+/** The fractions a keyboard or a recipe writes as one character. */
+export const VULGAR: Record<string, string> = { '½': '1/2', '¼': '1/4', '¾': '3/4', '⅓': '1/3', '⅔': '2/3', '⅛': '1/8' }
+const VULGAR_CHARS = Object.keys(VULGAR).join('')
+
+/** Fractions written the plain way: "½" is "1/2", "1½" is "1 1/2", and the
+ *  fraction slash (⁄) that Unicode's tidying turns "½" into is a slash. Done
+ *  before anything else reads the text, so "1½" never becomes "11/2". */
+export function plainFractions(text: string): string {
+  return text
+    .replace(new RegExp(`(?:(\\d)\\s*)?([${VULGAR_CHARS}])`, 'g'), (_m, d: string | undefined, f: string) => `${d ? `${d} ` : ''}${VULGAR[f]}`)
+    .replace(/\s*⁄\s*/g, '/')
+}
+
 /** A number as typed, or null when it is not one. A comma is the decimal
- *  point on many phones; ½, ¼, ¾ and "1/2" are read as well. Never below
- *  zero or past what one entry holds; three decimals at most. */
+ *  point on many phones; ½, ¼, ¾, "1/2", "1 1/2" and "1½" are read as well.
+ *  Never below zero or past what one entry holds; three decimals at most. */
 export function readQty(text: string | number | null | undefined, max = QTY_MAX): number | null {
   if (text === null || text === undefined) return null
   let n: number
   if (typeof text === 'number') n = text
   else {
-    // "2 000" is two thousand; "1 ½" stays one and a half.
-    const t = text.trim().replace(/(\d)\s+(?=\d)/g, '$1').replace(/\s+/g, ' ').replace(',', '.')
-    if (!t) return null
-    const frac: Record<string, number> = { '½': 0.5, '¼': 0.25, '¾': 0.75 }
-    const m = /^(\d+(?:\.\d+)?)?\s*([½¼¾])$/.exec(t)
-    const slash = /^(\d+)\s*\/\s*(\d+)$/.exec(t)
-    if (m) n = Number(m[1] ?? 0) + frac[m[2]]
+    const plain = plainFractions(text).trim().replace(/\s+/g, ' ').replace(',', '.')
+    if (!plain) return null
+    // One and a half, before spaces between digits are closed up: "1 1/2"
+    // is not eleven halves.
+    const mixed = /^(\d+) (\d+) ?\/ ?(\d+)$/.exec(plain)
+    // "2 000" is two thousand.
+    const t = plain.replace(/(\d)\s+(?=\d)/g, '$1')
+    const slash = /^(\d+) ?\/ ?(\d+)$/.exec(t)
+    if (mixed) n = Number(mixed[3]) > 0 ? Number(mixed[1]) + Number(mixed[2]) / Number(mixed[3]) : NaN
     else if (slash) n = Number(slash[2]) > 0 ? Number(slash[1]) / Number(slash[2]) : NaN
     else n = /^\d*\.?\d+$|^\d+\.$/.test(t) ? Number(t) : NaN
   }
@@ -255,15 +270,37 @@ export function amountHint(text: string, choice: AmountChoice | undefined): stri
   return gramsLabel(a.grams)
 }
 
+/** How far a count may be from its grams and still be shown: 5%. */
+export const COUNT_TOLERANCE = 0.05
+
+/** Whether a saved count still agrees with the saved grams: how many times
+ *  what one weighs, within 5% of the grams. An older version of the app,
+ *  which knows nothing of units, can change the grams of an entry and leave
+ *  "2 eggs" beside 300 g; then the count is stale and grams are shown
+ *  instead, since grams are the truth. When what one weighs is not known (the
+ *  food no longer has the unit, or is not on this device) there is nothing
+ *  to judge by, and the count stands. */
+export function countFits(qty: number, unitG: number | null | undefined, grams: number | string | null | undefined): boolean {
+  if (unitG === null || unitG === undefined || !(unitG > 0)) return true
+  if (grams === null || grams === undefined || grams === '') return true
+  const g = Number(grams)
+  if (!Number.isFinite(g)) return true
+  const want = qty * unitG
+  if (g <= 0) return want <= 0
+  return Math.abs(want - g) <= COUNT_TOLERANCE * g
+}
+
 /** A saved entry as shown: "2 eggs (100 g)" when it was typed in a unit,
- *  "100 g" when not. The unit's plural comes from the food when it still has
- *  the unit; the grams are always the saved ones. */
+ *  "100 g" when not, or when the count no longer agrees with the grams (see
+ *  countFits). The unit's plural comes from the food when it still has the
+ *  unit; the grams are always the saved ones. */
 export function entryText(e: { grams: number | null; unit?: string | null; unit_qty?: number | string | null }, units: FoodUnit[] = [], withGrams = true): string {
   const g = Number(e.grams ?? 0)
   const qty = e.unit_qty === null || e.unit_qty === undefined || e.unit_qty === '' ? null : Number(e.unit_qty)
   if (e.unit && qty !== null && Number.isFinite(qty)) {
-    const u = findUnit(units, e.unit) ?? { name: e.unit }
-    const count = formatCount(qty, u)
+    const known = findUnit(units, e.unit)
+    if (!countFits(qty, known?.g, e.grams)) return gramsLabel(g)
+    const count = formatCount(qty, known ?? { name: e.unit })
     return withGrams && g > 0 ? `${count} (${gramsLabel(g)})` : count
   }
   return gramsLabel(g)
@@ -290,11 +327,14 @@ export function addCounts(a: Count | null, b: Count | null): Count | null {
   return { qty: round(a.qty + b.qty, 3), unit: a.unit.plural ? a.unit : b.unit }
 }
 
-/** An entry's count, or null when it was typed in grams. */
-export function countOf(e: { unit?: string | null; unit_qty?: number | string | null }, units: FoodUnit[] = [], times = 1): Count | null {
+/** An entry's count, or null when it was typed in grams or its count no
+ *  longer agrees with its grams (countFits). `grams` is the entry's own:
+ *  a recipe line's grams a portion, before `times`. */
+export function countOf(e: { unit?: string | null; unit_qty?: number | string | null; grams?: number | string | null }, units: FoodUnit[] = [], times = 1): Count | null {
   const qty = e.unit_qty === null || e.unit_qty === undefined || e.unit_qty === '' ? NaN : Number(e.unit_qty)
   if (!e.unit || !Number.isFinite(qty)) return null
   const u = findUnit(units, e.unit)
+  if (!countFits(qty, u?.g, e.grams)) return null
   return { qty: round(qty * times, 3), unit: u ? { name: u.name, plural: u.plural } : { name: e.unit } }
 }
 
@@ -306,6 +346,28 @@ export const wholeToBuy = (qty: number) => Math.max(0, Math.ceil(qty - 0.01))
 
 /** How many of a unit the grams come to, to a tenth: 600 g of 50 g eggs is 12. */
 export const countIn = (grams: number, unit: Pick<FoodUnit, 'g'>) => round(grams / unit.g, 1)
+
+/** The unit columns a stock write carries, for a new amount in grams.
+ *  `unit` undefined keeps the unit the row shows in; null goes back to
+ *  grams; a name is that unit of the food. `units` are the food's, or null
+ *  when the food is not on this device: a housemate scanned it and it has not
+ *  arrived. Then nothing can be said about its units, so the row's unit and
+ *  count are left exactly as they are (no columns written) rather than
+ *  wiped; only choosing grams outright clears them. A unit the food no
+ *  longer has goes back to grams. Grams on a row that never had a unit write
+ *  no unit columns, so a server before 022 still takes it. */
+export function stockUnitColumns(
+  row: { unit?: string | null } | undefined, units: FoodUnit[] | null, grams: number, unit: string | null | undefined,
+): { unit?: string | null; unit_qty?: number | null } {
+  const want = unit === undefined ? row?.unit ?? null : unit
+  const had = !!row?.unit
+  if (!want) return unitColumns({ unit: null, unit_qty: null }, had)
+  if (units === null) return {}
+  const u = findUnit(units, want)
+  const qty = u ? round(grams / u.g, 3) : null
+  if (!u || qty === null || qty > QTY_MAX) return unitColumns({ unit: null, unit_qty: null }, had)
+  return { unit: u.name, unit_qty: qty }
+}
 
 /** One tap of − or + on stock kept in a unit: a whole one more or less.
  *  From a part (11.4 eggs) it goes to the whole number next to it. Returns grams. */
@@ -369,18 +431,42 @@ export function parseServing(size: unknown, quantity: unknown): FoodUnit | null 
 /** Words that describe a whole one rather than name a unit: "1 large (50g)". */
 const SIZES = new Set(['large', 'medium', 'small', 'whole', 'big'])
 
-/** An ingredient amount from a workbook ("2 slices", "1 large (50g)") in one
- *  of the matched food's units, or null when it does not say one. The grams
- *  the line states are kept; without them they are worked out from the unit. */
-export function unitFromText(qtyText: string | null | undefined, units: FoodUnit[], grams: number | null): Amount | null {
-  if (!qtyText || units.length === 0) return null
-  const m = /^\s*(\d+(?:[.,]\d+)?|½|¼|¾)\s*([a-zà-ž]+)?/i.exec(qtyText)
+/** The most one portion of one ingredient can weigh. More is a slip in the
+ *  workbook ("200 glasses of milk"), not a recipe. */
+export const PORTION_MAX_G = 10000
+
+/** An amount at the start of a workbook's text: "2", "1.5", "1,5", "1/2",
+ *  "1 1/2", "½", "1½". */
+export const AMOUNT_AT_START = String.raw`(\d+ \d+ ?\/ ?\d+|\d+ ?\/ ?\d+|\d+(?:[.,]\d+)?)`
+
+/** The amount a workbook's text starts with, and the word after it:
+ *  "1/2 egg" is ½ and "egg"; "200" is 200 and nothing. `fraction` is true
+ *  when it was written as one ("½", "1/2"): nobody writes half a gram, so a
+ *  bare fraction counts the food, while a bare whole number is grams. */
+export function leadingAmount(text: string | null | undefined): { qty: number; word: string; fraction: boolean } | null {
+  const t = plainFractions(String(text ?? '')).trim()
+  const m = new RegExp(`^${AMOUNT_AT_START}\\s*([a-zà-ž]+)?`, 'i').exec(t)
   if (!m) return null
   const qty = readQty(m[1])
-  if (qty === null || qty <= 0) return null
-  const word = (m[2] ?? '').toLowerCase()
-  if (VOLUME[word] !== undefined || RESERVED.has(word)) return null
-  const unit = findUnit(units, word) ?? (!word || SIZES.has(word) ? units[0] : undefined)
+  if (qty === null) return null
+  return { qty, word: (m[2] ?? '').toLowerCase(), fraction: m[1].includes('/') }
+}
+
+/** An ingredient amount from a workbook ("2 slices", "1 large (50g)",
+ *  "½") in one of the matched food's units, or null when it does not say
+ *  one. The grams the line states are kept; without them they are worked
+ *  out from the unit. A bare whole number ("Milk – 200") is grams, never 200
+ *  of the food's first unit; a bare fraction ("Avocado – ½") is that much of
+ *  one. Anything past 10 kg a portion is not an amount. */
+export function unitFromText(qtyText: string | null | undefined, units: FoodUnit[], grams: number | null, max = PORTION_MAX_G): Amount | null {
+  if (!qtyText || units.length === 0) return null
+  const a = leadingAmount(qtyText)
+  if (!a || a.qty <= 0) return null
+  if (VOLUME[a.word] !== undefined || RESERVED.has(a.word)) return null
+  if (!a.word && !a.fraction) return null
+  const unit = findUnit(units, a.word) ?? (!a.word || SIZES.has(a.word) ? units[0] : undefined)
   if (!unit) return null
-  return { grams: grams ?? gramsOf(qty, unit), unit: unit.name, unit_qty: qty }
+  const g = grams ?? gramsOf(a.qty, unit)
+  if (g > max) return null
+  return { grams: g, unit: unit.name, unit_qty: a.qty }
 }

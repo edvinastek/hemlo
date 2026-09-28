@@ -5,6 +5,7 @@
  *  only at the edges, where a person types or reads them. */
 
 import { rawGrams } from './calc.ts'
+import { findUnit, nudgeCount, type FoodUnit } from './units-rules.ts'
 import type { Food, RecipeLine } from './types'
 
 export type Unit = 'g' | 'kg'
@@ -67,6 +68,15 @@ export function nudge(g: number, dir: 1 | -1): number {
   const s = stepFor(dir > 0 ? g : Math.max(0, g - 0.001))
   const next = dir > 0 ? Math.floor(g / s + 1e-9) * s + s : Math.ceil(g / s - 1e-9) * s - s
   return clamp(next)
+}
+
+/** One tap on a stock row: a whole one of its unit when it is kept in one
+ *  the food has ("12 eggs" → 13), else a step in grams. `units` are the
+ *  food's, null when the food is not on this device; then the unit cannot be
+ *  weighed, so the tap moves grams and the unit is left for the food's owner. */
+export function stockStep(g: number, unit: string | null | undefined, units: FoodUnit[] | null, dir: 1 | -1): number {
+  const u = unit && units ? findUnit(units, unit) : undefined
+  return u ? nudgeCount(g, u, dir) : nudge(g, dir)
 }
 
 /** Grams on hand after a change, never below nothing and never past the cap,

@@ -5,7 +5,7 @@ import {
   choiceOf, lineGrams, macroLine, nextSharing, personalFoods, readRecipe, readSharing, recipeChanges, sharingEffect,
   type Choice, type LineDraft, type RecipeDraft,
 } from '../lib/sharing-rules'
-import { amountChoices, entryText, gramsLabel, readUnits, unitColumns, unitWord } from '../lib/units-rules'
+import { amountChoices, countFits, entryText, findUnit, gramsLabel, readUnits, unitColumns, unitWord } from '../lib/units-rules'
 import { SearchPick, type PickItem } from './SearchPick'
 import { Dropdown } from './Dropdown'
 import { AmountInput } from './AmountInput'
@@ -47,6 +47,9 @@ export function RecipeEditor({ recipe, lines, foods, userId, onClose }: {
     minutes: text(recipe?.cook_minutes),
     steps: recipe?.steps ?? '',
     lines: saved.map((l): LineDraft => (l.unit && l.unit_qty != null
+      // A count an older version left behind when it changed the grams
+      // opens in grams, the amount that counts.
+      && countFits(Number(l.unit_qty), findUnit(readUnits(l.food_id ? foods.get(l.food_id)?.units : null), l.unit)?.g, l.grams_per_portion)
       // A line typed in a unit opens in it, remembering what it was saved as.
       ? { id: l.id, food_id: l.food_id, grams: text(Number(l.unit_qty)), unit: l.unit,
           saved: { unit: l.unit, qty: Number(l.unit_qty), grams: Number(l.grams_per_portion ?? 0) } }

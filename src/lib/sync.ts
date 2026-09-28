@@ -2,6 +2,12 @@ import { db, setMeta, getMeta } from './db'
 import { supabase } from './supabase'
 import { useApp } from './store'
 import { keepInCatalogue, staleForeign, type SharingRow } from './sharing-rules'
+import {
+  LIVE_ONLY, NATURAL_KEYS, PAGE, REFERENCES, afterFilter, cursorAfter, morePages, naturalKey, readCursor, repointPending, repointRow,
+  type Cursor,
+} from './sync-rules'
+
+export { NATURAL_KEYS }
 
 /** Tables the app keeps a full local copy of. Catalogue tables are shared
  *  reference data: pulled, never pushed, except rows a person owns. */
@@ -11,6 +17,9 @@ const SYNCED = ['task', 'target', 'body_log', 'food_log', 'meal_plan_slot', 'mod
  *  Row-level security already limits them to the account, so they are fetched
  *  without a profile filter, still incrementally. */
 const CHILDREN = ['habit_log', 'supplement_log', 'series_exception', 'stock', 'module'] as const
+/** Foods include, besides the shared catalogue and the person's own, foods a
+ *  housemate scanned into the shared cupboard (025): readable, never theirs
+ *  to change. */
 const CATALOGUE = ['food', 'recipe', 'recipe_line'] as const
 
 type Row = { id: string; updated_at?: string } & Record<string, unknown>
@@ -19,21 +28,7 @@ type Store = {
   get: (id: string) => Promise<Row | undefined>
   put: (r: Row) => Promise<unknown>
   delete: (id: string) => Promise<unknown>
-}
-
-/** Tables where one row per key is the rule (one weigh-in a day, one tick per
- *  habit a day). Two devices offline can each make that row under a different
- *  id; when the second one arrives it is folded into the first rather than
- *  refused, so a tick made on the other phone is never lost. */
-export const NATURAL_KEYS: Record<string, string[]> = {
-  module_instance: ['profile_id', 'module_key'],
-  body_log: ['profile_id', 'log_date'],
-  target: ['profile_id', 'from_date'],
-  habit_log: ['habit_id', 'log_date'],
-  supplement_log: ['supplement_id', 'log_date'],
-  series_exception: ['series_id', 'exception_date'],
-  stock: ['household_id', 'food_id'],
-  sleep_log: ['profile_id', 'log_date'],
+  toArray: () => Promise<Row[]>
 }
 
 /** Tables whose primary key is not called id. Locally such a row carries an
@@ -81,6 +76,10 @@ function isPermanent(code: string | undefined): boolean {
 // running only asks for one more pass when it ends.
 let inflight: Promise<number> | null = null
 let again = false
+/** Set when a row was folded into its twin and other rows now point at the
+ *  twin: the queue read at the start of this pass is out of date, so the
+ *  pass stops and the next one starts from the queue as it is now. */
+let replan = false
 
 export function push(): Promise<number> {
   if (inflight) { again = true; return inflight }
@@ -129,15 +128,21 @@ async function pushOnce(): Promise<number> {
   }
   let sent = 0
   let orphans = 0
-  for (const entries of byTable.values()) {
+  replan = false
+  tables: for (const entries of byTable.values()) {
     for (let i = 0; i < entries.length; i += PARALLEL) {
       const results = await Promise.all(entries.slice(i, i + PARALLEL).map(sendOne))
       sent += results.filter((r) => r === 'sent').length
       orphans += results.filter((r) => r === 'orphan').length
+      if (replan) break tables
     }
   }
-  // A child whose parent was still on its way is sent again once the parent is there.
-  if (orphans > 0 && sent > 0) again = true
+  // A child whose parent was still on its way is sent again once the parent
+  // is there; a child whose parent was folded into its twin (or sent again
+  // after an older version dropped it) goes in the next pass, now pointing
+  // at a parent the server has.
+  if ((orphans > 0 && sent > 0) || replan) again = true
+  replan = false
   return sent
 }
 
@@ -178,7 +183,7 @@ async function sendOne(entry: Entry): Promise<'sent' | 'refused' | 'orphan' | 'w
         // phone) is folded into that row. Anything else is refused.
         const retry = await supabase.from(entry.table).update(patch).eq(keyCol, entry.id).select(keyCol)
         if (!retry.error && (retry.data?.length ?? 0) > 0) error = null
-        else if (await foldIntoTwin(entry.table, local, patch)) error = null
+        else if (await foldIntoTwin(entry.table, local, patch, entry.ids)) error = null
       }
     }
   }
@@ -197,18 +202,55 @@ async function sendOne(entry: Entry): Promise<'sent' | 'refused' | 'orphan' | 'w
     return 'refused'
   }
   // A missing parent, no connection, a timeout: stays queued for the next attempt.
-  return error.code === '23503' ? 'orphan' : 'waiting'
+  if (error.code === '23503') {
+    if (await resendLostParent(entry)) replan = true
+    return 'orphan'
+  }
+  return 'waiting'
+}
+
+/** Tables whose rows point at a food by food_id. */
+const FOOD_CHILDREN = new Set(['stock', 'recipe_line', 'food_log'])
+
+/** A row that waits for its food, when the food's own insert is no longer in
+ *  the queue: an older version refused a scanned food as a duplicate of the
+ *  same product scanned on another phone and dropped it, leaving its stock
+ *  and ingredients waiting for good. The food is queued once more, whole;
+ *  this time the duplicate is folded into its twin and the waiting rows
+ *  follow it. Done once per food, so a food refused for another reason is
+ *  not sent over and over. */
+async function resendLostParent(entry: Entry): Promise<boolean> {
+  if (!FOOD_CHILDREN.has(entry.table)) return false
+  const child = await store(entry.table)?.get(entry.id)
+  const foodId = (child?.food_id ?? entry.patch.food_id) as string | undefined
+  const me = useApp.getState().session?.user.id
+  if (!foodId || !me) return false
+  const food = await db.food.get(foodId) as unknown as Row | undefined
+  if (!food || food.owner_id !== me) return false
+  if (await db.pending.where('row_id').equals(foodId).count()) return false
+  const once = `resent:food:${foodId}`
+  if (await getMeta<boolean>(once, false)) return false
+  await setMeta(once, true)
+  const { id: _id, updated_at: _at, ...fields } = food
+  await db.pending.add({
+    table: 'food', row_id: foodId, op: 'upsert', payload: fields, fields: Object.keys(fields), changed_at: new Date().toISOString(),
+  })
+  return true
 }
 
 /** The row collided with another on its natural key: the same day's weigh-in
- *  or habit tick, made on another device under another id. Apply this
- *  device's fields to that row, adopt its id locally, and note it where the
- *  person can see it when a value really differed. */
-async function foldIntoTwin(table: string, local: Row, patch: Record<string, unknown>): Promise<boolean> {
+ *  or habit tick, or the same product scanned on two phones, made on another
+ *  device under another id. Apply this device's fields to that row, adopt
+ *  its id locally, point every row here that pointed at the copy at the twin
+ *  instead, and note it where the person can see it when a value really
+ *  differed. `sent` are the queue entries this send covers. */
+async function foldIntoTwin(table: string, local: Row, patch: Record<string, unknown>, sent: number[]): Promise<boolean> {
   const keys = NATURAL_KEYS[table]
-  if (!keys || keys.some((k) => local[k] == null)) return false
+  if (!keys || naturalKey(table, local) === null) return false
   let query = supabase.from(table).select('*')
   for (const k of keys) query = query.eq(k, local[k] as string)
+  // A deleted food does not hold its barcode (the index leaves it out).
+  if (LIVE_ONLY.has(table)) query = query.is('deleted_at', null)
   const { data: twin, error } = await query.maybeSingle()
   if (error || !twin || twin.id === local.id) return false
 
@@ -231,16 +273,48 @@ async function foldIntoTwin(table: string, local: Row, patch: Record<string, unk
   }
   await store(table).delete(local.id)
   await store(table).put(row)
+  if (REFERENCES[table]) await repoint(table, local.id, twin.id, sent)
   return true
+}
+
+/** Everything on this device that pointed at a row's old id now points at
+ *  its new one: waiting edits (so a stock row still to be sent goes with the
+ *  twin's id) and the rows themselves. A row that is not waiting to be sent
+ *  (a module's record already on the server that mentions the food) is
+ *  queued with its changed fields, so the server learns the new id too. */
+async function repoint(table: string, from: string, to: string, sent: number[]) {
+  const pending = await db.pending.toArray()
+  const changes = repointPending(pending, table, from, to, new Set(sent))
+  if (changes.length) {
+    await db.transaction('rw', db.pending, async () => {
+      for (const { id, ...change } of changes) await db.pending.update(id, change)
+    })
+  }
+  const waiting = new Set(pending.filter((p) => !sent.includes(p.id!)).map((p) => `${p.table}:${p.row_id}`))
+  const at = new Date().toISOString()
+  for (const { table: t, fields } of REFERENCES[table] ?? []) {
+    const s = store(t)
+    if (!s) continue
+    for (const row of await s.toArray()) {
+      const moved = repointRow(row, fields, from, to)
+      if (!moved) continue
+      await s.put({ ...row, ...moved })
+      if (!waiting.has(`${t}:${row.id}`)) {
+        await db.pending.add({ table: t, row_id: row.id, op: 'upsert', payload: moved, fields: Object.keys(moved), changed_at: at })
+      }
+    }
+  }
+  replan = true
 }
 
 /** Equal as values: settings and rule objects compare by content. */
 const same = (a: unknown, b: unknown) =>
   a === b || (typeof a === 'object' && a !== null && typeof b === 'object' && b !== null && JSON.stringify(a) === JSON.stringify(b))
 
-/** Fetch what changed. The cursor per table is the newest updated_at the
- *  server has sent, never this device's clock: a phone running three minutes
- *  fast would otherwise skip every row written in those three minutes. */
+/** Fetch what changed. The cursor per table is where the server's own
+ *  updated_at order last stopped, never this device's clock: a phone running
+ *  three minutes fast would otherwise skip every row written in those three
+ *  minutes. */
 export async function pull(ids: string[]): Promise<number> {
   let profileIds = ids
   const pending = await db.pending.toArray()
@@ -260,9 +334,9 @@ export async function pull(ids: string[]): Promise<number> {
 
   // Profiles first: on a fresh device there are none locally yet, and every
   // other table is filtered by profile id.
-  const { data: remoteProfiles } = await supabase.from('profile').select('*')
+  const remoteProfiles = (await fetchAll('profile', { incremental: false }))?.rows
   if (remoteProfiles) {
-    for (const row of remoteProfiles as Row[]) {
+    for (const row of remoteProfiles) {
       // A settings change made here and not yet sent must survive the pull,
       // or the screen would flick back to the old choice until the next one.
       const mine = claimed.get(`profile:${row.id}`)
@@ -271,7 +345,7 @@ export async function pull(ids: string[]): Promise<number> {
       if (local && mine) for (const field of mine) merged[field] = (local as unknown as Row)[field]
       await db.profile.put(merged as never)
     }
-    profileIds = (remoteProfiles as Row[]).map((p) => p.id)
+    profileIds = remoteProfiles.map((p) => p.id)
   }
   if (profileIds.length === 0) return 0
 
@@ -280,32 +354,34 @@ export async function pull(ids: string[]): Promise<number> {
     const scoped = (SYNCED as readonly string[]).includes(table)
     const incremental = scoped || (CHILDREN as readonly string[]).includes(table)
     const cursorKey = `cursor:${table}`
-    const cursor = incremental ? await getMeta<string | null>(cursorKey, null) : null
+    const cursor = incremental ? readCursor(await getMeta<unknown>(cursorKey, null)) : null
 
-    let query = supabase.from(table).select('*')
-    if (scoped) query = query.in('profile_id', profileIds)
-    // Built-in modules are defined in the app; only the ones people built sync.
-    if (table === 'module') query = query.eq('builtin', false)
-    if (cursor) query = query.gt('updated_at', cursor)
-    const { data: fetched, error } = await query
-    if (error || !fetched) return
+    // Every page, or nothing: a table half fetched is not written, so a
+    // dropped connection never looks like rows that have gone.
+    const got = await fetchAll(table, { incremental, cursor, profileIds: scoped ? profileIds : undefined })
+    if (!got) return
+    const fetched = got.rows
     const keyCol = KEY_COLUMN[table]
-    let data = (keyCol ? (fetched as Row[]).map((r) => ({ ...r, id: String(r[keyCol]) })) : fetched) as Row[]
+    let data = keyCol ? fetched.map((r) => ({ ...r, id: String(r[keyCol]) })) : fetched
     if (table === 'recipe') {
       data = await keepRecipes(data, userId)
-      if (fetched.length < WHOLE_BELOW) serverRecipes = new Set((fetched as Row[]).map((r) => r.id))
+      serverRecipes = new Set(fetched.map((r) => r.id))
     }
     if (table === 'recipe_line') data = await keepLines(data, serverRecipes, queued)
+    // A housemate's food is here while it is in the shared cupboard (025);
+    // once the server stops showing it (taken out, or they left), it goes.
+    if (table === 'food' && userId) {
+      const stale = staleForeign((await db.food.toArray()) as never, new Set(fetched.map((r) => r.id)), userId)
+      if (stale.length) await db.food.bulkDelete(stale)
+    }
     data = data.filter((r) => !removing.has(`${table}:${r.id}`))
 
-    let newest = cursor
     // Rows this device has no unsent edits to are written in one transaction.
     // One write per row made a fresh phone wait seconds for the 807-food
     // catalogue before the meal plan could show a single recipe.
     const plain: Row[] = []
     const contested: Row[] = []
-    for (const remote of data as Row[]) {
-      if (remote.updated_at && (!newest || remote.updated_at > newest)) newest = remote.updated_at
+    for (const remote of data) {
       const mine = claimed.get(`${table}:${remote.id}`)
       ;(mine && mine.size > 0 ? contested : plain).push(remote)
     }
@@ -332,7 +408,7 @@ export async function pull(ids: string[]): Promise<number> {
       await store(table).put(merged)
       count++
     }
-    if (incremental && newest) await setMeta(cursorKey, newest)
+    if (incremental && got.cursor && got.cursor !== cursor) await setMeta(cursorKey, got.cursor)
   }
 
   // Tables are asked for a few at a time rather than one after another: one
@@ -354,25 +430,57 @@ async function inBatches<T>(items: readonly T[], size: number, fn: (item: T) => 
   await Promise.all(Array.from({ length: Math.min(size, items.length) }, worker))
 }
 
-/** The server sends at most this many rows per request; a shorter answer is
- *  the whole table, so it is safe to drop what it no longer holds. */
-const WHOLE_BELOW = 1000
+/** A whole table, or everything in it that changed since the cursor, page
+ *  after page. The server answers at most a thousand rows a request (the
+ *  807-food catalogue plus a few hundred of one's own foods is more), and a
+ *  bare select silently left the rest on the server. Pages come in a fixed
+ *  order and each starts exactly after the last row of the one before: by
+ *  updated_at and then key for a table fetched by what changed, so rows
+ *  sharing one time are neither skipped nor fetched twice; by key alone for
+ *  the rest. Null when any page failed. */
+async function fetchAll(table: string, opts: { incremental: boolean; cursor?: Cursor | null; profileIds?: string[] }):
+  Promise<{ rows: Row[]; cursor: Cursor | null } | null> {
+  const keyCol = KEY_COLUMN[table] ?? 'id'
+  const rows: Row[] = []
+  let cursor = opts.cursor ?? null
+  let lastKey: string | null = null
+  for (;;) {
+    let query = supabase.from(table).select('*')
+    if (opts.profileIds) query = query.in('profile_id', opts.profileIds)
+    // Built-in modules are defined in the app; only the ones people built sync.
+    if (table === 'module') query = query.eq('builtin', false)
+    if (opts.incremental && cursor) {
+      const after = afterFilter(cursor, keyCol)
+      query = after ? query.or(after) : query.gt('updated_at', cursor.at)
+    }
+    if (!opts.incremental && lastKey !== null) query = query.gt(keyCol, lastKey)
+    const ordered = opts.incremental
+      ? query.order('updated_at', { ascending: true }).order(keyCol, { ascending: true })
+      : query.order(keyCol, { ascending: true })
+    const { data, error } = await ordered.limit(PAGE)
+    if (error || !data) return null
+    const page = data as Row[]
+    rows.push(...page)
+    if (opts.incremental) cursor = cursorAfter(page, keyCol, cursor)
+    else if (page.length) lastKey = String(page[page.length - 1][keyCol])
+    if (!morePages(page.length)) return { rows, cursor }
+  }
+}
 
 /** Recipes this device keeps: the shared list, approved ones and the
  *  person's own. A reviewer is sent proposals too; those stay in the review
  *  queue. Someone else's recipe that the server no longer shows (taken back,
- *  or changed and waiting for review again) is dropped with its lines. */
+ *  or changed and waiting for review again) is dropped with its lines. The
+ *  rows are the whole table (every page), so what is missing is really gone. */
 async function keepRecipes(rows: Row[], userId: string | null): Promise<Row[]> {
   // Not knowing who is signed in, nothing is dropped: better a stray row than
   // the person's own recipes gone.
   if (!userId) return rows
   const kept = rows.filter((r) => keepInCatalogue(r as unknown as SharingRow, userId))
-  if (rows.length < WHOLE_BELOW) {
-    const stale = staleForeign(await db.recipe.toArray(), new Set(kept.map((r) => r.id)), userId)
-    if (stale.length) {
-      await db.recipe.bulkDelete(stale)
-      await db.recipe_line.where('recipe_id').anyOf(stale).delete()
-    }
+  const stale = staleForeign(await db.recipe.toArray(), new Set(kept.map((r) => r.id)), userId)
+  if (stale.length) {
+    await db.recipe.bulkDelete(stale)
+    await db.recipe_line.where('recipe_id').anyOf(stale).delete()
   }
   return kept
 }
@@ -383,7 +491,7 @@ async function keepRecipes(rows: Row[], userId: string | null): Promise<Row[]> {
 async function keepLines(rows: Row[], serverRecipes: Set<string> | null, queued: Set<string>): Promise<Row[]> {
   const known = new Set(await db.recipe.toCollection().primaryKeys())
   const kept = rows.filter((l) => known.has(l.recipe_id as string))
-  if (serverRecipes && rows.length < WHOLE_BELOW) {
+  if (serverRecipes) {
     const onServer = new Set(rows.map((l) => l.id))
     const gone = (await db.recipe_line.toArray())
       .filter((l) => !onServer.has(l.id) && serverRecipes.has(l.recipe_id) && !queued.has(`recipe_line:${l.id}`))

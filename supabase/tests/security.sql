@@ -186,6 +186,61 @@ begin
   execute 'reset role';
 end $$;
 
+-- Household foods (025): a food A scanned into the shared cupboard is
+-- readable by M, only that one, only while it is there, never changeable;
+-- B, outside the household, reads nothing; and a stranger's food cannot be
+-- pulled into view by putting it in one's own cupboard.
+alter table _ids add column bfood uuid, add column hm uuid, add column astock uuid;
+update _ids set bfood = (select id from food where name = 'B''s own hagelslag'),
+                hm = (select id from household where owner_id = m);
+with s as (
+  insert into stock (household_id, food_id, grams_on_hand)
+  select ha, (select id from food where owner_id = a and barcode = '8710496979125'), 400 from _ids returning id)
+update _ids set astock = (select id from s);
+
+do $$
+declare n int;
+begin
+  perform set_config('role', 'authenticated', true);
+  perform set_config('request.jwt.claims', json_build_object('sub', (select m from _ids), 'role', 'authenticated')::text, true);
+  insert into _r (check_name, expected, actual) values
+    ('M can read the food A scanned into the shared cupboard', '1',
+       (select count(*) from food where barcode = '8710496979125' and owner_id = (select a from _ids))::text),
+    ('M still cannot read A''s other own foods', '0', (select count(*) from food where name = 'A''s own oats')::text);
+  update food set name = 'renamed by M' where barcode = '8710496979125' and owner_id = (select a from _ids);
+  get diagnostics n = row_count;
+  insert into _r (check_name, expected, actual) values ('M cannot change the food A put in the cupboard', '0', n::text);
+
+  -- M's own household's cupboard, pointed at B's food.
+  begin
+    insert into stock (household_id, food_id, grams_on_hand) select hm, bfood, 1 from _ids;
+  exception when others then null;
+  end;
+  insert into _r (check_name, expected, actual) values
+    ('A stranger''s food in one''s own cupboard stays unreadable', '0',
+       (select count(*) from food where name = 'B''s own hagelslag')::text);
+  execute 'reset role';
+
+  perform set_config('role', 'authenticated', true);
+  perform set_config('request.jwt.claims', json_build_object('sub', (select b from _ids), 'role', 'authenticated')::text, true);
+  insert into _r (check_name, expected, actual) values
+    ('B cannot read the food in A''s household cupboard', '0',
+       (select count(*) from food where barcode = '8710496979125' and owner_id = (select a from _ids))::text);
+  execute 'reset role';
+
+  -- Taken out of the cupboard, it is A's alone again.
+  update stock set deleted_at = now() where id = (select astock from _ids);
+  perform set_config('role', 'authenticated', true);
+  perform set_config('request.jwt.claims', json_build_object('sub', (select m from _ids), 'role', 'authenticated')::text, true);
+  insert into _r (check_name, expected, actual) values
+    ('M no longer reads it once it leaves the cupboard', '0',
+       (select count(*) from food where barcode = '8710496979125' and owner_id = (select a from _ids))::text);
+  execute 'reset role';
+end $$;
+
+-- The checks below count the household's one stock row: these go.
+delete from stock where id = (select astock from _ids) or (household_id = (select hm from _ids) and food_id = (select bfood from _ids));
+
 -- As nobody --------------------------------------------------------------------
 do $$
 begin

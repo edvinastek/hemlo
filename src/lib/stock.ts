@@ -2,8 +2,8 @@ import { db, getMeta, setMeta } from './db'
 import { queueChange } from './sync'
 import { edit } from './write'
 import { readSettings } from './settings'
-import { applyDelta, cleanNote, mealNeeds, nudge, putBack, takeOut, tidy, MAX_GRAMS } from './stock-rules'
-import { findUnit, nudgeCount, readUnits, unitColumns, QTY_MAX } from './units-rules'
+import { applyDelta, cleanNote, mealNeeds, putBack, stockStep, takeOut, tidy, MAX_GRAMS } from './stock-rules'
+import { readUnits, stockUnitColumns } from './units-rules'
 import type { Food, MealPlanSlot, Stock } from './types'
 
 /** The household's cupboard, kept like every other table: written here first
@@ -52,15 +52,14 @@ async function rowFor(householdId: string, foodId: string): Promise<Stock | unde
  *  same as the screen. `unit` undefined keeps the unit the row shows in; null
  *  goes back to grams. A unit the food no longer has goes back to grams too.
  *  Grams on a row that never had a unit write no unit columns, so a server
- *  without them (before 022) still takes it. */
+ *  without them (before 022) still takes it.
+ *
+ *  A food this device does not have (a housemate scanned it, and it has not
+ *  arrived yet) says nothing about its units, so the row's unit is left as
+ *  it is rather than wiped: the columns are not written at all. */
 async function unitFor(row: Stock | undefined, foodId: string, grams: number, unit: string | null | undefined): Promise<Partial<Stock>> {
-  const want = unit === undefined ? row?.unit ?? null : unit
-  const had = !!row?.unit
-  if (!want) return unitColumns({ unit: null, unit_qty: null }, had)
-  const u = findUnit(readUnits((await db.food.get(foodId))?.units), want)
-  const qty = u ? Math.round((grams / u.g) * 1000) / 1000 : null
-  if (!u || qty === null || qty > QTY_MAX) return unitColumns({ unit: null, unit_qty: null }, had)
-  return { unit: u.name, unit_qty: qty }
+  const food = await db.food.get(foodId)
+  return stockUnitColumns(row, food ? readUnits(food.units) : null, grams, unit)
 }
 
 /** Set the amount of a food outright, making the row if there is none.
@@ -106,9 +105,9 @@ export async function addStock(householdId: string, foodId: string, grams: numbe
 export async function nudgeStock(householdId: string, foodId: string, dir: 1 | -1): Promise<Stock | undefined> {
   const row = await rowFor(householdId, foodId)
   if (!row || row.deleted_at) return undefined
-  const have = Number(row.grams_on_hand) || 0
-  const u = row.unit ? findUnit(readUnits((await db.food.get(foodId))?.units), row.unit) : undefined
-  return setStock(householdId, foodId, u ? nudgeCount(have, u, dir) : nudge(have, dir))
+  const food = await db.food.get(foodId)
+  // A food not on this device moves by grams, and its unit is left alone.
+  return setStock(householdId, foodId, stockStep(Number(row.grams_on_hand) || 0, row.unit, food ? readUnits(food.units) : null, dir))
 }
 
 /** Take the row off the list. Soft, so the removal reaches the other phones. */

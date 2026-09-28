@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { db } from '../lib/db'
+import { useApp } from '../lib/store'
 import { readSettings } from '../lib/settings'
 import { saveSettings } from '../lib/write'
 import { addStock, nudgeStock, removeStock, setStock, stockFor } from '../lib/stock'
@@ -18,8 +19,9 @@ import type { Food, Profile, Stock } from '../lib/types'
 import './stock.css'
 
 /** A row as the list shows it. `unit` is the food's unit it is kept in, when
- *  it is ("12 eggs"); the grams are the amount either way. */
-type Item = StockView & { row: Stock; units: FoodUnit[]; unit: FoodUnit | undefined }
+ *  it is ("12 eggs"); the grams are the amount either way. `known` is false
+ *  for a food not on this device yet (a housemate's scan still on its way). */
+type Item = StockView & { row: Stock; units: FoodUnit[]; unit: FoodUnit | undefined; known: boolean }
 
 /** "12 eggs" for stock kept in a unit, "450 g" or "1.25 kg" otherwise. */
 const amountOf = (item: Pick<Item, 'grams' | 'unit'>) =>
@@ -41,7 +43,7 @@ export function StockPanel({ profile }: { profile: Profile }) {
     const food = foodById.get(r.food_id)
     const units = readUnits(food?.units)
     return {
-      id: r.id, food_id: r.food_id, row: r, units, unit: findUnit(units, r.unit),
+      id: r.id, food_id: r.food_id, row: r, units, unit: findUnit(units, r.unit), known: !!food,
       name: food?.name ?? 'Unknown food',
       section: food?.store_section?.trim() || 'Other',
       grams: Number(r.grams_on_hand) || 0,
@@ -133,13 +135,16 @@ function StockAdd({ householdId, foods, items }: { householdId: string; foods: F
   const [note, setNote] = useState('')
   const [said, setSaid] = useState<string | null>(null)
 
+  const userId = useApp((s) => s.session?.user.id ?? null)
   const inStock = useMemo(() => new Map(items.map((i) => [i.food_id, i])), [items])
+  // A housemate's scanned food is here too (it is in the shared cupboard),
+  // but it is theirs, not "mine".
   const pick: PickItem[] = useMemo(() => foods.map((f) => ({
     id: f.id,
     name: f.name,
     meta: [f.store_section, f.pack_size_g ? `${formatGrams(f.pack_size_g)} pack` : null].filter(Boolean).join(' · ') || undefined,
-    tag: inStock.has(f.id) ? 'in stock' : f.owner_id ? 'mine' : undefined,
-  })), [foods, inStock])
+    tag: inStock.has(f.id) ? 'in stock' : userId && f.owner_id === userId ? 'mine' : undefined,
+  })), [foods, inStock, userId])
 
   // Grams and kilos, and the food's own units ("egg") when it has any.
   const choices = useMemo(() => amountChoices(readUnits(food?.units), { kilos: true }), [food])
@@ -214,8 +219,10 @@ function StockEdit({ item, householdId, onDone }: { item: Item; householdId: str
   async function save(e: React.FormEvent) {
     e.preventDefault()
     if (grams === null || !read) return
-    // Saved in grams or kilos the row goes back to grams; in eggs it shows eggs.
-    await setStock(householdId, item.food_id, grams, note, read.unit)
+    // Saved in grams or kilos the row goes back to grams; in eggs it shows
+    // eggs. A food not on this device yet keeps whatever unit its row has:
+    // only grams can be typed here, and that says nothing about eggs.
+    await setStock(householdId, item.food_id, grams, note, item.known ? read.unit : read.unit ?? undefined)
     onDone()
   }
 

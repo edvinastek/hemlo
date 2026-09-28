@@ -81,10 +81,17 @@ Types, then every check that needs nothing but Node. CI runs the same command.
   the pack size from grams, millilitres or "6 x 50 g", shop names tidied ("Ah" is Albert Heijn), the food row it
   becomes and finding one already kept (or deleted) with that barcode, packs into grams for stock, shared prices
   (the latest per shop, per kilo, the day, offers), and the limiter and cache that keep under Open Food Facts' limits.
+- `sync` — name-based ids (UUID version 5) against the standard's own examples; a scanned product's fixed id (the same
+  person and barcode give the same id on every phone, however the barcode was typed); natural keys (a food's barcode
+  counts only while the food is live); a food folded into its twin taking its stock, ingredients, food log, records,
+  books and waiting edits along; fetching page by page in updated_at and key order, so rows sharing one time are never
+  skipped at a page's edge or fetched twice, and the next sync starts exactly after the last row.
 - `units` — food counted in units as well as grams (022): a food's units read strictly (at most eight, a name of up to
   24 characters that is not a weight, 0.1 to 5000 g each, each name once), plurals ("2 eggs", "0.5 cup", "2 tbsp"),
-  numbers as typed (a comma, ½, 3/4), an amount in a unit and the grams it comes to, the saved grams standing when a
-  unit's weight changes later, which columns a write carries (none for plain grams, so a server before 022 still takes
+  numbers as typed (a comma, ½, 3/4, 1 1/2, 1½ and the fraction slash), an amount in a unit and the grams it comes to,
+  the saved grams standing when a unit's weight changes later (a count shown only while it is within 5% of the grams,
+  so one an older version left stale reads as grams), stock of a food not on this device keeping its unit, which
+  columns a write carries (none for plain grams, so a server before 022 still takes
   it), counts added up only when every line used the same unit, stock kept in a unit and its −/+ by one, Open Food
   Facts' serving sizes ("1 egg (50 g)", "2 biscuits (25 g)", "30g"), the units cell of an export, and a workbook's
   "1 large (50g)" or "2 slices". `books`, `quickfood`, `import`, `products` and `sharing` check their parts too.
@@ -186,7 +193,7 @@ to the test accounts, because they run against the live project.
 
 ## Database — `supabase/test.sh`
 
-Runs `supabase/tests/security.sql`: 102 checks on the database — reading another
+Runs `supabase/tests/security.sql`: 108 checks on the database — reading another
 account's data, taking over a household, writing to shared catalogue rows,
 signing up uninvited, deleting an account and what it leaves behind, calendar
 links (a feed link only its owner can make, whose hash no one can read back or
@@ -199,5 +206,8 @@ only for your own row; and scanned products (021): another account's cannot be r
 kept once per person, a barcode that is not 8 to 14 digits or a picture link that is not https refused; and food units (022): a food's
 units only its owner can change (not a stranger, not the catalogue), a list that is not one, more than eight, a weight
 of nothing or past 5 kg or written as text, no name, a long name, grams as a unit, extra keys, a name twice refused;
-an ingredient's unit without how many refused, 2 eggs and 12 eggs of stock taken, and the catalogue's eggs of 50 g. It runs in
+an ingredient's unit without how many refused, 2 eggs and 12 eggs of stock taken, and the catalogue's eggs of 50 g; and
+household foods (025): a food one member scanned into the shared cupboard readable by another member but not changeable,
+their other foods still private, nothing readable from outside the household, a stranger's food put in one's own
+cupboard still unreadable, and the food private again once it leaves the cupboard. It runs in
 a transaction that rolls back, so it is safe against the live project.

@@ -1,7 +1,10 @@
 import { db } from './db'
-import { queueChange, NATURAL_KEYS } from './sync'
+import { queueChange } from './sync'
+import { NATURAL_KEYS, naturalKey } from './sync-rules'
 import { withoutReview } from './sharing-rules'
 import { readUnits } from './units-rules'
+import { productFoodId } from './products-rules'
+import { useApp } from './store'
 
 /** One file that holds everything: profile, plan, logs, recipes and settings.
  *  It is the backup, how a device hands its state to another one, and the
@@ -44,9 +47,14 @@ export async function exportBundle(profileId: string): Promise<Blob> {
     records[table] = rows.filter((r) => parents.has(r[key] as string))
   }
   // Foods and recipes a person added travel with them; the shared catalogue
-  // does not, because every account already has it.
-  records.food = (await db.food.toArray()).filter((f) => f.owner_id)
-  const recipes = (await db.recipe.toArray()).filter((r) => r.owner_id)
+  // does not, because every account already has it. Nor do other people's:
+  // a recipe someone shared with everyone, or a food a housemate scanned into
+  // the shared cupboard, is theirs, and reading the file back in would
+  // otherwise make it the reader's.
+  const me = useApp.getState().session?.user.id ?? (await db.profile.get(profileId))?.user_id ?? null
+  const own = (r: { owner_id: string | null }) => !!r.owner_id && (!me || r.owner_id === me)
+  records.food = (await db.food.toArray()).filter(own)
+  const recipes = (await db.recipe.toArray()).filter(own)
   records.recipe = recipes
   records.recipe_line = (await db.recipe_line.toArray())
     .filter((l) => recipes.some((r) => r.id === l.recipe_id))
@@ -66,6 +74,19 @@ export async function exportBundle(profileId: string): Promise<Blob> {
     records,
   }
   return new Blob([JSON.stringify(bundle, null, 1)], { type: 'application/json' })
+}
+
+/** The new id a row gets when a file is read into another profile. A
+ *  scanned product gets the id this person's food for it always has, so it
+ *  meets the same product scanned on this account (on any device) as one
+ *  row. A module's id is its key, which keeps the u_ form the server asks for. */
+async function freshId(table: string, r: Row, userId: string): Promise<string> {
+  if (table === 'module') return `u_${crypto.randomUUID().replace(/-/g, '').slice(0, 16)}`
+  if (table === 'food' && !r.deleted_at) {
+    const id = await productFoodId(userId, r.barcode as string | null).catch(() => null)
+    if (id) return id
+  }
+  return crypto.randomUUID()
 }
 
 /** Profile fields a restore carries over. Ids, the household and the default
@@ -109,8 +130,7 @@ export async function importBundle(file: File, profileId: string, userId: string
   if (adopting) {
     for (const [name, list] of Object.entries(bundle.records)) {
       if (name === 'profile' || !Array.isArray(list)) continue
-      // A module's id is its key, which must keep the u_ form the server asks for.
-      for (const r of rows(name)) fresh.set(r.id, name === 'module' ? `u_${crypto.randomUUID().replace(/-/g, '').slice(0, 16)}` : crypto.randomUUID())
+      for (const r of rows(name)) fresh.set(r.id, await freshId(name, r, userId))
     }
   }
   const remap = (v: unknown): unknown => {
@@ -131,13 +151,19 @@ export async function importBundle(file: File, profileId: string, userId: string
     imported++
   }
 
-  /** Where a row of this table already exists here under its natural key. */
+  /** Where a row of this table already exists here under its natural key.
+   *  Rows without one (a food with no barcode, a deleted food) have no twin. */
   const twins = async (name: string) => {
-    const keys = NATURAL_KEYS[name]
-    if (!keys) return null
+    if (!NATURAL_KEYS[name]) return null
     const map = new Map<string, string>()
-    for (const r of await table(name)!.toArray()) map.set(keys.map((k) => String(r[k])).join('|'), r.id)
-    return (r: Row) => map.get(keys.map((k) => String(r[k])).join('|'))
+    for (const r of await table(name)!.toArray()) {
+      const key = naturalKey(name, r)
+      if (key !== null) map.set(key, r.id)
+    }
+    return (r: Row) => {
+      const key = naturalKey(name, r)
+      return key === null ? undefined : map.get(key)
+    }
   }
 
   const put = async (name: string, incoming: Row, adopt: Partial<Row>) => {
@@ -147,7 +173,12 @@ export async function importBundle(file: File, profileId: string, userId: string
     delete row.updated_at
     const find = await twins(name)
     const twin = find?.(row)
-    if (twin && twin !== row.id) row.id = twin
+    if (twin && twin !== row.id) {
+      row.id = twin
+      // Rows further down the file that point at this one (stock at a food,
+      // an ingredient at it) follow it to the row that is already here.
+      fresh.set(incoming.id, twin)
+    }
     const existing = await store.get(row.id)
     const merged = { ...(existing ?? {}), ...row } as Row
     await store.put(merged)

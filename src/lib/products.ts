@@ -5,7 +5,7 @@ import { edit } from './write'
 import { isNative } from './native'
 import {
   LIMITS, MAX_WAIT_MS, TTL, RateLimiter, TtlCache, cleanQuery, deletedWith, foodFields, foodWithBarcode, normaliseBarcode,
-  offCountry, offLang, pricesUrl, productUrl, readPrices, readProduct, readSearch, searchKey, searchUrl,
+  offCountry, offLang, pricesUrl, productFoodId, productUrl, readPrices, readProduct, readSearch, searchKey, searchUrl,
   type Engine, type PriceRow, type Product,
 } from './products-rules'
 import type { Food } from './types'
@@ -183,13 +183,25 @@ export async function foodByBarcode(code: string, userId: string | null): Promis
 
 /** The product added to the person's own foods, through the one write path
  *  every change takes. A food with this barcode already there is returned
- *  instead of a second one; one deleted earlier is brought back. */
+ *  instead of a second one; one deleted earlier is brought back. A new one
+ *  gets the id this person's food for this product always has, so the same
+ *  pack scanned on two phones before either syncs is one row, not two. */
 export async function addProduct(product: Product, userId: string): Promise<{ food: Food; existed: boolean }> {
   const all = await db.food.toArray()
   const have = foodWithBarcode(all, product.code, userId)
   if (have) return { food: have, existed: true }
   const fields = foodFields(product, userId)
   const gone = deletedWith(all, product.code, userId)
-  const food = await edit('food', gone ?? ({ id: crypto.randomUUID() } as Food), fields)
+  const food = await edit('food', gone ?? ({ id: await newProductId(userId, product.code) } as Food), fields)
   return { food, existed: false }
+}
+
+/** The product's fixed id; a random one only where the phone cannot work it
+ *  out (no secure context), and then the sync folds any twin together. */
+export async function newProductId(userId: string, code: string): Promise<string> {
+  try {
+    return (await productFoodId(userId, code)) ?? crypto.randomUUID()
+  } catch {
+    return crypto.randomUUID()
+  }
 }

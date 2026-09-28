@@ -54,7 +54,9 @@ export async function tripFromPlan(
       // Shopping is done in raw weight, because that is what a shop sells.
       const grams = rawGrams(line, food) * (slot.portion_multiplier ?? 1)
       needed.set(line.food_id, (needed.get(line.food_id) ?? 0) + grams)
-      const c = countOf(line, readUnits(food?.units), slot.portion_multiplier ?? 1)
+      // A count that no longer agrees with the line's grams is left out: the
+      // list then says grams, which always add up.
+      const c = countOf({ ...line, grams: line.grams_per_portion }, readUnits(food?.units), slot.portion_multiplier ?? 1)
       counts.set(line.food_id, counts.has(line.food_id) ? addCounts(counts.get(line.food_id) ?? null, c) : c)
       if (line.raw_text && !said.has(line.food_id)) said.set(line.food_id, cleanName(line.raw_text))
     }

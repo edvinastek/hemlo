@@ -1,4 +1,4 @@
-import { need, sql, checks, open, signIn, profileOf, drained, modulesOn } from './e2e.mjs'
+import { need, sql, checks, open, signIn, profileOf, drained, modulesOn, localCount } from './e2e.mjs'
 
 // The household's stock, clicked through on a phone: add a food by search,
 // nudge it and type a new amount, remove another with a confirm; plan a meal
@@ -35,8 +35,13 @@ const other = await one(`select name from public.food where owner_id is null and
   order by length(name), name limit 1`)
 console.log(`using ${recipe.name}: ${food.name}, ${needG.toFixed(1)} g a portion; ${other.name} to remove`)
 
-// Start clean: no stock, no meal plan, the switch off.
-await sql(`delete from public.stock where household_id = ${household};
+// Start clean: no stock, no meal plan, the switch off. Stock goes from every
+// household the account is in, not only the default profile's: an earlier
+// check on this shared account (a trip finished, a file read in) can leave
+// rows in another of its households, and the app may open on that one.
+await sql(`delete from public.stock where household_id = ${household}
+    or household_id in (select m.household_id from public.household_member m join auth.users u on u.id = m.user_id
+      where u.email = '${email}');
   delete from public.meal_plan_slot where profile_id = ${profile};
   delete from public.food_log where profile_id = ${profile};
   delete from public.task where profile_id = ${profile} and source = 'meal';
@@ -71,9 +76,18 @@ async function setAmount(name, amount, unit) {
 }
 
 // 1. Add by search, adjust, type an amount.
+// The first sync must have finished before the cupboard can be called
+// empty: until then the list is whatever the device had, and the empty note
+// may not be drawn yet. Wait for the state, not for a fixed time, and say
+// what was listed if it never came.
+await drained(p)
 await openStock()
-await p.locator('.empty', { hasText: 'Nothing in stock yet' }).waitFor({ timeout: 10000 }).catch(() => {})
-is('an empty cupboard says so', await p.locator('.empty', { hasText: 'Nothing in stock yet' }).count(), 1)
+const empty = p.locator('.empty', { hasText: 'Nothing in stock yet' })
+const listed = async () => (await p.locator('.stock-row .stock-name').allTextContents()).map((s) => s.trim())
+const until = Date.now() + 20000
+while (Date.now() < until && !(await empty.count())) await p.waitForTimeout(250)
+if (!(await empty.count())) console.log(`  still listed: ${JSON.stringify(await listed())}; local stock rows: ${await localCount(p, 'stock')}`)
+is('an empty cupboard says so', await empty.count(), 1)
 await add(food.name, '2', 'kg')
 is('the new item is listed in kilos', (await stockRow(food.name).locator('.stock-qty').textContent())?.trim(), '2 kg')
 let r = await server(food.id)
