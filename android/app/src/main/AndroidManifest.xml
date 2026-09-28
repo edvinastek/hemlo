@@ -59,6 +59,14 @@
             android:name=".widget.TickReceiver"
             android:exported="false" />
 
+        <!--
+          Barcodes are read by Google's code scanner in Play services, which
+          opens its own camera screen and hands back only the number. Asking
+          for it here has Google Play fetch the scanner with the app, so the
+          first scan does not wait for a download.
+        -->
+        <meta-data android:name="com.google.mlkit.vision.DEPENDENCIES" android:value="barcode_ui" />
+
         <provider
             android:name="androidx.core.content.FileProvider"
             android:authorities="${applicationId}.fileprovider"
@@ -82,6 +90,12 @@
       exact-alarm permission on its own; it is removed here so the app never
       asks for it and never has to justify it in Play review.
     -->
+    <!--
+      The code scanner needs no camera permission, and nothing in GetIt uses
+      the camera itself. Removed so no library can add it by the back door.
+    -->
+    <uses-permission android:name="android.permission.CAMERA" tools:node="remove" />
+
     <uses-permission android:name="android.permission.SCHEDULE_EXACT_ALARM" tools:node="remove" />
     <uses-permission android:name="android.permission.USE_EXACT_ALARM" tools:node="remove" />
 </manifest>
