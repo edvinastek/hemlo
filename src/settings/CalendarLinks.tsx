@@ -84,8 +84,9 @@ function FeedPanel({ profile }: { profile: Profile }) {
         <div>
           <div className="row-name" id="cl-feed-title">Show GetIt in Google Calendar</div>
           <div className="row-meta">
-            A private link to your tasks and events, from three months back to a year ahead. Google Calendar
-            reads it every few hours; it cannot change anything here.
+            A private link to your tasks and events, from three months back to a year ahead. Meals, training,
+            weigh-ins and other health details stay out. Google Calendar reads it every few hours; it cannot change
+            anything here.
           </div>
           <div className="row-meta cl-state" role="status">
             {!online ? 'Needs a connection.' : status === null && !error ? 'Checking…'
@@ -277,7 +278,7 @@ function SubRow({ sub, online }: { sub: CalendarSubscription; online: boolean })
           </>
         ) : (
           <div className="cl-confirm" role="alertdialog" aria-label={`Remove ${sub.name}?`}>
-            <p className="row-meta">Stop following {sub.name}? Its events leave GetIt on every device. The calendar itself is not touched.</p>
+            <p className="row-meta">Stop following {sub.name}? Its events leave GetIt on every device and its address is erased. The calendar itself is not touched.</p>
             <div className="cl-copy">
               <button className="btn" onClick={() => setConfirm(false)}>Cancel</button>
               <button className="btn btn-primary" onClick={() => void removeSubscription(sub)}>Remove</button>

@@ -63,13 +63,20 @@ Types, then every check that needs nothing but Node. CI runs the same command.
   the author's name (never an address), and the recipe editor's form and what a save changes.
 - `calendarlinks` — calendar links: the three months back to twelve ahead both directions keep (month ends, leap
   years); what the feed link Google Calendar reads holds (timed and whole-day tasks, a repeating series once with its
-  RRULE and skipped days, own agenda events) and leaves out (dropped, deleted and undated tasks, events from a followed
-  calendar, notes unless turned on); the address of a calendar to follow (https only, webcal read as https, no name
+  RRULE and skipped days, own agenda events, a calendar called just GetIt) and leaves out (dropped, deleted and undated
+  tasks, events from a followed calendar, notes unless turned on, and anything about health: a planned meal with its
+  kcal, training, a weigh-in, sleep, habits, supplements, by source, module or section, and series of those; the health
+  lists checked against the app's modules and sections); repeats cut to the window (a daily repeat from 2020, every
+  3 days, fortnightly, the 31st, a count of 400 and of 10, an end date, picked days: read back, their days are exactly
+  the app's own in the window; no RRULE without an end; a repeat moved out of or into the window); the address of a
+  calendar to follow (https only, webcal read as https, no name
   and password, no other port, no local names); the check that the server fetches only from the public internet
   (every private, loopback, link-local, metadata, documentation and multicast range in IPv4 and IPv6, and IPv6 that
   carries an IPv4 address); a followed calendar's events laid out in the window (a daily repeat from 2020, the clock
   change, several-day events, no UID); the plan that makes the device match the file (added, changed, gone, a second
-  copy); when to fetch again; and that the server functions' copies in `supabase/functions/_shared` are up to date.
+  copy); when to fetch again (a calendar that failed waits an hour, unless Refresh now); what may go in a log (the
+  server's name and the kind of error, never the secret address); and that the server functions' copies in
+  `supabase/functions/_shared` are up to date.
 
 - `accounts` — several accounts on one device: the saved list (added, brought up to date, renamed, removed, most
   recently used first, at most five with the open one counted), addresses masked as `e•••@gmail.com`, what storage
@@ -161,12 +168,13 @@ to the test accounts, because they run against the live project.
   reviewer for the run (a row in `app_admin`, removed at the end), finding it in More → Data → Recipes to review
   and not among its own recipes, and approving it; then it can read it and has it locally, and the author sees
   "Shared with everyone". At 360 px.
-- `calendarlinks` (uses `TEST_FEAT_EMAIL`, and `TEST_ONBOARD_EMAIL` as the other account; needs migration 020 and both
-  calendar functions deployed) — at 360 px: a feed link made in More → Profile → Calendar links and copied, fetched as
-  Google would (200, text/calendar, a task as a VEVENT at its time, its note only once notes are turned on, the other
-  account's task never), a wrong or missing token getting 404; the other account's feed link followed as if it were
-  Google's secret address, its task on Today at its time, from that calendar, opening read-only, with no copy of it in
-  Postgres; removing the calendar taking its events off the device, and the link turned off answering 404.
+- `calendarlinks` (uses `TEST_FEAT_EMAIL`, and `TEST_ONBOARD_EMAIL` as the other account; needs migrations 020 and 024
+  and both calendar functions deployed) — at 360 px: a feed link made in More → Profile → Calendar links and copied,
+  fetched as Google would (200, text/calendar, named just GetIt, a task as a VEVENT at its time, a planned meal never,
+  its note only once notes are turned on, the other account's task never), a wrong or missing token getting 404; the
+  other account's feed link followed as if it were Google's secret address, its task on Today at its time, from that
+  calendar (the sheet waits for the name to load), opening read-only, with no copy of it in Postgres; removing the
+  calendar taking its events off the device and its address off the server, and the link turned off answering 404.
 
 - `accounts` (uses `TEST_EMAIL` and `TEST_ONBOARD_EMAIL`, in a browser, so switching asks for the password) — the
   second account added from More → Data → Account, switching back and forth with nothing waiting to be sent,
@@ -186,12 +194,14 @@ to the test accounts, because they run against the live project.
 
 ## Database — `supabase/test.sh`
 
-Runs `supabase/tests/security.sql`: 102 checks on the database — reading another
+Runs `supabase/tests/security.sql`: 106 checks on the database — reading another
 account's data, taking over a household, writing to shared catalogue rows,
 signing up uninvited, deleting an account and what it leaves behind, calendar
 links (a feed link only its owner can make, whose hash no one can read back or
 set, replaced by a new one; followed calendars and their events private, https
-only, and an event unable to hang off someone else's calendar), and recipe
+only, and an event unable to hang off someone else's calendar; a followed
+calendar needing an address, a removed one losing it and unable to come back
+without one, 024), and recipe
 sharing: a proposal no one else can read, an owner who cannot approve their own
 or call the review, a reviewer (one of the throwaway users, made one for the run)
 who can, an approved recipe changed and sent back, the reviewer list readable

@@ -1,15 +1,22 @@
 // Checks calendar links: the feed link Google Calendar reads (its window, what
-// it holds and what it leaves out), the address of a calendar to follow, the
-// check that the server never fetches from a private network, the plan that
-// makes a followed calendar's events on the device match its file, and that
-// the server functions' copies of these rules are the rules themselves.
+// it holds and what it leaves out: nothing about health, no profile name, no
+// repeat past the window), the address of a calendar to follow, the check that
+// the server never fetches from a private network, the plan that makes a
+// followed calendar's events on the device match its file, when a calendar
+// that failed is tried again, what may go in a log, and that the server
+// functions' copies of these rules are the rules themselves.
 // 2026-09-28 is a Monday; 2026-10-25 the clocks go back in Europe.
 import {
-  shiftMonths, feedWindow, isFeedToken, feedUrl, feedName, feedEvents, buildFeed,
+  shiftMonths, feedWindow, isFeedToken, feedUrl, FEED_NAME, feedEvents, buildFeed,
+  isHealthTask, isHealthSeries, windowedSeries, HEALTH_MODULES, HEALTH_SECTIONS,
   normaliseCalendarUrl, ipLiteral, cleanName, parseIPv4, parseIPv6, isPublicIp,
-  eventsFromIcs, eventKey, planReplace, refreshDue, looksLikeCalendar, MAX_URL, REFRESH_MS,
+  eventsFromIcs, eventKey, planReplace, refreshDue, fetchDue, looksLikeCalendar, MAX_URL, REFRESH_MS, RETRY_MS,
+  hostOf, errorKind, logLine, withoutAddresses,
 } from '../lib/calendar-links-rules.ts'
-import { parseIcs } from '../lib/ics-rules.ts'
+import { eventDays, parseIcs } from '../lib/ics-rules.ts'
+import { occurrences } from '../lib/series-rules.ts'
+import { CATEGORY_MODULE } from '../lib/colours-rules.ts'
+import { MODULES } from '../modules/registry.ts'
 import { stale } from '../../scripts/copy-shared.mjs'
 
 let fail = 0
@@ -37,14 +44,13 @@ const token = 'A'.repeat(20) + '-_' + 'b'.repeat(21)
 eq('a 43-character base64url token is a token', isFeedToken(token), true)
 eq('a padded or short one is not', [isFeedToken(token + '='), isFeedToken('abc'), isFeedToken(token.slice(1) + '+'), isFeedToken(null)], [false, false, false, false])
 eq('the feed address', feedUrl('https://x.supabase.co/', token), `https://x.supabase.co/functions/v1/calendar-feed?t=${token}`)
-eq('the calendar is named after the profile', feedName('  Anna '), 'GetIt – Anna')
-eq('a profile without a name', feedName(''), 'GetIt')
+eq('the calendar is called GetIt, with no one\'s name', FEED_NAME, 'GetIt')
 
 const task = (id, title, day, time = null, extra = {}) => ({
   id, title, planned_date: day, planned_time: time, duration_min: 45, notes: 'private note', category: 'Work', status: 'todo', ...extra,
 })
 const input = {
-  profileName: 'Anna', timezone: AMS, notes: false, stamp: STAMP, today: TODAY,
+  timezone: AMS, notes: false, stamp: STAMP, today: TODAY,
   tasks: [
     task('t-timed', 'Dentist', '2026-09-30', '09:00'),
     task('t-day', 'Taxes', '2026-10-01'),
@@ -70,7 +76,9 @@ const titles = evs.map((e) => e.summary)
 eq('timed and untimed tasks are in', ['Dentist', 'Taxes'].every((t) => titles.includes(t)), true)
 eq('dropped, deleted, undated and out-of-window tasks are not', ['Dropped', 'Deleted', 'Too old', 'Too far', 'No day'].some((t) => titles.includes(t)), false)
 eq('a repeating series goes once, with its rule, not as its tasks', [titles.filter((t) => t === 'Gym').length, titles.includes('Gym (a repeat)')], [1, false])
-eq('the series keeps its rule and skipped day', [evs.find((e) => e.summary === 'Gym').rrule, evs.find((e) => e.summary === 'Gym').exdates], ['FREQ=WEEKLY;BYDAY=TU,TH;WKST=MO', [{ kind: 'local', date: '2026-10-06', time: '07:00' }]])
+eq('the series keeps its rule, stops at the window\'s end, and keeps its skipped day',
+  [evs.find((e) => e.summary === 'Gym').rrule, evs.find((e) => e.summary === 'Gym').exdates],
+  ['FREQ=WEEKLY;BYDAY=TU,TH;WKST=MO;UNTIL=20270928T235959', [{ kind: 'local', date: '2026-10-06', time: '07:00' }]])
 eq('own agenda events are in, with their place', evs.find((e) => e.summary === 'Wedding')?.location, 'Utrecht')
 eq('events from a followed calendar are never sent back', titles.includes('From Google'), false)
 eq('deleted events are not in', titles.includes('Deleted event'), false)
@@ -80,12 +88,111 @@ eq('notes stay out by default, from tasks and series alike', evs.some((e) => e.d
 eq('with notes on, they go out', feedEvents({ ...input, notes: true }).filter((e) => e.description).map((e) => e.summary).sort(), ['Dentist', 'Gym', 'Taxes'])
 eq('a task keeps its section', evs.find((e) => e.summary === 'Dentist').categories, ['Work'])
 const file = buildFeed(input)
-eq('the file names the calendar and the zone', [file.includes('X-WR-CALNAME:GetIt – Anna'), file.includes('X-WR-TIMEZONE:Europe/Amsterdam')], [true, true])
+eq('the file names the calendar just GetIt, and the zone', [file.includes('X-WR-CALNAME:GetIt\r\n'), file.includes('X-WR-TIMEZONE:Europe/Amsterdam')], [true, true])
 eq('the file is CRLF and one VEVENT per event', [file.endsWith('END:VCALENDAR\r\n'), file.split('BEGIN:VEVENT').length - 1], [true, evs.length])
 eq('the dentist is floating local time', file.includes('DTSTART:20260930T090000\r\n'), true)
 eq('no note text anywhere in the file', /private note|bring shoes/.test(file), false)
 const back = parseIcs(file, { zone: AMS, today: TODAY, mapSeries: false })
 eq('the feed reads back as a calendar', back.problems, [])
+
+// ---- nothing about health in the feed -------------------------------------------------
+// A planned meal as meals.ts makes it, a training session, a weigh-in, and the
+// other health modules; each in the window, where anything else would show.
+const healthy = {
+  ...input,
+  notes: true,
+  tasks: [
+    task('h-meal', 'Breakfast: Eggs · 143 kcal', '2026-10-01', '08:00', { category: 'Meal', source: 'meal', module_key: 'nutrition', notes: '2 eggs' }),
+    task('h-meal-typed', 'Lunch: Salad', '2026-10-01', '12:30', { category: 'meal', source: 'manual', module_key: null }),
+    task('h-train', 'Legs: squats 5×5', '2026-10-01', '18:00', { category: 'Training', source: 'manual', module_key: null }),
+    task('h-train-mod', 'Deadlift 140 kg', '2026-10-02', '18:00', { category: null, module_key: 'training' }),
+    task('h-weigh', 'Weigh-in 82.4 kg', '2026-10-02', '07:00', { category: 'Body', module_key: null }),
+    task('h-weigh-mod', 'Waist 84 cm', '2026-10-02', null, { category: null, module_key: 'health' }),
+    task('h-sleep', 'Bed by 22:30', '2026-10-03', '22:30', { category: 'Night', module_key: 'sleep' }),
+    task('h-habit', 'No sugar', '2026-10-03', null, { category: null, module_key: 'habits' }),
+    task('h-supp', 'Creatine 5 g', '2026-10-03', null, { category: null, module_key: 'supplements' }),
+    task('h-workout', 'Workout', '2026-10-03', null, { category: null, source: 'workout' }),
+    task('h-of-series', 'Run club (one day)', '2026-10-06', '19:00', { category: 'Work', series_id: 'hs-run' }),
+    task('ok-work', 'Stand-up', '2026-10-01', '09:00', { category: 'Work', source: 'manual', module_key: null }),
+    task('ok-learn', 'Read a chapter', '2026-10-01', null, { category: 'Learning', source: 'module', module_key: 'learning' }),
+  ],
+  series: [
+    { id: 'hs-run', title: 'Run club', rule: 'weekly', rule_config: { weekdays: [2] }, start_date: '2026-09-01', end_date: null,
+      occurrence_count: null, time_of_day: '19:00', task_template: { category: 'Work' }, module_key: 'training', active: true },
+    { id: 'hs-prep', title: 'Meal prep: rice and chicken', rule: 'weekly', rule_config: { weekdays: [0] }, start_date: '2026-09-06', end_date: null,
+      occurrence_count: null, time_of_day: '16:00', task_template: { category: 'Meal' }, module_key: null, active: true },
+    { id: 'ok-series', title: 'Team call', rule: 'weekly', rule_config: { weekdays: [3] }, start_date: '2026-09-02', end_date: null,
+      occurrence_count: null, time_of_day: '10:00', task_template: { category: 'Work' }, module_key: null, active: true },
+  ],
+  exceptions: [],
+  events: [],
+}
+const healthEvs = feedEvents(healthy)
+eq('only the tasks and series that are not about health are in', healthEvs.map((e) => e.summary).sort(), ['Read a chapter', 'Stand-up', 'Team call'])
+const healthFile = buildFeed(healthy)
+eq('a meal, a training session and a weigh-in never reach the file',
+  ['Breakfast', 'kcal', 'Eggs', '2 eggs', 'Salad', 'squats', 'Deadlift', 'Weigh-in', '82.4', 'Waist', 'Bed by', 'sugar', 'Creatine', 'Workout', 'Run club', 'Meal prep']
+    .filter((w) => healthFile.includes(w)), [])
+eq('a planned meal, a training task and a weigh-in are health', [
+  isHealthTask({ source: 'meal', category: 'Meal', module_key: 'nutrition' }),
+  isHealthTask({ category: 'Training' }), isHealthTask({ category: ' body ' }), isHealthTask({ module_key: 'health' }),
+], [true, true, true, true])
+eq('a work task, a learning task and one with no section are not', [
+  isHealthTask({ source: 'manual', category: 'Work' }), isHealthTask({ source: 'module', module_key: 'learning', category: 'Learning' }), isHealthTask({}),
+], [false, false, false])
+eq('a series is health by its module or its tasks\' section', [
+  isHealthSeries({ module_key: 'sleep' }), isHealthSeries({ task_template: { category: 'Meal' } }), isHealthSeries({ module_key: null, task_template: { category: 'Home' } }),
+], [true, true, false])
+// The lists must keep up with the app: every section that belongs to a health
+// module is a health section, and every health module is a real one.
+eq('every section of a health module is left out (colours-rules CATEGORY_MODULE)',
+  Object.entries(CATEGORY_MODULE).filter(([, m]) => HEALTH_MODULES.includes(m)).map(([c]) => c).filter((c) => !HEALTH_SECTIONS.includes(c)), [])
+eq('every health module is one the app has', HEALTH_MODULES.filter((k) => !MODULES.some((m) => m.key === k)), [])
+
+// ---- repeats cut to the window --------------------------------------------------------
+// Each series is written, read back as a calendar would, and laid out: the
+// days must be exactly the app's own days in the window, none before or after.
+const { from: WF, to: WT } = feedWindow(TODAY)
+const series = (id, rule, rule_config, start_date, extra = {}) => ({
+  id, title: id, rule, rule_config, start_date, end_date: null, occurrence_count: null, time_of_day: '07:30', task_template: {}, active: true, ...extra,
+})
+const laidOut = (s) => {
+  const f = buildFeed({ ...input, tasks: [], series: [s], exceptions: [], events: [] })
+  const r = parseIcs(f, { zone: AMS, today: TODAY, mapSeries: false })
+  return r.events.flatMap((ev) => eventDays(ev, '1900-01-01', '2100-12-31', 5000)).sort()
+}
+const cases = [
+  series('daily-2020', 'daily', {}, '2020-01-01'),
+  series('every-3-days', 'daily', { n: 3 }, '2025-11-05'),
+  series('fortnightly', 'every_n_weeks', { n: 2, weekdays: [1, 3] }, '2025-12-03'),
+  series('the-31st', 'monthly', {}, '2025-01-31', { time_of_day: null }),
+  series('weekdays-400', 'weekdays', {}, '2026-03-02', { occurrence_count: 400 }),
+  series('weekly-10', 'weekly', { weekdays: [2] }, '2026-09-01', { occurrence_count: 10 }),
+  series('ends-soon', 'weekly', { weekdays: [5] }, '2026-01-02', { end_date: '2026-11-20' }),
+  series('picked', 'dates', { dates: ['2026-01-10', '2026-07-01', '2026-12-24', '2027-12-24'] }, '2026-01-10'),
+]
+for (const s of cases) {
+  const days = laidOut(s)
+  eq(`${s.id}: the calendar's days are the app's days in the window`, days, occurrences(s, WF, WT))
+}
+const dailyRepeat = feedEvents({ ...input, tasks: [], series: [cases[0]], exceptions: [] })[0]
+eq('a daily repeat from 2020 starts at the window\'s start and stops at its end', [dailyRepeat.start, dailyRepeat.rrule], [{ kind: 'local', date: WF, time: '07:30' }, 'FREQ=DAILY;UNTIL=20270928T235959'])
+const ten = feedEvents({ ...input, tasks: [], series: [cases[5]], exceptions: [] })[0]
+eq('a repeat of ten that ends inside the window still ends after ten', [ten.rrule, laidOut(cases[5]).length], ['FREQ=WEEKLY;BYDAY=TU;WKST=MO;UNTIL=20261103T235959', 10])
+const monthly = feedEvents({ ...input, tasks: [], series: [cases[3]], exceptions: [] })[0]
+eq('a whole-day repeat starts on its first day in the window and stops on a date, its last one there', [monthly.start, monthly.rrule],
+  [{ kind: 'date', date: '2026-06-30' }, 'FREQ=MONTHLY;BYMONTHDAY=28,29,30,31;BYSETPOS=-1;UNTIL=20270831'])
+eq('no repeat in the file runs on without an end', /RRULE:(?![^\r\n]*UNTIL=)/.test(buildFeed({ ...input, tasks: [], series: cases, exceptions: [] })), false)
+eq('a repeat whose days are all before the window is left out', windowedSeries(series('old', 'weekly', { weekdays: [1] }, '2025-01-06', { occurrence_count: 3 }), WF, WT), null)
+const moved = feedEvents({ ...input, tasks: [], events: [], series: [series('m', 'weekly', { weekdays: [4] }, '2026-01-01')], exceptions: [
+  { series_id: 'm', exception_date: '2026-06-18', action: 'move', moved_to: '2026-07-02' },   // from before the window into it
+  { series_id: 'm', exception_date: '2027-09-23', action: 'move', moved_to: '2027-10-01' },   // from inside to after it
+  { series_id: 'm', exception_date: '2026-10-08', action: 'move', moved_to: '2026-10-09' },   // inside
+] })
+eq('a repeat moved out of the window is skipped, not shown', moved[0].exdates.map((w) => w.date), ['2027-09-23'])
+eq('one moved in from before the window is an event of its own; one moved inside stays a changed repeat',
+  moved.slice(1).map((e) => [e.start.date, e.recurrenceId?.date ?? null, e.uid]),
+  [['2026-07-02', null, 'm-2026-06-18@getit.app'], ['2026-10-09', '2026-10-08', 'm@getit.app']])
 
 // ---- a calendar to follow: the address -----------------------------------------------
 const google = 'https://calendar.google.com/calendar/ical/anna%40gmail.com/private-0123abcd/basic.ics'
@@ -169,7 +276,23 @@ eq('never fetched is due', refreshDue(null, now), true)
 eq('fetched an hour ago is not due', refreshDue('2026-09-28T11:00:00Z', now), false)
 eq('fetched three hours ago is due', refreshDue(new Date(now - REFRESH_MS).toISOString(), now), true)
 eq('a time in the future (a wrong clock) is due', refreshDue('2026-09-29T12:00:00Z', now), true)
+eq('a calendar that failed is not asked for again within the hour', fetchDue({ lastSyncedAt: null, failedAt: now - 20 * 60000, now }), false)
+eq('an hour after failing it is tried again', fetchDue({ lastSyncedAt: null, failedAt: now - RETRY_MS, now }), true)
+eq('Refresh now tries at once, failed or not', fetchDue({ lastSyncedAt: null, failedAt: now - 60000, now, force: true }), true)
+eq('with no failure, it is due by its last fetch', [fetchDue({ lastSyncedAt: null, now }), fetchDue({ lastSyncedAt: '2026-09-28T11:00:00Z', now })], [true, false])
+eq('a failure time in the future (a clock put back) does not hold it up', fetchDue({ lastSyncedAt: null, failedAt: now + 2 * RETRY_MS, now }), true)
 eq('a calendar file looks like one', [looksLikeCalendar('﻿\r\nBEGIN:VCALENDAR\r\n'), looksLikeCalendar('<!doctype html>'), looksLikeCalendar('')], [true, false, false])
+
+// ---- what may go in a log: never the secret address --------------------------------------------
+const denoError = new TypeError(`error sending request for url (${google}): client error (Connect): dns error`)
+eq('the log names the server, not the address', hostOf(google), 'calendar.google.com')
+eq('a bad address has no server to name', [hostOf('not an address'), hostOf(null)], ['no host', 'no host'])
+eq('the log line says what kind of error, never its message', logLine('calendar-fetch', denoError, hostOf(google)), 'calendar-fetch: TypeError at calendar.google.com')
+eq('a database error is logged by its code', [errorKind({ name: 'PostgrestError', code: '42501', message: 'x' }), errorKind({ code: 'PGRST116', message: 'x' })], ['PostgrestError 42501', 'code PGRST116'])
+eq('something that is not an error is logged as unknown', [errorKind('text with https://x.com/private'), errorKind(null)], ['unknown error', 'unknown error'])
+eq('an address in a message is taken out', withoutAddresses(denoError.message).includes('private-0123abcd'), false)
+eq('an address without https:// is taken out too', withoutAddresses('failed at calendar.google.com/calendar/ical/x/private-1/basic.ics now'), 'failed at the address now')
+eq('a message without one is left alone', withoutAddresses('The calendar’s server answered 500. It will be tried again later.'), 'The calendar’s server answered 500. It will be tried again later.')
 
 // ---- the server functions run these same rules ----------------------------------------------------
 eq('supabase/functions/_shared is up to date (node scripts/copy-shared.mjs)', stale(), [])

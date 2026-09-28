@@ -13,9 +13,14 @@
 // SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY are set by Supabase itself. The
 // service role reads past row-level security, so every query below is limited
 // to the one profile the token belongs to.
+//
+// Nothing about health goes out: meal, training, weigh-in, sleep, habit and
+// supplement tasks and series are left out twice over, once in the queries
+// below and once more by buildFeed (isHealthTask), so a slip in one is caught
+// by the other. The profile's name is not read at all.
 import { createClient } from 'npm:@supabase/supabase-js@2'
 import {
-  buildFeed, feedWindow, isFeedToken,
+  HEALTH_MODULES, HEALTH_SECTIONS, HEALTH_SOURCES, buildFeed, feedWindow, isFeedToken, logLine,
   type FeedEvent, type FeedException, type FeedSeries, type FeedTask,
 } from '../_shared/calendar-links-rules.ts'
 import { cleanZone, utcToWall } from '../_shared/ics-rules.ts'
@@ -28,6 +33,13 @@ const db = createClient(Deno.env.get('SUPABASE_URL')!, Deno.env.get('SUPABASE_SE
 const plain = (status: number, text: string, extra: Record<string, string> = {}) =>
   new Response(text, { status, headers: { 'Content-Type': 'text/plain; charset=utf-8', 'Cache-Control': 'no-store', ...extra } })
 const notFound = () => plain(404, 'Not found')
+
+// The health filters, in PostgREST's words. A section is compared without
+// regard to case (ilike with no wildcards); an empty module or section is fine.
+const NOT_HEALTH_SOURCE = `(${HEALTH_SOURCES.join(',')})`
+const NOT_HEALTH_MODULE = `module_key.is.null,module_key.not.in.(${HEALTH_MODULES.join(',')})`
+const notHealthSection = (col: string) =>
+  `${col}.is.null,and(${HEALTH_SECTIONS.map((c) => `${col}.not.ilike.${c}`).join(',')})`
 
 async function sha256Hex(text: string): Promise<string> {
   const digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(text))
@@ -59,7 +71,7 @@ Deno.serve(async (req) => {
     if (!feed) return notFound()
     const profileId = feed.profile_id as string
 
-    const { data: profile, error: pErr } = await db.from('profile').select('name, timezone, settings, deleted_at').eq('id', profileId).maybeSingle()
+    const { data: profile, error: pErr } = await db.from('profile').select('timezone, settings, deleted_at').eq('id', profileId).maybeSingle()
     if (pErr) throw pErr
     if (!profile || profile.deleted_at) return notFound()
 
@@ -71,12 +83,16 @@ Deno.serve(async (req) => {
 
     const [tasks, series, events] = await Promise.all([
       all<FeedTask>(() => db.from('task')
-        .select('id, title, planned_date, planned_time, duration_min, notes, category, status, series_id')
+        .select('id, title, planned_date, planned_time, duration_min, notes, category, status, series_id, source, module_key')
         .eq('profile_id', profileId).is('deleted_at', null).neq('status', 'dropped')
-        .gte('planned_date', from).lte('planned_date', to).order('id')),
+        .gte('planned_date', from).lte('planned_date', to)
+        .not('source', 'in', NOT_HEALTH_SOURCE).or(NOT_HEALTH_MODULE).or(notHealthSection('category'))
+        .order('id')),
       all<FeedSeries>(() => db.from('series')
-        .select('id, title, rule, rule_config, start_date, end_date, occurrence_count, time_of_day, task_template, active')
-        .eq('profile_id', profileId).is('deleted_at', null).eq('active', true).order('id')),
+        .select('id, title, rule, rule_config, start_date, end_date, occurrence_count, time_of_day, task_template, active, module_key')
+        .eq('profile_id', profileId).is('deleted_at', null).eq('active', true)
+        .or(NOT_HEALTH_MODULE).or(notHealthSection('task_template->>category'))
+        .order('id')),
       // A day either side of the window: the window is in the person's zone.
       all<FeedEvent>(() => db.from('calendar_event')
         .select('id, title, starts_at, ends_at, all_day, location, subscription_id')
@@ -92,7 +108,6 @@ Deno.serve(async (req) => {
     }
 
     const body = buildFeed({
-      profileName: String(profile.name ?? ''),
       timezone: zone,
       notes: settings.calendar?.feed_notes === true,
       stamp: now.toISOString(),
@@ -109,8 +124,9 @@ Deno.serve(async (req) => {
       },
     })
   } catch (e) {
-    // Logged for the project owner; the caller learns nothing about the data.
-    console.error('calendar-feed', e instanceof Error ? e.message : e)
+    // Logged for the project owner: only what kind of error it was, never its
+    // message (which could quote a query). The caller learns nothing.
+    console.error(logLine('calendar-feed', e))
     return plain(503, 'Try again later', { 'Retry-After': '600' })
   }
 })

@@ -40,6 +40,10 @@ the server has purged (`queueChange` inserts rows the server does not have).
 Until that is designed, a user who wants a single item erased for good can ask
 by email, and it is removed by hand (`data-requests.md`).
 
+One exception already: a calendar the user stops following keeps its row (name,
+colour, `deleted_at`) but not its secret iCal address, which the server erases
+the moment the row is marked deleted (`024_calendar_privacy.sql`).
+
 ## Auth audit log purge
 
 Only needed if "Write audit logs to the database" stays on. Run in the Supabase
