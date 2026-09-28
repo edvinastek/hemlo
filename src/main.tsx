@@ -12,6 +12,8 @@ import '@fontsource/ibm-plex-sans/latin-500.css'
 import '@fontsource/ibm-plex-sans/latin-600.css'
 import './styles/tokens.css'
 import './styles/app.css'
+// A phone on its side and wide screens (src/ui/useLayout.ts); after app.css.
+import './styles/landscape.css'
 
 // Without this the data is local but the page is not, and a cold start with no
 // connection shows nothing. Registered after paint so it never delays the app.
