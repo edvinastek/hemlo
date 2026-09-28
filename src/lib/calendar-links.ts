@@ -9,8 +9,8 @@ import { parseIcs } from './ics-rules'
 import { addDays } from './series-rules'
 import { SWATCHES } from './colours-rules'
 import {
-  MAX_SUBSCRIPTIONS, REFRESH_MS, cleanName, eventsFromIcs, feedUrl, feedWindow, normaliseCalendarUrl, planReplace, refreshDue,
-  type LocalEvent,
+  MAX_SUBSCRIPTIONS, REFRESH_MS, cleanName, eventsFromIcs, feedUrl, feedWindow, fetchDue, normaliseCalendarUrl, planReplace,
+  withoutAddresses, type LocalEvent,
 } from './calendar-links-rules'
 import type { CalendarEvent, CalendarSubscription } from './types'
 
@@ -79,7 +79,7 @@ export async function addSubscription(profileId: string, name: string, address: 
   if (!url.ok) return { ok: false, error: url.error }
   const mine = (await db.calendar_subscription.where('profile_id').equals(profileId).toArray()).filter(live)
   if (mine.length >= MAX_SUBSCRIPTIONS) return { ok: false, error: `That is ${MAX_SUBSCRIPTIONS} calendars. Remove one to follow another.` }
-  if (mine.some((s) => s.url === url.url)) return { ok: false, error: 'You already follow that calendar.' }
+  if (mine.some((s) => !!s.url && s.url === url.url)) return { ok: false, error: 'You already follow that calendar.' }
   const now = new Date().toISOString()
   const sub: CalendarSubscription = {
     id: crypto.randomUUID(), profile_id: profileId, name: clean, url: url.url, colour,
@@ -94,10 +94,19 @@ export async function setSubscriptionColour(sub: CalendarSubscription, colour: s
   await edit('calendar_subscription', sub, { colour })
 }
 
-/** Stop following: the calendar goes from every device, its events with it. */
+/** Stop following: the calendar goes from every device, its events with it,
+ *  and its secret address is wiped. The row itself stays, marked deleted, so
+ *  other devices learn it is gone.
+ *
+ *  Only the deletion is sent. The server wipes the address itself when a row
+ *  is marked deleted (migration 024), which also covers older copies of the
+ *  app; sending the empty address as well would be refused by a server that
+ *  does not have 024 yet, and hold the deletion up with it. */
 export async function removeSubscription(sub: CalendarSubscription) {
-  await edit('calendar_subscription', sub, { deleted_at: new Date().toISOString() })
+  const gone = await edit('calendar_subscription', sub, { deleted_at: new Date().toISOString() })
+  await db.calendar_subscription.put({ ...gone, url: null })
   await db.calendar_event.where('subscription_id').equals(sub.id).delete()
+  failedAt.delete(sub.id)
 }
 
 export type RefreshResult =
@@ -106,9 +115,8 @@ export type RefreshResult =
 
 const running = new Map<string, Promise<RefreshResult>>()
 /** When a calendar last failed to fetch: tried again after an hour, not at
- *  every quarter-hour check, so a broken address is not hammered. */
+ *  every quarter-hour check, so a broken address is not hammered (fetchDue). */
 const failedAt = new Map<string, number>()
-const RETRY_MS = 60 * 60 * 1000
 
 /** Fetch a followed calendar and make its events here match it, from three
  *  months back to twelve ahead. One fetch per calendar at a time. */
@@ -128,7 +136,9 @@ async function doRefresh(sub: CalendarSubscription): Promise<RefreshResult> {
   const answer = (data ?? {}) as { ok?: boolean; ics?: string; error?: string; fetched_at?: string; at?: string }
   const at = answer.fetched_at ?? answer.at ?? new Date().toISOString()
   if (error || !answer.ok || typeof answer.ics !== 'string') {
-    const message = answer.error ?? (error ? 'GetIt’s server could not be reached. It will try again later.' : 'The calendar could not be read.')
+    const message = withoutAddresses(answer.error ?? (error ? 'GetIt’s server could not be reached. It will try again later.' : 'The calendar could not be read.'))
+    // Not asked for again for an hour, unless the person asks.
+    failedAt.set(sub.id, Date.now())
     // The server wrote this down too; the copy here shows it at once.
     await note(sub.id, { last_error: message.slice(0, 300) })
     return { ok: false, error: message }
@@ -178,9 +188,7 @@ export async function refreshDueSubscriptions(force = false): Promise<void> {
   if (typeof navigator !== 'undefined' && !navigator.onLine) return
   const now = Date.now()
   for (const s of subs.filter(live)) {
-    const failed = failedAt.get(s.id)
-    if (!force && failed && now - failed < RETRY_MS) continue
-    if (force || refreshDue(s.last_synced_at, now)) await refreshSubscription(s)
+    if (fetchDue({ lastSyncedAt: s.last_synced_at, failedAt: failedAt.get(s.id), now, force })) await refreshSubscription(s)
   }
 }
 

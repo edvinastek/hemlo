@@ -1,9 +1,9 @@
 // Generated from src/lib/calendar-links-rules.ts by scripts/copy-shared.mjs. Do not edit here:
 // change the original and run `node scripts/copy-shared.mjs`.
 
-import { addDays, toDayNumber } from './series-rules.ts'
+import { addDays, baseDates, toDayNumber, weekdayOf } from './series-rules.ts'
 import {
-  buildCalendar, calendarEvent, eventDays, seriesEvents, taskEvent, utcToWall, wallToUtc,
+  buildCalendar, calendarEvent, eventDays, seriesEvents, taskEvent, uidFor, utcToWall, wallToUtc,
   type ExceptionLike, type IcsEvent, type ParsedEvent, type SeriesLike, type TaskLike,
 } from './ics-rules.ts'
 
@@ -16,7 +16,8 @@ import {
  *  GetIt → Google: a private link (the "feed") that Google Calendar reads
  *  every few hours. Anyone holding the link can read what it shows, so it
  *  shows as little as it can: titles, times, sections and places, and task
- *  notes only when the person asks for them.
+ *  notes only when the person asks for them. Nothing about health: meals,
+ *  training, weigh-ins, sleep, habits and supplements stay out (isHealthTask).
  *
  *  Google → GetIt: the person pastes their calendar's secret address; the
  *  server fetches it (a browser may not) and the app reads the file with
@@ -40,8 +41,8 @@ export function shiftMonths(day: string, n: number): string {
 }
 
 /** What a feed shows and what a followed calendar keeps: from three months
- *  back to twelve months ahead, both days included. Repeating tasks go out as
- *  one repeating event, so they carry on past the end. */
+ *  back to twelve months ahead, both days included. A repeating task goes out
+ *  as one repeating event, cut to the same window (windowedSeries). */
 export function feedWindow(today: string): { from: string; to: string } {
   return { from: shiftMonths(today, -3), to: shiftMonths(today, 12) }
 }
@@ -60,10 +61,15 @@ export function feedUrl(supabaseUrl: string, token: string): string {
 export interface FeedTask extends TaskLike {
   series_id?: string | null
   deleted_at?: string | null
+  /** Where the task came from ('meal' for a planned meal) and the module it
+   *  belongs to: both say whether it is about health. */
+  source?: string | null
+  module_key?: string | null
 }
 export interface FeedSeries extends SeriesLike {
   active?: boolean
   deleted_at?: string | null
+  module_key?: string | null
 }
 export interface FeedException extends ExceptionLike {
   series_id: string
@@ -80,7 +86,6 @@ export interface FeedEvent {
 }
 
 export interface FeedInput {
-  profileName: string
   /** The person's zone (IANA). Task times are their own wall-clock times. */
   timezone: string | null
   /** Task notes go out only when the person turned this on. */
@@ -94,17 +99,105 @@ export interface FeedInput {
   events: FeedEvent[]
 }
 
-/** The calendar's name in Google: "GetIt – Anna". */
-export function feedName(profileName: string): string {
-  const name = profileName.trim().slice(0, 60)
-  return name ? `GetIt – ${name}` : 'GetIt'
+/** The calendar's name in Google. Only "GetIt": the profile's name would tell
+ *  whoever holds the link whose plan it is. */
+export const FEED_NAME = 'GetIt'
+
+/* ---------- what never goes in the feed: health ------------------------------ */
+
+/** The modules whose records are health data (special category data, GDPR
+ *  article 9). The list follows docs/privacy/records-of-processing.md, which
+ *  counts weigh-ins, food, training, sleep, habits and supplements as health.
+ *  A task or series of one of these never goes in the feed. */
+export const HEALTH_MODULES = ['nutrition', 'health', 'training', 'sleep', 'habits', 'supplements'] as const
+/** Task sections that belong to those modules (CATEGORY_MODULE in
+ *  colours-rules.ts: Meal is Nutrition, Training is Training, Body is Health). */
+export const HEALTH_SECTIONS = ['Meal', 'Training', 'Body'] as const
+/** Where a task can come from that is always about health: a planned meal
+ *  ("Breakfast: Eggs · 143 kcal"), a workout, a habit. */
+export const HEALTH_SOURCES = ['meal', 'workout', 'habit'] as const
+
+const lower = (v: unknown) => (typeof v === 'string' ? v.trim().toLowerCase() : '')
+const HEALTH_MODULE_SET = new Set<string>(HEALTH_MODULES)
+const HEALTH_SECTION_SET = new Set<string>(HEALTH_SECTIONS.map((c) => c.toLowerCase()))
+const HEALTH_SOURCE_SET = new Set<string>(HEALTH_SOURCES)
+
+/** Is this task about health? Its source, its module or its section says so.
+ *  Upper or lower case makes no difference. */
+export function isHealthTask(t: { source?: string | null; module_key?: string | null; category?: string | null }): boolean {
+  return HEALTH_SOURCE_SET.has(lower(t.source)) || HEALTH_MODULE_SET.has(lower(t.module_key)) || HEALTH_SECTION_SET.has(lower(t.category))
 }
+
+/** Is this repeating series about health? Its module, or the section its
+ *  tasks are given. */
+export function isHealthSeries(s: { module_key?: string | null; task_template?: { category?: string | null } | null }): boolean {
+  return isHealthTask({ module_key: s.module_key, category: s.task_template?.category })
+}
+
+/* ---------- a repeating series, cut to the window ---------------------------- */
+
+/** The days a series lands on up to a day, by the app's own rule. */
+const daysOf = (s: SeriesLike, until: string): string[] => baseDates(s as never, until)
+
+/** The series with only its days in the window: it starts on its first day
+ *  there and stops on its last, so a calendar reading the feed sees nothing
+ *  from before three months ago or after a year ahead. A count, if it has
+ *  one, is used up in working out those days (a series of ten that ends
+ *  inside the window still ends after ten). Null when none of its days are
+ *  in the window. */
+export function windowedSeries<S extends FeedSeries>(s: S, from: string, to: string): S | null {
+  if (!DATE.test(s.start_date ?? '')) return null
+  const days = daysOf(s, to).filter((d) => d >= from)
+  if (!days.length) return null
+  const c = s.rule_config ?? {}
+  // Moving the start must not change which days the rule picks: the weekday
+  // and the day of the month were read from the old start when not set.
+  const weekdays = (c.weekdays ?? []).filter((w) => Number.isInteger(w) && w >= 0 && w <= 6)
+  const rule_config = s.rule === 'dates'
+    ? { dates: days }
+    : { ...c, weekdays: weekdays.length ? weekdays : [weekdayOf(s.start_date)], day_of_month: c.day_of_month ?? Number(s.start_date.slice(8, 10)) }
+  return { ...s, start_date: days[0], end_date: days[days.length - 1], occurrence_count: null, rule_config }
+}
+
+const dayOf = (w: IcsEvent['start']): string | null => (w.kind === 'utc' ? null : w.date)
+
+/** A series as feed events, from its first day in the window to its last. A
+ *  repeat moved out of the window is left out; one moved into the window from
+ *  a day outside it goes as an event of its own. */
+export function feedSeriesEvents(s: FeedSeries, exceptions: FeedException[], from: string, to: string): IcsEvent[] {
+  const cut = windowedSeries(s, from, to)
+  if (!cut) return []
+  const evs = seriesEvents(cut, exceptions)
+  if (!evs.length) return []
+  const [master, ...changed] = evs
+  const inRange = new Set(daysOf(cut, to))
+  // A day before the window that the series really landed on.
+  const earlierRepeat = (day: string) => day < cut.start_date && daysOf(s, day).at(-1) === day
+  const skipped = (master.exdates ?? []).filter((w) => { const d = dayOf(w); return !!d && inRange.has(d) })
+  const out: IcsEvent[] = []
+  for (const e of changed) {
+    const was = e.recurrenceId ? dayOf(e.recurrenceId) : null
+    const now = dayOf(e.start)
+    if (!was || !now) continue
+    const shown = now >= from && now <= to
+    if (inRange.has(was)) {
+      if (shown) out.push(e)
+      else skipped.push(e.recurrenceId!)
+    } else if (shown && earlierRepeat(was)) {
+      out.push({ ...e, uid: uidFor(`${s.id}-${was}`), recurrenceId: null })
+    }
+  }
+  return [{ ...master, exdates: skipped }, ...out]
+}
+
+/* ---------- the feed ------------------------------------------------------------ */
 
 /** What a feed holds, as events: every task with a day in the window (with
  *  or without a time, not dropped, not deleted), each repeating series once
- *  with its repeat rule, and the person's own agenda events. Events that came
- *  from a calendar they follow are left out, so Google's own events are never
- *  sent back to Google. */
+ *  with its repeat rule cut to the window, and the person's own agenda
+ *  events. Left out: anything about health (isHealthTask), and events that
+ *  came from a calendar they follow, so Google's own events are never sent
+ *  back to Google. */
 export function feedEvents(i: FeedInput): IcsEvent[] {
   const { from, to } = feedWindow(i.today)
   const zone = i.timezone || 'UTC'
@@ -114,13 +207,17 @@ export function feedEvents(i: FeedInput): IcsEvent[] {
 
   const out: IcsEvent[] = []
   const repeating = new Set<string>()
+  const health = new Set<string>()
   for (const s of i.series) {
+    if (isHealthSeries(s)) { health.add(s.id); continue }
     if (s.deleted_at || s.active === false) continue
-    const evs = seriesEvents(s, byParent.get(s.id) ?? [])
+    const evs = feedSeriesEvents(s, byParent.get(s.id) ?? [], from, to)
     if (evs.length) { out.push(...evs.map(strip)); repeating.add(s.id) }
   }
   for (const t of i.tasks) {
     if (t.deleted_at || !t.planned_date || t.planned_date < from || t.planned_date > to) continue
+    // A day of a health series is health too, whatever its own section says.
+    if (isHealthTask(t) || (t.series_id && health.has(t.series_id))) continue
     if (t.series_id && repeating.has(t.series_id)) continue
     const e = taskEvent(t)
     if (e) out.push(strip(e))
@@ -140,7 +237,7 @@ export function feedEvents(i: FeedInput): IcsEvent[] {
 
 /** The whole feed file. */
 export function buildFeed(i: FeedInput): string {
-  return buildCalendar(feedEvents(i), { stamp: i.stamp, name: feedName(i.profileName), timezone: i.timezone })
+  return buildCalendar(feedEvents(i), { stamp: i.stamp, name: FEED_NAME, timezone: i.timezone })
 }
 
 /* ---------- a calendar to follow: its address -------------------------------- */
@@ -413,7 +510,52 @@ export function refreshDue(lastSyncedAt: string | null | undefined, now: number,
   return Number.isNaN(t) || now - t >= every || t > now + 60000
 }
 
+/** How long a calendar that could not be fetched waits before it is tried
+ *  again, so a broken address is not asked for at every quarter-hour check. */
+export const RETRY_MS = 60 * 60 * 1000
+
+/** Whether to fetch a followed calendar now: when it is due, unless it failed
+ *  less than an hour ago. "Refresh now" (force) always fetches. A failure
+ *  time in the future (a clock put back) does not hold it up. */
+export function fetchDue(o: { lastSyncedAt: string | null | undefined; failedAt?: number | null; now: number; force?: boolean }): boolean {
+  if (o.force) return true
+  const f = o.failedAt
+  if (f != null && o.now - f < RETRY_MS && f <= o.now + 60000) return false
+  return refreshDue(o.lastSyncedAt, o.now)
+}
+
 /** The start of a whole file: is it a calendar at all? */
 export function looksLikeCalendar(text: string): boolean {
   return /^\s*BEGIN:VCALENDAR/i.test(text.replace(/^﻿/, ''))
+}
+
+/* ---------- what may go in a log, or be kept and shown ------------------------ */
+
+/** The server's name in an address, never its path or query: a followed
+ *  calendar's secret address works like a password. */
+export function hostOf(address: unknown): string {
+  try { return new URL(String(address ?? '')).hostname || 'no host' } catch { return 'no host' }
+}
+
+/** What kind of error it was (TypeError, TimeoutError, a database code),
+ *  never its message: Deno's network errors quote the whole address. */
+export function errorKind(e: unknown): string {
+  const o = (e && typeof e === 'object' ? e : {}) as { name?: unknown; code?: unknown }
+  const name = typeof o.name === 'string' && /^[A-Za-z][A-Za-z0-9]{0,39}$/.test(o.name) ? o.name : null
+  const code = (typeof o.code === 'string' || typeof o.code === 'number') && /^[A-Za-z0-9_]{1,12}$/.test(String(o.code)) ? String(o.code) : null
+  if (name && code) return `${name} ${code}`
+  return name ?? (code ? `code ${code}` : 'unknown error')
+}
+
+/** One line for the server's log: where, what kind of error, at which server. */
+export function logLine(where: string, e: unknown, host?: string | null): string {
+  return `${where}: ${errorKind(e)}${host ? ` at ${host}` : ''}`
+}
+
+/** A message to keep or show, with any web address in it taken out, in case
+ *  one ever carries a calendar's secret address. */
+export function withoutAddresses(message: string): string {
+  return String(message ?? '')
+    .replace(/\b(?:https?|webcals?):\/\/[^\s"'<>()]*/gi, 'the address')
+    .replace(/\b[a-z0-9-]+(?:\.[a-z0-9-]+)*\.[a-z]{2,}\/[^\s"'<>()]*/gi, 'the address')
 }

@@ -364,8 +364,9 @@ export interface CalendarSubscription {
   id: UUID
   profile_id: UUID
   name: string
-  /** https only; the server fetches it (calendar-fetch). */
-  url: string
+  /** https only; the server fetches it (calendar-fetch). Empty once the
+   *  calendar is removed (deleted_at set): the secret address is wiped (024). */
+  url: string | null
   /** #rrggbb, one of the swatches. */
   colour: string
   last_synced_at: string | null

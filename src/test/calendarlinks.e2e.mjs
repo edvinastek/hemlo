@@ -4,12 +4,14 @@ import { need, open, signIn, checks, sql, profileOf, today, REF, APP } from './e
 // link stands in for Google's secret address.
 //  1. TEST_FEAT_EMAIL makes a feed link in More → Profile → Calendar links, and
 //     a plain fetch of it (as Google would) has a task as a VEVENT, no notes
-//     until they are turned on, and a wrong token gets 404.
+//     until they are turned on, no planned meal, no profile name, and a wrong
+//     token gets 404.
 //  2. TEST_ONBOARD_EMAIL gets a feed link too (made in SQL as that account),
 //     and TEST_FEAT_EMAIL follows it: its task shows on Today, read-only, with
-//     no copy of it on the server; removing the calendar takes it away.
-// Needs migration 020 and both functions deployed (calendar-feed with JWT
-// checks off, calendar-fetch with them on), and TEST_FEAT_EMAIL,
+//     no copy of it on the server; removing the calendar takes it away and
+//     wipes its address on the server.
+// Needs migrations 020 and 024 and both functions deployed (calendar-feed with
+// JWT checks off, calendar-fetch with them on), and TEST_FEAT_EMAIL,
 // TEST_ONBOARD_EMAIL, TEST_PASSWORD, SB.
 need('TEST_FEAT_EMAIL', 'TEST_ONBOARD_EMAIL', 'TEST_PASSWORD', 'SB')
 const email = process.env.TEST_FEAT_EMAIL
@@ -19,6 +21,7 @@ const { is, failed } = checks()
 const stamp = Date.now()
 const mine = `e2e-feed-${stamp}`
 const theirs = `e2e-follow-${stamp}`
+const meal = `Breakfast: e2e-meal-${stamp} · 143 kcal`
 const day = today()
 
 // A task of each account's: timed, with a note that must stay out of the feed.
@@ -28,6 +31,9 @@ await sql(`delete from public.calendar_subscription where profile_id = ${profile
 await sql(`insert into public.task (profile_id, title, planned_date, planned_time, duration_min, notes) values
   (${profileOf(email)}, '${mine}', '${day}', '10:00', 45, 'secret note ${stamp}'),
   (${profileOf(other)}, '${theirs}', '${day}', '13:00', 30, null)`)
+// A planned meal, the way meals.ts makes one: health data, never in the feed.
+await sql(`insert into public.task (profile_id, title, planned_date, planned_time, duration_min, category, source, module_key) values
+  (${profileOf(email)}, '${meal}', '${day}', '08:00', 20, 'Meal', 'meal', 'nutrition')`)
 // The other account's feed link, made as that account.
 const made = await sql(`select public.rotate_calendar_feed(${profileOf(other)}) as token
   from (select set_config('request.jwt.claims', json_build_object('sub', (select id from auth.users where email = '${other}'),
@@ -62,7 +68,8 @@ let res = await fetch(link)
 let ics = await res.text()
 is('the feed answers 200 as a calendar', `${res.status} ${res.headers.get('content-type')}`, '200 text/calendar; charset=utf-8')
 is('it may be cached for 15 minutes, privately', res.headers.get('cache-control'), 'private, max-age=900')
-is('it names the calendar', /X-WR-CALNAME:GetIt – /.test(ics), true)
+is('it names the calendar just GetIt, without the profile\'s name', /X-WR-CALNAME:GetIt\r\n/.test(ics), true)
+is('a planned meal is not in the feed', [ics.includes(`e2e-meal-${stamp}`), ics.includes('kcal')], [false, false])
 is('the task is a VEVENT at its time', new RegExp(`BEGIN:VEVENT[\\s\\S]*?DTSTART:${day.replace(/-/g, '')}T100000[\\s\\S]*?SUMMARY:${mine}`).test(ics), true)
 is('its note is not in the feed', ics.includes(`secret note ${stamp}`), false)
 is('the other account\'s task is not in it', ics.includes(theirs), false)
@@ -98,7 +105,10 @@ await event.click()
 const sheet = p.locator('.fe-sheet')
 await sheet.waitFor()
 is('it opens read-only: no Save, no Delete', await sheet.getByRole('button', { name: /Save|Delete/ }).count(), 0)
-is('the sheet names the calendar', (await sheet.locator('.fe-from').textContent()).includes('Other'), true)
+// The sheet reads the calendar's name from the device after it opens ("From a
+// calendar you follow" until then), so wait for the name rather than a delay.
+const named = await sheet.locator('.fe-from', { hasText: 'From Other' }).waitFor({ timeout: 10000 }).then(() => true, () => false)
+is('the sheet names the calendar', named, true)
 is('the sheet fits 360 px', await p.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth), true)
 await sheet.getByRole('button', { name: 'Close' }).click()
 await p.waitForTimeout(2000)
@@ -117,6 +127,15 @@ const left = await p.evaluate(async (title) => {
   return rows.filter((e) => e.title === title).length
 }, theirs)
 is('removing the calendar removes its events here', left, 0)
+// The removal reaches the server, which keeps the row (so other devices learn
+// of it) but not the secret address (024).
+let wiped = null
+for (let i = 0; i < 20 && wiped?.[0]?.gone !== true; i++) {
+  if (i) await p.waitForTimeout(500)
+  wiped = await sql(`select deleted_at is not null and url is null as gone from public.calendar_subscription
+    where profile_id = ${profileOf(email)} and name = 'Other' order by created_at desc limit 1`)
+}
+is('removing the calendar wipes its address on the server', wiped?.[0]?.gone, true)
 
 // Turn this account's link off again: the old address stops at once.
 await panel.getByRole('button', { name: 'Turn off' }).click()
@@ -125,7 +144,7 @@ await p.waitForTimeout(1500)
 is('a link turned off gets 404', (await fetch(link)).status, 404)
 
 // Leave nothing behind.
-await sql(`delete from public.task where title in ('${mine}', '${theirs}');
+await sql(`delete from public.task where title in ('${mine}', '${theirs}', '${meal}');
   delete from public.calendar_feed where profile_id = ${profileOf(other)};
   delete from public.calendar_subscription where profile_id = ${profileOf(email)} and name = 'Other'`)
 

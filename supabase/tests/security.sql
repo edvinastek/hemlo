@@ -432,6 +432,35 @@ begin
   end;
   execute 'reset role';
 
+  -- 024: a removed calendar keeps no address; one still followed must have one.
+  perform set_config('role', 'authenticated', true);
+  perform set_config('request.jwt.claims', json_build_object('sub', (select a from _ids), 'role', 'authenticated')::text, true);
+  begin
+    insert into calendar_subscription (profile_id, name, url) select pa, 'No address', null from _ids;
+    insert into _r (check_name, expected, actual) values ('A followed calendar must have an address', 'denied', 'allowed');
+  exception when others then
+    insert into _r (check_name, expected, actual) values ('A followed calendar must have an address', 'denied', 'denied');
+  end;
+  -- The app sends only deleted_at; the server wipes the address.
+  update calendar_subscription set deleted_at = now() where id = (select sub from _feed);
+  insert into _r (check_name, expected, actual) values
+    ('Removing a followed calendar wipes its address', 'empty',
+       (select case when url is null then 'empty' else 'kept' end from calendar_subscription where id = (select sub from _feed)));
+  begin
+    update calendar_subscription set deleted_at = null where id = (select sub from _feed);
+    insert into _r (check_name, expected, actual) values ('A removed calendar cannot come back without an address', 'denied', 'allowed');
+  exception when others then
+    insert into _r (check_name, expected, actual) values ('A removed calendar cannot come back without an address', 'denied', 'denied');
+  end;
+  -- Added and removed on a device that was offline all along: arrives removed, with no address.
+  begin
+    insert into calendar_subscription (profile_id, name, url, deleted_at) select pa, 'Gone at once', null, now() from _ids;
+    insert into _r (check_name, expected, actual) values ('A calendar that arrives removed may have no address', 'allowed', 'allowed');
+  exception when others then
+    insert into _r (check_name, expected, actual) values ('A calendar that arrives removed may have no address', 'allowed', 'denied');
+  end;
+  execute 'reset role';
+
   perform set_config('role', 'anon', true);
   begin
     perform public.rotate_calendar_feed((select pa from _ids));

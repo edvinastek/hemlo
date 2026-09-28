@@ -1,7 +1,7 @@
 // Fetching a calendar someone typed the address of, without letting the
 // address reach anything but the public internet (see index.ts). Kept apart
 // from the handler so it can be tried on its own with Deno.
-import { ipLiteral, isPublicIp, looksLikeCalendar, normaliseCalendarUrl } from '../_shared/calendar-links-rules.ts'
+import { errorKind, ipLiteral, isPublicIp, looksLikeCalendar, normaliseCalendarUrl } from '../_shared/calendar-links-rules.ts'
 
 const MAX_BYTES = 3 * 1024 * 1024
 const TIMEOUT_MS = 10_000
@@ -9,6 +9,17 @@ const MAX_REDIRECTS = 3
 
 /** A reason the person can act on; anything else is reported more vaguely. */
 export class Problem extends Error {}
+
+/** The calendar's server could not be reached or stopped answering. It carries
+ *  only what may be logged: the kind of error and the server's name. Deno's
+ *  own network errors quote the whole address, secret part and all, so they
+ *  never leave this file. */
+export class Unreachable extends Error {
+  constructor(readonly kind: string, readonly host: string) {
+    super(`${kind} at ${host}`)
+    this.name = kind
+  }
+}
 const PRIVATE = 'That address points at a private network, so it cannot be followed.'
 
 /** Hosts known to be public calendar servers (and this project's own, whose
@@ -76,17 +87,27 @@ export async function fetchCalendar(address: string): Promise<string> {
     if (!checked.ok) throw new Problem(checked.error)
     const url = new URL(checked.url)
     await checkHost(url)
-    const res = await fetch(url.href, {
-      redirect: 'manual',
-      signal,
-      headers: { Accept: 'text/calendar, text/plain;q=0.8, */*;q=0.1', 'User-Agent': 'GetIt-calendar/1.0' },
-    })
+    let res: Response
+    try {
+      res = await fetch(url.href, {
+        redirect: 'manual',
+        signal,
+        headers: { Accept: 'text/calendar, text/plain;q=0.8, */*;q=0.1', 'User-Agent': 'GetIt-calendar/1.0' },
+      })
+    } catch (e) {
+      throw new Unreachable(errorKind(e), url.hostname)
+    }
     if ([301, 302, 303, 307, 308].includes(res.status)) {
-      await res.body?.cancel()
+      await res.body?.cancel().catch(() => undefined)
       const next = res.headers.get('location')
       if (!next) throw new Problem('The calendar’s server sent GetIt on without saying where.')
       if (hop >= MAX_REDIRECTS) throw new Problem('The calendar’s server sent GetIt on too many times.')
-      current = new URL(next, url).href
+      try {
+        current = new URL(next, url).href
+      } catch {
+        // The error would quote the address it was sent to.
+        throw new Problem('The calendar’s server sent GetIt on to something that is not an address.')
+      }
       continue
     }
     if (res.status === 404 || res.status === 410) {
@@ -101,7 +122,15 @@ export async function fetchCalendar(address: string): Promise<string> {
       await res.body?.cancel()
       throw new Problem(`The calendar’s server answered ${res.status}. It will be tried again later.`)
     }
-    const text = new TextDecoder('utf-8').decode(await readCapped(res))
+    let bytes: Uint8Array
+    try {
+      bytes = await readCapped(res)
+    } catch (e) {
+      if (e instanceof Problem) throw e
+      // Cut off half-way, or too slow (the 10 seconds ran out while reading).
+      throw new Unreachable(errorKind(e), url.hostname)
+    }
+    const text = new TextDecoder('utf-8').decode(bytes)
     if (!looksLikeCalendar(text)) {
       throw new Problem('That address does not give a calendar file. In Google Calendar, use the “Secret address in iCal format”.')
     }

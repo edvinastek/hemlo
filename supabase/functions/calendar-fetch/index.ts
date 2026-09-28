@@ -14,11 +14,17 @@
 // with the same rules the app tests); at most 3 redirects, each checked the
 // same way; 10 seconds in all; at most 3 MB; and the answer must be a calendar.
 //
+// The address is a secret (anyone with it can read the calendar), so it never
+// goes in a log or in the error kept and shown: a log line names only the kind
+// of error and the server's name (logLine), and every message is passed
+// through withoutAddresses first.
+//
 // Deploy with JWT verification on:
 //   supabase functions deploy calendar-fetch
 // SUPABASE_URL and SUPABASE_ANON_KEY are set by Supabase itself.
 import { createClient } from 'npm:@supabase/supabase-js@2'
-import { Problem, fetchCalendar } from './fetch-calendar.ts'
+import { hostOf, logLine, withoutAddresses } from '../_shared/calendar-links-rules.ts'
+import { Problem, Unreachable, fetchCalendar } from './fetch-calendar.ts'
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 
@@ -51,24 +57,27 @@ Deno.serve(async (req) => {
 
   const { data: sub, error } = await sb.from('calendar_subscription').select('id, url, deleted_at').eq('id', id).maybeSingle()
   if (error) return json({ ok: false, error: 'The calendar could not be read. Try again later.' }, 503)
-  if (!sub || sub.deleted_at) return json({ ok: false, error: 'No such calendar.' }, 404)
+  // A removed calendar has no address left (024).
+  if (!sub || sub.deleted_at || typeof sub.url !== 'string') return json({ ok: false, error: 'No such calendar.' }, 404)
 
   let ics: string | null = null
   let problem: string | null = null
   try {
-    ics = await fetchCalendar(String(sub.url))
+    ics = await fetchCalendar(sub.url)
   } catch (e) {
     if (e instanceof Problem) problem = e.message
-    else if (e instanceof DOMException && (e.name === 'TimeoutError' || e.name === 'AbortError')) {
+    else if (['TimeoutError', 'AbortError'].includes(e instanceof Unreachable ? e.kind : e instanceof DOMException ? e.name : '')) {
       problem = 'The calendar took more than 10 seconds to answer. It will be tried again later.'
     } else {
-      console.error('calendar-fetch', e instanceof Error ? e.message : e)
+      // The server's name, from the hop that failed when known; never the path.
+      console.error(logLine('calendar-fetch', e, e instanceof Unreachable ? e.host : hostOf(sub.url)))
       problem = 'The calendar could not be fetched. It will be tried again later.'
     }
   }
+  if (problem) problem = withoutAddresses(problem).slice(0, 300)
   const at = new Date().toISOString()
   await sb.from('calendar_subscription')
-    .update(problem ? { last_error: problem.slice(0, 300) } : { last_synced_at: at, last_error: null })
+    .update(problem ? { last_error: problem } : { last_synced_at: at, last_error: null })
     .eq('id', id)
   // A calendar that could not be fetched is an answer, not a failure of this
   // function: 200, with the reason for the person to read.
