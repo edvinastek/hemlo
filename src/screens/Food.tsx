@@ -4,7 +4,7 @@ import { format } from 'date-fns'
 import { db } from '../lib/db'
 import { useApp } from '../lib/store'
 import { PageHead } from '../ui/PageHead'
-import { DataTable } from '../ui/DataTable'
+import { BookTable } from '../sections/BookTable'
 import { dayTotals } from '../lib/nutrition'
 import { recipeMacros, mealMultiplier, type Macros } from '../lib/calc'
 import { SLOTS, MAIN_SLOT, slotsFor, planMeal, planQuick, markEaten, macrosFor, setMealTime, type SlotKey } from '../lib/meals'
@@ -21,6 +21,7 @@ import type { FieldDef } from '../modules/types'
 import type { Food as FoodRow, Recipe, RecipeLine, MealPlanSlot, Target } from '../lib/types'
 
 const NUTRIENT_KEYS: string[] = ['kcal', 'protein_g', 'carbs_g', 'fat_g', 'fiber_g']
+const live = (r: object) => !(r as { deleted_at?: string | null }).deleted_at
 
 const SECTIONS = ['Day', 'Recipes', 'Foods']
 
@@ -51,11 +52,15 @@ export function Food() {
   }, [profile?.id, day], null)
 
   const foodMap = useMemo(() => new Map(foods.map((f) => [f.id, f])), [foods])
+  // Deleted rows stay on the device (a planned meal still names its recipe)
+  // but are left off the tables.
+  const liveRecipes = useMemo(() => recipes.filter(live), [recipes])
+  const liveFoods = useMemo(() => foods.filter(live), [foods])
 
   /** Recipe macros are calculated from the lines every time they are shown,
    *  never read from a stored column, so a changed ingredient is reflected at
    *  once — and a figure typed into the old sheet can never contradict them. */
-  const recipeRows = useMemo(() => recipes.map((r) => {
+  const recipeRows = useMemo(() => liveRecipes.map((r) => {
     const m = recipeMacros(lines.filter((l) => l.recipe_id === r.id), foodMap)
     return {
       ...r,
@@ -66,7 +71,7 @@ export function Food() {
       fiber_g: Math.round(m.fiber_g * 10) / 10,
       lines_count: lines.filter((l) => l.recipe_id === r.id).length,
     }
-  }), [recipes, lines, foodMap])
+  }), [liveRecipes, lines, foodMap])
 
   // Columns for the nutrients not tracked are left out, not just narrowed.
   const nutrientColumn = (f: FieldDef) => !NUTRIENT_KEYS.includes(f.name) || shown.includes(f.name as Nutrient)
@@ -79,12 +84,6 @@ export function Food() {
     ...shown.filter((k) => k !== 'kcal').map((k): FieldDef => ({ name: k, label: nutrientLabel(k), type: 'number', unit: 'g', width: 80 })),
   ]
 
-  const filteredFoods = useMemo(() => {
-    const q = search.trim().toLowerCase()
-    const rows = q ? foods.filter((f) => f.name.toLowerCase().includes(q)) : foods
-    return rows.slice(0, 200)
-  }, [foods, search])
-
   return (
     <div className="page">
       <div className="page-inner">
@@ -96,39 +95,39 @@ export function Food() {
         )}
 
         {section === 'Recipes' && (
-          <>
-            <div className="totals"><span><b>{recipes.length}</b> recipes · macros calculated from the ingredient lines</span></div>
-            <DataTable
-              fields={recipeFields}
-              priority={narrowColumns}
-              rows={recipeRows}
-              emptyNote="No recipes yet — import them from your Excel file in More."
-            />
-          </>
+          <BookTable
+            kind="recipe"
+            head={<span><b>{liveRecipes.length}</b> recipes · macros calculated from the ingredient lines</span>}
+            fields={recipeFields}
+            priority={narrowColumns}
+            rows={recipeRows}
+            lines={lines}
+            foods={foodMap}
+            emptyNote="No recipes yet — import them from your Excel file in More."
+          />
         )}
 
         {section === 'Foods' && (
-          <>
-            <div className="totals">
-              <span><b>{foods.length}</b> foods in the catalogue</span>
+          <BookTable
+            kind="food"
+            head={<>
+              <span><b>{liveFoods.length}</b> foods in the catalogue</span>
               <input
                 className="btn"
                 placeholder="Search foods"
+                aria-label="Search foods"
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
-                style={{ marginLeft: 'auto', padding: '6px 10px' }}
+                style={{ padding: '6px 10px', minWidth: 0, flex: '1 1 120px' }}
               />
-            </div>
-            <DataTable
-              fields={mod.entities[0].fields.filter(nutrientColumn)}
-              priority={narrowColumns}
-              rows={filteredFoods as never}
-              emptyNote="No food matches that."
-            />
-            {foods.length > filteredFoods.length && (
-              <p className="empty">Showing {filteredFoods.length} of {foods.length}. Search to narrow it.</p>
-            )}
-          </>
+            </>}
+            fields={mod.entities[0].fields.filter(nutrientColumn)}
+            priority={narrowColumns}
+            rows={liveFoods}
+            search={search}
+            limit={200}
+            emptyNote="No food matches that."
+          />
         )}
         <ExportLink source={section === 'Day' ? { dataset: 'm:nutrition:meal_plan_slot', range: { from: day, to: day, label: format(date, 'd MMM yyyy') } }
           : { dataset: section === 'Recipes' ? 'm:nutrition:recipe' : 'm:nutrition:food' }} />
@@ -164,7 +163,7 @@ function MealDay({ profileId, userId, day, recipes, lines, foods, target, eaten,
   }
 
   // Recipes as the picker lists them: own ones tagged, calories per portion.
-  const items: PickItem[] = useMemo(() => recipes.map((r) => ({
+  const items: PickItem[] = useMemo(() => recipes.filter(live).map((r) => ({
     id: r.id, name: r.name,
     tag: userId && r.owner_id === userId ? 'mine' : undefined,
     meta: `${Math.round(macrosFor(r.id, lines, foods).kcal)} kcal per portion`,

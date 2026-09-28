@@ -1,0 +1,111 @@
+/* Recipe and food books, and select mode on the Recipes and Foods tables. */
+
+/* The row of books: chips that scroll sideways on their own when there are
+   many, so the page never does. "Edit book" stays in view at the end. */
+.bk-row { display: flex; align-items: center; gap: var(--space-2); min-width: 0; padding: var(--space-3) var(--space-4) 0; }
+.bk-bar {
+  display: flex; gap: var(--space-2); flex: 1; min-width: 0;
+  overflow-x: auto; scrollbar-width: none; padding-bottom: 2px;
+}
+.bk-bar::-webkit-scrollbar { display: none; }
+.bk-chip {
+  display: inline-flex; align-items: center; gap: 6px; flex: none; max-width: 70vw;
+  min-height: 32px; padding: 4px 12px; border: 1px solid var(--e-rule); border-radius: var(--radius-pill);
+  font-family: var(--font-sans); font-size: 13px; color: var(--e-ink-soft); background: var(--e-paper);
+  white-space: nowrap;
+}
+.bk-chip[aria-pressed="true"] { color: var(--e-ink); background: var(--e-tint); border-color: var(--e-accent); }
+.bk-chip.bk-new { color: var(--e-accent); border-style: dashed; }
+.bk-name { overflow: hidden; text-overflow: ellipsis; min-width: 0; }
+.bk-count { font-size: 11px; color: var(--e-ink-soft); }
+.bk-dot { flex: none; width: 10px; height: 10px; border-radius: var(--radius-pill); background: var(--bk, var(--e-rail)); }
+.bk-dot.is-plain { background: transparent; border: 1px solid var(--e-rail); }
+.bk-edit { flex: none; font-family: var(--font-sans); font-size: 13px; color: var(--e-accent); padding: 6px 2px; }
+
+.bk-select { flex: none; padding: 5px 12px; font-size: 13px; }
+.bk-select:disabled { opacity: 0.5; }
+
+/* Sheets: a book's name and colour; which book to add to; delete. */
+.bk-sheet .form-grid { margin-bottom: var(--space-3); }
+.bk-colours { display: grid; gap: 6px; font-family: var(--font-sans); font-size: 13px; color: var(--e-ink-soft); }
+/* As many 32 px swatches to a line as fit: eight on a 360 px phone. */
+.bk-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(32px, 1fr)); gap: var(--space-2); }
+.bk-pick {
+  aspect-ratio: 1; min-height: 32px; min-width: 0; padding: 0; border-radius: var(--radius-sm);
+  background: var(--mod); border: 2px solid transparent;
+}
+/* No colour: the page with a line through it. */
+.bk-pick.bk-plain {
+  background: linear-gradient(to top right, transparent 46%, var(--e-rail) 46%, var(--e-rail) 54%, transparent 54%), var(--e-paper);
+  border-color: var(--e-rule);
+}
+/* The chosen one is ringed in ink with a gap of page between, so it reads
+   on every swatch and in both themes. */
+.bk-pick[aria-pressed="true"] { border-color: var(--e-paper); outline: 2px solid var(--e-ink); }
+
+.bk-note { font-family: var(--font-sans); font-size: 13px; color: var(--e-ink-soft); margin: var(--space-2) 0; }
+.bk-note.is-bad { color: var(--e-warn); }
+.bk-delete { display: block; margin-top: var(--space-2); color: var(--e-warn); }
+.bk-danger { color: var(--e-warn); border-color: var(--e-warn); }
+.bk-danger:disabled { opacity: 0.5; }
+
+.bk-options { list-style: none; margin: 0 0 var(--space-3); padding: 0; display: grid; gap: 2px; }
+.bk-option {
+  display: grid; grid-template-columns: 10px minmax(0, 1fr) auto; gap: var(--space-3); align-items: center;
+  width: 100%; min-height: 44px; padding: 0 var(--space-3); text-align: left;
+  border-radius: var(--radius-md); font-family: var(--font-sans); font-size: 15px; color: var(--e-ink);
+}
+.bk-option:hover, .bk-option:focus-visible { background: var(--e-tint); }
+.bk-option .bk-name { white-space: nowrap; }
+.bk-option .row-meta { margin: 0; }
+.bk-newrow { display: flex; gap: var(--space-2); min-width: 0; }
+.bk-newrow input {
+  flex: 1; width: 0; min-width: 0; padding: 9px 10px; border: 1px solid var(--e-field-line);
+  border-radius: var(--radius-md); background: var(--e-field); color: var(--e-ink); font-family: var(--font-sans); font-size: 15px;
+}
+.bk-newrow .btn { flex: none; }
+.bk-newrow .btn:disabled { opacity: 0.5; }
+.bk-names { margin: 0 0 var(--space-2); padding-left: var(--space-4); font-family: var(--font-serif); font-size: 15px; }
+.bk-names li { overflow-wrap: anywhere; }
+
+/* Select mode in the table: a tick box first, and the ticked rows tinted. */
+.sheet .pick-cell { width: 40px; padding: 0; text-align: center; }
+.pick-box { display: grid; place-items: center; min-height: var(--row-d); min-width: 40px; cursor: pointer; }
+.sheet td.pick-cell input { width: 18px; height: 18px; margin: 0; padding: 0; }
+.sheet tr.is-pickable { cursor: pointer; }
+.sheet tr.is-picked td { background: var(--e-tint); }
+/* Nothing to pick up as text while a row is being held. */
+.sheet tbody tr { -webkit-touch-callout: none; }
+
+/* The action bar sticks to the bottom of the page, which ends above the
+   page bar, so it is never under it. */
+.sb-bar {
+  position: sticky; bottom: 0; z-index: 6;
+  margin-top: var(--space-3); padding: var(--space-2) var(--space-4) var(--space-3);
+  background: var(--e-paper); border-top: 1px solid var(--e-rule);
+  box-shadow: 0 -6px 12px -10px rgba(0, 0, 0, 0.35);
+  font-family: var(--font-sans);
+}
+.sb-top { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2) var(--space-3); min-width: 0; }
+.sb-count { margin-right: auto; font-size: 13px; color: var(--e-ink-soft); }
+.sb-count b { color: var(--e-ink); font-weight: 600; }
+.sb-top .slot-link:disabled { opacity: 0.5; }
+.sb-done { padding: 6px 14px; }
+.sb-actions { display: flex; flex-wrap: wrap; gap: var(--space-2); margin-top: var(--space-2); min-width: 0; }
+.sb-actions .btn { padding: 7px 10px; font-size: 13px; }
+.sb-actions .btn:disabled { opacity: 0.45; }
+.sb-delete:not(:disabled) { color: var(--e-warn); }
+/* The Export link, as one of the bar's buttons. */
+.sb-bar .sb-export .xl-row { padding: 0; }
+.sb-bar .sb-export .xl-link {
+  font-size: 13px; font-weight: 400; text-decoration: none; color: var(--e-ink);
+  border: 1px solid var(--e-rule); border-radius: var(--radius-md); padding: 7px 10px;
+}
+.sb-status { margin: var(--space-2) 0 0; font-size: 13px; color: var(--e-ink-soft); }
+.sb-status:empty { margin: 0; }
+.sb-status.is-bad { color: var(--e-warn); }
+
+/* While rows are being chosen the add button is hidden, so it never covers
+   the bar, and the page needs no room kept for it. */
+.is-selecting .fab { display: none; }
+.is-selecting .page { padding-bottom: 0; }
