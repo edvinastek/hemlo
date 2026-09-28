@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useMemo, useState, type HTMLAttributes } from 'react'
 import type { FieldDef } from '../modules/types'
 import { evaluateFormula } from '../modules/formula'
 import { useNarrow } from './useNarrow'
@@ -24,13 +24,22 @@ interface Props<T extends { id: string }> {
   openLabel?: (row: T) => string
   /** A cleared number cell sends null rather than 0. */
   emptyAsNull?: boolean
+  /** Select mode: a tick box starts each row, and tapping a row ticks it.
+   *  `selected` holds the ticked rows' ids. */
+  selected?: Set<string>
+  onSelect?: (row: T, on: boolean) => void
+  /** What each tick box is called for a screen reader: "Select Oat bowl". */
+  selectLabel?: (row: T) => string
+  /** Anything else a row needs, such as a long press. */
+  rowProps?: (row: T) => HTMLAttributes<HTMLTableRowElement>
 }
 
 /** A table that behaves like the sheet it came from: edit in place, recalculate
  *  at once, dropdowns wherever a database is referenced, and calculated cells
  *  that are visibly not yours to type in. */
 export function DataTable<T extends { id: string } & Record<string, unknown>>(
-  { fields, priority, editable, rows, lookups = {}, onChange, totals = [], emptyNote, computed, onOpen, openLabel, emptyAsNull }: Props<T>,
+  { fields, priority, editable, rows, lookups = {}, onChange, totals = [], emptyNote, computed, onOpen, openLabel, emptyAsNull,
+    selected, onSelect, selectLabel, rowProps }: Props<T>,
 ) {
   const narrow = useNarrow()
   const shown = narrow && priority
@@ -52,6 +61,7 @@ export function DataTable<T extends { id: string } & Record<string, unknown>>(
       <table className="sheet">
         <thead>
           <tr>
+            {onSelect && <th className="pick-cell" aria-label="Selected" />}
             {shown.map((f) => (
               <th key={f.name} style={{ width: narrow ? undefined : f.width }}>
                 {f.label}{f.unit ? <span style={{ color: 'var(--e-ink-soft)' }}> {f.unit}</span> : null}
@@ -63,6 +73,7 @@ export function DataTable<T extends { id: string } & Record<string, unknown>>(
         <tbody>
           {totalRow && (
             <tr className="total">
+              {onSelect && <td />}
               {shown.map((f, i) => (
                 <td key={f.name} className={totals.includes(f.name as keyof T & string) ? 'calc' : undefined}>
                   {i === 0 ? 'Total' : totals.includes(f.name as keyof T & string)
@@ -73,8 +84,24 @@ export function DataTable<T extends { id: string } & Record<string, unknown>>(
               {onOpen && <td />}
             </tr>
           )}
-          {rows.map((row) => (
-            <tr key={row.id}>
+          {rows.map((row) => {
+            const on = !!selected?.has(row.id)
+            return (
+            <tr key={row.id} {...rowProps?.(row)} className={onSelect ? `is-pickable${on ? ' is-picked' : ''}` : undefined}
+              onClick={onSelect ? (e) => {
+                // A tap anywhere on the row ticks it, except on the box itself
+                // (which ticks on its own) or a cell that can be typed in.
+                const el = (e.target as HTMLElement).closest('input, select, label, button, a') as HTMLInputElement | null
+                if (!el || ((el.tagName === 'INPUT' || el.tagName === 'SELECT') && (el.readOnly || el.disabled) && el.type !== 'checkbox')) onSelect(row, !on)
+              } : undefined}>
+              {onSelect && (
+                <td className="pick-cell">
+                  <label className="pick-box">
+                    <input type="checkbox" checked={on} onChange={(e) => onSelect(row, e.target.checked)}
+                      aria-label={selectLabel ? selectLabel(row) : 'Select'} />
+                  </label>
+                </td>
+              )}
               {shown.map((f) => (
                 <Cell key={f.name} field={f} row={row} lookups={lookups} computed={computed} emptyAsNull={emptyAsNull}
                   onChange={!editable || editable.includes(f.name) ? onChange : undefined} />
@@ -86,7 +113,8 @@ export function DataTable<T extends { id: string } & Record<string, unknown>>(
                 </td>
               )}
             </tr>
-          ))}
+            )
+          })}
         </tbody>
       </table>
     </div>
