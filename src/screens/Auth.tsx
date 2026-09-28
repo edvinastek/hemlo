@@ -4,6 +4,8 @@ import { authRedirect } from '../lib/native'
 import { useApp } from '../lib/store'
 import { POLICY_VERSION } from '../legal/policy'
 import { Privacy } from './Privacy'
+import { addAccount, cancelAdd } from '../lib/accounts'
+import { SavedAccounts } from '../settings/Accounts'
 
 const GOOGLE_ENABLED = import.meta.env.VITE_ENABLE_GOOGLE === 'true'
 const MIN_PASSWORD = 10
@@ -11,8 +13,10 @@ const MIN_PASSWORD = 10
 type Mode = 'in' | 'up' | 'reset'
 
 /** Sign in, create an account, or ask for a password-reset link. Whichever way
- *  someone gets in, the session persists, so the app opens signed in. */
-export function Auth() {
+ *  someone gets in, the session persists, so the app opens signed in.
+ *  With `adding`, it signs in to one more account while another is open
+ *  (More → Data → Account): only signing in, and Cancel goes back. */
+export function Auth({ adding = false }: { adding?: boolean } = {}) {
   const linkNote = useApp((s) => s.linkNote)
   const [mode, setMode] = useState<Mode>('in')
   const [email, setEmail] = useState('')
@@ -34,6 +38,14 @@ export function Auth() {
       // Same words whether or not the address has an account, so this form
       // cannot be used to find out who uses GetIt.
       setNote('If that address has an account, a reset link is on its way. Open it on this device.')
+      return
+    }
+
+    if (adding) {
+      // Checked on the side first: a wrong password leaves the open account open.
+      const problem = await addAccount(email, password)
+      setBusy(false)
+      if (problem) setNote(problem)
       return
     }
 
@@ -67,7 +79,8 @@ export function Auth() {
     })
   }
 
-  const title = mode === 'in' ? 'Sign in to your planner.'
+  const title = adding ? 'Add another account. The one open now stays on this device.'
+    : mode === 'in' ? 'Sign in to your planner.'
     : mode === 'up' ? `Create an account. Passwords are at least ${MIN_PASSWORD} characters.`
     : 'Reset your password.'
 
@@ -77,7 +90,9 @@ export function Auth() {
         <h1 className="page-date" style={{ marginBottom: 4 }}>GetIt</h1>
         <p className="page-sub" style={{ marginBottom: 'var(--space-6)' }}>{title}</p>
 
-        {linkNote && <p className="page-sub" style={{ marginBottom: 'var(--space-4)', color: 'var(--e-ink)' }}>{linkNote}</p>}
+        {!adding && mode === 'in' && <SavedAccounts onPick={(e) => { setEmail(e); setNote('Enter the password for this account.') }} />}
+
+        {linkNote && !adding && <p className="page-sub" style={{ marginBottom: 'var(--space-4)', color: 'var(--e-ink)' }}>{linkNote}</p>}
 
         <form onSubmit={submit} style={{ display: 'grid', gap: 'var(--space-3)' }}>
           <label className="label" style={labelStyle}>
@@ -104,11 +119,11 @@ export function Auth() {
             </label>
           )}
           <button type="submit" disabled={busy || (mode === 'up' && !consent)} style={primary}>
-            {busy ? 'Working…' : mode === 'in' ? 'Sign in' : mode === 'up' ? 'Create account' : 'Send reset link'}
+            {busy ? 'Working…' : adding ? 'Add account' : mode === 'in' ? 'Sign in' : mode === 'up' ? 'Create account' : 'Send reset link'}
           </button>
         </form>
 
-        {GOOGLE_ENABLED && mode !== 'reset' && (
+        {GOOGLE_ENABLED && mode !== 'reset' && !adding && (
           <button onClick={google} style={{ ...primary, background: 'transparent', color: 'var(--e-ink)', border: '1px solid var(--e-rule)', marginTop: 'var(--space-3)' }}>
             Continue with Google
           </button>
@@ -117,9 +132,10 @@ export function Auth() {
         {note && <p className="page-sub" style={{ marginTop: 'var(--space-3)', color: 'var(--e-warn)' }}>{note}</p>}
 
         <div style={{ display: 'grid', gap: 'var(--space-2)', marginTop: 'var(--space-4)', justifyItems: 'start' }}>
-          {mode !== 'in' && <button className="page-sub" style={link} onClick={() => { setMode('in'); setNote(null) }}>Back to sign in</button>}
-          {mode === 'in' && <button className="page-sub" style={link} onClick={() => { setMode('reset'); setNote(null) }}>Forgot your password?</button>}
-          {mode === 'in' && <button className="page-sub" style={link} onClick={() => { setMode('up'); setNote(null) }}>No account yet? Create one</button>}
+          {adding && <button className="page-sub" style={link} onClick={cancelAdd}>Cancel</button>}
+          {!adding && mode !== 'in' && <button className="page-sub" style={link} onClick={() => { setMode('in'); setNote(null) }}>Back to sign in</button>}
+          {!adding && mode === 'in' && <button className="page-sub" style={link} onClick={() => { setMode('reset'); setNote(null) }}>Forgot your password?</button>}
+          {!adding && mode === 'in' && <button className="page-sub" style={link} onClick={() => { setMode('up'); setNote(null) }}>No account yet? Create one</button>}
         </div>
       </div>
     </div>

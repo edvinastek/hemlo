@@ -21,6 +21,8 @@ import { readSettings } from './lib/settings'
 import { ModulePage } from './modules/ModulePage'
 import { usePages, pageForPath, pageAllowed, neighbour, type Pages } from './lib/pages'
 import { useSwipe } from './ui/useSwipe'
+import { useAccounts, watchAccounts } from './lib/accounts'
+import { Switching } from './screens/Switching'
 
 export default function App() {
   const { session, profile, recovering, setSession, setProfile, setProfiles } = useApp()
@@ -42,7 +44,10 @@ export default function App() {
 
   // Email links (confirmation, password reset) arrive once, at start-up or
   // while the app is open.
-  useEffect(() => { listenForAuthLinks(); watchLifecycle() }, [])
+  // The accounts kept on this device follow the open one (see accounts.ts).
+  useEffect(() => { listenForAuthLinks(); watchLifecycle(); watchAccounts() }, [])
+  const switching = useAccounts((s) => s.switching)
+  const adding = useAccounts((s) => s.adding)
 
   // Whenever the active profile changes (or first arrives), set its reminders.
   useEffect(() => { if (profile) void refreshPlan() }, [profile?.id, profile?.ai_persona_name])
@@ -112,6 +117,8 @@ export default function App() {
   // Setup is complete once a target exists: that is the first thing in the app
   // that cannot exist without a height, a weight and a goal.
   const [setupDone, setSetupDone] = useState(false)
+  // Another account opened on this device has its own first run.
+  useEffect(() => { setSetupDone(false) }, [session?.user.id])
   const needsSetup = useLiveQuery(async () => {
     if (!profile || setupDone) return false
     if (readSettings(profile).onboarded) return false
@@ -126,8 +133,11 @@ export default function App() {
   if (!hasCredentials) {
     return <div className="empty">No Supabase credentials. Copy .env.example to .env and fill it in.</div>
   }
+  // Changing accounts covers everything until the other account's profile is in.
+  if (switching) return <Switching userId={switching.userId} name={switching.name} />
   if (!session) return <Auth />
   if (recovering) return <SetPassword />
+  if (adding) return <Auth adding />
 
   // Until the profile has landed and it is known whether setup is done, show
   // nothing that could be tapped: a new account would otherwise glimpse an
