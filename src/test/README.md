@@ -75,6 +75,12 @@ Types, then every check that needs nothing but Node. CI runs the same command.
   recently used first, at most five with the open one counted), addresses masked as `e•••@gmail.com`, what storage
   gives back cleaned (no tokens in a browser), the screens never given a token, and what switching or adding needs
   (online, nothing waiting to be sent; the phone's unlock with a screen lock and a saved token, the password otherwise).
+- `products` — supermarket products from Open Food Facts: barcodes (EAN-13, EAN-8, UPC-A and UPC-E, the check digit,
+  one spelling per product), a product from a lookup or either search read into a food's figures per 100 g (kcal
+  worked out from kJ when that is all there is, fibre's other spellings, unknown left unknown, never salt or sugar),
+  the pack size from grams, millilitres or "6 x 50 g", shop names tidied ("Ah" is Albert Heijn), the food row it
+  becomes and finding one already kept (or deleted) with that barcode, packs into grams for stock, shared prices
+  (the latest per shop, per kilo, the day, offers), and the limiter and cache that keep under Open Food Facts' limits.
 
 ## Browser checks
 
@@ -87,7 +93,7 @@ export SB=<Supabase access token>  TEST_PASSWORD=<random>
 export TEST_EMAIL=e2e-a@example.invalid TEST_NEW_EMAIL=e2e-b@example.invalid TEST_FEAT_EMAIL=e2e-c@example.invalid
 export TEST_ONBOARD_EMAIL=e2e-d@example.invalid TEST_MODULES_EMAIL=e2e-e@example.invalid
 node scripts/test-accounts.mjs create $TEST_EMAIL $TEST_NEW_EMAIL $TEST_FEAT_EMAIL $TEST_ONBOARD_EMAIL $TEST_MODULES_EMAIL
-for t in onboarding features offline privacy tracking widget tasksheet repeat reorder food stock daytabs modules views nav holidays stats transfer books sharing accounts calendarlinks landscape layout tour; do node src/test/$t.e2e.mjs || break; done
+for t in onboarding features offline privacy tracking widget tasksheet repeat reorder food stock daytabs modules views nav holidays stats transfer books sharing accounts calendarlinks products landscape layout tour; do node src/test/$t.e2e.mjs || break; done
 node scripts/test-accounts.mjs delete $TEST_EMAIL $TEST_NEW_EMAIL $TEST_FEAT_EMAIL $TEST_ONBOARD_EMAIL $TEST_MODULES_EMAIL
 ```
 
@@ -160,9 +166,15 @@ to the test accounts, because they run against the live project.
   each account's own task on Today and never the other's, a wrong password and going offline changing nothing,
   the second account removed, and no token ever written to the browser's storage.
 
+- `products` (uses `TEST_FEAT_EMAIL`; needs migration 021; asks Open Food Facts for real, three searches and lookups
+  at most) — at 360 px: "hagelslag" found through Find in stores with a Dutch shop listed, one added to the
+  account's foods (in Postgres with its barcode and source 'off'); its barcode typed in the scan sheet opens the
+  food already kept instead of adding a second; the product page's prices section shows prices or "No shared
+  prices yet", with both attribution lines; nothing runs off the side.
+
 ## Database — `supabase/test.sh`
 
-Runs `supabase/tests/security.sql`: 73 checks on the database — reading another
+Runs `supabase/tests/security.sql`: 80 checks on the database — reading another
 account's data, taking over a household, writing to shared catalogue rows,
 signing up uninvited, deleting an account and what it leaves behind, calendar
 links (a feed link only its owner can make, whose hash no one can read back or
@@ -171,5 +183,6 @@ only, and an event unable to hang off someone else's calendar), and recipe
 sharing: a proposal no one else can read, an owner who cannot approve their own
 or call the review, a reviewer (one of the throwaway users, made one for the run)
 who can, an approved recipe changed and sent back, the reviewer list readable
-only for your own row. It runs in
+only for your own row; and scanned products (021): another account's cannot be read or changed, the same product
+kept once per person, a barcode that is not 8 to 14 digits or a picture link that is not https refused. It runs in
 a transaction that rolls back, so it is safe against the live project.

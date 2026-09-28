@@ -17,6 +17,7 @@ import { SearchPick, type PickItem } from '../ui/SearchPick'
 import { Dropdown } from '../ui/Dropdown'
 import { ExportLink } from '../ui/ExportLink'
 import { MyRecipes } from '../ui/MyRecipes'
+import { FindProducts } from '../ui/ProductSearch'
 import { moduleByKey } from '../modules/registry'
 import type { FieldDef } from '../modules/types'
 import { useBuiltinRuleOn } from '../modules/rule-switch'
@@ -112,6 +113,7 @@ export function Food() {
           </>
         )}
 
+        {section === 'Foods' && <FindProducts onShow={setSearch} />}
         {section === 'Foods' && (
           <BookTable
             kind="food"

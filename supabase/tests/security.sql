@@ -53,6 +53,9 @@ update _ids set shared = (select id from r);
 insert into recipe_line (recipe_id, food_id, grams_per_portion)
 select shared, (select id from food where owner_id is null limit 1), 120 from _ids;
 insert into food (owner_id, name, kcal) select a, 'A''s own oats', 380 from _ids;
+-- A supermarket product A scanned (021).
+insert into food (owner_id, name, kcal, barcode, brand, source, source_ref)
+select a, 'A''s scanned hagelslag', 428, '8710496979125', 'De Ruijter', 'off', '8710496979125' from _ids;
 insert into app_admin (user_id) select m from _ids;
 
 -- As B, the stranger ---------------------------------------------------------
@@ -102,6 +105,38 @@ begin
     insert into _r (check_name, expected, actual) values ('B cannot join A''s household', 'denied', 'allowed');
   exception when others then
     insert into _r (check_name, expected, actual) values ('B cannot join A''s household', 'denied', 'denied');
+  end;
+
+  -- Scanned products (021): A's stays A's; B may scan the same one for
+  -- themselves; nonsense in the barcode is refused.
+  insert into _r (check_name, expected, actual) values
+    ('B cannot read A''s scanned food', '0', (select count(*) from food where barcode = '8710496979125')::text);
+  update food set name = 'renamed by B' where barcode = '8710496979125';
+  get diagnostics n = row_count;
+  insert into _r (check_name, expected, actual) values ('B cannot change A''s scanned food', '0', n::text);
+  begin
+    insert into food (owner_id, name, barcode, source) values ((select b from _ids), 'B''s own hagelslag', '8710496979125', 'off');
+    insert into _r (check_name, expected, actual) values ('B can keep the same product as their own food', 'allowed', 'allowed');
+  exception when others then
+    insert into _r (check_name, expected, actual) values ('B can keep the same product as their own food', 'allowed', 'denied');
+  end;
+  begin
+    insert into food (owner_id, name, barcode, source) values ((select b from _ids), 'B''s second hagelslag', '8710496979125', 'off');
+    insert into _r (check_name, expected, actual) values ('One live food per barcode per person', 'denied', 'allowed');
+  exception when others then
+    insert into _r (check_name, expected, actual) values ('One live food per barcode per person', 'denied', 'denied');
+  end;
+  begin
+    insert into food (owner_id, name, barcode) values ((select b from _ids), 'Bad code', '87104969791a5');
+    insert into _r (check_name, expected, actual) values ('A barcode that is not 8 to 14 digits is refused', 'denied', 'allowed');
+  exception when others then
+    insert into _r (check_name, expected, actual) values ('A barcode that is not 8 to 14 digits is refused', 'denied', 'denied');
+  end;
+  begin
+    insert into food (owner_id, name, image_url) values ((select b from _ids), 'Bad picture', 'http://example.com/x.jpg');
+    insert into _r (check_name, expected, actual) values ('A picture link that is not https is refused', 'denied', 'allowed');
+  exception when others then
+    insert into _r (check_name, expected, actual) values ('A picture link that is not https is refused', 'denied', 'denied');
   end;
 
   execute 'reset role';
@@ -422,6 +457,7 @@ insert into _r (check_name, expected, actual) values
   ('Deleting removes their tasks', '0', (select count(*) from task where title = 'A private task')::text),
   ('Deleting removes their weight log', '0', (select count(*) from body_log where profile_id = (select pa from _ids))::text),
   ('Deleting removes their own recipes', '0', (select count(*) from recipe where name = 'A secret recipe')::text),
+  ('Deleting removes the products they scanned', '0', (select count(*) from food where name = 'A''s scanned hagelslag')::text),
   ('Deleting removes the recipes they shared too', '0', (select count(*) from recipe where id = (select shared from _ids))::text),
   ('Deleting removes the modules they built', '0', (select count(*) from module where key = 'u_secrettest1')::text),
   ('Deleting removes them from the invite list', '0', (select count(*) from private.signup_allowlist where email = 'sec-a@test.local')::text),

@@ -75,6 +75,16 @@ export interface Food {
   cook_yield: number | null
   pack_size_g: number | null
   store_section: string | null
+  /** Where the row came from: 'catalogue', 'import', or 'off' for a product
+   *  added from Open Food Facts. */
+  source?: string | null
+  /** A supermarket product's barcode, brand, shops and picture (021). */
+  barcode?: string | null
+  brand?: string | null
+  stores?: string[] | null
+  source_ref?: string | null
+  image_url?: string | null
+  deleted_at?: string | null
 }
 
 export interface Recipe {
