@@ -23,7 +23,7 @@
       }
     ],
     "security": {
-      "csp": "default-src 'self'; connect-src 'self' https://lphysuemxnmcuukzsoya.supabase.co wss://lphysuemxnmcuukzsoya.supabase.co; style-src 'self' 'unsafe-inline'; font-src 'self' data:; img-src 'self' data:"
+      "csp": "default-src 'self'; connect-src 'self' https://lphysuemxnmcuukzsoya.supabase.co wss://lphysuemxnmcuukzsoya.supabase.co https://world.openfoodfacts.org https://prices.openfoodfacts.org; style-src 'self' 'unsafe-inline'; font-src 'self' data:; img-src 'self' data: https://images.openfoodfacts.org https://static.openfoodfacts.org"
     }
   },
   "bundle": {

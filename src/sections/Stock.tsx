@@ -9,6 +9,7 @@ import {
   type StockView, type Unit,
 } from '../lib/stock-rules'
 import { SearchPick, type PickItem } from '../ui/SearchPick'
+import { ScanToStock } from '../ui/ProductSearch'
 import type { Food, Profile, Stock } from '../lib/types'
 import './stock.css'
 
@@ -42,6 +43,7 @@ export function StockPanel({ profile }: { profile: Profile }) {
   return (
     <>
       <StockAdd householdId={householdId} foods={foods} items={items} />
+      <ScanToStock householdId={householdId} />
 
       {items.length > 0 && (
         <>

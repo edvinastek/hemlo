@@ -1,0 +1,87 @@
+/* Supermarket products: the Foods tab's "Find in stores" and "Scan barcode",
+   the Stock tab's "Scan to add", and the sheet they open. Sized for a 360 px
+   phone: text columns shrink and wrap, numbers and buttons never do. Colours
+   are the page's own tokens, so light and dark both follow. */
+
+.pf-bar { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2); padding: var(--space-3) var(--space-4) 0; }
+.pf-bar .btn { min-height: 40px; }
+.pf-bar .stock-hint { flex-basis: 100%; }
+
+.pf-sheet { display: grid; gap: var(--space-3); }
+.pf-head { display: flex; align-items: center; justify-content: space-between; gap: var(--space-2); }
+.pf-head h2 { margin: 0; }
+.pf-head .slot-link { min-height: 44px; padding: 0 var(--space-2); }
+
+.pf-search { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: var(--space-2); align-items: end; }
+.pf-search input { width: 100%; min-width: 0; min-height: 44px; padding: 8px 10px; font-size: 16px; box-sizing: border-box; }
+.pf-search .btn { min-height: 44px; }
+.pf-label { display: grid; gap: 4px; min-width: 0; font-family: var(--font-sans); font-size: 13px; color: var(--e-ink-soft); }
+.bs-type .pf-note { grid-column: 1 / -1; }
+
+.pf-actions { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--space-2); }
+.pf-actions .btn { min-height: 40px; }
+
+.pf-note { margin: 0; font-family: var(--font-sans); font-size: 13px; color: var(--e-ink-soft); }
+.pf-note.is-bad { color: var(--e-warn); }
+
+.pf-results { list-style: none; margin: 0; padding: 0; display: grid; }
+.pf-results li + li { border-top: 1px solid var(--e-rule); }
+.pf-hit {
+  display: grid; grid-template-columns: 48px minmax(0, 1fr) auto; gap: var(--space-3); align-items: center;
+  width: 100%; min-height: 64px; padding: var(--space-2) var(--space-1); text-align: left; color: var(--e-ink);
+  border-radius: var(--radius-md);
+}
+.pf-hit:hover, .pf-hit:focus-visible { background: var(--e-tint); }
+.pf-hit-text { display: grid; min-width: 0; }
+.pf-hit-name { font-family: var(--font-serif); font-size: 15px; overflow-wrap: anywhere; }
+.pf-stores { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.pf-hit-kcal { display: grid; justify-items: end; gap: 2px; font-family: var(--font-sans); font-size: 15px; font-variant-numeric: tabular-nums; }
+.pf-hit-kcal small { font-size: 11px; color: var(--e-ink-soft); white-space: nowrap; }
+
+.pf-thumb {
+  width: 48px; height: 48px; object-fit: contain; border-radius: var(--radius-sm);
+  background: var(--e-tint); border: 1px solid var(--e-rule);
+}
+.pf-thumb.is-empty { display: block; }
+
+.pf-credit { margin: 0; font-family: var(--font-sans); font-size: 12px; color: var(--e-ink-soft); line-height: 1.5; }
+.pf-credit a { color: var(--e-accent); text-decoration: underline; }
+
+.pf-page { display: grid; gap: var(--space-3); min-width: 0; }
+.pf-page > .slot-link { justify-self: start; min-height: 40px; }
+.pf-title { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: var(--space-3); align-items: start; }
+.pf-title > div { min-width: 0; }
+.pf-photo {
+  width: 72px; height: 72px; object-fit: contain; border-radius: var(--radius-md);
+  background: var(--e-tint); border: 1px solid var(--e-rule);
+}
+.pf-name { margin: 0; font-family: var(--font-serif); font-size: 18px; font-weight: 500; overflow-wrap: anywhere; }
+
+.pf-facts { width: 100%; border-collapse: collapse; font-family: var(--font-sans); font-size: 14px; }
+.pf-facts caption { text-align: left; font-size: 12px; color: var(--e-ink-soft); padding-bottom: 4px; }
+.pf-facts th { text-align: left; font-weight: 400; color: var(--e-ink-soft); padding: 4px 0; }
+.pf-facts td { text-align: right; font-variant-numeric: tabular-nums; padding: 4px 0; }
+.pf-facts tr + tr { border-top: 1px solid var(--e-rule); }
+
+.pf-line { margin: 0; font-family: var(--font-sans); font-size: 14px; overflow-wrap: anywhere; }
+.pf-line b { font-weight: 500; color: var(--e-ink-soft); margin-right: 4px; }
+
+.pf-prices h4 { margin: 0 0 var(--space-1); font-family: var(--font-sans); font-size: 13px; font-weight: 500; color: var(--e-ink-soft); }
+.pf-prices ul { list-style: none; margin: 0; padding: 0; display: grid; gap: var(--space-2); }
+.pf-prices li { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 0 var(--space-2); font-family: var(--font-sans); font-size: 14px; }
+.pf-prices li .row-meta { grid-column: 1 / -1; }
+.pf-shop { min-width: 0; overflow-wrap: anywhere; }
+.pf-price { font-variant-numeric: tabular-nums; white-space: nowrap; }
+
+.pf-do .btn, .pf-page .sheet-actions .btn { min-height: 44px; }
+.pf-amount { grid-template-columns: minmax(0, 1fr) auto; }
+.pf-amount input { min-width: 0; width: 100%; min-height: 44px; padding: 8px 10px; font-size: 16px; box-sizing: border-box; }
+.pf-amount .stock-units button { min-height: 44px; }
+
+.bs { display: grid; gap: var(--space-3); }
+.bs > .slot-link { justify-self: start; }
+.bs-camera { display: grid; gap: var(--space-2); }
+.bs-camera video {
+  width: 100%; max-height: 45vh; aspect-ratio: 4 / 3; object-fit: cover; background: #000;
+  border-radius: var(--radius-md);
+}
