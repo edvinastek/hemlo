@@ -153,11 +153,12 @@ to the test accounts, because they run against the live project.
 
 ## Database — `supabase/test.sh`
 
-Runs `supabase/tests/security.sql`: 56 checks on the database — reading another
+Runs `supabase/tests/security.sql`: 63 checks on the database — reading another
 account's data, taking over a household, writing to shared catalogue rows,
 signing up uninvited, deleting an account and what it leaves behind, and recipe
 sharing: a proposal no one else can read, an owner who cannot approve their own
 or call the review, a reviewer (one of the throwaway users, made one for the run)
 who can, an approved recipe changed and sent back, the reviewer list readable
-only for your own row. It runs in
+only for your own row; and scanned products (021): another account's cannot be read or changed, the same product
+kept once per person, a barcode that is not 8 to 14 digits or a picture link that is not https refused. It runs in
 a transaction that rolls back, so it is safe against the live project.
