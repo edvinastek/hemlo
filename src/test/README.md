@@ -84,7 +84,7 @@ export SB=<Supabase access token>  TEST_PASSWORD=<random>
 export TEST_EMAIL=e2e-a@example.invalid TEST_NEW_EMAIL=e2e-b@example.invalid TEST_FEAT_EMAIL=e2e-c@example.invalid
 export TEST_ONBOARD_EMAIL=e2e-d@example.invalid TEST_MODULES_EMAIL=e2e-e@example.invalid
 node scripts/test-accounts.mjs create $TEST_EMAIL $TEST_NEW_EMAIL $TEST_FEAT_EMAIL $TEST_ONBOARD_EMAIL $TEST_MODULES_EMAIL
-for t in onboarding features offline privacy tracking widget tasksheet repeat reorder food stock daytabs modules views nav holidays stats transfer books sharing accounts landscape layout tour; do node src/test/$t.e2e.mjs || break; done
+for t in onboarding features offline privacy tracking widget tasksheet repeat reorder food stock daytabs modules views nav holidays stats transfer books sharing accounts products landscape layout tour; do node src/test/$t.e2e.mjs || break; done
 node scripts/test-accounts.mjs delete $TEST_EMAIL $TEST_NEW_EMAIL $TEST_FEAT_EMAIL $TEST_ONBOARD_EMAIL $TEST_MODULES_EMAIL
 ```
 
@@ -150,6 +150,12 @@ to the test accounts, because they run against the live project.
   second account added from More → Data → Account, switching back and forth with nothing waiting to be sent,
   each account's own task on Today and never the other's, a wrong password and going offline changing nothing,
   the second account removed, and no token ever written to the browser's storage.
+
+- `products` (uses `TEST_FEAT_EMAIL`; needs migration 021; asks Open Food Facts for real, three searches and lookups
+  at most) — at 360 px: "hagelslag" found through Find in stores with a Dutch shop listed, one added to the
+  account's foods (in Postgres with its barcode and source 'off'); its barcode typed in the scan sheet opens the
+  food already kept instead of adding a second; the product page's prices section shows prices or "No shared
+  prices yet", with both attribution lines; nothing runs off the side.
 
 ## Database — `supabase/test.sh`
 
