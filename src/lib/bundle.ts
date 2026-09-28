@@ -9,7 +9,7 @@ import { withoutReview } from './sharing-rules'
 const TABLES = [
   'profile', 'task', 'target', 'body_log', 'food_log', 'meal_plan_slot', 'module_instance',
   'series', 'habit', 'supplement',
-  'module_record', 'calendar_event', 'goal', 'sleep_log', 'workout_log',
+  'module_record', 'calendar_event', 'goal', 'sleep_log', 'workout_log', 'calendar_subscription',
 ] as const
 
 /** Rows that belong to the profile through a parent row rather than directly. */
@@ -33,6 +33,10 @@ export async function exportBundle(profileId: string): Promise<Blob> {
     const rows = await (db as never as Record<string, { toArray: () => Promise<Record<string, unknown>[]> }>)[table].toArray()
     records[table] = table === 'profile' ? rows : rows.filter((r) => r.profile_id === profileId)
   }
+  // Events from a calendar the person follows are that calendar's, not
+  // GetIt's: the calendar (its address) is in the file, and its events are
+  // fetched again wherever the file is read back in.
+  records.calendar_event = records.calendar_event.filter((r) => !(r as { subscription_id?: string | null }).subscription_id)
   for (const { table, parent, key } of CHILDREN) {
     const parents = new Set((records[parent] as { id: string }[]).map((p) => p.id))
     const rows = await (db as never as Record<string, { toArray: () => Promise<Record<string, unknown>[]> }>)[table].toArray()
@@ -166,7 +170,7 @@ export async function importBundle(file: File, profileId: string, userId: string
   }
   // Built modules before their switches and records point at them.
   for (const r of rows('module')) await put('module', r, { created_by: userId, builtin: false })
-  const order = ['series', 'habit', 'supplement', 'module_instance', 'goal', 'calendar_event', 'sleep_log', 'workout_log',
+  const order = ['series', 'habit', 'supplement', 'module_instance', 'goal', 'calendar_subscription', 'calendar_event', 'sleep_log', 'workout_log',
     'module_record', 'target', 'body_log', 'task', 'food_log', 'meal_plan_slot']
   for (const name of order) {
     for (const r of rows(name)) await put(name, r, { profile_id: profileId })

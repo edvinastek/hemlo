@@ -71,6 +71,13 @@ export interface StatsSettings {
   show_disabled: boolean
 }
 
+/** Calendar links (More → Profile → Calendar links). */
+export interface CalendarSettings {
+  /** Put task notes in the feed link Google Calendar reads. Off by default:
+   *  a link passed on by mistake would show them to whoever has it. */
+  feed_notes: boolean
+}
+
 export interface ProfileSettings {
   /** Set when first-run setup is finished; targets are no longer the sign. */
   onboarded: boolean
@@ -90,6 +97,7 @@ export interface ProfileSettings {
   colours: ColourSettings
   holidays: HolidaySettings
   stats: StatsSettings
+  calendar: CalendarSettings
   /** Recipe and food books: named lists on the Recipes and Foods tabs, at
    *  most 50. Checked strictly in books-rules.ts. */
   books: Book[]
@@ -108,6 +116,7 @@ export const DEFAULT_SETTINGS: ProfileSettings = {
   colours: { on: true, modules: {} },
   holidays: { countries: [], colours: {} },
   stats: { show_disabled: false },
+  calendar: { feed_notes: false },
   books: [],
 }
 
@@ -162,6 +171,7 @@ export function readSettings(profile: Pick<Profile, 'settings'> | null | undefin
     colours: readColours(s.colours, d.colours),
     holidays: readHolidays(s.holidays),
     stats: { show_disabled: bool((s.stats as Partial<StatsSettings> | undefined)?.show_disabled, d.stats.show_disabled) },
+    calendar: { feed_notes: bool((s.calendar as Partial<CalendarSettings> | undefined)?.feed_notes, d.calendar.feed_notes) },
     books: readBooks(s.books),
   }
 }
@@ -211,9 +221,10 @@ function readHolidays(v: unknown): HolidaySettings {
 /** Settings with a change laid over them, as the value to store. Nested
  *  objects merge one level deep, so changing the work start keeps the end.
  *  Lists (nutrients, books) are replaced whole: `books` is the full new list. */
-export type SettingsChange = Partial<Omit<ProfileSettings, 'work' | 'commute' | 'nav' | 'colours' | 'holidays' | 'stats'>> & {
+export type SettingsChange = Partial<Omit<ProfileSettings, 'work' | 'commute' | 'nav' | 'colours' | 'holidays' | 'stats' | 'calendar'>> & {
   holidays?: Partial<HolidaySettings>
   stats?: Partial<StatsSettings>
+  calendar?: Partial<CalendarSettings>
   work?: Partial<WorkHours>
   commute?: Partial<Commute>
   nav?: Partial<NavSettings>
@@ -229,6 +240,7 @@ export function mergeSettings(current: ProfileSettings, change: SettingsChange):
   if (change.colours) next.colours = { ...current.colours, ...change.colours }
   if (change.holidays) next.holidays = { ...current.holidays, ...change.holidays }
   if (change.stats) next.stats = { ...current.stats, ...change.stats }
+  if (change.calendar) next.calendar = { ...current.calendar, ...change.calendar }
   return readSettings({ settings: next })
 }
 

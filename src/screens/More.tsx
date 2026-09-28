@@ -16,6 +16,7 @@ import { FoodSettings } from '../settings/FoodSettings'
 import { NavSettings } from '../settings/NavSettings'
 import { ColourSettings } from '../settings/ColourSettings'
 import { HolidaySettings } from '../settings/HolidaySettings'
+import { CalendarLinks } from '../settings/CalendarLinks'
 import { TransferSettings } from '../settings/TransferSettings'
 import { RecipeReview } from '../settings/RecipeReview'
 import { Accounts } from '../settings/Accounts'
@@ -28,7 +29,8 @@ import type { ImportPlan, ImportSummary } from '../lib/import'
 const SECTIONS = ['Modules', 'Profile', 'Reminders', 'Data']
 
 export function More() {
-  const [section, setSection] = useState('Modules')
+  // ?section=Profile opens that tab (a followed event's "Open subscription settings").
+  const [section, setSection] = useState(() => SECTIONS.find((s) => s === new URLSearchParams(window.location.search).get('section')) ?? 'Modules')
   const [editing, setEditing] = useState<string | null>(null)
 
   return (
@@ -148,6 +150,7 @@ function ProfilePanel() {
       <PlanningSettings />
       <ColourSettings />
       <HolidaySettings />
+      <CalendarLinks />
       <p className="section-title">Body and goal</p>
       <Field label="Height" value={String(profile.height_cm ?? '')} unit="cm"
         onSave={(v) => edit('profile', profile, { height_cm: Number(v) })} />

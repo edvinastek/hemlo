@@ -34,6 +34,7 @@ export function privacySections(): Section[] {
         'Your profile: a name, sex, date of birth, height, activity level, goal, time zone and the times your day starts and ends.',
         'Health and fitness details you enter: weigh-ins and waist measurements, calorie and protein targets, what you plan to eat and what you ate, training sessions and sets, and, if you turn those modules on, sleep, habits and supplements.',
         'Your plan: tasks, notes, goals, calendar events, recipes you add, shopping lists and what is in stock.',
+        'If you follow a calendar (More → Profile → Calendar links): its name, colour and secret address, and when it was last fetched. If you make a link for Google Calendar: only a scrambled form (a hash) of the link, from which the link cannot be worked out.',
         'When you agreed to the storing of your health details, and to which version of this policy.',
         'Technical logs of requests to the server, including your IP address and the type of device or browser, kept for security.',
         'GetIt has no advertising, no analytics, no tracking and no third-party code that receives your data. It never sells your data or shares it for anyone else’s use.',
@@ -63,7 +64,9 @@ export function privacySections(): Section[] {
       body: [
         'No one else. Access is enforced by the database itself, not only by the app. If you share a household, its members share the stock list and shopping trips; your profile, health details and plan stay private to you.',
         'The one exception is a recipe you choose to propose to everyone. The app’s owner reads it first, with the name on your profile, to approve or decline it. Once approved, everyone signed in to GetIt can see the recipe and its ingredients, without your name. It stops being shared when you set it back to Only me or delete it, and it is deleted with your account.',
-        'Google, which distributes the app through Google Play, receives nothing you enter in GetIt.',
+        'Google, which distributes the app through Google Play, receives nothing you enter in GetIt, unless you choose to link a calendar, as below.',
+        'Calendar links, only if you make one. A link to show GetIt in Google Calendar lets whoever has it read the titles, times, sections and places of your tasks and calendar events from three months back to a year ahead, and your task notes only if you turn that on. Nothing else: no health details, no food, no weight. You give it to Google Calendar yourself; Google then fetches it every few hours and keeps what it reads under its own terms. Anyone you pass the link to can read it too, so keep it private; making a new link or turning it off stops the old one at once.',
+        'A calendar you follow is fetched by GetIt’s server function at Supabase from the address you pasted, because a phone’s browser may not fetch it directly. The address is stored with your account, readable only by you (encrypted at rest by Supabase, like everything else), so your other devices can follow it too. The events themselves are kept only on your device(s), never on GetIt’s server, and only from three months back to a year ahead. Removing the calendar removes its events from GetIt.',
       ],
     },
     {

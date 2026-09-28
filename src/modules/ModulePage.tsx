@@ -18,6 +18,8 @@ import { CalendarView, ListView, TableView, Totals } from './views'
 import { BoardView } from './views/Board'
 import { GridView } from './views/Grid'
 import { ChartView } from './views/Chart'
+import { FollowedSheet } from '../ui/FollowedEvents'
+import type { CalendarEvent } from '../lib/types'
 import './modules.css'
 
 /** Modules whose page is a section the app already has. */
@@ -193,7 +195,10 @@ function Generic({ def, profileId, onEdit }: { def: ModuleDef; profileId: string
       {type !== 'form' && (
         <button type="button" className="fab" aria-label={`Add ${noun}`} onClick={() => add()}>+</button>
       )}
-      {sheet && (
+      {/* An event from a calendar the person follows is shown, not edited. */}
+      {sheet?.rec?.row.subscription_id ? (
+        <FollowedSheet event={sheet.rec.row as unknown as CalendarEvent} onClose={() => setSheet(null)} />
+      ) : sheet && (
         <RecordSheet key={sheet.rec?.id ?? `new-${sheet.day ?? ''}`} def={def} entity={sheetEntity} profileId={profileId}
           rec={sheet.rec} day={sheet.day} lookups={lookups} onClose={() => setSheet(null)} />
       )}

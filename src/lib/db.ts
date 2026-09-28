@@ -3,7 +3,7 @@ import type {
   Profile, Task, Food, Recipe, RecipeLine, Target, BodyLog,
   FoodLogEntry, MealPlanSlot, ModuleInstance, PendingChange, ConflictEntry,
   Series, SeriesException, Habit, HabitLog, Supplement, SupplementLog, Stock,
-  ModuleRow, ModuleRecord, CalendarEvent, Goal, SleepLog, WorkoutLog,
+  ModuleRow, ModuleRecord, CalendarEvent, CalendarSubscription, Goal, SleepLog, WorkoutLog,
 } from './types'
 
 /** The local copy. Every device holds the whole account, so the app works
@@ -29,6 +29,7 @@ class GetItDB extends Dexie {
   module!: Table<ModuleRow, string>
   module_record!: Table<ModuleRecord, string>
   calendar_event!: Table<CalendarEvent, string>
+  calendar_subscription!: Table<CalendarSubscription, string>
   goal!: Table<Goal, string>
   sleep_log!: Table<SleepLog, string>
   workout_log!: Table<WorkoutLog, string>
@@ -89,6 +90,12 @@ class GetItDB extends Dexie {
       goal: 'id, profile_id',
       sleep_log: 'id, profile_id, log_date, [profile_id+log_date]',
       workout_log: 'id, profile_id, log_date',
+    })
+    // Version 6: calendars the person follows, and their events found by
+    // which calendar they came from (migration 020).
+    this.version(6).stores({
+      calendar_event: 'id, profile_id, starts_at, subscription_id',
+      calendar_subscription: 'id, profile_id',
     })
   }
 }
