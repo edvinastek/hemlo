@@ -69,7 +69,9 @@ is('Postgres has the imported entry', server?.[0]?.c, 'Groceries, weekly')
 // 4. The same file again: every row is already here.
 await p.locator('.tx input[type=file]').setInputFiles(csvPath)
 await p.getByText(/already here/).first().waitFor({ timeout: 10000 })
-is('a second import adds nothing', await p.getByRole('button', { name: /^Import 0 rows$/ }).count(), 1)
+// The preview settles once every row has been compared with what is here.
+await p.getByRole('button', { name: /^Import 0 rows$/ }).waitFor({ timeout: 10000 }).catch(() => {})
+is('a second import adds nothing', await p.getByRole('button', { name: /^Import \d+ rows?$/ }).first().textContent().catch(() => 'no button'), 'Import 0 rows')
 await p.getByRole('button', { name: 'Cancel' }).click()
 
 // 5. A calendar file into Tasks.

@@ -22,7 +22,13 @@ function fakeAndroid(startTicks) {
     LocalNotifications: ['checkPermissions', 'requestPermissions', 'getPending', 'cancel', 'schedule', 'createChannel',
       'registerActionTypes', 'addListener', 'removeListener', 'removeAllListeners'],
     GetItWidget: ['update', 'takeTicks', 'clear', 'addListener', 'removeListener'],
+    // The saved-accounts list lives in the phone's secure storage; this
+    // stand-in holds it in memory. Without a stand-in, the plugin's own
+    // fallback calls itself until the page crashes.
+    SecureStorage: ['setSynchronizeKeychain', 'internalGetItem', 'internalSetItem', 'internalRemoveItem',
+      'internalClearItemsWithPrefix', 'internalGetPrefixedKeys'],
   }
+  const secure = {}
   const state = { snapshot: null, ticks: startTicks, calls: [], listeners: {} }
   window.__widget = state
   window.androidBridge = { postMessage() {} }
@@ -43,6 +49,13 @@ function fakeAndroid(startTicks) {
         if (method === 'update') { state.snapshot = JSON.parse(options.snapshot); return undefined }
         if (method === 'takeTicks') { const t = state.ticks; state.ticks = []; return { ticks: t } }
         if (method === 'clear') { state.snapshot = null; state.ticks = []; return undefined }
+      }
+      if (plugin === 'SecureStorage') {
+        if (method === 'internalGetItem') return { data: secure[options.prefixedKey] ?? null }
+        if (method === 'internalSetItem') { secure[options.prefixedKey] = options.data; return undefined }
+        if (method === 'internalRemoveItem') { const had = options.prefixedKey in secure; delete secure[options.prefixedKey]; return { success: had } }
+        if (method === 'internalGetPrefixedKeys') return { keys: Object.keys(secure).filter((k) => k.startsWith(options.prefix)) }
+        return undefined
       }
       if (plugin === 'LocalNotifications') {
         if (method === 'checkPermissions' || method === 'requestPermissions') return { display: 'granted' }
