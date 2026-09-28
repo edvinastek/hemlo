@@ -276,7 +276,7 @@ export async function pull(ids: string[]): Promise<number> {
   if (profileIds.length === 0) return 0
 
   let count = remoteProfiles?.length ?? 0
-  for (const table of [...SYNCED, ...CHILDREN, ...CATALOGUE]) {
+  const pullTable = async (table: string): Promise<void> => {
     const scoped = (SYNCED as readonly string[]).includes(table)
     const incremental = scoped || (CHILDREN as readonly string[]).includes(table)
     const cursorKey = `cursor:${table}`
@@ -288,7 +288,7 @@ export async function pull(ids: string[]): Promise<number> {
     if (table === 'module') query = query.eq('builtin', false)
     if (cursor) query = query.gt('updated_at', cursor)
     const { data: fetched, error } = await query
-    if (error || !fetched) continue
+    if (error || !fetched) return
     const keyCol = KEY_COLUMN[table]
     let data = (keyCol ? (fetched as Row[]).map((r) => ({ ...r, id: String(r[keyCol]) })) : fetched) as Row[]
     if (table === 'recipe') {
@@ -334,7 +334,24 @@ export async function pull(ids: string[]): Promise<number> {
     }
     if (incremental && newest) await setMeta(cursorKey, newest)
   }
+
+  // Tables are asked for a few at a time rather than one after another: one
+  // by one, a sync took seconds on every start. Recipe lines come last, as
+  // they are kept only for recipes this device already holds.
+  const first = [...SYNCED, ...CHILDREN, ...CATALOGUE].filter((t) => t !== 'recipe_line')
+  await inBatches(first, PULL_PARALLEL, pullTable)
+  await pullTable('recipe_line')
   return count
+}
+
+/** How many tables a pull asks for at once. */
+const PULL_PARALLEL = 6
+
+/** Runs `fn` over `items`, at most `size` at a time. */
+async function inBatches<T>(items: readonly T[], size: number, fn: (item: T) => Promise<void>) {
+  let next = 0
+  const worker = async () => { while (next < items.length) await fn(items[next++]) }
+  await Promise.all(Array.from({ length: Math.min(size, items.length) }, worker))
 }
 
 /** The server sends at most this many rows per request; a shorter answer is

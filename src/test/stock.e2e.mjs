@@ -72,6 +72,7 @@ async function setAmount(name, amount, unit) {
 
 // 1. Add by search, adjust, type an amount.
 await openStock()
+await p.locator('.empty', { hasText: 'Nothing in stock yet' }).waitFor({ timeout: 10000 }).catch(() => {})
 is('an empty cupboard says so', await p.locator('.empty', { hasText: 'Nothing in stock yet' }).count(), 1)
 await add(food.name, '2', 'kg')
 is('the new item is listed in kilos', (await stockRow(food.name).locator('.stock-qty').textContent())?.trim(), '2 kg')

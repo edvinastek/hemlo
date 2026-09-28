@@ -53,7 +53,9 @@ is('the page fits 360 px', (await overflow()).join(', '), '')
 await sheet.getByRole('button', { name: 'Close' }).click()
 is('the unit reached the server', await drained(p), true)
 const saved = await one(`select units from public.food where owner_id = ${user} and name = '${food}'`)
-is('Postgres holds the unit', JSON.stringify(saved.units), JSON.stringify([{ name: 'egg', plural: 'eggs', g: 50 }]))
+// Postgres keeps a JSON object's keys in its own order, so compare them sorted.
+const sorted = (list) => JSON.stringify((list ?? []).map((u) => Object.fromEntries(Object.entries(u).sort())))
+is('Postgres holds the unit', sorted(saved.units), sorted([{ name: 'egg', plural: 'eggs', g: 50 }]))
 
 // 2. A recipe with "2 eggs" a portion.
 await p.click('.tabs button:has-text("Recipes")')
