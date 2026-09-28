@@ -58,6 +58,8 @@ await drained(p)
 await sql(`insert into public.habit (profile_id, name, schedule, active, sort_order)
   values (${me}, 'Stretch', 'daily', true, 0)`)
 await reload()
+// The habit comes down with the next pull; give it a few seconds more.
+for (let i = 0; i < 20 && !(await tabs()).includes('Habits'); i++) await p.waitForTimeout(500)
 is('a habit due today brings the Habits tab', (await tabs()).join(','), 'Today,Habits')
 await p.click('[role=tab]:has-text("Habits")')
 await p.locator('.page', { hasText: 'Stretch' }).first().waitFor({ timeout: 8000 }).catch(() => undefined)

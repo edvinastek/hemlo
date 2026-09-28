@@ -83,7 +83,14 @@ await p.waitForSelector('.bottom-nav', { timeout: 20000 })
 await p.waitForTimeout(1500)
 await drained(p)
 
-let r = await one(`select name, country, city, height_cm, settings from public.profile where id = ${profileOf(email)}`)
+// The answers are saved as the app opens; give the send a moment to start.
+let r = {}
+for (let i = 0; i < 40; i++) {
+  r = await one(`select name, country, city, height_cm, settings from public.profile where id = ${profileOf(email)}`)
+  if (r.settings?.onboarded) break
+  await p.waitForTimeout(500)
+  await drained(p)
+}
 is('name saved', r.name, 'Robin')
 is('country saved as its code', r.country, 'NL')
 is('city saved', r.city, 'Reuver')

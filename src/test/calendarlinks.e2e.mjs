@@ -22,6 +22,9 @@ const theirs = `e2e-follow-${stamp}`
 const day = today()
 
 // A task of each account's: timed, with a note that must stay out of the feed.
+// Followed calendars left by an earlier run go first.
+await sql(`delete from public.calendar_subscription where profile_id = ${profileOf(email)} and name = 'Other';
+  delete from public.calendar_feed where profile_id = ${profileOf(email)}`)
 await sql(`insert into public.task (profile_id, title, planned_date, planned_time, duration_min, notes) values
   (${profileOf(email)}, '${mine}', '${day}', '10:00', 45, 'secret note ${stamp}'),
   (${profileOf(other)}, '${theirs}', '${day}', '13:00', 30, null)`)
