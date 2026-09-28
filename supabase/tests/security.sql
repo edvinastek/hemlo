@@ -317,6 +317,96 @@ begin
   execute 'reset role';
 end $$;
 
+-- Calendar links (020): a feed link only its owner can make, whose secret
+-- part no one can read back, and calendars followed privately ---------------
+create temp table _feed (token text, token2 text, sub uuid);
+grant all on _feed to authenticated, anon;
+insert into _feed default values;
+
+do $$
+declare n int;
+begin
+  -- A makes a feed link and follows a calendar.
+  perform set_config('role', 'authenticated', true);
+  perform set_config('request.jwt.claims', json_build_object('sub', (select a from _ids), 'role', 'authenticated')::text, true);
+  update _feed set token = public.rotate_calendar_feed((select pa from _ids));
+  insert into _r (check_name, expected, actual) values
+    ('A gets a 43-character link token', 'yes',
+       case when (select token from _feed) ~ '^[A-Za-z0-9_-]{43}$' then 'yes' else 'no' end),
+    ('A can see that their feed exists', '1',
+       (select count(*) from (select profile_id, created_at, rotated_at from calendar_feed) f)::text);
+  begin
+    perform token_hash from calendar_feed;
+    insert into _r (check_name, expected, actual) values ('A cannot read their feed''s hash back', 'denied', 'allowed');
+  exception when others then
+    insert into _r (check_name, expected, actual) values ('A cannot read their feed''s hash back', 'denied', 'denied');
+  end;
+  begin
+    update calendar_feed set token_hash = repeat('0', 64) where profile_id = (select pa from _ids);
+    insert into _r (check_name, expected, actual) values ('A cannot set their feed''s hash directly', 'denied', 'allowed');
+  exception when others then
+    insert into _r (check_name, expected, actual) values ('A cannot set their feed''s hash directly', 'denied', 'denied');
+  end;
+  with s as (insert into calendar_subscription (profile_id, name, url)
+             select pa, 'Work', 'https://calendar.google.com/calendar/ical/x/private-y/basic.ics' from _ids returning id)
+  update _feed set sub = (select id from s);
+  insert into calendar_event (profile_id, title, starts_at, subscription_id, external_uid)
+  select pa, 'From Google', now(), (select sub from _feed), 'uid-1@google.com' from _ids;
+  begin
+    insert into calendar_subscription (profile_id, name, url) select pa, 'Plain', 'http://example.com/cal.ics' from _ids;
+    insert into _r (check_name, expected, actual) values ('A followed calendar must be an https address', 'denied', 'allowed');
+  exception when others then
+    insert into _r (check_name, expected, actual) values ('A followed calendar must be an https address', 'denied', 'denied');
+  end;
+  update _feed set token2 = public.rotate_calendar_feed((select pa from _ids));
+  execute 'reset role';
+
+  insert into _r (check_name, expected, actual) values
+    ('Only the hash of the link is stored', 'hash',
+       (select case when token_hash = encode(sha256(convert_to((select token2 from _feed), 'UTF8')), 'hex') then 'hash' else 'other' end
+        from calendar_feed where profile_id = (select pa from _ids))),
+    ('A new link replaces the old one', 'replaced',
+       case when (select token from _feed) <> (select token2 from _feed)
+             and (select count(*) from calendar_feed where profile_id = (select pa from _ids)) = 1 then 'replaced' else 'kept' end);
+
+  -- B, a stranger.
+  perform set_config('role', 'authenticated', true);
+  perform set_config('request.jwt.claims', json_build_object('sub', (select b from _ids), 'role', 'authenticated')::text, true);
+  begin
+    perform public.rotate_calendar_feed((select pa from _ids));
+    insert into _r (check_name, expected, actual) values ('B cannot make a feed link for A''s profile', 'denied', 'allowed');
+  exception when others then
+    insert into _r (check_name, expected, actual) values ('B cannot make a feed link for A''s profile', 'denied', 'denied');
+  end;
+  insert into _r (check_name, expected, actual) values
+    ('B cannot see A''s feed', '0', (select count(*) from (select profile_id from calendar_feed) f)::text),
+    ('B cannot see the calendars A follows', '0', (select count(*) from calendar_subscription)::text),
+    ('B cannot see A''s followed events', '0', (select count(*) from calendar_event where title = 'From Google')::text);
+  delete from calendar_feed where profile_id = (select pa from _ids);
+  get diagnostics n = row_count;
+  insert into _r (check_name, expected, actual) values ('B cannot turn off A''s feed', '0', n::text);
+  update calendar_subscription set url = 'https://evil.example/x.ics' where id = (select sub from _feed);
+  get diagnostics n = row_count;
+  insert into _r (check_name, expected, actual) values ('B cannot change the address A follows', '0', n::text);
+  begin
+    insert into calendar_event (profile_id, title, starts_at, subscription_id, external_uid)
+    values ((select pb from _ids), 'Hung off A''s calendar', now(), (select sub from _feed), 'x');
+    insert into _r (check_name, expected, actual) values ('B cannot hang an event off A''s followed calendar', 'denied', 'allowed');
+  exception when others then
+    insert into _r (check_name, expected, actual) values ('B cannot hang an event off A''s followed calendar', 'denied', 'denied');
+  end;
+  execute 'reset role';
+
+  perform set_config('role', 'anon', true);
+  begin
+    perform public.rotate_calendar_feed((select pa from _ids));
+    insert into _r (check_name, expected, actual) values ('Signed-out callers cannot make a feed link', 'denied', 'allowed');
+  exception when others then
+    insert into _r (check_name, expected, actual) values ('Signed-out callers cannot make a feed link', 'denied', 'denied');
+  end;
+  execute 'reset role';
+end $$;
+
 -- A deletes their account while M is still in the household ------------------
 do $$
 begin
@@ -335,6 +425,8 @@ insert into _r (check_name, expected, actual) values
   ('Deleting removes the recipes they shared too', '0', (select count(*) from recipe where id = (select shared from _ids))::text),
   ('Deleting removes the modules they built', '0', (select count(*) from module where key = 'u_secrettest1')::text),
   ('Deleting removes them from the invite list', '0', (select count(*) from private.signup_allowlist where email = 'sec-a@test.local')::text),
+  ('Deleting removes their feed link', '0', (select count(*) from calendar_feed where profile_id = (select pa from _ids))::text),
+  ('Deleting removes the calendars they follow', '0', (select count(*) from calendar_subscription where profile_id = (select pa from _ids))::text),
   ('A shared household passes to the remaining member', 'M',
      case when (select owner_id from household where id = (select ha from _ids)) = (select m from _ids) then 'M' else 'lost' end),
   ('The remaining member keeps their own profile', '1',

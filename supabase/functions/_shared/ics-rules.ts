@@ -1,3 +1,6 @@
+// Generated from src/lib/ics-rules.ts by scripts/copy-shared.mjs. Do not edit here:
+// change the original and run `node scripts/copy-shared.mjs`.
+
 import { addDays, baseDates, fromDayNumber, toDayNumber, weekdayOf } from './series-rules.ts'
 
 /** Calendar files (.ics, RFC 5545), written and read. Pure: no database, no
