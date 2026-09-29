@@ -139,7 +139,11 @@ await drag(70, strip.y + strip.height / 2, 300, strip.y + strip.height / 2 + 3)
 is('swiping back returns to the first week', await p.locator('.page-date').textContent(), dateBefore)
 await drag(180, 560, 190, 300, 250)
 is('a vertical scroll keeps the page', path(), '/')
-await drag(310, 520, 70, 530)
+// Back to the top and still, so the swipe starts on a row's name rather than
+// on its time buttons (which keep a swipe to themselves).
+await p.evaluate(() => document.querySelector('.page').scrollTo(0, 0))
+await p.waitForTimeout(500)
+await drag(250, 520, 20, 530)
 is('a swipe left on Today reaches Plan', path(), '/plan')
 await drag(60, 520, 300, 530)
 is('a swipe right goes back to Today', path(), '/')
