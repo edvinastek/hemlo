@@ -8,7 +8,7 @@
 // 2026-09-28 is a Monday; 2026-10-25 the clocks go back in Europe.
 import {
   shiftMonths, feedWindow, isFeedToken, feedUrl, FEED_NAME, feedEvents, buildFeed,
-  isHealthTask, isHealthSeries, windowedSeries, HEALTH_MODULES, HEALTH_SECTIONS,
+  isHealthTask, isHealthSeries, errorName, windowedSeries, HEALTH_MODULES, HEALTH_SECTIONS,
   normaliseCalendarUrl, ipLiteral, cleanName, parseIPv4, parseIPv6, isPublicIp,
   eventsFromIcs, eventKey, planReplace, refreshDue, fetchDue, looksLikeCalendar, MAX_URL, REFRESH_MS, RETRY_MS,
   hostOf, errorKind, logLine, withoutAddresses,
@@ -140,6 +140,12 @@ eq('a planned meal, a training task and a weigh-in are health', [
 eq('a work task, a learning task and one with no section are not', [
   isHealthTask({ source: 'manual', category: 'Work' }), isHealthTask({ source: 'module', module_key: 'learning', category: 'Learning' }), isHealthTask({}),
 ], [false, false, false])
+eq('a module the person built never goes in (a mood journal could be health)', [
+  isHealthTask({ source: 'module', module_key: 'u_mood01', category: null }), isHealthSeries({ module_key: 'u_plants22' }),
+], [true, true])
+eq('a mood entry from a built module stays out of the file',
+  buildFeed({ ...healthy, tasks: [task('u-mood', 'Felt anxious all day', '2026-10-02', null, { category: null, source: 'module', module_key: 'u_mood01' })] })
+    .includes('anxious'), false)
 eq('a series is health by its module or its tasks\' section', [
   isHealthSeries({ module_key: 'sleep' }), isHealthSeries({ task_template: { category: 'Meal' } }), isHealthSeries({ module_key: null, task_template: { category: 'Home' } }),
 ], [true, true, false])
@@ -296,6 +302,12 @@ eq('a message without one is left alone', withoutAddresses('The calendar’s ser
 
 // ---- the server functions run these same rules ----------------------------------------------------
 eq('supabase/functions/_shared is up to date (node scripts/copy-shared.mjs)', stale(), [])
+
+eq('a timeout keeps its plain name, so the app can say it took too long', [errorName(new DOMException('x', 'TimeoutError')), errorName({ name: 'Bad name!' })], ['TimeoutError', 'Error'])
+eq('the app\'s own wording keeps "https://"; a real address is taken out', [
+  withoutAddresses('Only secure addresses (https://) can be followed.'),
+  withoutAddresses('error sending request for url (https://calendar.google.com/calendar/ical/x/private-abc/basic.ics)'),
+], ['Only secure addresses (https://) can be followed.', 'error sending request for url (the address)'])
 
 console.log(fail ? `\n${fail} failed` : '\nall checks passed')
 process.exit(fail ? 1 : 0)

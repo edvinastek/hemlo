@@ -172,6 +172,9 @@ export interface ParsedLine {
   /** Set when the amount cannot be right (more than 10 kg a portion): the
    *  line is kept without grams and the preview says so. */
   problem?: string
+  /** For a line read amount-first ("2 eggs"): the whole line, in case it is
+   *  a food whose name starts with a number ("7 Up"). */
+  whole?: string
 }
 
 const GRAMS = /(\d+(?:[.,]\d+)?)\s*g\b/gi
@@ -218,6 +221,7 @@ export function parseIngredientLine(line: string): ParsedLine | null {
   if (!text) return null
   let food: string
   let qty: string | null
+  let whole: string | undefined
   const dash = text.split(/\s[–—-]\s/)
   const tail = dash.length > 1 ? null : /^(.*?\D)\s+(\d+(?:[.,]\d+)?\s*g)$/i.exec(text)
   const lead = new RegExp(`^${AMOUNT_AT_START}\\s*(g|gr|grams?)?\\s+(\\p{L}.*)$`, 'iu').exec(text)
@@ -233,6 +237,7 @@ export function parseIngredientLine(line: string): ParsedLine | null {
     // brackets at the end belong to the amount, not to the food's name.
     food = lead[3].replace(/\s*\(\s*\d+(?:[.,]\d+)?\s*g\s*\)\s*$/i, '')
     qty = lead[2] ? `${lead[1]} g` : text
+    whole = text
   } else {
     food = text
     qty = null
@@ -247,9 +252,9 @@ export function parseIngredientLine(line: string): ParsedLine | null {
   const bare = qty ? leadingAmount(qty) : null
   if (grams === null && qty && bare && !bare.fraction && new RegExp(`^${AMOUNT_AT_START}$`).test(qty)) grams = bare.qty
   if (grams !== null && grams > PORTION_MAX_G) {
-    return { food, grams: null, qty, state: stateOf(food), problem: `${gramsText(grams)} a portion is more than 10 kg` }
+    return { food, grams: null, qty, state: stateOf(food), problem: `${gramsText(grams)} a portion is more than 10 kg`, ...(whole ? { whole } : {}) }
   }
-  return { food, grams: fit(grams, MAX_GRAMS), qty, state: stateOf(food) }
+  return { food, grams: fit(grams, MAX_GRAMS), qty, state: stateOf(food), ...(whole ? { whole } : {}) }
 }
 
 const gramsText = (g: number) => (g >= 1000 ? `${Math.round(g / 100) / 10} kg` : `${g} g`)
@@ -359,8 +364,15 @@ export function planImport(
       ...macros(r),
       updated_at: now, deleted_at: null,
     }
-    const lines = parseIngredients(r.ingredients).map((p, i): LineRowPlan => {
-      const m = matcher.match(p.food)
+    const lines = parseIngredients(r.ingredients).map((read, i): LineRowPlan => {
+      let p = read
+      let m = matcher.match(p.food)
+      // "7 Up" is a food, not seven of "Up": read amount-first, the line is
+      // tried whole when only that matches.
+      if (!m.food && p.whole) {
+        const w = matcher.match(p.whole)
+        if (w.food) { m = w; p = { ...p, food: p.whole, qty: null, grams: null, problem: undefined } }
+      }
       if (m.food) plan.linesMatched++
       else { plan.linesUnmatched++; plan.unmatched.push(p.qty ? `${p.food} – ${p.qty}` : p.food) }
       // raw_text is the food as the recipe says it, which the shopping list

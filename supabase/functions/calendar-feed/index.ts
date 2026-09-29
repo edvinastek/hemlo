@@ -20,7 +20,7 @@
 // by the other. The profile's name is not read at all.
 import { createClient } from 'npm:@supabase/supabase-js@2'
 import {
-  HEALTH_MODULES, HEALTH_SECTIONS, HEALTH_SOURCES, buildFeed, feedWindow, isFeedToken, logLine,
+  HEALTH_MODULES, HEALTH_SECTIONS, HEALTH_SOURCES, buildFeed, feedWindow, isFeedToken, isHealthSeries, logLine,
   type FeedEvent, type FeedException, type FeedSeries, type FeedTask,
 } from '../_shared/calendar-links-rules.ts'
 import { cleanZone, utcToWall } from '../_shared/ics-rules.ts'
@@ -38,6 +38,8 @@ const notFound = () => plain(404, 'Not found')
 // regard to case (ilike with no wildcards); an empty module or section is fine.
 const NOT_HEALTH_SOURCE = `(${HEALTH_SOURCES.join(',')})`
 const NOT_HEALTH_MODULE = `module_key.is.null,module_key.not.in.(${HEALTH_MODULES.join(',')})`
+// Modules people built (u_…): the app cannot tell if they are about health.
+const NOT_BUILT_MODULE = 'module_key.is.null,module_key.not.like.u_*'
 const notHealthSection = (col: string) =>
   `${col}.is.null,and(${HEALTH_SECTIONS.map((c) => `${col}.not.ilike.${c}`).join(',')})`
 
@@ -86,12 +88,14 @@ Deno.serve(async (req) => {
         .select('id, title, planned_date, planned_time, duration_min, notes, category, status, series_id, source, module_key')
         .eq('profile_id', profileId).is('deleted_at', null).neq('status', 'dropped')
         .gte('planned_date', from).lte('planned_date', to)
-        .not('source', 'in', NOT_HEALTH_SOURCE).or(NOT_HEALTH_MODULE).or(notHealthSection('category'))
+        .not('source', 'in', NOT_HEALTH_SOURCE).or(NOT_HEALTH_MODULE).or(NOT_BUILT_MODULE).or(notHealthSection('category'))
         .order('id')),
       all<FeedSeries>(() => db.from('series')
         .select('id, title, rule, rule_config, start_date, end_date, occurrence_count, time_of_day, task_template, active, module_key')
+        // Every active series, health ones too: the rules need to know which
+        // series are about health to leave out their days as well, even a
+        // day whose own section was changed later.
         .eq('profile_id', profileId).is('deleted_at', null).eq('active', true)
-        .or(NOT_HEALTH_MODULE).or(notHealthSection('task_template->>category'))
         .order('id')),
       // A day either side of the window: the window is in the person's zone.
       all<FeedEvent>(() => db.from('calendar_event')
@@ -100,7 +104,7 @@ Deno.serve(async (req) => {
         .gte('starts_at', `${addDays(from, -1)}T00:00:00Z`).lte('starts_at', `${addDays(to, 1)}T23:59:59Z`).order('id')),
     ])
     const exceptions: FeedException[] = []
-    const ids = series.map((s) => s.id)
+    const ids = series.filter((s) => !isHealthSeries(s)).map((s) => s.id)
     for (let i = 0; i < ids.length; i += 100) {
       exceptions.push(...await all<FeedException>(() => db.from('series_exception')
         .select('series_id, exception_date, action, moved_to, changes, deleted_at')

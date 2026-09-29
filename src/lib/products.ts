@@ -215,16 +215,22 @@ export async function newProductId(userId: string, code: string): Promise<string
  *  the server can read them), the same on every device signed in to it.
  *  Made on first need; null while offline before it exists. */
 export async function productSalt(): Promise<string | null> {
+  const ok = (v: unknown): v is string => typeof v === 'string' && /^[0-9a-f]{32}$/.test(v)
   const { data } = await supabase.auth.getSession()
   const user = data.session?.user
   if (!user) return null
-  const have = user.user_metadata?.product_salt
-  if (typeof have === 'string' && /^[0-9a-f]{32}$/.test(have)) return have
+  if (ok(user.user_metadata?.product_salt)) return user.user_metadata.product_salt
   if (!navigator.onLine) return null
-  const fresh = [...crypto.getRandomValues(new Uint8Array(16))].map((b) => b.toString(16).padStart(2, '0')).join('')
-  const { data: saved, error } = await supabase.auth.updateUser({ data: { product_salt: fresh } })
+  // The copy in this device's session can be older than the account: another
+  // device may have made the secret since. Ask the server before making one.
+  const { data: fresh } = await supabase.auth.getUser()
+  if (ok(fresh.user?.user_metadata?.product_salt)) return fresh.user!.user_metadata.product_salt
+  const made = [...crypto.getRandomValues(new Uint8Array(16))].map((b) => b.toString(16).padStart(2, '0')).join('')
+  const { error } = await supabase.auth.updateUser({ data: { product_salt: made } })
   if (error) return null
-  // Another device may have saved one a moment earlier; the answer is the truth.
-  const kept = saved.user?.user_metadata?.product_salt
-  return typeof kept === 'string' ? kept : fresh
+  // Two devices making one in the same second: the last write is the one
+  // kept, so read it back; the sync folds any product made in between.
+  const { data: after } = await supabase.auth.getUser()
+  const kept = after.user?.user_metadata?.product_salt
+  return ok(kept) ? kept : made
 }

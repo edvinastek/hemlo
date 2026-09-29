@@ -1,7 +1,7 @@
 // Fetching a calendar someone typed the address of, without letting the
 // address reach anything but the public internet (see index.ts). Kept apart
 // from the handler so it can be tried on its own with Deno.
-import { errorKind, ipLiteral, isPublicIp, looksLikeCalendar, normaliseCalendarUrl } from '../_shared/calendar-links-rules.ts'
+import { errorName, ipLiteral, isPublicIp, looksLikeCalendar, normaliseCalendarUrl } from '../_shared/calendar-links-rules.ts'
 
 const MAX_BYTES = 3 * 1024 * 1024
 const TIMEOUT_MS = 10_000
@@ -95,7 +95,7 @@ export async function fetchCalendar(address: string): Promise<string> {
         headers: { Accept: 'text/calendar, text/plain;q=0.8, */*;q=0.1', 'User-Agent': 'GetIt-calendar/1.0' },
       })
     } catch (e) {
-      throw new Unreachable(errorKind(e), url.hostname)
+      throw new Unreachable(errorName(e), url.hostname)
     }
     if ([301, 302, 303, 307, 308].includes(res.status)) {
       await res.body?.cancel().catch(() => undefined)
@@ -128,7 +128,7 @@ export async function fetchCalendar(address: string): Promise<string> {
     } catch (e) {
       if (e instanceof Problem) throw e
       // Cut off half-way, or too slow (the 10 seconds ran out while reading).
-      throw new Unreachable(errorKind(e), url.hostname)
+      throw new Unreachable(errorName(e), url.hostname)
     }
     const text = new TextDecoder('utf-8').decode(bytes)
     if (!looksLikeCalendar(text)) {

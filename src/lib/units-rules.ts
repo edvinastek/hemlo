@@ -122,14 +122,16 @@ export function gramsLabel(g: number): string {
 
 /** The fractions a keyboard or a recipe writes as one character. */
 export const VULGAR: Record<string, string> = { '½': '1/2', '¼': '1/4', '¾': '3/4', '⅓': '1/3', '⅔': '2/3', '⅛': '1/8' }
-const VULGAR_CHARS = Object.keys(VULGAR).join('')
 
 /** Fractions written the plain way: "½" is "1/2", "1½" is "1 1/2", and the
  *  fraction slash (⁄) that Unicode's tidying turns "½" into is a slash. Done
  *  before anything else reads the text, so "1½" never becomes "11/2". */
 export function plainFractions(text: string): string {
   return text
-    .replace(new RegExp(`(?:(\\d)\\s*)?([${VULGAR_CHARS}])`, 'g'), (_m, d: string | undefined, f: string) => `${d ? `${d} ` : ''}${VULGAR[f]}`)
+    // Every fraction character Unicode has (¼ ½ ¾ and ⅐ to ⅞): its own
+    // tidy form is "1⁄8", which becomes "1/8" below.
+    .replace(/(?:(\d)\s*)?([\u00BC-\u00BE\u2150-\u215E])/g, (_m, d: string | undefined, f: string) =>
+      `${d ? `${d} ` : ''}${VULGAR[f] ?? f.normalize('NFKC')}`)
     .replace(/\s*⁄\s*/g, '/')
 }
 

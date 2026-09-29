@@ -122,10 +122,16 @@ const HEALTH_MODULE_SET = new Set<string>(HEALTH_MODULES)
 const HEALTH_SECTION_SET = new Set<string>(HEALTH_SECTIONS.map((c) => c.toLowerCase()))
 const HEALTH_SOURCE_SET = new Set<string>(HEALTH_SOURCES)
 
+/** A module the person built (key u_…). The app cannot tell whether it is
+ *  about health (a mood journal is; a plant-watering list is not), so its
+ *  tasks never go in the feed. */
+export const isBuiltModule = (key: string | null | undefined): boolean => /^u_/i.test(key?.trim() ?? '')
+
 /** Is this task about health? Its source, its module or its section says so.
  *  Upper or lower case makes no difference. */
 export function isHealthTask(t: { source?: string | null; module_key?: string | null; category?: string | null }): boolean {
   return HEALTH_SOURCE_SET.has(lower(t.source)) || HEALTH_MODULE_SET.has(lower(t.module_key)) || HEALTH_SECTION_SET.has(lower(t.category))
+    || isBuiltModule(t.module_key)
 }
 
 /** Is this repeating series about health? Its module, or the section its
@@ -539,6 +545,12 @@ export function hostOf(address: unknown): string {
 
 /** What kind of error it was (TypeError, TimeoutError, a database code),
  *  never its message: Deno's network errors quote the whole address. */
+/** Just the error's name (TimeoutError, TypeError…), when it is a plain word. */
+export function errorName(e: unknown): string {
+  const n = (e && typeof e === 'object' ? (e as { name?: unknown }).name : null)
+  return typeof n === 'string' && /^[A-Za-z][A-Za-z0-9]{0,39}$/.test(n) ? n : 'Error'
+}
+
 export function errorKind(e: unknown): string {
   const o = (e && typeof e === 'object' ? e : {}) as { name?: unknown; code?: unknown }
   const name = typeof o.name === 'string' && /^[A-Za-z][A-Za-z0-9]{0,39}$/.test(o.name) ? o.name : null
@@ -556,6 +568,6 @@ export function logLine(where: string, e: unknown, host?: string | null): string
  *  one ever carries a calendar's secret address. */
 export function withoutAddresses(message: string): string {
   return String(message ?? '')
-    .replace(/\b(?:https?|webcals?):\/\/[^\s"'<>()]*/gi, 'the address')
+    .replace(/\b(?:https?|webcals?):\/\/[^\s"'<>()]+/gi, 'the address')
     .replace(/\b[a-z0-9-]+(?:\.[a-z0-9-]+)*\.[a-z]{2,}\/[^\s"'<>()]*/gi, 'the address')
 }

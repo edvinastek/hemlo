@@ -93,7 +93,10 @@ async function syncMealTask(slot: MealPlanSlot, recipe: Recipe | undefined, reti
   const portions = Math.round(slot.portion_multiplier * 10) / 10
   // A counted quick meal keeps the food's name as its label: that food's
   // units say what one weighs, so a stale count shows as grams.
-  const labelled = quick && slot.unit && slot.label ? await db.food.where('name').equals(slot.label).first() : undefined
+  // Of the foods with that name, the one that has this unit.
+  const labelled = quick && slot.unit && slot.label
+    ? (await db.food.where('name').equals(slot.label).toArray()).find((f) => readUnits(f.units).some((u) => u.name === slot.unit))
+    : undefined
   const title = quick
     ? quickTitle(def.label, slot, readUnits(labelled?.units))
     : `${def.label}: ${recipe!.name}${portions !== 1 ? ` (${portions}×)` : ''}`

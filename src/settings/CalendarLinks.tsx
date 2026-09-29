@@ -85,7 +85,7 @@ function FeedPanel({ profile }: { profile: Profile }) {
           <div className="row-name" id="cl-feed-title">Show GetIt in Google Calendar</div>
           <div className="row-meta">
             A private link to your tasks and events, from three months back to a year ahead. Meals, training,
-            weigh-ins and other health details stay out. Google Calendar reads it every few hours; it cannot change
+            weigh-ins, other health details and modules you built stay out. Google Calendar reads it every few hours; it cannot change
             anything here.
           </div>
           <div className="row-meta cl-state" role="status">

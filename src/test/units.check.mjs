@@ -198,5 +198,7 @@ is('millilitres are not either', unitFromText('150ml', [{ name: 'cup', g: 240 }]
 is('a food without units', unitFromText('2 slices', [], null), null)
 is('a word that is no unit of it', unitFromText('2 cups', [egg], null), null)
 
+is('every Unicode fraction reads right: 1⅜, 2⅓, ⅝', [readQty(plainFractions('1⅜')), readQty(plainFractions('2⅓')), readQty(plainFractions('⅝'))], [1.375, 2.333, 0.625])
+
 if (fail) { console.log(`\n${fail} failed`); process.exit(1) }
 console.log('\nall unit checks passed')

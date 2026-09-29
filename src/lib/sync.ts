@@ -290,7 +290,17 @@ async function repoint(table: string, from: string, to: string, sent: number[]) 
       for (const { id, ...change } of changes) await db.pending.update(id, change)
     })
   }
-  const waiting = new Set(pending.filter((p) => !sent.includes(p.id!)).map((p) => `${p.table}:${p.row_id}`))
+  // What each row still waiting to be sent will carry: a moved field its
+  // waiting edit does not carry is queued on its own, or the next pull would
+  // bring the old id back.
+  const waiting = new Map<string, Set<string>>()
+  for (const p of pending) {
+    if (sent.includes(p.id!)) continue
+    const key = `${p.table}:${p.row_id}`
+    const set = waiting.get(key) ?? new Set<string>()
+    for (const f of p.fields ?? Object.keys(p.payload ?? {})) set.add(f)
+    waiting.set(key, set)
+  }
   const at = new Date().toISOString()
   for (const { table: t, fields } of REFERENCES[table] ?? []) {
     const s = store(t)
@@ -299,8 +309,11 @@ async function repoint(table: string, from: string, to: string, sent: number[]) 
       const moved = repointRow(row, fields, from, to)
       if (!moved) continue
       await s.put({ ...row, ...moved })
-      if (!waiting.has(`${t}:${row.id}`)) {
-        await db.pending.add({ table: t, row_id: row.id, op: 'upsert', payload: moved, fields: Object.keys(moved), changed_at: at })
+      const covered = waiting.get(`${t}:${row.id}`) ?? new Set<string>()
+      const missing = Object.keys(moved).filter((f) => !covered.has(f))
+      if (missing.length) {
+        const payload = Object.fromEntries(missing.map((f) => [f, (moved as Record<string, unknown>)[f]]))
+        await db.pending.add({ table: t, row_id: row.id, op: 'upsert', payload, fields: missing, changed_at: at })
       }
     }
   }
