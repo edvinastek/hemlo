@@ -102,6 +102,13 @@ Types, then every check that needs nothing but Node. CI runs the same command.
   it), counts added up only when every line used the same unit, stock kept in a unit and its −/+ by one, Open Food
   Facts' serving sizes ("1 egg (50 g)", "2 biscuits (25 g)", "30g"), the units cell of an export, and a workbook's
   "1 large (50g)" or "2 slices". `books`, `quickfood`, `import`, `products` and `sharing` check their parts too.
+- `schedule` — the one repeat engine (schedule-rules.ts): every rule kind (daily, weekdays, weekends, weekly, every
+  N weeks, monthly, the nth or last weekday of a month, yearly with 29 February, dates, times a week), start and end
+  dates, a habit's day (due, done, met for the week, off), chores (fixed, a set time after last done, flexible),
+  who a chore goes to (rotation each time, each week, least recent), and the plain-words description of each.
+- `search` — the one search: accents and case ignored, every word in any order, starts-with first, own things first,
+  plainer names first, extra text searched, nothing typed A to Z.
+- `afterdone` — "ask after done" templates: the marker line in a note, what Fill in, Skip and Later leave behind.
 
 ## Browser checks
 

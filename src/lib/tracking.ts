@@ -109,3 +109,33 @@ export function toggleSupplement(supplementId: string, day: string): Promise<Sup
     return row
   })
 }
+
+/** Records how much of a count habit was done on a day ("5 of 8 glasses").
+ *  Reaching the target marks the day done; going back under it unmarks it. */
+export function setHabitAmount(habitId: string, day: string, amount: number | null, target: number | null): Promise<HabitLog> {
+  const clean = amount == null || !Number.isFinite(amount) ? null : Math.max(0, Math.round(amount * 100) / 100)
+  const done = clean != null && (target != null && target > 0 ? clean >= target : clean > 0)
+  return serial(`habit:${habitId}:${day}`, async () => {
+    const existing = pickLog(await db.habit_log.where('[habit_id+log_date]').equals([habitId, day]).toArray())
+    if (existing) return edit('habit_log', existing, { amount: clean, done })
+    const row: HabitLog = { id: crypto.randomUUID(), habit_id: habitId, log_date: day, done, amount: clean, updated_at: new Date().toISOString() }
+    await db.habit_log.put(row)
+    await queueChange('habit_log', row, ['habit_id', 'log_date', 'done', 'amount'])
+    return row
+  })
+}
+
+/** Records which lines of a habit's pinned checklist were ticked on a day,
+ *  by their index among the checklist items. The day itself is marked done
+ *  only when `done` says so: ticking the last line asks first (TOD-13). */
+export function setHabitChecks(habitId: string, day: string, checks: number[], done?: boolean): Promise<HabitLog> {
+  const clean = [...new Set(checks.filter((n) => Number.isInteger(n) && n >= 0 && n < 200))].sort((a, b) => a - b)
+  return serial(`habit:${habitId}:${day}`, async () => {
+    const existing = pickLog(await db.habit_log.where('[habit_id+log_date]').equals([habitId, day]).toArray())
+    if (existing) return edit('habit_log', existing, done === undefined ? { checks: clean } : { checks: clean, done })
+    const row: HabitLog = { id: crypto.randomUUID(), habit_id: habitId, log_date: day, done: done ?? false, checks: clean, updated_at: new Date().toISOString() }
+    await db.habit_log.put(row)
+    await queueChange('habit_log', row, ['habit_id', 'log_date', 'done', 'checks'])
+    return row
+  })
+}
