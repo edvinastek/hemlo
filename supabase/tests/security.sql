@@ -607,6 +607,86 @@ begin
        (select (units -> 0 ->> 'name') || ' ' || (units -> 0 ->> 'g') from food where owner_id is null and name = 'Egg Chicken'));
 end $$;
 
+-- Version 16 (026): the household's shopping list and chores, habits' new
+-- fields, and a new account's starting modules.
+do $$
+declare n int; c uuid;
+begin
+  insert into _r (check_name, expected, actual) values
+    ('A new account starts with only the core switched on', 'core',
+       (select string_agg(module_key, ',') from module_instance where profile_id = (select pb from _ids) and enabled));
+
+  -- A writes a shopping item and a chore into the household.
+  perform set_config('role', 'authenticated', true);
+  perform set_config('request.jwt.claims', json_build_object('sub', (select a from _ids), 'role', 'authenticated')::text, true);
+  insert into shopping_entry (household_id, name) select ha, 'Toilet paper' from _ids;
+  insert into chore (household_id, name, rule) select ha, 'Hoover the stairs', 'weekly' from _ids returning id into c;
+  insert into chore_log (chore_id, done_on, done_by) select c, current_date, a from _ids;
+  update habit set rule = 'weekends', note = '- [ ] Hips' where profile_id = (select pa from _ids);
+  begin
+    insert into chore (household_id, name, rule) select ha, 'Bad rule', 'fortnightly-ish' from _ids;
+    insert into _r (check_name, expected, actual) values ('A chore''s rule must be one the app knows', 'denied', 'allowed');
+  exception when others then
+    insert into _r (check_name, expected, actual) values ('A chore''s rule must be one the app knows', 'denied', 'denied');
+  end;
+  begin
+    insert into shopping_entry (household_id) select ha from _ids;
+    insert into _r (check_name, expected, actual) values ('A shopping item must say what it is', 'denied', 'allowed');
+  exception when others then
+    insert into _r (check_name, expected, actual) values ('A shopping item must say what it is', 'denied', 'denied');
+  end;
+  execute 'reset role';
+
+  -- M, a member, shares the list and the chores.
+  perform set_config('role', 'authenticated', true);
+  perform set_config('request.jwt.claims', json_build_object('sub', (select m from _ids), 'role', 'authenticated')::text, true);
+  insert into _r (check_name, expected, actual) values
+    ('A household member sees the shared shopping list', '1', (select count(*) from shopping_entry where name = 'Toilet paper')::text),
+    ('A household member sees the household''s chores', '1', (select count(*) from chore where name = 'Hoover the stairs')::text),
+    ('A household member sees who did a chore', '1', (select count(*) from chore_log where chore_id = c)::text);
+  update shopping_entry set checked = true where name = 'Toilet paper';
+  get diagnostics n = row_count;
+  insert into _r (check_name, expected, actual) values ('A household member can tick a shopping item', '1', n::text);
+  perform public.set_my_member_name((select ha from _ids), 'Mo');
+  execute 'reset role';
+  insert into _r (check_name, expected, actual) values
+    ('A member can name themselves in the household', 'Mo',
+       (select display_name from household_member where user_id = (select m from _ids) and household_id = (select ha from _ids)));
+
+  -- B, a stranger, sees and changes none of it.
+  perform set_config('role', 'authenticated', true);
+  perform set_config('request.jwt.claims', json_build_object('sub', (select b from _ids), 'role', 'authenticated')::text, true);
+  insert into _r (check_name, expected, actual) values
+    ('B cannot read A''s household shopping list', '0', (select count(*) from shopping_entry where name = 'Toilet paper')::text),
+    ('B cannot read A''s household chores', '0', (select count(*) from chore where name = 'Hoover the stairs')::text),
+    ('B cannot read A''s chore log', '0', (select count(*) from chore_log where chore_id = c)::text),
+    ('B cannot read A''s habit note', '0', (select count(*) from habit where note = '- [ ] Hips')::text);
+  update chore set name = 'renamed by B' where id = c;
+  get diagnostics n = row_count;
+  insert into _r (check_name, expected, actual) values ('B cannot change A''s chores', '0', n::text);
+  begin
+    insert into shopping_entry (household_id, name) select ha, 'planted by B' from _ids;
+    insert into _r (check_name, expected, actual) values ('B cannot write into A''s shopping list', 'denied', 'allowed');
+  exception when others then
+    insert into _r (check_name, expected, actual) values ('B cannot write into A''s shopping list', 'denied', 'denied');
+  end;
+  begin
+    insert into chore_log (chore_id, done_on) values (c, current_date - 1);
+    insert into _r (check_name, expected, actual) values ('B cannot log A''s chore as done', 'denied', 'allowed');
+  exception when others then
+    insert into _r (check_name, expected, actual) values ('B cannot log A''s chore as done', 'denied', 'denied');
+  end;
+  perform public.set_my_member_name((select ha from _ids), 'Intruder');
+  execute 'reset role';
+  insert into _r (check_name, expected, actual) values
+    ('B cannot name themselves into A''s household', '0',
+       (select count(*) from household_member where display_name = 'Intruder')::text);
+
+  insert into _r (check_name, expected, actual) values
+    ('The catalogue''s carbohydrate leaves fibre out (EU)', 'eu',
+       (select string_agg(distinct carb_basis, ',') from food where owner_id is null));
+end $$;
+
 -- A deletes their account while M is still in the household ------------------
 do $$
 begin
@@ -630,6 +710,7 @@ insert into _r (check_name, expected, actual) values
   ('Deleting removes the calendars they follow', '0', (select count(*) from calendar_subscription where profile_id = (select pa from _ids))::text),
   ('A shared household passes to the remaining member', 'M',
      case when (select owner_id from household where id = (select ha from _ids)) = (select m from _ids) then 'M' else 'lost' end),
+  ('The household''s chores stay with the remaining member', '1', (select count(*) from chore where name = 'Hoover the stairs')::text),
   ('The remaining member keeps their own profile', '1',
      (select count(*) from profile where user_id = (select m from _ids))::text);
 

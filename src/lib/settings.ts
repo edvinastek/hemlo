@@ -1,5 +1,8 @@
 import type { Profile } from './types'
 import { readBooks, type Book } from './books-rules.ts'
+import { readModuleViews, type ModuleView } from './module-view-rules.ts'
+import { readNoteTemplates, readTaskTemplates, type NoteTemplate, type TaskTemplate } from './template-rules.ts'
+import { readStatsViews, type StatsView } from './stats-view-rules.ts'
 
 /** The choices that shape the app for one person, kept in profile.settings.
  *  Every key is optional in storage and has a default here, so an old or
@@ -78,6 +81,57 @@ export interface CalendarSettings {
   feed_notes: boolean
 }
 
+/** How long a finger rests on a task before it drags, and before it opens
+ *  in place instead (TOD-10). In milliseconds. */
+export interface HoldSettings { drag_ms: number; expand_ms: number }
+
+/** A meal the person names (MEAL-02): none exist until they make some. */
+export interface MealName { key: string; name: string; time: string | null }
+export interface MealSettings {
+  /** Their own meal names, in order. Empty: food is logged by time alone. */
+  names: MealName[]
+  /** Show a card per named meal on Food's Day tab. */
+  cards: boolean
+  /** Which meal the size-to-target suggestion fits (MEAL-04); none: off. */
+  main: string | null
+}
+
+export interface ShoppingTrip {
+  /** Put "Shopping (N items)" on the plan when the list has items (SHOP-20). */
+  on: boolean
+  /** Shopping days, 0 (Sunday) to 6. Empty: the next day. */
+  days: number[]
+  time: string
+  minutes: number
+  locked: boolean
+}
+export interface Shop { name: string; aisles: string[] }
+export interface ShoppingSettings {
+  trip: ShoppingTrip
+  /** How many days of planned meals the list covers when no shopping days are set. */
+  window_days: number
+  /** The shops they use, each with its aisle order (SHOP-32). */
+  shops: Shop[]
+}
+
+export type ThemeMode = 'system' | 'light' | 'dark' | 'black'
+export interface LookSettings {
+  /** A theme key from looks-rules.ts, or 'custom' (built from `seed`). */
+  theme: string
+  mode: ThemeMode
+  seed: string | null
+  icon: string
+  text_size: 'small' | 'default' | 'large' | 'larger'
+}
+
+/** A card pinned to Today (TOD-20): a module's summary or a saved stats view. */
+export interface TodayCard {
+  kind: 'module' | 'stats'
+  key: string
+  size: 'small' | 'large'
+  show: 'always' | 'weekdays' | 'weekends'
+}
+
 export interface ProfileSettings {
   /** Set when first-run setup is finished; targets are no longer the sign. */
   onboarded: boolean
@@ -101,6 +155,16 @@ export interface ProfileSettings {
   /** Recipe and food books: named lists on the Recipes and Foods tabs, at
    *  most 50. Checked strictly in books-rules.ts. */
   books: Book[]
+  /** Where each module shows itself (GEN-03); missing switches take the default. */
+  module_views: Record<string, Partial<ModuleView>>
+  hold: HoldSettings
+  note_templates: NoteTemplate[]
+  task_templates: TaskTemplate[]
+  meals: MealSettings
+  shopping: ShoppingSettings
+  looks: LookSettings
+  today_cards: TodayCard[]
+  stats_views: StatsView[]
 }
 
 export const DEFAULT_SETTINGS: ProfileSettings = {
@@ -118,6 +182,15 @@ export const DEFAULT_SETTINGS: ProfileSettings = {
   stats: { show_disabled: false },
   calendar: { feed_notes: false },
   books: [],
+  module_views: {},
+  hold: { drag_ms: 350, expand_ms: 800 },
+  note_templates: readNoteTemplates(undefined),
+  task_templates: [],
+  meals: { names: [], cards: false, main: null },
+  shopping: { trip: { on: false, days: [], time: '10:00', minutes: 45, locked: false }, window_days: 4, shops: [] },
+  looks: { theme: 'notebook', mode: 'system', seed: null, icon: 'classic', text_size: 'default' },
+  today_cards: [],
+  stats_views: [],
 }
 
 const TIME = /^([01]\d|2[0-3]):[0-5]\d$/
@@ -173,7 +246,129 @@ export function readSettings(profile: Pick<Profile, 'settings'> | null | undefin
     stats: { show_disabled: bool((s.stats as Partial<StatsSettings> | undefined)?.show_disabled, d.stats.show_disabled) },
     calendar: { feed_notes: bool((s.calendar as Partial<CalendarSettings> | undefined)?.feed_notes, d.calendar.feed_notes) },
     books: readBooks(s.books),
+    module_views: readModuleViews(s.module_views),
+    hold: readHold(s.hold),
+    note_templates: readNoteTemplates(s.note_templates),
+    task_templates: readTaskTemplates(s.task_templates),
+    meals: readMeals(s.meals, mealTimes),
+    shopping: readShopping(s.shopping),
+    looks: readLooks(s.looks),
+    today_cards: readTodayCards(s.today_cards),
+    stats_views: readStatsViews(s.stats_views),
   }
+}
+
+function readHold(v: unknown): HoldSettings {
+  const h = (v ?? {}) as Partial<HoldSettings>
+  const ms = (x: unknown, lo: number, hi: number, d: number) => {
+    const n = Number(x)
+    return Number.isFinite(n) ? Math.min(hi, Math.max(lo, Math.round(n))) : d
+  }
+  const drag_ms = ms(h.drag_ms, 150, 1500, 350)
+  // Expanding always takes longer than starting a drag, or the drag could never begin.
+  const expand_ms = Math.max(drag_ms + 200, ms(h.expand_ms, 300, 3000, 800))
+  return { drag_ms, expand_ms }
+}
+
+const MEAL_KEY = /^[a-z0-9_-]{1,24}$/
+const LEGACY_MEALS: { key: MealSlotKey; name: string }[] = [
+  { key: 'breakfast', name: 'Breakfast' }, { key: 'lunch', name: 'Lunch' }, { key: 'snack', name: 'Snack' }, { key: 'dinner', name: 'Dinner' },
+]
+function readMeals(v: unknown, legacyTimes: Partial<Record<MealSlotKey, string>>): MealSettings {
+  const m = v as Partial<MealSettings> | undefined
+  if (!m || typeof m !== 'object' || !Array.isArray(m.names)) {
+    // Before named meals existed, default meal times named the four old
+    // meals; whoever set them keeps them, as cards, so nothing disappears.
+    const kept = LEGACY_MEALS.filter((x) => legacyTimes[x.key])
+    return kept.length
+      ? { names: kept.map((x) => ({ key: x.key, name: x.name, time: legacyTimes[x.key] ?? null })), cards: true, main: kept.some((x) => x.key === 'dinner') ? 'dinner' : null }
+      : { names: [], cards: false, main: null }
+  }
+  const seen = new Set<string>()
+  const names: MealName[] = []
+  for (const x of m.names) {
+    if (!x || typeof x !== 'object') continue
+    const r = x as unknown as Record<string, unknown>
+    const key = typeof r.key === 'string' && MEAL_KEY.test(r.key) ? r.key : null
+    const name = typeof r.name === 'string' && r.name.trim() ? r.name.trim().slice(0, 30) : null
+    if (!key || !name || seen.has(key)) continue
+    seen.add(key)
+    names.push({ key, name, time: time(r.time, '') || null })
+    if (names.length >= 12) break
+  }
+  return {
+    names,
+    cards: bool(m.cards, names.length > 0),
+    main: typeof m.main === 'string' && seen.has(m.main) ? m.main : null,
+  }
+}
+
+function readShopping(v: unknown): ShoppingSettings {
+  const s = (v ?? {}) as Partial<ShoppingSettings>
+  const t = (s.trip ?? {}) as Partial<ShoppingTrip>
+  const d = DEFAULT_SETTINGS.shopping
+  const days = Array.isArray(t.days) ? [...new Set(t.days.filter((x) => Number.isInteger(x) && x >= 0 && x <= 6))].sort() : []
+  const mins = Number(t.minutes)
+  const win = Number(s.window_days)
+  const shops: Shop[] = []
+  if (Array.isArray(s.shops)) {
+    const seen = new Set<string>()
+    for (const x of s.shops) {
+      const name = typeof x?.name === 'string' ? x.name.trim().slice(0, 60) : ''
+      if (!name || seen.has(name.toLowerCase())) continue
+      seen.add(name.toLowerCase())
+      const aisles = Array.isArray(x.aisles)
+        ? [...new Set(x.aisles.filter((a): a is string => typeof a === 'string' && !!a.trim()).map((a) => a.trim().slice(0, 40)))].slice(0, 40)
+        : []
+      shops.push({ name, aisles })
+      if (shops.length >= 20) break
+    }
+  }
+  return {
+    trip: {
+      on: bool(t.on, d.trip.on), days,
+      time: time(t.time, d.trip.time),
+      minutes: Number.isFinite(mins) && mins >= 5 && mins <= 600 ? Math.round(mins) : d.trip.minutes,
+      locked: bool(t.locked, d.trip.locked),
+    },
+    window_days: Number.isFinite(win) && win >= 1 && win <= 28 ? Math.round(win) : d.window_days,
+    shops,
+  }
+}
+
+const MODES: ThemeMode[] = ['system', 'light', 'dark', 'black']
+const TEXT_SIZES: LookSettings['text_size'][] = ['small', 'default', 'large', 'larger']
+function readLooks(v: unknown): LookSettings {
+  const l = (v ?? {}) as Partial<LookSettings>
+  const d = DEFAULT_SETTINGS.looks
+  const word = (x: unknown, fb: string) => (typeof x === 'string' && /^[a-z0-9_-]{1,24}$/.test(x) ? x : fb)
+  return {
+    theme: word(l.theme, d.theme),
+    mode: MODES.includes(l.mode as ThemeMode) ? (l.mode as ThemeMode) : d.mode,
+    seed: typeof l.seed === 'string' && HEX.test(l.seed) ? l.seed.toLowerCase() : null,
+    icon: word(l.icon, d.icon),
+    text_size: TEXT_SIZES.includes(l.text_size as LookSettings['text_size']) ? (l.text_size as LookSettings['text_size']) : d.text_size,
+  }
+}
+
+function readTodayCards(v: unknown): TodayCard[] {
+  if (!Array.isArray(v)) return []
+  const out: TodayCard[] = []
+  const seen = new Set<string>()
+  for (const x of v) {
+    const r = (x ?? {}) as Record<string, unknown>
+    const kind = r.kind === 'module' || r.kind === 'stats' ? r.kind : null
+    const key = typeof r.key === 'string' && /^[a-z0-9_:-]{1,60}$/i.test(r.key) ? r.key : null
+    if (!kind || !key || seen.has(kind + key)) continue
+    seen.add(kind + key)
+    out.push({
+      kind, key,
+      size: r.size === 'large' ? 'large' : 'small',
+      show: r.show === 'weekdays' || r.show === 'weekends' ? r.show : 'always',
+    })
+    if (out.length >= 6) break
+  }
+  return out
 }
 
 const PAGE_KEY = /^(today|plan|more|food|shop|m:[a-z0-9_]{1,40})$/
@@ -221,7 +416,11 @@ function readHolidays(v: unknown): HolidaySettings {
 /** Settings with a change laid over them, as the value to store. Nested
  *  objects merge one level deep, so changing the work start keeps the end.
  *  Lists (nutrients, books) are replaced whole: `books` is the full new list. */
-export type SettingsChange = Partial<Omit<ProfileSettings, 'work' | 'commute' | 'nav' | 'colours' | 'holidays' | 'stats' | 'calendar'>> & {
+export type SettingsChange = Partial<Omit<ProfileSettings, 'work' | 'commute' | 'nav' | 'colours' | 'holidays' | 'stats' | 'calendar' | 'hold' | 'meals' | 'shopping' | 'looks'>> & {
+  hold?: Partial<HoldSettings>
+  meals?: Partial<MealSettings>
+  shopping?: Partial<Omit<ShoppingSettings, 'trip'>> & { trip?: Partial<ShoppingTrip> }
+  looks?: Partial<LookSettings>
   holidays?: Partial<HolidaySettings>
   stats?: Partial<StatsSettings>
   calendar?: Partial<CalendarSettings>
@@ -241,11 +440,24 @@ export function mergeSettings(current: ProfileSettings, change: SettingsChange):
   if (change.holidays) next.holidays = { ...current.holidays, ...change.holidays }
   if (change.stats) next.stats = { ...current.stats, ...change.stats }
   if (change.calendar) next.calendar = { ...current.calendar, ...change.calendar }
+  if (change.hold) next.hold = { ...current.hold, ...change.hold }
+  if (change.meals) next.meals = { ...current.meals, ...change.meals }
+  if (change.shopping) {
+    next.shopping = { ...current.shopping, ...change.shopping, trip: { ...current.shopping.trip, ...(change.shopping.trip ?? {}) } }
+  }
+  if (change.looks) next.looks = { ...current.looks, ...change.looks }
+  // module_views merges per module, so switching one switch keeps the others.
+  if (change.module_views) {
+    const merged = { ...current.module_views }
+    for (const [k, v] of Object.entries(change.module_views)) merged[k] = { ...(merged[k] ?? {}), ...v }
+    next.module_views = merged
+  }
   return readSettings({ settings: next })
 }
 
 /** The time a meal has on a day: its own, else the default, else none. */
 export function mealTime(slot: { slot: string; slot_time?: string | null }, settings: ProfileSettings): string | null {
   if (slot.slot_time) return slot.slot_time.slice(0, 5)
-  return settings.meal_times[slot.slot as MealSlotKey] ?? null
+  return settings.meals.names.find((m) => m.key === slot.slot)?.time
+    ?? settings.meal_times[slot.slot as MealSlotKey] ?? null
 }

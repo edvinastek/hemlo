@@ -4,6 +4,7 @@ import type {
   FoodLogEntry, MealPlanSlot, ModuleInstance, PendingChange, ConflictEntry,
   Series, SeriesException, Habit, HabitLog, Supplement, SupplementLog, Stock,
   ModuleRow, ModuleRecord, CalendarEvent, CalendarSubscription, Goal, SleepLog, WorkoutLog,
+  ShoppingEntry, Chore, ChoreLog,
 } from './types'
 
 /** The local copy. Every device holds the whole account, so the app works
@@ -33,6 +34,9 @@ class GetItDB extends Dexie {
   goal!: Table<Goal, string>
   sleep_log!: Table<SleepLog, string>
   workout_log!: Table<WorkoutLog, string>
+  shopping_entry!: Table<ShoppingEntry, string>
+  chore!: Table<Chore, string>
+  chore_log!: Table<ChoreLog, string>
   pending!: Table<PendingChange, number>
   conflicts!: Table<ConflictEntry, number>
   meta!: Table<{ key: string; value: unknown }, string>
@@ -96,6 +100,14 @@ class GetItDB extends Dexie {
     this.version(6).stores({
       calendar_event: 'id, profile_id, starts_at, subscription_id',
       calendar_subscription: 'id, profile_id',
+    })
+    // Version 7 (026): the household's shopping list and chores; tasks found
+    // by project.
+    this.version(7).stores({
+      task: 'id, profile_id, planned_date, status, [profile_id+planned_date], project_id',
+      shopping_entry: 'id, household_id, plan_key, food_id',
+      chore: 'id, household_id',
+      chore_log: 'id, chore_id, done_on, [chore_id+done_on]',
     })
   }
 }

@@ -237,7 +237,7 @@ export interface SeriesLike {
   id: string
   title: string
   rule: string
-  rule_config: { n?: number; weekdays?: number[]; day_of_month?: number; dates?: string[] }
+  rule_config: { n?: number; weekdays?: number[]; day_of_month?: number; dates?: string[]; nth?: number; weekday?: number; month?: number; day?: number }
   start_date: string
   end_date: string | null
   occurrence_count: number | null
@@ -277,6 +277,7 @@ export function seriesRule(s: SeriesLike, allDay: boolean): { rrule: string | nu
       break
     }
     case 'weekdays': parts = ['FREQ=WEEKLY', 'BYDAY=MO,TU,WE,TH,FR']; break
+    case 'weekends': parts = ['FREQ=WEEKLY', 'BYDAY=SA,SU']; break
     case 'weekly': case 'every_n_weeks': {
       const days = (c.weekdays ?? []).filter((w) => Number.isInteger(w) && w >= 0 && w <= 6)
       const picked = days.length ? days : [weekdayOf(s.start_date)]
@@ -286,12 +287,31 @@ export function seriesRule(s: SeriesLike, allDay: boolean): { rrule: string | nu
       parts = ['FREQ=WEEKLY', ...(n > 1 ? [`INTERVAL=${n}`] : []), `BYDAY=${byday(picked)}`, 'WKST=MO']
       break
     }
+    case 'monthly_nth': {
+      const n = Math.max(1, Math.floor(c.n ?? 1))
+      const wd = Math.min(6, Math.max(0, Math.floor(c.weekday ?? weekdayOf(s.start_date))))
+      const nth = c.nth === -1 ? -1 : Math.min(5, Math.max(1, Math.floor(c.nth ?? Math.ceil(Number(s.start_date.slice(8, 10)) / 7))))
+      parts = ['FREQ=MONTHLY', ...(n > 1 ? [`INTERVAL=${n}`] : []), `BYDAY=${nth}${BYDAY[wd]}`]
+      break
+    }
+    case 'yearly': {
+      const n = Math.max(1, Math.floor(c.n ?? 1))
+      const month = Math.min(12, Math.max(1, Math.floor(c.month ?? Number(s.start_date.slice(5, 7)))))
+      const day = Math.min(31, Math.max(1, Math.floor(c.day ?? Number(s.start_date.slice(8, 10)))))
+      // 29 February falls on the 28th in other years, as the app has it.
+      parts = day === 29 && month === 2
+        ? ['FREQ=YEARLY', ...(n > 1 ? [`INTERVAL=${n}`] : []), 'BYMONTH=2', 'BYMONTHDAY=28,29', 'BYSETPOS=-1']
+        : ['FREQ=YEARLY', ...(n > 1 ? [`INTERVAL=${n}`] : []), `BYMONTH=${month}`, `BYMONTHDAY=${day}`]
+      break
+    }
     case 'monthly': {
       const d = Math.min(31, Math.max(1, Math.floor(c.day_of_month ?? Number(s.start_date.slice(8, 10)))))
       // "The 31st" means the month's last day in a shorter month: the last
       // of the 28th to the 31st that the month has.
-      parts = d <= 28 ? ['FREQ=MONTHLY', `BYMONTHDAY=${d}`]
-        : ['FREQ=MONTHLY', `BYMONTHDAY=${Array.from({ length: d - 27 }, (_, i) => 28 + i).join(',')}`, 'BYSETPOS=-1']
+      const every = Math.max(1, Math.floor(c.n ?? 1))
+      const iv = every > 1 ? [`INTERVAL=${every}`] : []
+      parts = d <= 28 ? ['FREQ=MONTHLY', ...iv, `BYMONTHDAY=${d}`]
+        : ['FREQ=MONTHLY', ...iv, `BYMONTHDAY=${Array.from({ length: d - 27 }, (_, i) => 28 + i).join(',')}`, 'BYSETPOS=-1']
       break
     }
     case 'dates': {

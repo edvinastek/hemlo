@@ -1,4 +1,5 @@
 import type { Series, SeriesException } from './types'
+import { ruleMatches, describeSchedule, weekdayOf as wdOf, type Schedule, type RuleConfig } from './schedule-rules.ts'
 
 /** Pure date logic for recurring series: no database, no React, no clock.
  *
@@ -53,54 +54,10 @@ export function weekdayOf(day: string): number {
   return new Date(toDayNumber(day) * DAY_MS).getUTCDay()
 }
 
-function daysInMonth(year: number, month1: number): number {
-  return new Date(Date.UTC(year, month1, 0)).getUTCDate()
-}
-
-/** Monday of the week the day falls in. Weeks start on Monday here, so an
- *  every-2-weeks series started on a Sunday counts that Sunday in the week
- *  that began the Monday before. */
-function mondayOf(dayNum: number): number {
-  const wd = new Date(dayNum * DAY_MS).getUTCDay()
-  return dayNum - ((wd + 6) % 7)
-}
-
-function chosenWeekdays(s: RuleFields): number[] {
-  const picked = (s.rule_config?.weekdays ?? []).filter((w) => Number.isInteger(w) && w >= 0 && w <= 6)
-  return picked.length ? picked : [weekdayOf(s.start_date)]
-}
-
-/** Does the rule, before any end or count, produce this day? */
+/** Does the rule, before any end or count, produce this day? One engine
+ *  for everything that repeats: see schedule-rules.ts. */
 function matches(s: RuleFields, dayNum: number, startNum: number): boolean {
-  if (dayNum < startNum) return false
-  const date = new Date(dayNum * DAY_MS)
-  const wd = date.getUTCDay()
-  switch (s.rule) {
-    case 'daily': {
-      const n = Math.max(1, Math.floor(s.rule_config?.n ?? 1))
-      return (dayNum - startNum) % n === 0
-    }
-    case 'weekdays':
-      return wd >= 1 && wd <= 5
-    case 'weekly':
-      return chosenWeekdays(s).includes(wd)
-    case 'every_n_weeks': {
-      const n = Math.max(1, Math.floor(s.rule_config?.n ?? 2))
-      const weeks = (mondayOf(dayNum) - mondayOf(startNum)) / 7
-      return weeks % n === 0 && chosenWeekdays(s).includes(wd)
-    }
-    case 'monthly': {
-      // "The 31st" in a shorter month means that month's last day, so a bill
-      // due on the 31st still shows up in February rather than being skipped.
-      const want = s.rule_config?.day_of_month ?? Number(s.start_date.slice(8, 10))
-      const last = daysInMonth(date.getUTCFullYear(), date.getUTCMonth() + 1)
-      return date.getUTCDate() === Math.min(Math.max(1, want), last)
-    }
-    case 'dates':
-      return cleanDates(s.rule_config?.dates).includes(fromDayNumber(dayNum))
-    default:
-      return false
-  }
+  return ruleMatches(s as Schedule, dayNum, startNum)
 }
 
 /** A real calendar day written as 'yyyy-MM-dd' ('2026-02-30' is not one). */
@@ -200,7 +157,8 @@ export function endsBeforeStart(start: string, endDate: string | null): boolean 
 
 /* ---------- the Repeat control ------------------------------------------- */
 
-export type RepeatKind = 'never' | 'daily' | 'every_n_days' | 'weekdays' | 'weekly' | 'biweekly' | 'monthly' | 'dates'
+export type RepeatKind = 'never' | 'daily' | 'every_n_days' | 'weekdays' | 'weekends' | 'weekly' | 'biweekly' | 'every_n_weeks'
+  | 'monthly' | 'monthly_nth' | 'monthly_last' | 'yearly' | 'dates'
 
 /** "Every N days" as a whole number from 2 to MAX_EVERY_N_DAYS; 2 when blank. */
 export function everyN(n: unknown): number {
@@ -216,6 +174,7 @@ export function ruleFromChoice(
   kind: Exclude<RepeatKind, 'never'>, start: string, weekdays: number[] = [],
   extra: { n?: number; dates?: string[] } = {},
 ): Pick<Series, 'rule' | 'rule_config'> {
+  const nth = Math.ceil(Number(start.slice(8, 10)) / 7)
   const days = [...new Set(weekdays)].filter((w) => w >= 0 && w <= 6).sort((a, b) => a - b)
   const picked = days.length ? days : [weekdayOf(start)]
   switch (kind) {
@@ -223,8 +182,13 @@ export function ruleFromChoice(
     case 'every_n_days': return { rule: 'daily', rule_config: { n: everyN(extra.n) } }
     case 'weekdays': return { rule: 'weekdays', rule_config: {} }
     case 'weekly': return { rule: 'weekly', rule_config: { weekdays: picked } }
+    case 'weekends': return { rule: 'weekends', rule_config: {} }
     case 'biweekly': return { rule: 'every_n_weeks', rule_config: { n: 2, weekdays: picked } }
+    case 'every_n_weeks': return { rule: 'every_n_weeks', rule_config: { n: Math.min(52, Math.max(2, Math.floor(extra.n ?? 2))), weekdays: picked } }
     case 'monthly': return { rule: 'monthly', rule_config: { day_of_month: Number(start.slice(8, 10)) } }
+    case 'monthly_nth': return { rule: 'monthly_nth', rule_config: { nth: Math.min(nth, 4), weekday: wdOf(start) } }
+    case 'monthly_last': return { rule: 'monthly_nth', rule_config: { nth: -1, weekday: wdOf(start) } }
+    case 'yearly': return { rule: 'yearly', rule_config: { month: Number(start.slice(5, 7)), day: Number(start.slice(8, 10)) } }
     case 'dates': return { rule: 'dates', rule_config: { dates: cleanDates(extra.dates) } }
   }
 }
@@ -249,11 +213,6 @@ const MONTH_NAMES = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Se
 export const WEEK_ORDER = [1, 2, 3, 4, 5, 6, 0]
 export const dayName = (wd: number) => DAY_NAMES[wd]
 
-function ordinal(n: number): string {
-  const tens = n % 100
-  if (tens >= 11 && tens <= 13) return `${n}th`
-  return `${n}${['th', 'st', 'nd', 'rd'][n % 10] ?? 'th'}`
-}
 
 export function shortDate(day: string): string {
   return `${Number(day.slice(8, 10))} ${MONTH_NAMES[Number(day.slice(5, 7)) - 1]} ${day.slice(0, 4)}`
@@ -261,40 +220,15 @@ export function shortDate(day: string): string {
 
 /** The rule as a sentence a person would write: "Weekly on Mon, Wed until 3 Nov 2026". */
 export function describeRule(s: RuleFields): string {
-  const days = (ws: number[]) => WEEK_ORDER.filter((w) => ws.includes(w)).map(dayName).join(', ')
-  let text: string
-  switch (s.rule) {
-    case 'daily': {
-      const n = s.rule_config?.n ?? 1
-      text = n > 1 ? `Every ${n} days` : 'Every day'
-      break
-    }
-    case 'weekdays': text = 'Weekdays'; break
-    case 'weekly': text = `Weekly on ${days(chosenWeekdays(s))}`; break
-    case 'every_n_weeks': text = `Every ${s.rule_config?.n ?? 2} weeks on ${days(chosenWeekdays(s))}`; break
-    case 'monthly': {
-      const d = s.rule_config?.day_of_month ?? Number(s.start_date.slice(8, 10))
-      text = `Monthly on the ${ordinal(d)}${d > 28 ? ', or the last day of a shorter month' : ''}`
-      break
-    }
-    case 'dates': {
-      // The picked days already say where it ends, so no "until".
-      const dates = cleanDates(s.rule_config?.dates)
-      if (dates.length === 0) return 'No days picked'
-      if (dates.length === 1) return `On ${shortDate(dates[0])}`
-      return `On ${dates.length} picked days, ${shortDate(dates[0])} to ${shortDate(dates[dates.length - 1])}`
-    }
-    default: text = 'Repeats'
-  }
-  if (s.end_date) text += ` until ${shortDate(s.end_date)}`
-  if (s.occurrence_count != null) text += `, ${s.occurrence_count} times`
-  return text
+  return describeSchedule(s as Schedule)
 }
 
 /** Which Repeat choice a stored series corresponds to, to show it in the control. */
 export function choiceFromRule(s: Pick<Series, 'rule' | 'rule_config'>): Exclude<RepeatKind, 'never'> {
-  if (s.rule === 'every_n_weeks') return 'biweekly'
-  if (s.rule === 'daily' && (s.rule_config?.n ?? 1) > 1) return 'every_n_days'
+  const cfg: RuleConfig = s.rule_config ?? {}
+  if (s.rule === 'every_n_weeks') return (cfg.n ?? 2) === 2 ? 'biweekly' : 'every_n_weeks'
+  if (s.rule === 'daily' && (cfg.n ?? 1) > 1) return 'every_n_days'
+  if (s.rule === 'monthly_nth') return cfg.nth === -1 ? 'monthly_last' : 'monthly_nth'
   return s.rule
 }
 

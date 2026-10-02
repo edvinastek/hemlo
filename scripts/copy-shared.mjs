@@ -47,6 +47,7 @@ export function generate() {
     'types.ts': header('types.ts (only the types the rules use)') + cutTypes(read('types.ts')),
     // Deno wants the extension on every relative import.
     'series-rules.ts': header('series-rules.ts') + read('series-rules.ts').replace("from './types'", "from './types.ts'"),
+    'schedule-rules.ts': header('schedule-rules.ts') + read('schedule-rules.ts'),
     'ics-rules.ts': header('ics-rules.ts') + read('ics-rules.ts'),
     'calendar-links-rules.ts': header('calendar-links-rules.ts') + read('calendar-links-rules.ts'),
   }

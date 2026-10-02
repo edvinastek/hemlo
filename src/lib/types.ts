@@ -57,6 +57,8 @@ export interface Task {
   source: 'meal' | 'workout' | 'habit' | 'manual' | 'ai' | 'module' | 'shopping'
   source_ref: UUID | null
   notes: string | null
+  /** The Projects record this task belongs to (026). */
+  project_id?: UUID | null
   updated_at: string
   completed_at: string | null
   deleted_at: string | null
@@ -88,6 +90,21 @@ export interface Food {
    *  (022). Read through readUnits in units-rules.ts; rows from before 022
    *  have none. */
   units?: import('./units-rules').FoodUnit[] | null
+  /** The rest of the EU label, per 100 g or 100 ml (026). Empty is unknown. */
+  kj?: number | null
+  sat_fat_g?: number | null
+  mufa_g?: number | null
+  pufa_g?: number | null
+  sugars_g?: number | null
+  polyols_g?: number | null
+  starch_g?: number | null
+  salt_g?: number | null
+  alcohol_g?: number | null
+  /** Figures are per 100 ml (a drink) rather than per 100 g. */
+  per_ml?: boolean
+  /** 'eu': carbohydrate leaves fibre out, as on an EU label (every row
+   *  since 026). 'us': the older figure that included it. */
+  carb_basis?: 'eu' | 'us'
   deleted_at?: string | null
 }
 
@@ -184,6 +201,11 @@ export interface MealPlanSlot extends UnitAmount {
   status: 'planned' | 'eaten' | 'skipped'
   /** This meal's time on this day; none unless set here or by a default. */
   slot_time?: string | null
+  /** A single food planned as this meal or part of it (026), in the
+   *  amount `grams` (and unit/unit_qty). */
+  food_id?: UUID | null
+  /** Order among the items of the same meal on the same day (026). */
+  sort_order?: number
   /** Planned as plain numbers instead of a recipe ("sandwich, 450 kcal"). */
   label?: string | null
   kcal?: number | null
@@ -212,12 +234,17 @@ export interface Series {
   id: UUID
   profile_id: UUID
   title: string
-  /** daily | weekdays | weekly | every_n_weeks | monthly | dates */
-  rule: 'daily' | 'weekdays' | 'weekly' | 'every_n_weeks' | 'monthly' | 'dates'
-  /** {n: 2, weekdays: [1,3,5], day_of_month: 15} — weekdays are 0 (Sunday) to 6.
-   *  A 'dates' series keeps the days picked by hand in `dates`, as sorted,
-   *  unique 'yyyy-MM-dd' strings (at most 366). */
-  rule_config: { n?: number; weekdays?: number[]; day_of_month?: number; dates?: string[] }
+  /** daily | weekdays | weekends | weekly | every_n_weeks | monthly |
+   *  monthly_nth | yearly | dates (schedule-rules.ts reads every one) */
+  rule: 'daily' | 'weekdays' | 'weekends' | 'weekly' | 'every_n_weeks' | 'monthly' | 'monthly_nth' | 'yearly' | 'dates'
+  /** {n: 2, weekdays: [1,3,5], day_of_month: 15, nth: 2, weekday: 2,
+   *  month: 3} — weekdays are 0 (Sunday) to 6. A 'dates' series keeps the
+   *  days picked by hand in `dates`, as sorted, unique 'yyyy-MM-dd' strings
+   *  (at most 366). */
+  rule_config: {
+    n?: number; weekdays?: number[]; day_of_month?: number; dates?: string[]
+    nth?: number; weekday?: number; month?: number; day?: number; times?: number
+  }
   start_date: string
   end_date: string | null
   occurrence_count: number | null
@@ -245,7 +272,21 @@ export interface Habit {
   id: UUID
   profile_id: UUID
   name: string
+  /** The schedule before 026. Still read when `rule` is empty. */
   schedule: 'daily' | 'weekdays' | 'weekly'
+  /** Any schedule (026), the same shapes a repeating task has plus
+   *  'times_per_week'. Read through schedule-rules.ts. */
+  rule?: import('./schedule-rules').RuleKind | null
+  rule_config?: import('./schedule-rules').RuleConfig
+  start_date?: string | null
+  end_date?: string | null
+  /** 'HH:MM' or 'HH:MM:SS'; none puts it under "Any time". */
+  time_of_day?: string | null
+  /** A note pinned to the habit (the exercises of "Mobility"). */
+  note?: string | null
+  /** A count to reach each time it is due ("8" glasses), and its unit. */
+  target?: number | null
+  unit?: string | null
   sort_order: number
   active: boolean
   updated_at: string
@@ -257,7 +298,71 @@ export interface HabitLog {
   habit_id: UUID
   log_date: string
   done: boolean
+  /** How much of a count habit was done that day (026). */
+  amount?: number | null
+  /** Which lines of the pinned note's checklist were ticked that day, by
+   *  their index among the checklist items (026). */
+  checks?: number[]
   updated_at: string
+}
+
+/** One thing on the household's shopping list (026): written by hand, or a
+ *  tick on an item the meal plan put there (plan_key says which). Shared by
+ *  everyone in the household. */
+export interface ShoppingEntry extends UnitAmount {
+  id: UUID
+  household_id: UUID
+  plan_key: string | null
+  food_id: UUID | null
+  name: string | null
+  qty: number | null
+  grams: number | null
+  note: string | null
+  aisle: string | null
+  shop: string | null
+  checked: boolean
+  checked_at: string | null
+  sort_order: number
+  added_by: UUID | null
+  created_at?: string
+  updated_at: string
+  deleted_at: string | null
+}
+
+/** A household chore (026), shared by the household. */
+export interface Chore {
+  id: UUID
+  household_id: UUID
+  name: string
+  room: string | null
+  /** fixed: on its rule's days; after: every_days after last done;
+   *  flexible: about every every_days, shown by how due it is. */
+  mode: 'fixed' | 'after' | 'flexible'
+  rule: import('./schedule-rules').RuleKind | null
+  rule_config: import('./schedule-rules').RuleConfig
+  every_days: number | null
+  start_date: string | null
+  end_date: string | null
+  time_of_day: string | null
+  minutes: number | null
+  /** Household members (auth user ids) in rotation order. */
+  assignees: UUID[]
+  rotation: 'none' | 'each_time' | 'each_week' | 'least_recent'
+  note: string | null
+  paused: boolean
+  sort_order: number
+  created_at?: string
+  updated_at: string
+  deleted_at: string | null
+}
+
+export interface ChoreLog {
+  id: UUID
+  chore_id: UUID
+  done_on: string
+  done_by: UUID | null
+  updated_at: string
+  deleted_at: string | null
 }
 
 export interface Supplement {

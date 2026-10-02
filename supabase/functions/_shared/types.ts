@@ -33,6 +33,8 @@ export interface Task {
   source: 'meal' | 'workout' | 'habit' | 'manual' | 'ai' | 'module' | 'shopping'
   source_ref: UUID | null
   notes: string | null
+  /** The Projects record this task belongs to (026). */
+  project_id?: UUID | null
   updated_at: string
   completed_at: string | null
   deleted_at: string | null
@@ -42,12 +44,17 @@ export interface Series {
   id: UUID
   profile_id: UUID
   title: string
-  /** daily | weekdays | weekly | every_n_weeks | monthly | dates */
-  rule: 'daily' | 'weekdays' | 'weekly' | 'every_n_weeks' | 'monthly' | 'dates'
-  /** {n: 2, weekdays: [1,3,5], day_of_month: 15} — weekdays are 0 (Sunday) to 6.
-   *  A 'dates' series keeps the days picked by hand in `dates`, as sorted,
-   *  unique 'yyyy-MM-dd' strings (at most 366). */
-  rule_config: { n?: number; weekdays?: number[]; day_of_month?: number; dates?: string[] }
+  /** daily | weekdays | weekends | weekly | every_n_weeks | monthly |
+   *  monthly_nth | yearly | dates (schedule-rules.ts reads every one) */
+  rule: 'daily' | 'weekdays' | 'weekends' | 'weekly' | 'every_n_weeks' | 'monthly' | 'monthly_nth' | 'yearly' | 'dates'
+  /** {n: 2, weekdays: [1,3,5], day_of_month: 15, nth: 2, weekday: 2,
+   *  month: 3} — weekdays are 0 (Sunday) to 6. A 'dates' series keeps the
+   *  days picked by hand in `dates`, as sorted, unique 'yyyy-MM-dd' strings
+   *  (at most 366). */
+  rule_config: {
+    n?: number; weekdays?: number[]; day_of_month?: number; dates?: string[]
+    nth?: number; weekday?: number; month?: number; day?: number; times?: number
+  }
   start_date: string
   end_date: string | null
   occurrence_count: number | null

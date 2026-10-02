@@ -90,7 +90,11 @@ eq('until, timed', seriesRule(s('daily', { end_date: '2026-10-31' }), false).rru
 eq('until, whole days', seriesRule(s('daily', { end_date: '2026-10-31' }), true).rrule, 'FREQ=DAILY;UNTIL=20261031')
 eq('count', seriesRule(s('daily', { occurrence_count: 10 }), false).rrule, 'FREQ=DAILY;COUNT=10')
 eq('custom dates as RDATE', seriesRule(s('dates', { rule_config: { dates: ['2026-10-09', '2026-10-02', 'bad'] } }), false), { rrule: null, rdates: ['2026-10-09'] })
-eq('an unknown rule gives nothing', seriesRule(s('yearly'), false), null)
+eq('an unknown rule gives nothing', seriesRule(s('fortnightly-ish'), false), null)
+eq('yearly is a yearly repeat on its day', seriesRule(s('yearly'), false).rrule, 'FREQ=YEARLY;BYMONTH=9;BYMONTHDAY=28')
+eq('weekends', seriesRule(s('weekends'), false).rrule, 'FREQ=WEEKLY;BYDAY=SA,SU')
+eq('the last Friday', seriesRule({ ...s('monthly_nth'), rule_config: { nth: -1, weekday: 5 } }, false).rrule, 'FREQ=MONTHLY;BYDAY=-1FR')
+eq('every 2 months on the 15th', seriesRule({ ...s('monthly'), rule_config: { day_of_month: 15, n: 2 } }, false).rrule, 'FREQ=MONTHLY;INTERVAL=2;BYMONTHDAY=15')
 eq('first day is the first the rule produces', firstDay(s('weekly', { start_date: '2026-09-27', rule_config: { weekdays: [3] } })), '2026-09-30')
 
 const events = seriesEvents(s('weekly', { rule_config: { weekdays: [1, 3] } }), [

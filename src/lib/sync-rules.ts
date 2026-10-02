@@ -24,12 +24,15 @@ export const NATURAL_KEYS: Record<string, string[]> = {
   sleep_log: ['profile_id', 'log_date'],
   // A scanned product: one live food per barcode per person (021).
   food: ['owner_id', 'barcode'],
+  // A tick on an item the meal plan put on the list: one per item (026).
+  shopping_entry: ['household_id', 'plan_key'],
+  chore_log: ['chore_id', 'done_on'],
 }
 
 /** Tables whose rule only counts rows that are not deleted: the database's
  *  index for them leaves deleted rows out, so a deleted food never blocks
  *  scanning the same product again. */
-export const LIVE_ONLY = new Set(['food'])
+export const LIVE_ONLY = new Set(['food', 'shopping_entry'])
 
 /** The row's natural key as one string, or null when it has none: the table
  *  has no such rule, a part of the key is empty (a food without a barcode),
@@ -75,6 +78,8 @@ export const REFERENCES: Record<string, { table: string; fields: string[] }[]> =
     { table: 'stock', fields: ['food_id'] },
     { table: 'recipe_line', fields: ['food_id'] },
     { table: 'food_log', fields: ['food_id'] },
+    { table: 'shopping_entry', fields: ['food_id'] },
+    { table: 'meal_plan_slot', fields: ['food_id'] },
     { table: 'module_record', fields: ['data'] },
     { table: 'profile', fields: ['settings'] },
   ],
