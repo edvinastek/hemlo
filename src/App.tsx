@@ -2,6 +2,7 @@ import { useEffect, useRef, useState, type ReactNode } from 'react'
 import { useLiveQuery } from 'dexie-react-hooks'
 import type { Session } from '@supabase/supabase-js'
 import { Navigate, Route, Routes, useLocation, useNavigate, useParams } from 'react-router-dom'
+import { UndoBar } from './ui/Undo'
 import { supabase, hasCredentials } from './lib/supabase'
 import { useApp } from './lib/store'
 import { db, resetLocal, localOwner, setMeta } from './lib/db'
@@ -167,6 +168,7 @@ export default function App() {
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
       <Nav pages={pages} />
+      <UndoBar />
     </div>
   )
 }

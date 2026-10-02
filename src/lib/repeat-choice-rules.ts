@@ -9,6 +9,8 @@ export interface RepeatValue {
   rule: RuleKind | null
   rule_config: RuleConfig
   end_date: string | null
+  /** Ends after this many times (GEN-21), where the row can keep a count. */
+  count?: number | null
 }
 
 export const NO_REPEAT: RepeatValue = { rule: null, rule_config: {}, end_date: null }

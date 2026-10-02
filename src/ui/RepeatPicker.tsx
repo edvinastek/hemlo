@@ -22,7 +22,7 @@ import type { RepeatValue } from '../lib/repeat-choice-rules'
  *    times_per_week is offered.
  *  - `noneLabel` is what "does not repeat" is called here. */
 export function RepeatPicker({
-  value, onChange, start, today, kinds, noneLabel = 'Does not repeat', allowEnd = true,
+  value, onChange, start, today, kinds, noneLabel = 'Does not repeat', allowEnd = true, allowCount = false,
 }: {
   value: RepeatValue
   onChange: (v: RepeatValue) => void
@@ -31,6 +31,8 @@ export function RepeatPicker({
   kinds?: RuleKind[]
   noneLabel?: string
   allowEnd?: boolean
+  /** Offer "after N times" (GEN-21): where the row can store a count (a task's series). */
+  allowCount?: boolean
 }) {
   const { range } = useDayRange()
   const choice = choiceOf(value)
@@ -65,7 +67,8 @@ export function RepeatPicker({
   function choose(c: Choice) {
     const next = ruleFor(c, start, cfg, today)
     setNText(String(next.rule_config.n ?? (c === 'monthly' ? 1 : 2)))
-    onChange({ ...next, end_date: c === 'never' || c === 'dates' ? null : value.end_date })
+    const keep = c !== 'never' && c !== 'dates'
+    onChange({ ...next, end_date: keep ? value.end_date : null, count: keep ? value.count ?? null : null })
   }
 
   // At least one day stays picked: a weekly rule on no day is not a rule.
@@ -86,8 +89,10 @@ export function RepeatPicker({
     set({ ...cfg, dates: next })
   }
 
+  const endKind: 'never' | 'date' | 'count' = value.end_date ? 'date' : allowCount && value.count ? 'count' : 'never'
+  const [countText, setCountText] = useState(String(value.count ?? 10))
   const endsEarly = !!value.end_date && value.end_date < start
-  const sentence = value.rule ? describeSchedule({ rule: value.rule, rule_config: cfg, start_date: start, end_date: value.end_date }) : null
+  const sentence = value.rule ? describeSchedule({ rule: value.rule, rule_config: cfg, start_date: start, end_date: value.end_date, occurrence_count: allowCount ? value.count ?? null : null }) : null
 
   return (
     <div className="rp" role="group" aria-label="Repeat">
@@ -150,13 +155,29 @@ export function RepeatPicker({
         <div className="two">
           <div className="ts-field">
             <span className="ts-field-name">Ends</span>
-            <Dropdown label="Ends" value={value.end_date ? 'date' : 'never'}
-              options={[{ value: 'never', label: 'Never' }, { value: 'date', label: 'On a date' }]}
-              onChange={(v) => onChange({ ...value, end_date: v === 'date' ? (value.end_date ?? start) : null })} />
+            <Dropdown label="Ends" value={endKind}
+              options={[{ value: 'never', label: 'Never' }, { value: 'date', label: 'On a date' },
+                ...(allowCount ? [{ value: 'count' as const, label: 'After a number of times' }] : [])]}
+              onChange={(v) => onChange({
+                ...value,
+                end_date: v === 'date' ? (value.end_date ?? start) : null,
+                count: v === 'count' ? (value.count ?? 10) : null,
+              })} />
           </div>
-          {value.end_date != null && (
+          {endKind === 'date' && (
             <label>Last day
-              <input type="date" min={start} value={value.end_date} onChange={(e) => onChange({ ...value, end_date: e.target.value || null })} />
+              <input type="date" min={start} value={value.end_date ?? ''} onChange={(e) => onChange({ ...value, end_date: e.target.value || null })} />
+            </label>
+          )}
+          {endKind === 'count' && (
+            <label>Times
+              <input type="number" inputMode="numeric" min={1} max={999} step={1} value={countText}
+                onChange={(e) => setCountText(e.target.value)}
+                onBlur={(e) => {
+                  const v = Math.min(999, Math.max(1, Math.floor(Number(e.target.value)) || 1))
+                  setCountText(String(v))
+                  onChange({ ...value, count: v, end_date: null })
+                }} />
             </label>
           )}
         </div>

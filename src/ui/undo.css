@@ -1,0 +1,20 @@
+/* The undo bar: above the page bar, clear of the round + button on the right
+   (52 px wide plus its margin), on top of the page but under open sheets. */
+.undo-bar {
+  position: fixed; z-index: 30;
+  left: var(--space-4); right: calc(52px + var(--space-4) * 2);
+  bottom: calc(var(--nav-h, calc(56px + var(--safe-area-inset-bottom, env(safe-area-inset-bottom, 0px)))) + var(--space-4));
+  display: flex; align-items: center; gap: var(--space-2);
+  min-height: 48px; padding: 0 var(--space-2) 0 var(--space-4); box-sizing: border-box;
+  border-radius: var(--radius-md);
+  background: var(--e-ink); color: var(--e-paper);
+  font-family: var(--font-sans); font-size: 14px;
+}
+.undo-label { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.undo-btn {
+  min-height: 40px; padding: 0 var(--space-3);
+  font: inherit; font-weight: 600; color: var(--e-paper); text-decoration: underline;
+}
+.undo-close { min-width: 40px; min-height: 40px; font-size: 20px; color: var(--e-paper); opacity: 0.8; }
+.undo-btn:disabled { opacity: 0.6; }
+@media (min-width: 900px) { .undo-bar { bottom: var(--space-6); max-width: 480px; } }
