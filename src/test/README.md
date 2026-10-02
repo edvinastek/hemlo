@@ -109,6 +109,8 @@ Types, then every check that needs nothing but Node. CI runs the same command.
 - `search` — the one search: accents and case ignored, every word in any order, starts-with first, own things first,
   plainer names first, extra text searched, nothing typed A to Z.
 - `afterdone` — "ask after done" templates: the marker line in a note, what Fill in, Skip and Later leave behind.
+- `repeat` — the one repeat control's choices: the rule each stands for from a first day (the 2nd or last Wednesday,
+  the 14th, 14 October), numbers kept and capped, picked days, and every choice reading back as itself.
 
 ## Browser checks
 

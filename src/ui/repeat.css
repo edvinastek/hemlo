@@ -1,0 +1,2 @@
+/* The repeat control: its parts one under another, as in the task sheet. */
+.rp { display: grid; gap: var(--space-3); }
