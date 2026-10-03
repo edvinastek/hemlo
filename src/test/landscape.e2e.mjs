@@ -127,6 +127,10 @@ for (const screen of SCREENS) {
   report(`${size} new task sheet`, [...await overflow(), ...await sheetFits('Save')])
   await p.click('.bottom-sheet button:has-text("Cancel")')
   await p.waitForTimeout(300)
+  // The header's calendar is on Plan's Day view (v17: Today shows today only).
+  await p.click('.bottom-nav a[href="/plan"]')
+  await p.locator('.page [role=tab]', { hasText: 'Day' }).first().click()
+  await p.waitForTimeout(500)
   await p.click('.page-date-pick')
   await p.waitForTimeout(500)
   report(`${size} go to a day`, [...await overflow(), ...await sheetFits('Close')])

@@ -21,3 +21,22 @@ Running log, newest last. Runner: scratchpad/int17/run.sh <test> (sources the en
   2 while the field said 3; a good number now counts as typed.
 - reorder — App: an open untimed row drew its body beside a 56 px head (app.css .row grid won over .ir in the build);
   .row.ir now.
+- stock — test: lunch planned through the add-food sheet (the per-meal recipe field went in v16); exact food name;
+  the amount's own unit group. App: Stock's add search offered deleted (replaced) foods: "Fig" was added as "Figs fresh".
+- daytabs — test: Today has no week strip (v17); the Work tab is lost by work hours switched off elsewhere (sync), the
+  chosen tab falls back to Today and stays.
+- modules — test: Sleep's + "Add a night", quality buttons, nights table on the Nights tab.
+- views — test: habit sheet Name; Today's parts via tabs or Show; the retired "daily habit" rule (HAB-23, v16) checked
+  as Show on Today; Sleep's bedtime rule has a switch since v16. App: Today's tabs ignored Show on Today (a habit kept
+  off Today still had its tab): offToday in day-tabs (node checks added).
+- nav — test: the week-strip swipe on Plan's Day view.
+- holidays — test: legend inside the view's Key; no strip on Today.
+- stats — test: Stats on the bar or the Modules page (CALM-04); no-break space folded.
+- transfer — test: Finance fast entry (v16); comma quoting checked on the note.
+- books — App: holding on a read-only figure (kcal) in the recipe table did nothing; read-only fields no longer stop
+  the hold.
+- calendarlinks — test: a followed event is a read-only rail row on Today.
+- units — test: kcal read from the table's read-only field.
+- food-units — test: waits for %RI and the unit; keys sorted. App: an own unit on a shared food did not show until the
+  page was reopened (now read live from Nutrition's settings).
+- landscape — test: the date picker is on Plan's Day view.
