@@ -187,10 +187,11 @@ function Generic({ def, profileId, onEdit, head }: { def: ModuleDef; profileId: 
         exportSource={{ dataset: `m:${def.key}:${entity.name}` }} calendar={type === 'calendar' || entity.table === 'calendar_event'} />
       {view && views[0] && view.key !== views[0].key && <ViewBar name={view.name} onClose={() => setActive(views[0].key)} />}
       {recs === undefined || shown === undefined ? null : empty && type !== 'form' ? (
+        // One add on the page: the round + (CALM-01); the empty page offers the
+        // other way in, a file.
         <EmptyState mark={def.glyph ?? Array.from(def.name)[0]?.toUpperCase()} title={`No ${plural(noun)} yet`}
-          action={{ label: `Add the first ${noun}`, onClick: () => add() }}
           more={[{ label: 'Import from a file', to: '/more?section=Data' }]}>
-          Each {noun} you add shows here as soon as it is saved, with or without a connection.
+          Tap the round + button to add the first {noun}.
         </EmptyState>
       ) : (
         <>
