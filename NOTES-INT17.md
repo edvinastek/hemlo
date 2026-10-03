@@ -40,3 +40,21 @@ Running log, newest last. Runner: scratchpad/int17/run.sh <test> (sources the en
 - food-units — test: waits for %RI and the unit; keys sorted. App: an own unit on a shared food did not show until the
   page was reopened (now read live from Nutrition's settings).
 - landscape — test: the date picker is on Plan's Day view.
+
+## Full run 1 (fresh accounts, README loop, no break)
+28 of 29 passed; modules failed once on "No expenses yet" read before the page had its records (waits now); stats
+once on "deleted" read 600 ms after Delete (waits now). Both passed alone before.
+
+## The calm walk (harness on 5310: Vite dev with a Supabase stub, Dexie seeded through the app's writers; deleted)
+- Fixed: Food's ⋮ was an absolute slot 8 px right / 6 px higher than every other page's, and the Food title sat
+  5 px higher: now PageHead's menu in the title line. Shopping's title row was 48 px tall (⋮ 4 px lower): 40 px.
+- Fixed: Stats' empty card had two buttons (Build a view, Ready-made views): one now; Ready-made always in the ⋮.
+- Fixed: Habits and Supplements pages said their name twice (page title and a section heading): the heading is for
+  screen readers there; Today's Body tab keeps it.
+- Checked: one + per screen (none on Shop, Year, Inbox, Stats, hub, Settings by design); the page ⋮ at 344,16 on every
+  page that has one (Shop's Stores tab has nothing for it, so none); bar never scrolls (4 places: Today, Plan, Stats,
+  Modules); nothing wider than 360; no console errors or warnings; tips one per session, never repeated; What moved
+  where shown once to an old profile, light and dark.
+- Tappable things above the fold (page only; bar and list rows apart): Today 5, Plan Day 15, Week 17, Month 11,
+  Year 8, Inbox 13, task sheet 11, Food Day 17, Recipes 6, Foods 7, add-food sheet 8, Shop List 12, Stock 7, Stores 9,
+  Stats 12, Habits 2, Chores 2, Training 6, Finance 8, Modules 3, Settings 11.
