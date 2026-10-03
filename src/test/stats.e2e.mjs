@@ -1,4 +1,4 @@
-import { need, open, signIn, sql, profileOf, today, checks, drained, modulesOn } from './e2e.mjs'
+import { need, open, signIn, sql, profileOf, today, checks, drained, modulesOn, toPage } from './e2e.mjs'
 
 // The Stats page at 360 px, light and dark. Stats and Habits on, Sleep off;
 // a done task and a habit tick today show on the Day tab; the arrows stop
@@ -38,13 +38,21 @@ const card = (p, name) => p.locator('.st-card', { has: p.locator('h3', { hasText
 const figure = async (p, cardName, label) => {
   const btn = card(p, cardName).locator('.st-figures-btn')
   if ((await btn.getAttribute('aria-expanded')) === 'false') await btn.click()
-  return (await card(p, cardName).locator('.st-figure', { has: p.locator('.st-figure-k', { hasText: label }) }).locator('.st-value').first().textContent())?.trim()
+  // A figure keeps its number and unit together with a no-break space.
+  return (await card(p, cardName).locator('.st-figure', { has: p.locator('.st-figure-k', { hasText: label }) }).locator('.st-value').first().textContent())?.replace(/\s+/g, ' ').trim()
 }
 
 for (const colorScheme of ['light', 'dark']) {
   const { b, p, errors } = await open({ viewport: { width: 360, height: 740 }, colorScheme })
   await signIn(p, email)
-  is(`${colorScheme}: Stats is on the page bar`, await p.locator('.bottom-nav a[href="/m/stats"]').count() > 0, true)
+  // v17 (CALM-04): with more than five pages the bar is Today, Plan, two
+  // pins and Modules; Stats is then on the Modules page.
+  let stats = await p.locator('.bottom-nav a[href="/m/stats"]').count() > 0
+  if (!stats) {
+    await toPage(p, '/modules')
+    stats = await p.locator('.hub-open', { hasText: 'Stats' }).first().waitFor({ timeout: 10000 }).then(() => true, () => false)
+  }
+  is(`${colorScheme}: Stats is on the page bar or the Modules page`, stats, true)
   await p.goto(new URL('/m/stats', p.url()).toString(), { waitUntil: 'domcontentloaded' })
   await p.waitForSelector('.st-card', { timeout: 20000 })
 
