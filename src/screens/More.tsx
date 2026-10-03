@@ -72,15 +72,22 @@ export function More() {
   }, [findAsked])
 
   // After a search result opens its tab, scroll to its heading or row.
+  // Panels read their data first and draw a moment later, so the heading is
+  // looked for a few times, and once found it is kept in view for a little
+  // while as the panels above it fill in and push it down.
   useEffect(() => {
     if (!jump) return
-    const id = window.setTimeout(() => {
-      const el = [...document.querySelectorAll<HTMLElement>('.page .section-title, .page .row-name')]
-        .find((x) => x.textContent?.trim().toLowerCase().startsWith(jump.title.toLowerCase()))
-      el?.scrollIntoView({ block: 'start', behavior: 'smooth' })
-      setJump(null)
-    }, 60)
-    return () => window.clearTimeout(id)
+    const find = () => [...document.querySelectorAll<HTMLElement>('.page .section-title, .page .row-name')]
+      .find((x) => x.textContent?.trim().toLowerCase().startsWith(jump.title.toLowerCase()))
+    let ticks = 0
+    let seen = 0
+    const id = window.setInterval(() => {
+      ticks++
+      const el = find()
+      if (el) { seen++; el.scrollIntoView({ block: 'start' }) }
+      if (seen >= 8 || ticks >= 25) { window.clearInterval(id); setJump(null) }
+    }, 80)
+    return () => window.clearInterval(id)
   }, [jump, section])
 
   return (

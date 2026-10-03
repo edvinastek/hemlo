@@ -72,11 +72,12 @@
 .ts-inbox-note { margin-top: calc(-1 * var(--space-2)); }
 
 /* Fixed and Locked: a box, a name and a line saying what it does. */
-.form-grid .ts-check {
+/* The same box in the "Save as template" step (bring the note template). */
+.form-grid .ts-check, .ts-question .ts-check {
   display: grid; grid-template-columns: 22px minmax(0, 1fr); align-items: start; gap: var(--space-2);
-  min-height: 44px; color: var(--e-ink); font-size: 14px; cursor: pointer;
+  min-height: 44px; color: var(--e-ink); font-family: var(--font-sans); font-size: 14px; cursor: pointer;
 }
-.form-grid .ts-check input { width: 18px; height: 18px; margin: 2px 0 0; padding: 0; accent-color: var(--e-accent); }
+.form-grid .ts-check input, .ts-question .ts-check input { width: 18px; height: 18px; margin: 2px 0 0; padding: 0; accent-color: var(--e-accent); }
 .ts-check-sub { display: block; font-size: 12px; color: var(--e-ink-soft); }
 
 /* The repeat control, with Stop repeating under it for a running series. */

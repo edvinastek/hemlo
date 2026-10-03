@@ -123,7 +123,9 @@ function Looks({ profile }: { profile: Profile }) {
 /** A small Today page in a theme's colours. */
 function Preview({ theme, label, here }: { theme: ResolvedTheme; label: string; here: boolean }) {
   const t = theme.tokens
-  const style = cssVars(t, theme.shade) as unknown as CSSProperties
+  // React names color-scheme in camel case; the rest are custom properties.
+  const { 'color-scheme': colorScheme, ...vars } = cssVars(t, theme.shade)
+  const style = { ...vars, colorScheme } as unknown as CSSProperties
   return (
     <figure className={`lk-preview${here ? ' is-here' : ''}`} style={style} aria-label={`Preview: ${label}`}>
       <div className="lk-pv-head">

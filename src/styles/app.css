@@ -65,6 +65,10 @@ hr, .rule { border: 0; border-top: 1px solid var(--e-rule); margin: 0; }
 }
 
 .page {
+  /* The page is what scrolls, so it holds anything placed inside it: a
+     read-out-only label (.visually-hidden) far down a long week would
+     otherwise make the whole window scroll as well, under the page bar. */
+  position: relative;
   overflow-y: auto;
   /* Never sideways: a page that could scroll sideways would swallow the
      swipe to the next page, and wide tables scroll in their own wrapper. */
