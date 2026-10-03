@@ -133,16 +133,19 @@ const fabGap = await p.evaluate(() => {
 is('two rows: the add button still clears the bar', fabGap >= 8, true)
 
 // 4. Swiping: from Today to Plan; on the week strip, the week moves instead.
+//    v17: Today shows today only; the week strip is on Plan's Day view.
 await setStyle('One row')
-await go('/')
+await go('/plan')
+await p.getByRole('tab', { name: 'Day', exact: true }).click()
 await p.evaluate(() => document.querySelector('.page').scrollTo(0, 0))
 const strip = await p.locator('.week-strip').boundingBox()
 const dateBefore = await p.locator('.page-date').textContent()
 await drag(300, strip.y + strip.height / 2, 70, strip.y + strip.height / 2 + 3)
-is('a swipe on the week strip keeps the page', path(), '/')
+is('a swipe on the week strip keeps the page', path(), '/plan')
 is('and shows another week', (await p.locator('.page-date').textContent()) !== dateBefore, true)
 await drag(70, strip.y + strip.height / 2, 300, strip.y + strip.height / 2 + 3)
 is('swiping back returns to the first week', await p.locator('.page-date').textContent(), dateBefore)
+await go('/')
 await drag(180, 560, 190, 300, 250)
 is('a vertical scroll keeps the page', path(), '/')
 // Back to the top and still, so the swipe starts on a row's name rather than
