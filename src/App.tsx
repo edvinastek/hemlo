@@ -22,6 +22,7 @@ import { readSettings } from './lib/settings'
 import { ModulePage } from './modules/ModulePage'
 import { Modules } from './screens/Modules'
 import { WhatMoved } from './ui/WhatMoved'
+import { noteProfileMet, noteThisRun } from './lib/tips'
 import { usePages, pageForPath, pageAllowed, neighbour, type Pages } from './lib/pages'
 import { useSwipe } from './ui/useSwipe'
 import { useAccounts, watchAccounts } from './lib/accounts'
@@ -55,6 +56,12 @@ export default function App() {
   // while the app is open.
   // The accounts kept on this device follow the open one (see accounts.ts).
   useEffect(() => { listenForAuthLinks(); watchLifecycle(); watchAccounts() }, [])
+  // The first run of this version here, before anyone signs in, and each
+  // profile it meets, set up or not: what "What moved where" goes by.
+  useEffect(() => { noteThisRun() }, [])
+  useEffect(() => {
+    if (profile) noteProfileMet(profile.id, readSettings(profile).onboarded || !!profile.height_cm)
+  }, [profile?.id])
   // The chosen theme, mode and text size, following the open profile.
   useEffect(() => watchLooks(), [])
   const switching = useAccounts((s) => s.switching)

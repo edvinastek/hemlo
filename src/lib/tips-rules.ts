@@ -1,46 +1,81 @@
 /** Tips shown once, when they are useful (ONB-13), the "Make GetIt yours"
- *  card a few days in (ONB-12), and the one-time note on what moved in this
- *  version (NAV-26). Pure: what is shown, and when. The screens keep what
- *  was seen on the device (tips.ts). */
+ *  line a few days in (ONB-12), and the one-time note on what moved in this
+ *  version (NAV-26). Since v17 (CALM-14) a tip is one slim line with ×, at
+ *  most one shows in a session app-wide, and once shown it never comes
+ *  back until "Show tips again". Pure: what is shown, and when. The screens
+ *  keep what was seen on the device (tips.ts). */
 
 export interface TipDef {
   id: string
-  /** One or two plain sentences. */
+  /** One short sentence: it has to fit a slim line. */
   text: string
 }
 
 /** Every tip, by id. Screens show one with <Tip id="…" />; each appears
  *  once on a device until "Show tips again" in Settings. */
 export const TIPS: TipDef[] = [
-  { id: 'hub-hold', text: 'Hold a module, or tap its ⋮, to pin it to the bar or to Today, hide it, or change where it shows.' },
-  { id: 'records-search', text: 'Type any word from a record to find it: a name, a note, a tag, in any order.' },
-  { id: 'record-repeat', text: 'A record can come round again: set Repeat, and each time it is due it is an item on Today and Plan.' },
-  { id: 'first-hold', text: 'A short hold and a move drags an item. Hold still a little longer to open it in place.' },
-  { id: 'first-checklist', text: 'Tap a line’s box to tick it. Ticks stay in the note, so the list is there next time.' },
-  { id: 'save-as-meal', text: 'Logged this by hand three times? Save it as a meal and it is one tap next time.' },
-  { id: 'make-yours', text: 'Make GetIt yours: a theme, dark or black, the text size and the app’s icon are in Settings, Looks.' },
+  { id: 'hub-hold', text: 'Hold a module, or tap its ⋮, to pin it, hide it or change where it shows.' },
+  { id: 'records-search', text: 'Type any word from a record to find it, in any order.' },
+  { id: 'record-repeat', text: 'Set Repeat, and a record comes round on Today and Plan when it is due.' },
+  { id: 'first-hold', text: 'Hold and move to drag an item; hold still longer to open it in place.' },
+  { id: 'first-checklist', text: 'Tap a line’s box to tick it; the ticks stay in the note.' },
+  { id: 'save-as-meal', text: 'Logged this three times? Save it as a meal: one tap next time.' },
+  { id: 'make-yours', text: 'Make GetIt yours: a theme, dark mode, text size and icon.' },
 ]
+
+/** Longest a tip may be, so it stays one or two short lines at 360 px. */
+export const TIP_MAX = 80
 
 export const tipById = (id: string) => TIPS.find((t) => t.id === id)
 
+/** The first time a version of GetIt ran on this device, and for each
+ *  profile it met then, whether that profile was already set up. */
+export interface VersionRun {
+  /** ISO time of the first run of this version here. */
+  at: string
+  /** Profile id → set up already when this version first met it. */
+  met: Record<string, boolean>
+}
+
 export interface TipState {
-  /** Tips dismissed on this device. */
+  /** Tips shown (or dismissed) on this device. */
   seen: string[]
   /** The day GetIt was first opened on this device, yyyy-MM-dd. */
   first: string | null
   /** The version whose "what moved" note was read. */
   moved: string | null
+  /** Version ("17") → its first run here (v17). Kept for the last three. */
+  runs: Record<string, VersionRun>
 }
 
-export const NO_TIPS: TipState = { seen: [], first: null, moved: null }
+export const NO_TIPS: TipState = { seen: [], first: null, moved: null, runs: {} }
+
+const ISO = /^\d{4}-\d{2}-\d{2}T[\d:.]+Z$/
+const MAX_RUNS = 3
+const MAX_MET = 20
 
 export function readTipState(v: unknown): TipState {
   const o = (v && typeof v === 'object' ? v : {}) as Record<string, unknown>
   const ids = new Set(TIPS.map((t) => t.id))
+  const runs: Record<string, VersionRun> = {}
+  if (o.runs && typeof o.runs === 'object' && !Array.isArray(o.runs)) {
+    for (const [k, r] of Object.entries(o.runs as Record<string, unknown>).slice(-MAX_RUNS)) {
+      const x = (r && typeof r === 'object' ? r : {}) as Record<string, unknown>
+      if (!/^\d{1,4}$/.test(k) || typeof x.at !== 'string' || !ISO.test(x.at)) continue
+      const met: Record<string, boolean> = {}
+      if (x.met && typeof x.met === 'object' && !Array.isArray(x.met)) {
+        for (const [id, b] of Object.entries(x.met as Record<string, unknown>).slice(0, MAX_MET)) {
+          if (/^[0-9a-f-]{36}$/i.test(id) && typeof b === 'boolean') met[id] = b
+        }
+      }
+      runs[k] = { at: x.at, met }
+    }
+  }
   return {
     seen: Array.isArray(o.seen) ? [...new Set(o.seen.filter((x): x is string => typeof x === 'string' && ids.has(x)))] : [],
     first: typeof o.first === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(o.first) ? o.first : null,
     moved: typeof o.moved === 'string' && o.moved.length <= 10 ? o.moved : null,
+    runs,
   }
 }
 
@@ -70,26 +105,67 @@ export function noteFirstDay(s: TipState, today: string): TipState {
 /** Every tip again (Settings → Tips). The first day stays. */
 export const resetTips = (s: TipState): TipState => ({ ...s, seen: [] })
 
-/* ---------- what moved where (NAV-26) ---------------------------------------- */
+/* ---------- the versions run here ------------------------------------------ */
 
-export const MOVED_VERSION = '16'
-/** People who started with this version have nothing that moved. */
-export const MOVED_SINCE = '2026-10-04'
+/** "0.17.0" → "17", "1.2.0" → "1": the number people know a version by. */
+export function versionKey(v: string): string {
+  const [major, minor] = v.split('.')
+  return major === '0' ? String(Number(minor) || 0) : String(Number(major) || 0)
+}
 
+/** The first run of a version on this device, noted once. */
+export function noteRun(s: TipState, version: string, nowIso: string): TipState {
+  if (s.runs[version]) return s
+  const keep = Object.entries(s.runs).slice(-(MAX_RUNS - 1))
+  return { ...s, runs: { ...Object.fromEntries(keep), [version]: { at: nowIso, met: {} } } }
+}
+
+/** A profile met by this version for the first time: was it set up already?
+ *  Noted once per profile; a new account is met during its first-run setup,
+ *  so it is noted as not set up and stays that way. */
+export function meetProfile(s: TipState, version: string, id: string, setUp: boolean): TipState {
+  const run = s.runs[version]
+  if (!run || id in run.met || Object.keys(run.met).length >= MAX_MET) return s
+  return { ...s, runs: { ...s.runs, [version]: { ...run, met: { ...run.met, [id]: setUp } } } }
+}
+
+/* ---------- what moved where (NAV-26, CALM-18) ---------------------------------- */
+
+/** The version whose moves WHAT_MOVED lists. */
+export const MOVED_VERSION = '17'
+/** Accounts made on or after this day started with this version: nothing
+ *  moved for them, whichever device they open it on. Set to the release day. */
+export const MOVED_SINCE = '2026-10-03'
+
+/** Every function version 17 moved, and where it is now (CALM-18). */
 export const WHAT_MOVED: { was: string; now: string }[] = [
-  { was: 'Other days on Today (the week strip)', now: 'Plan → Day: the same list and actions, for any day. Today shows today, with a look at tomorrow.' },
-  { was: 'Tasks without a day', now: 'Plan → Inbox, until you give them one.' },
-  { was: 'Holding a task to move it', now: 'A short hold and a move drags it; holding still longer opens it in place. Every action is also in its ⋮ menu.' },
-  { was: 'Four fixed meals', now: 'Food is logged at a time, or under meals you name yourself in Settings → Food.' },
-  { was: 'Habits, chores and supplements in tabs', now: 'Items in Today’s list on the days they are due; each module decides where it shows under Edit module → Show.' },
-  { was: 'A crowded page bar', now: 'The Modules page holds every module, with search; the Hub bar style keeps the bar to five.' },
+  { was: 'A page bar that scrolled', now: 'Up to five places that never scroll. With more than five pages, the bar is Today, Plan, up to two pinned pages and Modules, which holds the rest. Your own style choice stays.' },
+  { was: 'More', now: 'Settings, everywhere: on the bar, on the Modules page, and as the page’s title.' },
+  { was: 'Tabs in Settings (Modules, Profile, Looks, Reminders, Data)', now: 'One list of pages: Profile, Looks, Page bar, Modules, Planning, Food and body, Shopping and household, Calendars, Reminders and tips, Data and account, About. The search still finds every setting.' },
+  { was: 'Work hours, hold times, Today’s cards, note templates', now: 'Settings → Planning, with the evening review (it was under Reminders).' },
+  { was: 'Body and goal, food and meals', now: 'Settings → Food and body.' },
+  { was: 'Calendar links and public holidays', now: 'Settings → Calendars.' },
+  { was: 'Shopping trip and the household', now: 'Settings → Shopping and household.' },
+  { was: 'Starting layout (templates)', now: 'Settings → Modules.' },
+  { was: 'Privacy policy, and the data credits on lists', now: 'Settings → About, with the version and every data source.' },
+  { was: 'A module’s description on its Modules page tile', now: 'In the tile’s ⋮ (or hold the tile).' },
+  { was: 'Tips as cards with Got it', now: 'One slim line with ×, at most one at a time. Settings → Reminders and tips → Show tips again.' },
+  { was: 'Export on a note page', now: 'The page’s ⋮ → Export.' },
+  { was: 'How many tasks wait in the Inbox', now: 'A small count on Plan in the page bar.' },
 ]
 
-/** Whether the note shows: once per version, and only to someone who used
- *  an earlier one (their profile is older than this version). */
-export function movedShows(s: TipState, profileSince: string | null | undefined): boolean {
-  if (s.moved === MOVED_VERSION) return false
-  return !!profileSince && profileSince.slice(0, 10) < MOVED_SINCE
+/** Whether the note shows: once, for the version whose moves it lists, and
+ *  only on a profile that was already set up when this version first ran
+ *  here and first met it (someone who used an earlier version). A brand-new
+ *  account never sees it: it is met during its first-run setup, its
+ *  profile is newer than the first run, and it is newer than MOVED_SINCE. */
+export function movedShows(s: TipState, profile: { id: string; created_at?: string | null } | null | undefined): boolean {
+  if (!profile || s.moved === MOVED_VERSION) return false
+  const run = s.runs[MOVED_VERSION]
+  if (!run || run.met[profile.id] !== true) return false
+  const made = profile.created_at
+  if (made && (Date.parse(made) >= Date.parse(run.at) || made.slice(0, 10) >= MOVED_SINCE)) return false
+  return true
 }
 
 export const readMoved = (s: TipState): TipState => ({ ...s, moved: MOVED_VERSION })

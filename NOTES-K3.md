@@ -13,3 +13,8 @@ Branch v17/k3, worktree /home/claude/wt17/k3. Harness: vite on 5303, script in s
   StartingLayout. New src/settings/About.tsx (version, NEVO_ATTRIBUTION word for word, USDA, Open Food Facts and Open
   Prices ODbL, date-holidays CC BY-SA, privacy policy, delete account link). Evening review moved to Planning; Privacy
   policy moved from Data to About.
+- Step 3 (tips): Tip is one slim line with ×; one per session app-wide (claimTip slot in tips.ts, FirstTip keeps its
+  choice); a tip counts as seen as soon as it shows (never repeated). Tip texts shortened (TIP_MAX 80). What moved where:
+  tips state keeps runs[version] = { at, met: {profileId: setUp} } in localStorage (survives sign-out); App notes the run
+  at start-up and each profile met; movedShows needs met === true and created_at before the run and before MOVED_SINCE.
+  RUNNING version comes from package.json: the sheet shows only once the lead bumps it to 0.17.x. WHAT_MOVED = v17 list.

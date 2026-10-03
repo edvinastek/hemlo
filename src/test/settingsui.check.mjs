@@ -7,7 +7,7 @@ import { pickProfile, profileNameProblem, profileDeleteProblem, signOutCheck } f
 import { conflictLine, shownValue } from '../lib/sync-rules.ts'
 import { cleanZone, readZoneChoice, zoneToStore, zoneLabel } from '../lib/timezone-rules.ts'
 import { heightFrom } from '../lib/profile-fields-rules.ts'
-import { TIPS, readTipState, tipShows, dismissTip, noteFirstDay, resetTips, movedShows, readMoved, MOVED_VERSION, NO_TIPS } from '../lib/tips-rules.ts'
+import { TIPS, TIP_MAX, readTipState, tipShows, dismissTip, noteFirstDay, resetTips, movedShows, readMoved, MOVED_VERSION, MOVED_SINCE, NO_TIPS, noteRun, meetProfile, versionKey, WHAT_MOVED } from '../lib/tips-rules.ts'
 import { hubSearch, recordName, recordWords, recordRoute, foodRoute, readFoodAddress } from '../lib/hub-rules.ts'
 
 let fail = 0
@@ -95,14 +95,35 @@ is('a tip shows until dismissed', [tipShows('hub-hold', t0, '2026-10-03'), tipSh
 is('Make GetIt yours waits three days', [tipShows('make-yours', t0, '2026-10-05'), tipShows('make-yours', t0, '2026-10-06')], [false, true])
 is('…and never shows before the first day is known', tipShows('make-yours', NO_TIPS, '2030-01-01'), false)
 is('the first day is kept once', noteFirstDay(t0, '2027-01-01').first, '2026-10-03')
-is('show tips again keeps the first day', resetTips(dismissTip(t0, 'hub-hold')), { seen: [], first: '2026-10-03', moved: null })
+is('show tips again keeps the first day', resetTips(dismissTip(t0, 'hub-hold')), { seen: [], first: '2026-10-03', moved: null, runs: {} })
 is('an unknown tip never shows', tipShows('nope', t0, '2026-10-03'), false)
-is('stored junk is cleaned', readTipState({ seen: ['hub-hold', 'nope', 3], first: 'yesterday', moved: 7 }), { seen: ['hub-hold'], first: null, moved: null })
-is('every tip says something', TIPS.every((t) => t.text.length > 20 && !/[\u{1F300}-\u{1FAFF}]/u.test(t.text)), true)
-is('what moved: shown to someone from before', movedShows(NO_TIPS, '2026-05-01T10:00:00Z'), true)
-is('…not to someone new', movedShows(NO_TIPS, '2026-10-10T10:00:00Z'), false)
-is('…and once', movedShows(readMoved(NO_TIPS), '2026-05-01'), false)
+is('stored junk is cleaned', readTipState({ seen: ['hub-hold', 'nope', 3], first: 'yesterday', moved: 7, runs: { x: 1, 17: { at: 'soon' } } }), { seen: ['hub-hold'], first: null, moved: null, runs: {} })
+is('every tip says something short, as one slim line (CALM-14)', TIPS.every((t) => t.text.length > 20 && t.text.length <= TIP_MAX && !/[\u{1F300}-\u{1FAFF}]/u.test(t.text)), true)
+
+// What moved where: only for someone who used GetIt before this version.
+const ID = '22222222-2222-4222-8222-222222222222'
+const ID2 = '33333333-3333-4333-8333-333333333333'
+const RUN = '2026-11-01T09:00:00.000Z'
+is('version keys', [versionKey('0.17.0'), versionKey('0.16.2'), versionKey('1.2.0')], ['17', '16', '1'])
+const ran = noteRun(NO_TIPS, MOVED_VERSION, RUN)
+is('a version’s first run is noted once', noteRun(ran, MOVED_VERSION, '2027-01-01T00:00:00.000Z').runs[MOVED_VERSION].at, RUN)
+is('…and only the last three versions are kept', Object.keys(['13', '14', '15', '16'].reduce((s, v) => noteRun(s, v, RUN), NO_TIPS).runs), ['14', '15', '16'])
+const old = meetProfile(ran, MOVED_VERSION, ID, true)
+is('a profile met is noted once, as it was then', meetProfile(old, MOVED_VERSION, ID, false).runs[MOVED_VERSION].met[ID], true)
+is('updating from an earlier version: shown', movedShows(old, { id: ID, created_at: '2026-05-01T10:00:00Z' }), true)
+is('…also when the profile’s age is not known', movedShows(old, { id: ID }), true)
+is('…once', movedShows(readMoved(old), { id: ID, created_at: '2026-05-01T10:00:00Z' }), false)
 is('…per version', readMoved(NO_TIPS).moved, MOVED_VERSION)
+const fresh = meetProfile(ran, MOVED_VERSION, ID2, false)
+is('a brand-new account, met in its first-run setup: never', movedShows(fresh, { id: ID2, created_at: '2026-11-01T09:05:00Z' }), false)
+is('…not even once it is set up', movedShows(meetProfile(fresh, MOVED_VERSION, ID2, true), { id: ID2 }), false)
+is('a profile made after this version first ran here: never', movedShows(meetProfile(ran, MOVED_VERSION, ID2, true), { id: ID2, created_at: '2026-11-01T09:00:01Z' }), false)
+is('an account made since the release, on its second device: never',
+  movedShows(meetProfile(noteRun(NO_TIPS, MOVED_VERSION, '2027-03-01T00:00:00.000Z'), MOVED_VERSION, ID2, true), { id: ID2, created_at: `${MOVED_SINCE}T12:00:00Z` }), false)
+is('before this version has run here (an older build): never', movedShows(meetProfile(noteRun(NO_TIPS, '16', RUN), '16', ID, true), { id: ID }), false)
+is('a profile this version never met: never', movedShows(old, { id: ID2 }), false)
+is('runs survive being stored', readTipState(JSON.parse(JSON.stringify(old))).runs[MOVED_VERSION], { at: RUN, met: { [ID]: true } })
+is('every move says where it went', WHAT_MOVED.every((m) => m.was && m.now && !/[\u{1F300}-\u{1FAFF}]/u.test(m.now)), true)
 
 // ---------- the Modules page's search (NAV-22) ----------------------------------------------
 const mods = [

@@ -1,19 +1,25 @@
-import { useEffect, useRef } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useApp } from '../lib/store'
 import { WHAT_MOVED, movedShows, readMoved } from '../lib/tips-rules'
-import { saveTipState, useTipState } from '../lib/tips'
+import { claimTip, saveTipState, useTipState } from '../lib/tips'
 import './what-moved.css'
 
-/** "What moved where" (NAV-26): once, after updating to this version, a
- *  short note on every function that moved and where it is now. Nothing was
- *  removed; this says where to find it. Mounted once in App; the list can be
- *  read again from Settings → Reminders → Tips (`<WhatMovedList />`). */
+/** "What moved where" (NAV-26, CALM-18): once, after updating to this
+ *  version, a short note on every function that moved and where it is now.
+ *  Only for someone who used GetIt before (tips-rules movedShows); a new
+ *  account never sees it. It takes the session's one tip place, so no tip
+ *  shows on top of it. Mounted once in App; the list can be read again from
+ *  Settings → Reminders and tips (`<WhatMovedList />`). */
 export function WhatMoved() {
   const profile = useApp((s) => s.profile)
   const s = useTipState()
-  const since = (profile as unknown as { created_at?: string } | null)?.created_at ?? null
   const box = useRef<HTMLDivElement>(null)
-  const show = !!profile && movedShows(s, since)
+  const due = movedShows(s, profile as unknown as { id: string; created_at?: string | null } | null)
+  // Claimed once due, and kept: reading it marks it read, which would
+  // otherwise let a tip take the place straight after.
+  const [mine, setMine] = useState(false)
+  useEffect(() => { if (due && !mine && claimTip('what-moved', 'app')) setMine(true) }, [due, mine])
+  const show = due && mine
   useEffect(() => {
     if (!show) return
     box.current?.querySelector<HTMLElement>('button')?.focus({ preventScroll: true })
@@ -28,7 +34,7 @@ export function WhatMoved() {
       <div className="sheet-scrim" onClick={done} />
       <div ref={box} className="bottom-sheet wm" role="dialog" aria-modal="true" aria-labelledby="wm-title">
         <h2 id="wm-title">What moved where</h2>
-        <p className="wm-lead">GetIt has a new shape. Nothing was taken away: here is where each thing is now.</p>
+        <p className="wm-lead">GetIt is calmer. Nothing was taken away: here is where each thing is now.</p>
         <WhatMovedList />
         <div className="sheet-actions">
           <button type="button" className="btn btn-primary grow" onClick={done}>Got it</button>
