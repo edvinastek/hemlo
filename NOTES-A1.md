@@ -13,5 +13,12 @@ Plan, in order; each step committed when tsc passes.
 9. e2e updates, README, screenshots, final tsc/check/build.
 
 ## Done
+- 1 hold-rules + useLongPress (b6128e2)
+- 2 day-items extensions, push rules (f817ad9)
+- 3 today-prefs (23581ab)
+- 4-7 DragList/ItemRow/DayRail/RailSheets/rail-actions, Today rewrite, AddMenu, CarryOverRow (8ad00e5)
 
 ## Left
+- HoldSettings + More line
+- build check, screenshots (harness), e2e updates (reorder, tasksheet), README e2e notes
+- report

@@ -12,6 +12,7 @@ import { ModuleEditor } from '../ui/ModuleEditor'
 import { BuiltModules } from '../modules/ModuleBuilder'
 import { Dropdown } from '../ui/Dropdown'
 import { PlanningSettings } from '../settings/PlanningSettings'
+import { HoldSettings } from '../settings/HoldSettings'
 import { FoodSettings } from '../settings/FoodSettings'
 import { NavSettings } from '../settings/NavSettings'
 import { ColourSettings } from '../settings/ColourSettings'
@@ -148,6 +149,7 @@ function ProfilePanel() {
       ))}
 
       <PlanningSettings />
+      <HoldSettings />
       <ColourSettings />
       <HolidaySettings />
       <CalendarLinks />
