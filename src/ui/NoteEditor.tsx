@@ -42,9 +42,13 @@ type Panel = null | 'menu' | 'template' | 'recipe' | 'save' | { ask: NoteTemplat
  *  - `afterDone` (tasks only) lets an "ask after done" template wait for the
  *    tick instead of going in at once.
  *  - `templateMode` edits a template's own text: fill-in buttons instead of
- *    the Insert menu, and nothing hidden. */
+ *    the Insert menu, and nothing hidden.
+ *  - `startLabel` shows a button of that name while the note is empty, to
+ *    start it from a note template (a new task: NOT-13); `onTemplateUsed`
+ *    hears which template went in, so a task template can carry it (NOT-15). */
 export function NoteEditor({
   value, onChange, label = 'Note', aside, className, autoFocus, context, afterDone = true, templateMode = false,
+  startLabel, onTemplateUsed,
 }: {
   value: string
   onChange: (text: string) => void
@@ -55,6 +59,8 @@ export function NoteEditor({
   context?: Partial<FillContext>
   afterDone?: boolean
   templateMode?: boolean
+  startLabel?: string
+  onTemplateUsed?: (template: NoteTemplate, asPrompt: boolean) => void
 }) {
   const box = useRef<HTMLTextAreaElement>(null)
   // Where the cursor goes once the new text is on screen. Setting it before
@@ -125,6 +131,7 @@ export function NoteEditor({
     const before = value
     const next = applyNoteTemplate(value, t, ctx, asPrompt)
     onChange(next)
+    onTemplateUsed?.(t, asPrompt)
     setPanel(null)
     setNote(asPrompt ? `It will ask for ${t.name} when the task is ticked.` : null)
     offerUndo(asPrompt ? 'Template set to ask when done' : `${t.name} added`, () => onChange(before))
@@ -178,6 +185,10 @@ export function NoteEditor({
         </div>
       )}
 
+      {startLabel && !templateMode && !panel && !value.trim() && (
+        <button type="button" className="ne-pill ne-start" onClick={() => setPanel('template')}>{startLabel}</button>
+      )}
+
       {panel === 'menu' && (
         <div className="ne-menu" role="menu" aria-label="Insert">
           <button type="button" role="menuitem" onClick={() => setPanel('template')}>A note template</button>
@@ -185,7 +196,8 @@ export function NoteEditor({
           <button type="button" role="menuitem" disabled={!value.trim()} onClick={() => setPanel('save')}>Save this note as a template</button>
         </div>
       )}
-      {panel === 'template' && <TemplatePicker onPick={pickTemplate} onClose={() => setPanel(null)} />}
+      {panel === 'template' && <TemplatePicker onPick={pickTemplate} onClose={() => setPanel(null)}
+        title={startLabel && !value.trim() ? startLabel : undefined} />}
       {panel && typeof panel === 'object' && 'ask' in panel && (
         <div className="tp" role="group" aria-label={`${panel.ask.name}: when`}>
           <p className="tp-title">{panel.ask.name} is meant for after the task.</p>

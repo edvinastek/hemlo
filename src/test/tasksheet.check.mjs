@@ -25,9 +25,9 @@ eq('and starts fresh', [d.id, d.series_id, d.status, d.push_count, d.extension_c
 eq('the original is untouched', [task.id, task.status], ['t1', 'done'])
 
 const tpl = templateOfTask(task, '  Morning read ', { rule: 'weekly', rule_config: { weekdays: [5, 1] }, end_date: '2026-12-31', count: null }, ['morning-read'])
-eq('a template keeps title, length, section, lock, note, repeat', tpl,
+eq('a template keeps title, length, section, lock, note (ticks cleared), repeat', tpl,
   { id: 'morning-read-2', name: 'Morning read', title: 'Read', minutes: 30, section: 'Learning', locked: false,
-    note_template_id: null, note: '- [x] ch 1', repeat: { rule: 'weekly', rule_config: { weekdays: [1, 5] }, count: null } })
+    note_template_id: null, note: '- [ ] ch 1', repeat: { rule: 'weekly', rule_config: { weekdays: [1, 5] }, count: null } })
 eq('no name takes the title', templateOfTask(task, ' ', null, []).name, 'Read')
 eq('no repeat, no key', 'repeat' in templateOfTask(task, 'x', { rule: null, rule_config: {}, end_date: null }, []), false)
 eq('it survives being stored', readTaskTemplates([tpl])[0].repeat, { rule: 'weekly', rule_config: { weekdays: [1, 5] }, count: null })
@@ -38,9 +38,20 @@ eq('a count is kept', templateRepeat({ ...tpl, repeat: { rule: 'daily', rule_con
 const blank = { ...task, title: '', category: null, duration_min: null, notes: null, locked: false, planned_date: '2026-10-09', planned_time: '18:00' }
 const notes = [{ id: 'meeting', name: 'Meeting', after_done: false, body: '## {title}, {weekday}' }, { id: 'reading', name: 'Reflection', after_done: true, body: 'x' }]
 eq('a new task from a template', (({ title, duration_min, category, notes: n }) => [title, duration_min, category, n])(applyTaskTemplate(blank, tpl, notes)),
-  ['Read', 30, 'Learning', '- [x] ch 1'])
-eq('a note template is filled for the day', applyTaskTemplate(blank, { ...tpl, note_template_id: 'meeting' }, notes).notes, '## Read, Friday')
-eq('an ask-after-done note template leaves its marker', applyTaskTemplate(blank, { ...tpl, note_template_id: 'reading' }, notes).notes, '{after-done:reading}')
+  ['Read', 30, 'Learning', '- [ ] ch 1'])
+eq('a note template is filled for the day', applyTaskTemplate(blank, { ...tpl, note: null, note_template_id: 'meeting' }, notes).notes, '## Read, Friday')
+eq('after the own note', applyTaskTemplate(blank, { ...tpl, note_template_id: 'meeting' }, notes).notes, '- [ ] ch 1\n\n## Read, Friday')
+eq('an ask-after-done note template leaves its marker', applyTaskTemplate(blank, { ...tpl, note: null, note_template_id: 'reading' }, notes).notes, '{after-done:reading}')
+eq('beside the own note', applyTaskTemplate(blank, { ...tpl, note_template_id: 'reading' }, notes).notes, '- [ ] ch 1\n{after-done:reading}')
+eq('a deleted note template leaves the own note', applyTaskTemplate(blank, { ...tpl, note_template_id: 'gone' }, notes).notes, '- [ ] ch 1')
+
+// NOT-15: a task started from a note template is saved carrying it.
+const filled = { ...task, notes: '## Read, Friday' }
+eq('carries a note template instead of its text', (({ note_template_id, note }) => [note_template_id, note])(templateOfTask(filled, 'R', null, [], notes[0])), ['meeting', null])
+const asked = { ...task, notes: '- [x] pages\n{after-done:reading}' }
+eq('an after-done one keeps the own note, without the marker', (({ note_template_id, note }) => [note_template_id, note])(templateOfTask(asked, 'R', null, [], notes[1])),
+  ['reading', '- [ ] pages'])
+eq('and comes back the same', applyTaskTemplate(blank, templateOfTask(asked, 'R', null, [], notes[1]), notes).notes, '- [ ] pages\n{after-done:reading}')
 eq('replace a template by id', withTaskTemplate([tpl], { ...tpl, title: 'New' }).map((t) => t.title), ['New'])
 
 if (fail) { console.log(`\n${fail} task sheet check(s) failed`); process.exit(1) }

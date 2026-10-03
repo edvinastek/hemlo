@@ -1,8 +1,8 @@
 /** The task sheet's pure parts (TSK-01, TSK-24, TSK-26): a duplicate to
  *  edit before saving, a task saved as a template and a new task started
  *  from one. No database, no React. */
-import { fillTemplate, templateId, type NoteTemplate, type TaskTemplate } from './template-rules.ts'
-import { afterDoneMarker } from './after-done-rules.ts'
+import { applyNoteTemplate, clearTicks, templateId, type NoteTemplate, type TaskTemplate } from './template-rules.ts'
+import { removeMarkers } from './after-done-rules.ts'
 import { cleanRule, type RuleConfig, type RuleKind } from './schedule-rules.ts'
 import type { Task } from './types'
 
@@ -23,25 +23,36 @@ export interface RepeatLike { rule: RuleKind | null; rule_config: RuleConfig; en
 
 /** TSK-26: a task kept as a template: its title, length, section, lock,
  *  note and repeat (the repeat's last day is not kept: it belongs to one
- *  run of it; a count of times is). */
-export function templateOfTask(t: Pick<Task, 'title' | 'duration_min' | 'category' | 'locked' | 'notes'>, name: string, repeat: RepeatLike | null, taken: string[]): TaskTemplate {
+ *  run of it; a count of times is). Ticks in the note are cleared: a new
+ *  task starts with nothing done.
+ *
+ *  NOT-15: with `noteTemplate` (the note template the task was started
+ *  from), the template carries that note template instead of a copy of
+ *  its text, so each new task gets it filled in for its own day. An "ask
+ *  after done" one is only a marker, so the person's own note is kept
+ *  beside it; any other one is the note. */
+export function templateOfTask(t: Pick<Task, 'title' | 'duration_min' | 'category' | 'locked' | 'notes'>, name: string, repeat: RepeatLike | null, taken: string[],
+  noteTemplate: NoteTemplate | null = null): TaskTemplate {
   const clean = name.trim().slice(0, 60) || t.title.trim().slice(0, 60) || 'Task'
   const r = repeat?.rule ? cleanRule(repeat.rule, repeat.rule_config) : null
+  const own = clearTicks(t.notes ?? '')
+  const note = noteTemplate ? (noteTemplate.after_done ? removeMarkers(own) : '') : own
   return {
     id: templateId(clean, taken), name: clean, title: t.title.trim().slice(0, 200) || clean,
     minutes: t.duration_min ?? null, section: t.category ?? null, locked: !!t.locked,
-    note_template_id: null, note: t.notes ?? null,
+    note_template_id: noteTemplate?.id ?? null, note: note || null,
     ...(r?.rule ? { repeat: { rule: r.rule, rule_config: r.rule_config as Record<string, unknown>, count: repeat?.count ?? null } } : {}),
   }
 }
 
-/** A new task's draft from a template, on its day. A note template the
- *  template points to is filled in for that day (an "ask after done" one
- *  leaves its marker); otherwise the template's own note. */
+/** A new task's draft from a template, on its day: the template's own
+ *  note, then the note template it carries (NOT-15) filled in for that day,
+ *  or, for an "ask after done" one, its marker, so it opens when the task
+ *  is ticked. A note template since deleted leaves the own note alone. */
 export function applyTaskTemplate(draft: Task, tpl: TaskTemplate, notes: NoteTemplate[]): Task {
   const nt = tpl.note_template_id ? notes.find((n) => n.id === tpl.note_template_id) : undefined
   const day = draft.planned_date ?? new Date().toISOString().slice(0, 10)
-  const note = nt ? (nt.after_done ? afterDoneMarker(nt.id) : fillTemplate(nt.body, { day, title: tpl.title, time: draft.planned_time })) : tpl.note
+  const note = nt ? applyNoteTemplate(tpl.note, nt, { day, title: tpl.title, time: draft.planned_time }, true) : tpl.note
   return { ...draft, title: tpl.title, duration_min: tpl.minutes, category: tpl.section, locked: tpl.locked, notes: note || null }
 }
 

@@ -21,6 +21,7 @@ import { NoteEditor } from './NoteEditor'
 import { NotesPage } from './NotesPage'
 import { RepeatPicker, NO_REPEAT, type RepeatValue } from './RepeatPicker'
 import { CopySheet } from './CopySheet'
+import { GoalField, ProjectField } from '../sections/ProjectField'
 import { useBackClose } from './useBackClose'
 import { offerUndo } from './Undo'
 import './tasksheet.css'
@@ -75,6 +76,10 @@ function TaskForm({ task, isNew, onClose, onDuplicate }: {
   const [newSection, setNewSection] = useState<string | null>(null)
   const [templateName, setTemplateName] = useState('')
   const [said, setSaid] = useState('')
+  // The note template this task was started from (NOT-13), so Save as
+  // template can carry it rather than a copy of its text (NOT-15).
+  const [noteTpl, setNoteTpl] = useState<string | null>(null)
+  const [carryNote, setCarryNote] = useState(true)
   const set = <K extends keyof Task>(k: K, v: Task[K]) => setDraft((d) => ({ ...d, [k]: v }))
 
   useBackClose(onClose)
@@ -115,6 +120,7 @@ function TaskForm({ task, isNew, onClose, onDuplicate }: {
   const showUntil = until && hasStart
 
   const savedTemplates = settings.task_templates
+  const usedNoteTemplate = noteTpl ? settings.note_templates.find((t) => t.id === noteTpl) ?? null : null
 
   function chooseUntil(on: boolean) {
     // Ticking never changes the length by itself: the end shown is the one the
@@ -220,7 +226,7 @@ function TaskForm({ task, isNew, onClose, onDuplicate }: {
   async function saveTemplate() {
     if (!profile) return
     const t = templateOfTask({ ...draft, title: draft.title.trim() }, templateName, repeat.rule ? repeat : null,
-      savedTemplates.map((x) => x.id))
+      savedTemplates.map((x) => x.id), carryNote ? usedNoteTemplate : null)
     await saveSettings(profile, { task_templates: withTaskTemplate(savedTemplates, t) })
     setSaid(`Saved as the template “${t.name}”.`)
     setStep('form')
@@ -230,6 +236,7 @@ function TaskForm({ task, isNew, onClose, onDuplicate }: {
     const tpl = savedTemplates.find((t) => t.id === id)
     if (!tpl) return
     setDraft((d) => applyTaskTemplate(d, tpl, settings.note_templates))
+    setNoteTpl(tpl.note_template_id)
     const r = templateRepeat(tpl)
     setRepeatEdit(r ? { ...r } as RepeatValue : null)
     setPickerKey((k) => k + 1)
@@ -311,6 +318,15 @@ function TaskForm({ task, isNew, onClose, onDuplicate }: {
                 onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); void saveTemplate() } }} />
             </label>
             <p className="ts-question-sub">Keeps the title, length, section, lock, note{repeat.rule ? ' and repeat' : ''}. Start a new task from it with “Start from a saved task”.</p>
+            {usedNoteTemplate && (
+              <label className="ts-check">
+                <input type="checkbox" checked={carryNote} onChange={(e) => setCarryNote(e.target.checked)} />
+                <span>Bring the note template “{usedNoteTemplate.name}”
+                  <span className="ts-check-sub">{usedNoteTemplate.after_done
+                    ? 'Each new task asks for it when ticked done.'
+                    : 'Each new task gets it filled in for its own day, instead of a copy of this note.'}</span></span>
+              </label>
+            )}
             <div className="sheet-actions">
               <button type="button" className="btn" onClick={() => setStep('form')}>Back</button>
               <button type="button" className="btn btn-primary grow" onClick={() => void saveTemplate()}>Save template</button>
@@ -393,6 +409,10 @@ function TaskForm({ task, isNew, onClose, onDuplicate }: {
                 </div>
               </div>
 
+              {/* Projects and goals: shown only while Projects is on (P1). */}
+              <ProjectField value={draft.project_id ?? null} onChange={(id) => set('project_id', id)} />
+              <GoalField value={draft.goal_id} onChange={(id) => set('goal_id', id)} />
+
               {inSeries && !running && (
                 <div className="ts-repeat">
                   <span className="ts-repeat-label">Repeat</span>
@@ -426,6 +446,9 @@ function TaskForm({ task, isNew, onClose, onDuplicate }: {
                 <span>Locked<span className="ts-check-sub">Nothing may move it: no pushes, and it stays when days swap.</span></span>
               </label>
               <NoteEditor value={draft.notes ?? ''} onChange={(text) => set('notes', text || null)}
+                context={{ day: start, title: draft.title.trim() || undefined, time: draft.planned_time, start: repeat.rule ? start : null }}
+                startLabel={isNew ? 'Start from a note template' : undefined}
+                onTemplateUsed={(t) => setNoteTpl(t.id)}
                 aside={<button type="button" className="ne-open" onClick={() => setNotesOpen(true)}>Open as page</button>} />
             </div>
 
