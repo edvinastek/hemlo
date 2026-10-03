@@ -97,15 +97,19 @@ const sleepSwitch = p.getByRole('switch', { name: /Turn Sleep (on|off)/ })
 if ((await sleepSwitch.getAttribute('aria-checked')) !== 'true') await sleepSwitch.click()
 await settle(p)
 await p.goto(`${APP}m/sleep`, { waitUntil: 'networkidle' })
-await p.getByRole('button', exact('Add night')).click()
+// The round + adds a night; quality is five buttons.
+await p.getByRole('button', exact('Add a night')).click()
 await p.getByLabel('To bed').fill('23:15')
 await p.getByLabel('Woke').fill('07:00')
-await p.getByLabel('Quality').fill('4')
+await p.getByRole('group', exact('Quality, 1 to 5')).getByRole('button', exact('4')).click()
 await p.getByRole('button', exact('Save')).click()
 await settle(p)
 r = await one(`select count(*) n, max(went_to_bed)::text b, max(hours)::text h from public.sleep_log where ${mine} and log_date = '${day}' and deleted_at is null`)
 is('the night is in Postgres', r.n, 1)
 is('with its times and hours', `${r.b} ${Number(r.h)}`, '23:15:00 7.75')
+// The table of nights is the page's Nights tab (v17).
+await p.getByRole('tab', exact('Nights')).click()
+await p.locator('.sheet tbody tr').first().waitFor({ timeout: 8000 }).catch(() => {})
 is('and it shows in the table', await p.locator('.sheet tbody tr').count(), 1)
 
 // 6. A built-in module's field renamed: saved as a change over the app's
