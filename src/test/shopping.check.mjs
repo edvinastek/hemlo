@@ -4,11 +4,11 @@
 // recently bought tiles, prices and the trip's total, the window of meals,
 // the trip task on the plan, and the chains offered in Stores.
 import {
-  parseItem, amountText, entryGrams, cleanName, nameKey, itemKey, matchFood, guessAisle, readAisles, resolveAisle,
+  parseItem, parseAmount, amountText, entryGrams, cleanName, nameKey, itemKey, matchFood, guessAisle, readAisles, resolveAisle,
   renameAisle, addAisle, removeAisle, moveInList, sortAisles, shopAisles, planNeeds, plannedLines, boughtFor, doneGrams,
   forShop, sameShop, onList, groupList, reorderWithin, nextSort, mergeAmounts, recentTiles, currencyFor, formatMoney,
   readPrice, perKilo, priceLabel, itemCost, tripTotal, pickPrice, nextShoppingDay, listWindow, describeDays, tripTitle,
-  planTrip, listNames, windowText, isTripTask, DEFAULT_AISLES, OTHER,
+  planTrip, listNames, windowText, isTripTask, readShoppingModule, DEFAULT_AISLES, OTHER,
 } from '../lib/shopping-rules.ts'
 import { suggestShops, cleanShopName, CHAINS } from '../lib/shops-rules.ts'
 
@@ -48,6 +48,9 @@ is('past what the database holds is not an amount', parseItem('2000 kg flour'), 
 is('a long name is cut to 120', parseItem('x'.repeat(200)).name.length, 120)
 is('cleanName drops a trailing full stop', cleanName('bread.'), 'Bread')
 
+is('an amount on its own', [parseAmount('2 kg'), parseAmount('6'), parseAmount('2 packs'), parseAmount('')],
+  [{ qty: 2, unit: 'kg', grams: 2000 }, { qty: 6, unit: null, grams: null }, { qty: 2, unit: 'pack', grams: null }, { qty: null, unit: null, grams: null }])
+is('not an amount', [parseAmount('lots'), parseAmount('2 bananas'), parseAmount('-1')], [null, null, null])
 is('a weight as shown', amountText({ qty: 2, unit: 'kg', grams: 2000 }), '2 kg')
 is('a shop word as shown', amountText({ qty: 2, unit: 'pack' }), '2 packs')
 is('one of a shop word', amountText({ qty: 1, unit: 'bottle' }), '1 bottle')
@@ -259,6 +262,9 @@ is('a ticked trip is never removed', planTrip({ today: '2026-10-05', count: 0, o
 is('two open ones (two phones): one stays', planTrip({ today: '2026-10-01', count: 3, on: true, trip, tasks: [task(), task({ id: 'u', planned_date: '2026-10-10' })] }).remove, ['u'])
 is('the window in words', [windowText('2026-10-03', '2026-10-06'), windowText('2026-09-30', '2026-10-03'), windowText('2026-10-03', '2026-10-03')],
   ['3 to 6 Oct', '30 Sep to 3 Oct', '3 Oct'])
+
+is('the module\'s settings, nothing stored', readShoppingModule(undefined), { aisles: { aisles: DEFAULT_AISLES, renamed: {} }, lists: [] })
+is('lists tidied, each once, at most 12', readShoppingModule({ lists: [' Me ', 'me', '', 7, ...Array.from({ length: 20 }, (_, i) => `L${i}`)] }).lists.length, 12)
 
 // ---- chains in Stores -----------------------------------------------------------------------
 const nl = suggestShops('NL', [])

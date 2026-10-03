@@ -1,0 +1,149 @@
+/* Shop → List and Stores. The item is the person's own word, in the serif;
+   amounts, aisles and everything the app says about it in the sans. Sized
+   for a 360 px phone: names wrap, controls never leave the screen, and the
+   tick and ⋮ are 44–48 px targets. No shadows: menus and sheets are set off
+   by the field colour and a rule. */
+
+/* ---- adding --------------------------------------------------------------- */
+.shop-add { display: grid; gap: var(--space-2); padding: var(--space-3) var(--space-4); border-bottom: 1px solid var(--e-rule); min-width: 0; }
+.shop-add-row { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: var(--space-2); }
+.shop-add-row input { width: 100%; min-width: 0; padding: 8px 10px; min-height: 44px; font-size: 16px; font-family: var(--font-serif); }
+.shop-add-row .btn { min-height: 44px; }
+.shop-add-read { min-height: 1.4em; }
+.shop-add-more { display: flex; flex-wrap: wrap; gap: var(--space-2); }
+.shop-add-more .btn { min-height: 40px; }
+
+/* ---- recently bought, chips ---------------------------------------------- */
+.shop-recent { padding: var(--space-3) var(--space-4) 0; }
+.shop-recent-title, .shop-label {
+  display: block; font-family: var(--font-sans); font-size: 12px; color: var(--e-ink-soft); margin: 0 0 var(--space-2);
+}
+.shop-tiles { display: flex; flex-wrap: wrap; gap: var(--space-2); }
+.shop-tile {
+  min-height: 40px; max-width: 100%; padding: 6px 12px;
+  border: 1px solid var(--e-rule); border-radius: var(--radius-pill);
+  font-family: var(--font-serif); font-size: 15px; color: var(--e-ink);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.shop-tile span { font-family: var(--font-sans); color: var(--e-accent); margin-right: 2px; }
+.shop-tile.is-quiet { font-family: var(--font-sans); font-size: 13px; color: var(--e-ink-soft); }
+
+.shop-filters {
+  display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2);
+  padding: var(--space-3) var(--space-4) 0;
+}
+.shop-lists { display: flex; flex-wrap: wrap; gap: var(--space-2); min-width: 0; }
+.shop-chip {
+  min-height: 36px; padding: 4px 12px; border: 1px solid var(--e-rule); border-radius: var(--radius-pill);
+  font-family: var(--font-sans); font-size: 13px; color: var(--e-ink-soft);
+}
+.shop-chip[aria-pressed="true"] { background: var(--e-tint); color: var(--e-ink); border-color: var(--e-accent); font-weight: 600; }
+.shop-filter { min-width: 150px; flex: 1 1 150px; max-width: 260px; }
+
+/* ---- the list ------------------------------------------------------------- */
+.shop-list ul { list-style: none; margin: 0; padding: 0; }
+.shop-aisle button {
+  display: flex; align-items: center; gap: var(--space-2); width: 100%;
+  min-height: 44px; padding: var(--space-2) var(--space-4) var(--space-1);
+  font-family: var(--font-sans); font-size: 13px; font-weight: 600; color: var(--e-ink-soft); text-align: left;
+}
+.shop-count { font-weight: 400; }
+.shop-caret { margin-left: auto; font-size: 12px; }
+
+.shop-row {
+  display: grid; grid-template-columns: 48px minmax(0, 1fr) 44px; align-items: center;
+  min-height: var(--row-e); padding: 0 var(--space-2) 0 var(--space-1);
+  border-bottom: 1px solid var(--e-rule);
+}
+.shop-tick { width: 48px; height: 48px; display: grid; place-items: center; }
+.shop-box {
+  width: 22px; height: 22px; border: 1.5px solid var(--e-ink-soft); border-radius: var(--radius-sm);
+  display: grid; place-items: center;
+}
+.shop-tick[aria-checked="true"] .shop-box { background: var(--e-done); border-color: var(--e-done); }
+.shop-tick[aria-checked="true"] .shop-box::after {
+  content: ''; width: 6px; height: 11px; border: solid var(--e-paper); border-width: 0 2px 2px 0; transform: translateY(-1px) rotate(45deg);
+}
+.shop-what { display: grid; gap: 1px; min-width: 0; padding: var(--space-2) var(--space-1); text-align: left; }
+.shop-line { display: flex; flex-wrap: wrap; align-items: baseline; gap: 2px var(--space-2); min-width: 0; }
+.shop-name { font-family: var(--font-serif); font-size: 16px; color: var(--e-ink); overflow-wrap: anywhere; }
+.shop-amount { font-family: var(--font-sans); font-size: 13px; color: var(--e-ink); white-space: nowrap; }
+.shop-meta { font-family: var(--font-sans); font-size: 12px; color: var(--e-ink-soft); overflow-wrap: anywhere; }
+.shop-row.is-ticked .shop-name { color: var(--e-ink-soft); text-decoration: line-through; text-decoration-thickness: 1px; }
+.shop-row.is-ticked .shop-amount { color: var(--e-ink-soft); }
+
+.shop-foot { display: flex; flex-wrap: wrap; gap: var(--space-2); padding: var(--space-3) var(--space-4); }
+.shop-foot .btn { min-height: 44px; }
+.shop-said { padding: 0 var(--space-4) var(--space-3); }
+
+/* ---- the ⋮ menu ----------------------------------------------------------- */
+.shop-more-wrap { position: relative; justify-self: end; }
+.shop-more { width: 44px; height: 44px; font-size: 20px; line-height: 1; color: var(--e-ink-soft); border-radius: var(--radius-md); }
+.shop-more[aria-expanded="true"] { background: var(--e-tint); color: var(--e-ink); }
+.shop-more-gap { width: 44px; }
+.shop-menu {
+  position: absolute; right: 0; top: calc(100% + 2px); z-index: 40; min-width: 200px; max-width: calc(100vw - 32px);
+  display: grid; padding: 4px 0;
+  background: var(--e-field); border: 1px solid var(--e-field-line); border-radius: var(--radius-md);
+}
+.shop-menu.is-above { top: auto; bottom: calc(100% + 2px); }
+.shop-menu button {
+  min-height: 44px; padding: 8px 14px; text-align: left; font-family: var(--font-sans); font-size: 15px; color: var(--e-ink);
+}
+.shop-menu button:focus-visible, .shop-menu button:hover { background: var(--e-tint); outline: none; }
+.shop-menu button:disabled { color: var(--e-ink-soft); opacity: 0.55; }
+.shop-menu button.is-warn { color: var(--e-warn); }
+
+/* ---- sheets ---------------------------------------------------------------- */
+.shop-sheet { max-width: 640px; margin: 0 auto; }
+.shop-sheet-head { display: flex; align-items: baseline; justify-content: space-between; gap: var(--space-3); }
+.shop-sheet-head h2 { margin-bottom: var(--space-3); overflow-wrap: anywhere; }
+.shop-field { display: grid; gap: 4px; min-width: 0; }
+.shop-field .shop-label { margin: 0; font-size: 13px; }
+.shop-serif, .form-grid input.shop-serif { font-family: var(--font-serif); }
+.btn.shop-warn { color: var(--e-warn); }
+.shop-search { width: 100%; min-width: 0; padding: 8px 10px; min-height: 44px; font-size: 15px; margin-bottom: var(--space-2); }
+.shop-recipes { list-style: none; margin: 0; padding: 0; max-height: 52vh; overflow-y: auto; }
+.shop-recipes li { display: grid; gap: var(--space-1); padding: var(--space-2) 0; border-bottom: 1px solid var(--e-rule); }
+.shop-recipe-pick { display: flex; align-items: center; gap: var(--space-2); min-height: 40px; min-width: 0; }
+.shop-recipe-pick input { width: 20px; height: 20px; flex: none; }
+.shop-portions { display: flex; align-items: center; gap: var(--space-2); padding-left: 28px; }
+.shop-portion-n { font-family: var(--font-sans); font-size: 13px; min-width: 84px; text-align: center; }
+
+/* ---- prices ---------------------------------------------------------------- */
+.shop-prices { margin-top: var(--space-4); border-top: 1px solid var(--e-rule); }
+.shop-prices-title { padding-left: 0; padding-right: 0; }
+.shop-prices ul, .shop-price-list { list-style: none; margin: 0 0 var(--space-2); padding: 0; }
+.shop-prices li, .shop-price-list li {
+  display: grid; grid-template-columns: minmax(0, 1fr) auto; column-gap: var(--space-2); align-items: center;
+  padding: var(--space-1) 0; border-bottom: 1px solid var(--e-rule);
+}
+.shop-prices li .shop-x, .shop-price-list li .shop-x { grid-row: 1 / span 2; grid-column: 2; }
+.shop-price-shop { font-family: var(--font-sans); font-size: 14px; }
+.shop-price { font-family: var(--font-sans); font-size: 12px; color: var(--e-ink-soft); }
+.shop-x { width: 44px; height: 44px; font-size: 20px; color: var(--e-ink-soft); }
+.shop-price-form { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: var(--space-2); }
+.shop-price-form > .dd, .shop-price-form > .btn { grid-column: 1 / -1; }
+.shop-price-form input { width: 100%; min-width: 0; padding: 8px 10px; min-height: 44px; font-size: 15px; }
+.shop-price-form .btn { min-height: 44px; }
+
+/* ---- Stores ------------------------------------------------------------------- */
+.shop-stores { list-style: none; margin: 0; padding: 0; }
+.shop-store { border-bottom: 1px solid var(--e-rule); }
+.shop-store-head { display: grid; grid-template-columns: minmax(0, 1fr) 44px; align-items: center; padding: 0 var(--space-2) 0 var(--space-3); }
+.shop-store-head .shop-what { min-height: 56px; }
+.shop-store-body { display: grid; gap: var(--space-2); justify-items: start; padding: 0 var(--space-4) var(--space-4); }
+.shop-store-body > * { max-width: 100%; }
+.shop-store-body .shop-aisle-order, .shop-store-body .shop-price-list { width: 100%; }
+.shop-pad { padding: 0 var(--space-4) var(--space-3); }
+.shop-aisle-order { list-style: none; margin: 0; padding: 0 var(--space-2) 0 var(--space-4); }
+.shop-store-body .shop-aisle-order { padding: 0; }
+.shop-aisle-order li {
+  display: grid; grid-template-columns: 24px minmax(0, 1fr) 40px 40px 44px; align-items: center; gap: var(--space-1);
+  min-height: 44px; border-bottom: 1px solid var(--e-rule);
+}
+.shop-aisle-n { font-family: var(--font-sans); font-size: 12px; color: var(--e-ink-soft); text-align: right; padding-right: 4px; }
+.shop-aisle-name { font-family: var(--font-sans); font-size: 15px; overflow-wrap: anywhere; }
+.shop-aisle-order .stock-step { width: 40px; height: 40px; }
+.shop-aisle-order .stock-step:disabled { opacity: 0.35; }
+.shop-add-aisle { border-bottom: 0; }

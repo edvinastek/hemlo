@@ -2,9 +2,9 @@ import { db, getMeta, setMeta } from './db'
 import { queueChange } from './sync'
 import { edit } from './write'
 import { readSettings } from './settings'
-import { applyDelta, cleanNote, mealNeeds, putBack, stockStep, takeOut, tidy, MAX_GRAMS } from './stock-rules'
+import { applyDelta, cleanMin, cleanNote, cleanPlace, mealNeeds, putBack, stockStep, takeOut, tidy, MAX_GRAMS } from './stock-rules'
 import { readUnits, stockUnitColumns } from './units-rules'
-import type { Food, MealPlanSlot, Stock } from './types'
+import type { Food, FoodLogEntry, MealPlanSlot, Stock } from './types'
 
 /** The household's cupboard, kept like every other table: written here first
  *  so it works with no signal, then queued for the server. The maths lives in
@@ -74,6 +74,8 @@ export async function setStock(householdId: string, foodId: string, grams: numbe
       changes.deleted_at = null
       // A note from before it was removed described a different bag.
       changes.note = cleanNote(note)
+      // So did its date; where it is kept and the minimum still hold.
+      if (row.best_before) changes.best_before = null
     } else if (note !== undefined) {
       changes.note = cleanNote(note)
     }
@@ -124,24 +126,42 @@ const takenKey = (slotId: string) => `stock:taken:${slotId}`
  *  (sign -1) it puts them back. Called with the slot as it was before the
  *  change, so a meal already eaten is never taken twice.
  *
- *  Only when the person eating has chosen it (settings.stock_auto): most people
- *  cook from a rough cupboard and do not want it to count for them. A meal
- *  typed as plain numbers has no ingredients and changes nothing. */
+ *  A recipe meal (a ready meal is a recipe of one line) takes its
+ *  ingredients times the portions; a meal of one food takes that food's
+ *  grams. Only when the person eating has chosen it (settings.stock_auto):
+ *  most people cook from a rough cupboard and do not want it to count for
+ *  them. A meal typed as plain numbers has no food and changes nothing. */
 export async function consumeForMeal(slot: MealPlanSlot, sign: 1 | -1): Promise<void> {
-  if (!slot.recipe_id) return
+  if (!slot.recipe_id && !(slot.food_id && Number(slot.grams) > 0)) return
   if (sign === 1 && slot.status === 'eaten') return
   if (sign === -1 && slot.status !== 'eaten') return
+  await consume(slot.profile_id, takenKey(slot.id), () => slotNeeds(slot), sign)
+}
 
-  const profile = await db.profile.get(slot.profile_id)
+/** The same for food logged as eaten without a planned meal (the add-food
+ *  sheet): `sign` 1 when it is logged, -1 when the entry is removed. Called
+ *  by whoever writes the food log, once per change; a second call with the
+ *  same sign does nothing, because what was taken is remembered per entry. */
+export async function consumeForLog(entry: Pick<FoodLogEntry, 'id' | 'profile_id' | 'food_id' | 'recipe_id' | 'grams' | 'portions'>, sign: 1 | -1): Promise<void> {
+  if (!entry.recipe_id && !(entry.food_id && Number(entry.grams) > 0)) return
+  const key = takenKey(`log:${entry.id}`)
+  if (sign === 1 && (await getMeta<Record<string, number> | null>(key, null))) return
+  await consume(entry.profile_id, key, async () => {
+    if (entry.recipe_id) return recipeNeeds(entry.recipe_id, Number(entry.portions) > 0 ? Number(entry.portions) : 1)
+    return new Map([[entry.food_id!, tidy(Number(entry.grams))]])
+  }, sign)
+}
+
+async function consume(profileId: string, key: string, needs: () => Promise<Map<string, number>>, sign: 1 | -1): Promise<void> {
+  const profile = await db.profile.get(profileId)
   if (!profile) return
   const householdId = profile.household_id
   const on = readSettings(profile).stock_auto
-  const key = takenKey(slot.id)
   const recorded = await getMeta<Record<string, number> | null>(key, null)
 
   // Undoing what this device took is always right, even if the switch has
   // been turned off since. With nothing recorded (the meal was ticked on
-  // another phone) the recipe's amounts go back, if the switch is on.
+  // another phone) the meal's amounts go back, if the switch is on.
   if (sign === -1 && !recorded && !on) return
   if (sign === 1 && !on) return
 
@@ -151,12 +171,11 @@ export async function consumeForMeal(slot: MealPlanSlot, sign: 1 | -1): Promise<
 
   let next: Map<string, number>
   if (sign === 1) {
-    const needs = await needsFor(slot)
-    const out = takeOut(needs, have)
+    const out = takeOut(await needs(), have)
     next = out.next
     await setMeta(key, out.taken)
   } else {
-    const taken = recorded ?? Object.fromEntries(await needsFor(slot))
+    const taken = recorded ?? Object.fromEntries(await needs())
     next = putBack(taken, have)
     await db.meta.delete(key)
   }
@@ -167,9 +186,36 @@ export async function consumeForMeal(slot: MealPlanSlot, sign: 1 | -1): Promise<
   }
 }
 
-async function needsFor(slot: MealPlanSlot): Promise<Map<string, number>> {
-  const lines = await db.recipe_line.where('recipe_id').equals(slot.recipe_id!).toArray()
+async function slotNeeds(slot: MealPlanSlot): Promise<Map<string, number>> {
+  if (slot.recipe_id) return recipeNeeds(slot.recipe_id, slot.portion_multiplier ?? 1)
+  return new Map([[slot.food_id!, tidy(Number(slot.grams))]])
+}
+
+async function recipeNeeds(recipeId: string, portions: number): Promise<Map<string, number>> {
+  const lines = await db.recipe_line.where('recipe_id').equals(recipeId).toArray()
   const ids = [...new Set(lines.map((l) => l.food_id).filter((id): id is string => !!id))]
   const foods = new Map((await db.food.bulkGet(ids)).filter((f): f is Food => !!f).map((f) => [f.id, f]))
-  return mealNeeds(lines, foods, slot.portion_multiplier ?? 1)
+  return mealNeeds(lines, foods, portions)
+}
+
+/** Where it is kept, its date and the minimum to keep (STK-03, STK-04).
+ *  Only what is given changes; null clears it. */
+export async function setStockDetails(row: Stock, details: Partial<Pick<Stock, 'place' | 'best_before' | 'min_grams' | 'note'>>): Promise<Stock> {
+  const changes: Partial<Stock> = {}
+  if ('place' in details) changes.place = cleanPlace(details.place)
+  if ('best_before' in details) changes.best_before = details.best_before || null
+  if ('min_grams' in details) changes.min_grams = cleanMin(details.min_grams ?? null)
+  if ('note' in details) changes.note = cleanNote(details.note)
+  return edit('stock', row, changes)
+}
+
+/** Back as it was before (for Undo after a removal or an edit). */
+export async function restoreStock(before: Stock): Promise<void> {
+  const now = await db.stock.get(before.id)
+  if (!now) return
+  const changes: Partial<Stock> = {}
+  for (const k of ['grams_on_hand', 'unit', 'unit_qty', 'note', 'place', 'best_before', 'min_grams', 'deleted_at'] as const) {
+    if ((before[k] ?? null) !== (now[k] ?? null)) (changes as Record<string, unknown>)[k] = before[k] ?? null
+  }
+  if (Object.keys(changes).length) await edit('stock', now, changes)
 }

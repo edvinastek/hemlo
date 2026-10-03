@@ -144,6 +144,15 @@ export function parseItem(text: string): ParsedItem | null {
   return plain(t)
 }
 
+/** An amount typed on its own ("2 kg", "6", "2 packs", "½ l"), as an item
+ *  keeps it. Empty is no amount; null is "that is not an amount". */
+export function parseAmount(text: string): Omit<ParsedItem, 'name'> | null {
+  const t = plainFractions(String(text ?? '')).replace(/\s+/g, ' ').trim()
+  if (!t) return { qty: null, unit: null, grams: null }
+  const m = new RegExp(`^${AMOUNT}\\s*([a-zà-ž]+\\.?)?$`, 'i').exec(t)
+  return m ? amountOf(m[1], m[2]) : null
+}
+
 /** An amount as the list shows it: "2 kg", "500 g", "1.5 l", "2 packs",
  *  "6". `units` are the food's: a bare count of a food that counts in eggs
  *  reads "6 eggs". Empty when there is no amount. */
@@ -954,4 +963,25 @@ export function windowText(from: string, to: string): string {
   const b = d(to)
   if (from === to) return `${a.day} ${a.mon}`
   return a.mon === b.mon ? `${a.day} to ${b.day} ${b.mon}` : `${a.day} ${a.mon} to ${b.day} ${b.mon}`
+}
+
+// ---- the Shopping module's own settings ----------------------------------------------------
+
+/** What the Shopping module keeps in its settings (per profile, synced):
+ *  the aisles and the names of the extra lists. The shops, the trip and
+ *  the window are in the profile's settings (settings.ts, `shopping`). */
+export interface ShoppingModuleSettings { aisles: AisleSettings; lists: string[] }
+
+export function readShoppingModule(settings: Record<string, unknown> | null | undefined): ShoppingModuleSettings {
+  const s = settings ?? {}
+  const lists: string[] = []
+  const seen = new Set<string>()
+  for (const l of Array.isArray(s.lists) ? s.lists : []) {
+    const n = cleanLabel(l, LIST_MAX)
+    if (!n || seen.has(n.toLowerCase())) continue
+    seen.add(n.toLowerCase())
+    lists.push(n)
+    if (lists.length >= 12) break
+  }
+  return { aisles: readAisles(s.aisles), lists }
 }

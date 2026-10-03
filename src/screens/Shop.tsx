@@ -1,95 +1,33 @@
-import { useState } from 'react'
-import { useLiveQuery } from 'dexie-react-hooks'
-import { addDays, format } from 'date-fns'
-import { getMeta, setMeta } from '../lib/db'
+import { useRef } from 'react'
 import { useApp } from '../lib/store'
-import { DataTable } from '../ui/DataTable'
-import { tripFromPlan, unitsToBuy, type TripLine } from '../lib/shopping'
-import { addStock, stockMap } from '../lib/stock'
-import { boughtGrams, tidy } from '../lib/stock-rules'
-import { formatCount } from '../lib/units-rules'
 import { StockPanel } from '../sections/Stock'
-import { ExportLink } from '../ui/ExportLink'
-import type { FieldDef } from '../modules/types'
+import { ShopList } from '../sections/ShopList'
+import { Stores } from '../sections/Stores'
+import { useDeviceChoice } from '../sections/shop-ui'
 
-const SECTIONS = ['Trip', 'Stock', 'Stores']
-/** The trip as a file: what to buy, what stock covers, packs, and the ticks. */
-const TRIP_FIELDS: FieldDef[] = [
-  { name: 'name', label: 'Item', type: 'text' },
-  { name: 'buy_g', label: 'Needed', type: 'number', unit: 'g' },
-  { name: 'buy_count', label: 'How many', type: 'number' },
-  { name: 'unit', label: 'Unit', type: 'text' },
-  { name: 'from_stock_g', label: 'From stock', type: 'number', unit: 'g' },
-  { name: 'pack_size_g', label: 'Pack', type: 'number', unit: 'g' },
-  { name: 'checked', label: 'Got it', type: 'boolean' },
-]
+const SECTIONS = ['List', 'Stock', 'Stores'] as const
+type Section = typeof SECTIONS[number]
 
-/** What the plan needs up to the next trip, less what is already in the
- *  cupboard, rounded up to whole packs. Nothing here is typed by hand. */
+/** Shopping: the household's list (what the planned meals need, less what
+ *  is in the cupboard, and what anyone added by hand), the cupboard itself,
+ *  and the shops with their aisles and prices. The round + adds to the tab
+ *  that is open. */
 export function Shop() {
-  const [section, setSection] = useState('Trip')
   const profile = useApp((s) => s.profile)
-  const today = format(new Date(), 'yyyy-MM-dd')
-  const until = format(addDays(new Date(), 3), 'yyyy-MM-dd')
-
-  // The trip reads stock inside the same live query, so an amount changed on
-  // the Stock tab (or taken by a meal) redraws the list at once.
-  const trip = useLiveQuery(async () => {
-    if (!profile) return { lines: [] as TripLine[], covered: 0 }
-    const stock = await stockMap(profile.household_id)
-    const lines = await tripFromPlan(profile.id, today, until, stock)
-    // Foods the cupboard covers in full drop off the list. Counting them keeps
-    // a short list from looking like a plan that forgot something.
-    const covered = stock.size ? (await tripFromPlan(profile.id, today, until)).length - lines.length : 0
-    return { lines, covered }
-  }, [profile?.id, profile?.household_id, today, until], { lines: [] as TripLine[], covered: 0 })
-  const { lines, covered } = trip
-  const [stocked, setStocked] = useState<string | null>(null)
-
-  // What has gone in the basket is remembered on this device for the trip, so
-  // a phone that locks mid-aisle does not lose the ticks.
-  const tripKey = `shop:checked:${today}`
-  const checked = useLiveQuery(() => getMeta<string[]>(tripKey, []), [tripKey], [] as string[])
-  // What to buy is what the plan needs less what is already here.
-  // A food every meal counted the same way reads "6 eggs"; the rest in grams.
-  const rows = lines.map((l) => {
-    const buy_g = Math.max(0, l.needed_g - l.from_stock_g)
-    const buy_count = unitsToBuy(l)
-    return {
-      ...l, buy_g, buy_count, unit: l.count && buy_count !== null ? l.count.unit.name : null,
-      buy: l.count && buy_count !== null ? formatCount(buy_count, l.count.unit) : `${buy_g} g`,
-      checked: checked.includes(l.id),
-    }
-  })
-  const fromStock = rows.some((r) => r.from_stock_g > 0)
-  const ticked = lines.filter((l) => checked.includes(l.id))
-  async function tick(row: TripLine, _field: string, value: unknown) {
-    setStocked(null)
-    const next = value ? [...new Set([...checked, row.id])] : checked.filter((id) => id !== row.id)
-    await setMeta(tripKey, next)
-  }
-
-  /** Home from the shop: what went in the basket goes in the cupboard, and
-   *  its ticks are cleared, so the trip that follows is worked out from it. */
-  async function stockTicked() {
-    if (!profile || ticked.length === 0) return
-    for (const line of ticked) {
-      // Counted food without a pack size goes in as the whole ones bought.
-      const count = line.pack_size_g ? null : unitsToBuy(line)
-      const grams = count !== null && line.unit_g ? tidy(count * line.unit_g) : boughtGrams(line)
-      if (grams > 0) await addStock(profile.household_id, line.id, grams, undefined, count !== null ? line.count?.unit.name : undefined)
-    }
-    const done = new Set(ticked.map((l) => l.id))
-    await setMeta(tripKey, checked.filter((id) => !done.has(id)))
-    setStocked(`${ticked.length} ${ticked.length === 1 ? 'item' : 'items'} put in stock.`)
-  }
+  const [stored, setSection] = useDeviceChoice<string>('shop:tab', 'List')
+  const section: Section = (SECTIONS as readonly string[]).includes(stored) ? stored as Section : 'List'
+  const addRef = useRef<HTMLInputElement>(null)
 
   return (
     <div className="page">
       <div className="page-inner">
         <header className="page-head">
           <h1 className="page-date">Shopping</h1>
-          <p className="page-sub">Everything the next four days of meals need, in the weights a shop sells.</p>
+          <p className="page-sub">
+            {section === 'List' ? 'What the planned meals need, less the cupboard, and what you add. Shared with your household.'
+              : section === 'Stock' ? 'What is in the cupboard, fridge and freezer. Every list is worked out against it.'
+                : 'Your shops, their aisle order and the prices you note.'}
+          </p>
           <div className="tabs" role="tablist">
             {SECTIONS.map((s) => (
               <button key={s} role="tab" aria-selected={s === section} onClick={() => setSection(s)}>{s}</button>
@@ -97,62 +35,19 @@ export function Shop() {
           </div>
         </header>
 
-        {section === 'Trip' && (
-          <>
-            <div className="totals">
-              <span>Covering {format(new Date(), 'd MMM')} to {format(addDays(new Date(), 3), 'd MMM')}</span>
-              <span><b>{lines.length - ticked.length}</b> of {lines.length} left</span>
-              {covered > 0 && <span><b>{covered}</b> covered by stock</span>}
-            </div>
-            <DataTable
-              // Pack columns appear only once foods have pack sizes; a column of
-              // dashes tells a shopper nothing.
-              fields={[
-                { name: 'name', label: 'Item', type: 'text', width: 220 },
-                { name: 'buy', label: 'Needed', type: 'text', width: 100 },
-                // Shown only once something is in stock; then it explains
-                // why a need is smaller than the recipe says.
-                ...(fromStock ? [{ name: 'from_stock_g', label: 'From stock', type: 'number' as const, unit: 'g', width: 90 }] : []),
-                ...(rows.some((r) => r.pack_size_g) ? [
-                  { name: 'pack_size_g', label: 'Pack', type: 'number' as const, unit: 'g', width: 80 },
-                  { name: 'packs', label: 'Packs', type: 'formula' as const, formula: 'ceil((needed_g - from_stock_g) / pack_size_g)', width: 70 },
-                ] : []),
-                { name: 'checked', label: 'Got it', type: 'boolean', width: 70 },
-              ]}
-              priority={['name', 'buy', ...(fromStock ? ['from_stock_g'] : []), 'checked']}
-              rows={rows as never}
-              editable={['checked']}
-              onChange={(row, field, value) => void tick(row as never, field, value)}
-              emptyNote={covered > 0
-                ? 'Everything the plan needs is already in stock.'
-                : 'No trip planned. Plan some meals first and the list fills itself.'}
-            />
-            {(ticked.length > 0 || stocked) && (
-              <div className="trip-foot">
-                {ticked.length > 0 && (
-                  <>
-                    <button className="btn" onClick={() => void stockTicked()}>Put ticked items in stock</button>
-                    <p className="stock-hint">
-                      Adds what was bought: whole packs where the pack size is known, else the amount needed.
-                    </p>
-                  </>
-                )}
-                {stocked && <p className="stock-hint" role="status">{stocked}</p>}
-              </div>
-            )}
-          </>
-        )}
-
-        {section === 'Stock' && profile && <StockPanel profile={profile} />}
-
-        {section === 'Stores' && (
-          <p className="empty">
-            Stores hold pack sizes and prices. Start with the ones you actually use and type
-            a price when you notice it; nothing here needs a shop's catalogue to work.
-          </p>
-        )}
-        {section !== 'Stores' && <ExportLink source={section === 'Stock' ? { dataset: 'stock' } : { label: 'Shopping trip', rows, fields: TRIP_FIELDS }} />}
+        {profile && section === 'List' && <ShopList profile={profile} addRef={addRef} />}
+        {profile && section === 'Stock' && <StockPanel profile={profile} />}
+        {profile && section === 'Stores' && <Stores profile={profile} addRef={addRef} />}
       </div>
+      <button type="button" className="fab"
+        aria-label={section === 'List' ? 'Add an item' : section === 'Stock' ? 'Add to stock' : 'Add a shop'}
+        onClick={() => {
+          // The add field of the tab that is open: the list's, the cupboard's
+          // food search, or the shop name.
+          const field = section === 'Stock' ? document.querySelector<HTMLInputElement>('.stock-add input') : addRef.current
+          field?.scrollIntoView({ block: 'center', behavior: 'smooth' })
+          field?.focus()
+        }}>+</button>
     </div>
   )
 }
