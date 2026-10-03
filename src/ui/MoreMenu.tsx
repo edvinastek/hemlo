@@ -40,11 +40,16 @@ function Menu({ items, onClose, anchor, children }: {
 }) {
   const box = useRef<HTMLDivElement>(null)
   const [above, setAbove] = useState(false)
+  // It hangs from the button's right edge, or from its left edge when that
+  // would run off the left of the screen (a ⋮ in the week's first column).
+  const [left, setLeft] = useState(false)
 
   useLayoutEffect(() => {
     const el = box.current
     if (!el) return
-    setAbove(el.getBoundingClientRect().bottom > window.innerHeight - 96)
+    const r = el.getBoundingClientRect()
+    setAbove(r.bottom > window.innerHeight - 96)
+    setLeft(r.left < 8)
     el.querySelector<HTMLButtonElement>('button:not(:disabled)')?.focus()
   }, [])
 
@@ -69,7 +74,7 @@ function Menu({ items, onClose, anchor, children }: {
   }, [onClose, anchor])
 
   return (
-    <div ref={box} className={`pm-menu${above ? ' is-above' : ''}`} role="menu" data-no-swipe
+    <div ref={box} className={`pm-menu${above ? ' is-above' : ''}${left ? ' is-left' : ''}`} role="menu" data-no-swipe
       onPointerDown={(e) => e.stopPropagation()} onClick={(e) => e.stopPropagation()}>
       {items.map((it) => (
         <button key={it.label} type="button" role="menuitem" disabled={it.disabled} className={it.danger ? 'is-danger' : undefined}

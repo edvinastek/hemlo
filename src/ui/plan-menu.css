@@ -17,6 +17,7 @@
   font-family: var(--font-sans); font-size: 14px; text-align: left;
 }
 .pm-menu.is-above { top: auto; bottom: calc(100% + 2px); }
+.pm-menu.is-left { right: auto; left: 0; }
 .pm-menu button {
   display: block; width: 100%; min-height: 44px; text-align: left;
   padding: 10px var(--space-3); border-radius: var(--radius-sm); font: inherit; color: inherit;

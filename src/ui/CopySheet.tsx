@@ -109,7 +109,7 @@ export function CopySheet({ what, onClose, onDone }: { what: CopyWhat; onClose: 
   )
   const check = (on: boolean, onToggle: (v: boolean) => void, label: string, sub?: string, disabled?: boolean) => (
     <label className={`cs-choice${disabled ? ' is-off' : ''}`}>
-      <input type="checkbox" checked={on} disabled={disabled} onChange={(e) => onToggle(e.target.checked)} />
+      <input type="checkbox" checked={on && !disabled} disabled={disabled} onChange={(e) => onToggle(e.target.checked)} />
       <span><span className="cs-choice-name">{label}</span>{sub && <span className="cs-choice-sub">{sub}</span>}</span>
     </label>
   )

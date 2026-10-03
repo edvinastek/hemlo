@@ -55,8 +55,8 @@
 
 /* How full the day is against the waking day (PLN-03): a thin bar, its
    words read out and in the tooltip, never only the colour. */
-.pw-busy { position: relative; height: 4px; border-radius: var(--radius-sm); background: var(--e-tint); margin: 2px 0 var(--space-2); overflow: hidden; }
-.pw-busy-fill { position: absolute; inset: 0 auto 0 0; background: var(--e-rail); border-radius: var(--radius-sm); }
+.pw-busy { position: relative; height: 5px; border-radius: var(--radius-sm); background: var(--e-tint); margin: 2px 0 var(--space-2); overflow: hidden; }
+.pw-busy-fill { position: absolute; inset: 0 auto 0 0; background: var(--e-ink-soft); border-radius: var(--radius-sm); }
 .pw-busy.is-over .pw-busy-fill { background: var(--e-warn); }
 .pw-busy.is-over { outline: 1px solid var(--e-warn); outline-offset: 1px; }
 
