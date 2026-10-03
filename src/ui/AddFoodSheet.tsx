@@ -282,7 +282,9 @@ export function AddFoodSheet({ day, meal: startMeal, time: startTime, food: star
   return (
     <Frame titleId={titleId} title="Add food" sub={dayLabel} onClose={onClose}
       menu={[{ label: 'Copy from another day…', onSelect: () => { setMode('copy'); setNote(null) } }]}
-      actions={(
+      // The foot appears with the first thing on the plate (v17: no hint line
+      // while it is empty; the + on every row says what a tap does).
+      actions={plate.length === 0 ? null : (
         <>
           {plate.length > 0 && (
             <button type="button" className="af-total" aria-live="polite"
@@ -290,13 +292,9 @@ export function AddFoodSheet({ day, meal: startMeal, time: startTime, food: star
               {plate.length} on the plate · {plateKcal}
             </button>
           )}
-          {plate.length > 0 ? (
-            <button type="button" className="btn btn-primary grow" disabled={!ready || busy} onClick={addPlate}>
-              {`Add ${plate.length === 1 ? 'it' : `all ${plate.length}`}`}
-            </button>
-          ) : (
-            <span className="af-total af-hint-foot">Tap what you had; it goes on the plate.</span>
-          )}
+          <button type="button" className="btn btn-primary grow" disabled={!ready || busy} onClick={addPlate}>
+            {`Add ${plate.length === 1 ? 'it' : `all ${plate.length}`}`}
+          </button>
         </>
       )}>
       <div className="af-where">
@@ -404,7 +402,7 @@ function Frame({ titleId, title, sub, onClose, actions, menu, children }: {
           </span>
         </div>
         {children}
-        <div className="sheet-actions af-actions">{actions}</div>
+        {actions && <div className="sheet-actions af-actions">{actions}</div>}
       </div>
     </>
   )

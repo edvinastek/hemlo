@@ -10,7 +10,6 @@
 
 .af-field { border: 0; margin: 0; padding: 0; display: grid; gap: var(--space-2); min-width: 0; }
 .af-field legend { padding: 0; margin-bottom: var(--space-2); font-family: var(--font-sans); font-size: 13px; font-weight: 600; color: var(--e-ink-soft); }
-.af-hint { margin: 0; font-size: 12px; }
 
 .af-chips { display: flex; flex-wrap: wrap; gap: var(--space-2); min-width: 0; }
 .af-chip {
@@ -147,4 +146,3 @@
   background: var(--e-paper); border-top: 1px solid var(--e-rule);
 }
 .af-total { min-height: 44px; padding: 0 var(--space-1); text-decoration: underline; text-underline-offset: 3px; }
-.af-hint-foot { text-decoration: none; display: inline-flex; align-items: center; }

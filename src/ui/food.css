@@ -84,4 +84,9 @@
 .food-head .page-date { padding-right: 48px; }
 .food-menu { position: absolute; top: calc(var(--space-4) - 6px); right: var(--space-2); }
 [data-layout="rail"] .food-menu { top: calc(var(--space-2) - 6px); }
-[data-layout="rail"] .food-head.has-day > .page-head { padding-right: 56px; }
+[data-layout="rail"] .food-head.has-day .week-strip { margin-right: 48px; }
+
+/* The food data credits (FoodDataCredits.tsx), for Settings → About. */
+.food-credits { margin: 0; padding: 0; list-style: none; display: grid; gap: var(--space-1);
+  font-family: var(--font-sans); font-size: 12px; color: var(--e-ink-soft); }
+.food-credits a { color: inherit; }
