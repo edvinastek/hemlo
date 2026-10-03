@@ -1,0 +1,131 @@
+/* Plan (screens/Plan.tsx): the bar over each view, the week's 1 to 14 days
+   with their busy-ness, the calendar chips, the Inbox and the template list. */
+
+.plan-count {
+  display: inline-grid; place-items: center; min-width: 20px; height: 18px; padding: 0 5px; margin-left: 2px;
+  border-radius: var(--radius-pill); background: var(--e-tint); color: var(--e-ink);
+  font-size: 11px; font-variant-numeric: tabular-nums;
+}
+
+/* Followed calendars, each a chip that shows or hides it on Plan (AGN-06). */
+.plan-cals { display: flex; flex-wrap: wrap; gap: var(--space-2); padding: var(--space-3) var(--space-4) 0; }
+.plan-cal {
+  display: inline-flex; align-items: center; gap: 6px; min-height: 36px; padding: 4px 12px;
+  border: 1px solid var(--e-rule); border-radius: var(--radius-pill);
+  font-family: var(--font-sans); font-size: 13px; color: var(--e-ink-soft);
+}
+.plan-cal i { width: 10px; height: 10px; border-radius: var(--radius-pill); background: transparent; border: 2px solid var(--fe); }
+.plan-cal[aria-pressed="true"] { color: var(--e-ink); border-color: var(--e-rail); }
+.plan-cal[aria-pressed="true"] i { background: var(--fe); }
+.plan-cal[aria-pressed="false"] { text-decoration: line-through; }
+
+/* The bar: arrows, what is shown, and the view's own controls. It wraps
+   on a narrow phone rather than run off the side. */
+.plan-bar {
+  display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2);
+  padding: var(--space-3) var(--space-4) 0; font-family: var(--font-sans);
+}
+.plan-step { min-width: 44px; min-height: 40px; padding: 4px 10px; font-size: 18px; line-height: 1.2; }
+.plan-step:disabled { opacity: 0.35; }
+.plan-bar-label { font-family: var(--font-serif); font-size: 16px; font-weight: 600; color: var(--e-ink); min-width: 0; }
+.plan-today, .plan-select { min-height: 40px; }
+.plan-select[aria-pressed="true"] { background: var(--e-tint); border-color: var(--e-ink-soft); font-weight: 600; }
+.plan-days { width: 112px; font-size: 14px; }
+.plan-days .dd-button {
+  width: 100%; min-height: 40px; padding: 6px 10px;
+  border: 1px solid var(--e-rule); border-radius: var(--radius-md); background: transparent; color: var(--e-ink);
+}
+.plan-bar-more { margin-left: auto; }
+
+/* The week: as many columns as days, at most seven to a row. */
+.pw-grid { grid-template-columns: repeat(var(--pw-cols, 7), minmax(0, 1fr)); margin: var(--space-3) var(--space-4) 0; }
+@media (max-width: 700px) { .pw-grid { grid-template-columns: 1fr; } }
+.week-col.is-chosen h3 { color: var(--e-ink); font-weight: 600; }
+.week-col.is-today.is-chosen h3 { color: var(--e-accent); }
+.pw-head { display: flex; align-items: center; justify-content: space-between; gap: var(--space-1); min-width: 0; }
+.pw-head h3 { margin: 0; padding: 6px 0; flex: 1 1 auto; min-width: 0; cursor: pointer; }
+.pw-head .pm-button { min-width: 36px; min-height: 36px; font-size: 16px; }
+/* On a phone the day's head, its busy-ness and its items sit in a row. */
+@media (max-width: 700px) {
+  .pw-grid .week-col { grid-template-columns: 92px minmax(0, 1fr); align-items: start; }
+  .pw-grid .pw-head { grid-column: 1; grid-row: 1; }
+  .pw-grid .pw-busy { grid-column: 1; grid-row: 2; margin: 0 0 var(--space-2); }
+  .pw-grid .week-items { grid-column: 2; grid-row: 1 / span 2; }
+}
+
+/* How full the day is against the waking day (PLN-03): a thin bar, its
+   words read out and in the tooltip, never only the colour. */
+.pw-busy { position: relative; height: 4px; border-radius: var(--radius-sm); background: var(--e-tint); margin: 2px 0 var(--space-2); overflow: hidden; }
+.pw-busy-fill { position: absolute; inset: 0 auto 0 0; background: var(--e-rail); border-radius: var(--radius-sm); }
+.pw-busy.is-over .pw-busy-fill { background: var(--e-warn); }
+.pw-busy.is-over { outline: 1px solid var(--e-warn); outline-offset: 1px; }
+
+/* Items are buttons: a tap opens them. */
+.pw-item {
+  display: flex; align-items: baseline; gap: 6px; width: 100%; min-height: 32px;
+  text-align: left; font: inherit; font-size: 13px; color: var(--e-ink); background: transparent;
+}
+.pw-item:focus-visible { outline: 2px solid var(--e-accent); outline-offset: -2px; }
+.pw-item.is-done > span:last-child { text-decoration: line-through; color: var(--e-ink-soft); }
+.pw-item[aria-pressed="true"] { background: var(--e-tint); box-shadow: inset 3px 0 0 var(--e-accent); padding-left: 6px; }
+.pw-item:disabled { opacity: 0.45; }
+.pw-tick {
+  flex: none; width: 16px; height: 16px; display: inline-grid; place-items: center; align-self: center;
+  border: 1.5px solid var(--e-ink-soft); border-radius: 3px; font-size: 11px; line-height: 1;
+}
+.pw-item[aria-pressed="true"] .pw-tick { background: var(--e-accent); border-color: var(--e-accent); color: var(--e-paper); }
+.pw-empty { width: 100%; min-height: 32px; text-align: left; color: var(--e-ink-soft); font-family: var(--font-sans); font-size: 13px; }
+.pw-empty:hover:not(:disabled)::after { content: ' Add a task'; }
+
+/* Month: today's number in the accent. */
+.month-cell.is-today .d { color: var(--e-accent); font-weight: 600; }
+
+/* ---------- the Inbox ------------------------------------------------------- */
+.pi { padding: var(--space-3) var(--space-4) 0; font-family: var(--font-sans); }
+.pi-capture { display: flex; gap: var(--space-2); }
+.pi-capture input, .pi-search {
+  flex: 1 1 auto; min-width: 0; min-height: 44px; padding: 9px 12px;
+  border: 1px solid var(--e-field-line); border-radius: var(--radius-md);
+  background: var(--e-field); color: var(--e-ink); font-family: var(--font-serif); font-size: 16px;
+}
+.pi-search { font-family: var(--font-sans); font-size: 14px; }
+.pi-capture .btn { min-height: 44px; }
+.pi-capture .btn:disabled { opacity: 0.5; }
+.pi-tools { display: flex; gap: var(--space-2); margin-top: var(--space-3); }
+.pi-select { min-height: 44px; }
+.pi-select[aria-pressed="true"] { background: var(--e-tint); border-color: var(--e-ink-soft); font-weight: 600; }
+.pi-empty { padding-left: 0; padding-right: 0; }
+
+.pi-list { list-style: none; margin: var(--space-3) 0 0; padding: 0; border-top: 1px solid var(--e-rule); }
+.pi-row {
+  display: flex; align-items: center; gap: var(--space-2); min-height: 56px; padding: 4px 0;
+  border-bottom: 1px solid var(--e-rule); background: var(--e-paper);
+  -webkit-touch-callout: none; -webkit-user-select: none; user-select: none;
+}
+.pi-row.is-held { background: var(--e-tint); box-shadow: inset 3px 0 0 var(--e-accent); }
+.pi-row.is-over { box-shadow: inset 0 2px 0 var(--e-accent); }
+.pi-check { width: 20px; height: 20px; flex: none; accent-color: var(--e-accent); }
+.pi-name { flex: 1 1 auto; min-width: 0; display: grid; gap: 2px; text-align: left; padding: 6px 0; min-height: 44px; }
+.pi-title { font-family: var(--font-serif); font-size: 16px; color: var(--e-ink); overflow-wrap: anywhere; }
+.pi-meta { font-size: 12px; color: var(--e-ink-soft); }
+.pi-plan { flex: none; min-height: 40px; padding: 6px 10px; font-size: 13px; white-space: nowrap; }
+
+/* While a task is held: the next two weeks to drop it on. */
+.pi-drop { position: sticky; top: 0; z-index: 5; margin-top: var(--space-3); padding: var(--space-2) 0; background: var(--e-paper); border-bottom: 1px solid var(--e-rule); }
+.pi-drop-say { margin: 0 0 var(--space-2); font-size: 13px; color: var(--e-ink); }
+.pi-days { display: grid; grid-template-columns: repeat(auto-fill, minmax(76px, 1fr)); gap: var(--space-1); }
+.pi-day {
+  display: grid; place-items: center; min-height: 44px; padding: 4px;
+  border: 1px dashed var(--e-rail); border-radius: var(--radius-md);
+  font-size: 12px; color: var(--e-ink); text-align: center;
+}
+.pi-day.is-over { background: var(--e-tint); border-style: solid; border-color: var(--e-accent); font-weight: 600; }
+
+/* ---------- day and week templates --------------------------------------- */
+.pt-list { list-style: none; margin: var(--space-2) 0 0; padding: 0; }
+.pt-row { display: flex; align-items: center; gap: var(--space-2); border-bottom: 1px solid var(--e-rule); }
+.pt-use { flex: 1 1 auto; min-width: 0; display: grid; gap: 2px; text-align: left; padding: var(--space-2) 0; min-height: 52px; }
+.pt-use:disabled { opacity: 0.6; }
+.pt-name { font-family: var(--font-serif); font-size: 16px; color: var(--e-ink); }
+.pt-what { font-family: var(--font-sans); font-size: 12px; color: var(--e-ink-soft); }
+.pt-delete { flex: none; font-size: 13px; color: var(--e-warn); }

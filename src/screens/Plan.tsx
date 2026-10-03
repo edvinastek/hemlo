@@ -1,9 +1,7 @@
-import { useMemo, useState, type CSSProperties } from 'react'
+import { useCallback, useMemo, useState, type CSSProperties } from 'react'
 import { useLiveQuery } from 'dexie-react-hooks'
-import {
-  addMonths, eachDayOfInterval, endOfMonth, endOfWeek, endOfYear, format, isSameDay,
-  isSameMonth, parseISO, startOfMonth, startOfWeek, startOfYear,
-} from 'date-fns'
+import { useNavigate, useSearchParams } from 'react-router-dom'
+import { format, parseISO } from 'date-fns'
 import { db } from '../lib/db'
 import { useApp } from '../lib/store'
 import { PageHead } from '../ui/PageHead'
@@ -19,245 +17,489 @@ import { readSettings } from '../lib/settings'
 import { useWeekSwap } from '../ui/WeekSwap'
 import { useLayout } from '../ui/useLayout'
 import { countriesIn, holidayMarks, holidaysText, useHolidays } from '../lib/holidays'
-import { HolidayLegend, HolidayMark } from '../ui/HolidayMark'
-import { calendarsIn, useFollowedEvents, type FollowedItem } from '../lib/calendar-links'
+import { HolidayChips, HolidayLegend, HolidayMark } from '../ui/HolidayMark'
+import { calendarsIn, useFollowedEvents, useSubscriptions, type FollowedItem } from '../lib/calendar-links'
 import { FollowedLegend, FollowedSheet, FollowedWeekItem } from '../ui/FollowedEvents'
+import { useDayItems } from '../lib/day-items'
+import { inbox as inboxOf, type DayItem } from '../lib/day-items-rules'
+import { addDays } from '../lib/schedule-rules'
+import { dayLabel, mondayOf } from '../lib/copy-rules'
+import {
+  busyness, cleanWeekDays, dayCapacity, heatStep, MAX_WEEK_DAYS, plannedMinutes, readPlanAddress, spanLabel, stepSpan,
+  toggleHidden, VIEW_NAMES, weekColumns, weekSpan, type PlanView,
+} from '../lib/plan-view-rules'
+import { savePlanPrefs, usePlanPrefs } from '../lib/plan-prefs'
+import { duplicateTasks } from '../lib/copy'
+import { deleteTasks, moveWithUndo } from '../lib/series'
+import { blankTask } from '../lib/tasks'
 import type { CalendarEvent, Task } from '../lib/types'
+import { TaskSheet } from '../ui/TaskSheet'
+import { CopySheet, type CopyWhat } from '../ui/CopySheet'
+import { DayRail } from '../ui/DayRail'
+import { PlannedDay } from '../ui/PlannedDay'
+import { MoreMenu } from '../ui/MoreMenu'
+import { Dropdown } from '../ui/Dropdown'
+import { DayPickSheet } from '../ui/DayPickSheet'
+import { SelectBar } from '../ui/SelectBar'
+import { offerUndo } from '../ui/Undo'
+import { Inbox } from './plan/Inbox'
+import { DropTemplateSheet, SaveTemplateSheet } from './plan/TemplateSheets'
 import '../ui/colours.css'
+import './plan.css'
 
-const SECTIONS = ['Week', 'Month', 'Year']
+const SECTIONS = ['Day', 'Week', 'Month', 'Year', 'Inbox']
+const viewOf = (s: string) => (s.toLowerCase() as PlanView)
 const key = (d: Date) => format(d, 'yyyy-MM-dd')
+const NO_ITEMS: DayItem[] = []
 
-/** Year gives the overview, month the load, week the headers, day the detail.
- *  Each level answers one question and hands the next one down.
+/** Plan is for arranging (P3): Day · Week · Month · Year · Inbox (PLN-01).
+ *  Year gives the overview, month the load, week the headers, day the
+ *  detail, and the Inbox holds what has no day yet. The view and the day
+ *  are in the address (/plan?view=week&date=2026-10-05), so Today and
+ *  anything else can link straight to a view, and Back goes back a view.
+ *
+ *  Every view shows the items of every module set to "Show on Plan"
+ *  (PLN-11), with module colours, and counts them in the load. Tapping an
+ *  item opens it (PLN-04); + adds a task on the day being looked at, or to
+ *  the Inbox. Days can be swapped, tasks moved, days and weeks copied and
+ *  saved as templates, and everything moved or copied can be undone.
  *
  *  Every view reaches three years back and five ahead. A repeating task is
  *  a real task only eight weeks ahead; past that, the days its series will
- *  land on are shown as "planned repeats", worked out from the series, in
- *  the load and colours as well as in the week list. */
+ *  land on are shown as "planned repeats", worked out from the series. */
 export function Plan() {
   const profile = useApp((s) => s.profile)
-  const [date, setDate] = useState(new Date())
-  const [section, setSection] = useState('Week')
+  const navigate = useNavigate()
   const colours = useModuleColours()
   const layout = useLayout()
-  const { range, clamp, today } = useDayRange()
-  const go = (d: Date) => setDate(clamp(d))
-  // Public holidays for the whole year shown, padded to full weeks, so Week,
-  // Month and Year all read from one map (empty when no country is chosen).
-  // Year scrolls the whole range, so it asks for every year in it.
-  const holidays = useHolidays(
-    section === 'Year' ? range.first : format(startOfWeek(startOfYear(date), { weekStartsOn: 1 }), 'yyyy-MM-dd'),
-    section === 'Year' ? range.last : format(endOfWeek(endOfYear(date), { weekStartsOn: 1 }), 'yyyy-MM-dd'))
-  const holidayLegend = (days: Date[]) =>
-    countriesIn(days.map((d) => holidayMarks(holidays, d)), readSettings(profile).holidays.countries)
-  // Events from calendars the person follows, over the same days. Read-only:
-  // a tap shows one (ui/FollowedEvents.tsx).
-  const followed = useFollowedEvents(profile?.id,
-    section === 'Year' ? range.first : format(startOfWeek(startOfYear(date), { weekStartsOn: 1 }), 'yyyy-MM-dd'),
-    section === 'Year' ? range.last : format(endOfWeek(endOfYear(date), { weekStartsOn: 1 }), 'yyyy-MM-dd'))
-  const followedOn = (day: string): FollowedItem[] => followed.get(day) ?? []
-  const followedLegend = (days: Date[]) => calendarsIn(days.map((d) => followed.get(key(d))))
-  /** The followed calendars on a day, each once, by colour. */
-  const followedColours = (day: string) => [...new Set(followedOn(day).map((f) => f.sub.colour))]
+  const { range, today } = useDayRange()
+  const [params, setParams] = useSearchParams()
+  const { view, date } = readPlanAddress(params.get('view'), params.get('date'), today, range)
+  const prefs = usePlanPrefs(profile?.id)
+  const settings = readSettings(profile)
+  const capacity = dayCapacity(profile?.day_start, profile?.day_end)
+
+  /** A new day replaces the address; a new view adds a step, so Back
+   *  returns to the view before. */
+  const go = useCallback((day: string, v: PlanView = view, step = false) => {
+    const d = day < range.first ? range.first : day > range.last ? range.last : day
+    setParams({ view: v, date: d }, { replace: !step })
+  }, [view, range, setParams])
+
+  const [editing, setEditing] = useState<{ task: Task; isNew: boolean } | null>(null)
+  const [copying, setCopying] = useState<CopyWhat | null>(null)
+  const [saving, setSaving] = useState<{ kind: 'day' | 'week'; first: string } | null>(null)
+  const [dropping, setDropping] = useState<string | null>(null)
+  const [moving, setMoving] = useState<Task[] | null>(null)
   const [openEvent, setOpenEvent] = useState<CalendarEvent | null>(null)
+  const [selecting, setSelecting] = useState(false)
+  const [chosen, setChosen] = useState<Set<string>>(new Set())
+  const [sure, setSure] = useState(false)
+  // Year: only the months being drawn are worked out.
+  const [yearWindow, setYearWindow] = useState<[string, string]>([addDays(date, -100), addDays(date, 160)])
 
-  const tasks = useLiveQuery(async () => {
-    if (!profile) return []
-    return (await db.task.where('profile_id').equals(profile.id).toArray()).filter((t) => !t.deleted_at)
-  }, [profile?.id], [] as Task[])
+  const weekDays = cleanWeekDays(prefs.week_days)
+  const span = useMemo(() => weekSpan(date, weekDays), [date, weekDays])
+  const monthGrid = useMemo(() => monthDays(date), [date])
+  const [from, to] = view === 'week' ? [span[0], span[span.length - 1]]
+    : view === 'month' ? [monthGrid[0], monthGrid[monthGrid.length - 1]]
+      : view === 'year' ? yearWindow : [date, date]
 
-  // Worked out once for the whole reach ahead; every view reads from it.
-  const planned = usePlannedRepeats(profile?.id, today, range.last)
-
-  const byDay = useMemo(() => {
-    const map = new Map<string, Task[]>()
-    for (const t of tasks) {
-      if (!t.planned_date) continue
-      const list = map.get(t.planned_date) ?? []
-      list.push(t)
-      map.set(t.planned_date, list)
+  // Items of every module set to show on Plan, for the days in view.
+  const items = useDayItems(from, to, 'plan', today) ?? NO_ITEMS
+  const itemsByDay = useMemo(() => {
+    const map = new Map<string, DayItem[]>()
+    // Followed calendars come through their own reader, with their colours
+    // and the chips that hide them.
+    for (const it of items) {
+      if (it.kind === 'event' && it.readonly) continue
+      const list = map.get(it.day) ?? []
+      list.push(it)
+      map.set(it.day, list)
     }
     return map
-  }, [tasks])
+  }, [items])
+  const itemsOn = (day: string) => itemsByDay.get(day) ?? NO_ITEMS
+  /** The tasks shown on a day: what a swap or a move takes. */
+  const byDay = useMemo(() => {
+    const map = new Map<string, Task[]>()
+    for (const [day, list] of itemsByDay) map.set(day, list.filter((i) => i.task).map((i) => i.task!))
+    return map
+  }, [itemsByDay])
 
+  // Public holidays, for the whole year shown (Year: its window).
+  const holFrom = view === 'year' ? yearWindow[0] : addDays(`${date.slice(0, 4)}-01-01`, -7)
+  const holTo = view === 'year' ? yearWindow[1] : addDays(`${date.slice(0, 4)}-12-31`, 7)
+  const holidays = useHolidays(holFrom, holTo)
+  const holidayLegend = (days: string[]) =>
+    countriesIn(days.map((d) => holidayMarks(holidays, parseISO(d))), settings.holidays.countries)
+
+  // Followed calendars, less the ones hidden with a chip (AGN-06).
+  const subs = useSubscriptions(profile?.id) ?? []
+  const hidden = prefs.hidden_calendars
+  const followedAll = useFollowedEvents(profile?.id, from, to)
+  const followedOn = (day: string): FollowedItem[] => (followedAll.get(day) ?? []).filter((f) => !hidden.includes(f.sub.id))
+  const followedColours = (day: string) => [...new Set(followedOn(day).map((f) => f.sub.colour))]
+
+  const planned = usePlannedRepeats(profile?.id, from, to)
   const plannedOn = (day: string): PlannedRepeat[] => planned.get(day) ?? []
 
   // Hold a day to swap it with another, or a task to move it (ui/WeekSwap.tsx).
-  const swap = useWeekSwap({ byDay, work: readSettings(profile).work })
+  const swap = useWeekSwap({ byDay, work: settings.work })
 
-  /** The modules present on a day, most items first: for the month dots,
-   *  the legends and the year's days. Planned repeats count. */
+  // Every task without a day: the Inbox (PLN-07).
+  const inboxTasks = useLiveQuery(async () => {
+    if (!profile) return [] as Task[]
+    return inboxOf(await db.task.where('profile_id').equals(profile.id).filter((t) => !t.planned_date).toArray())
+  }, [profile?.id], [] as Task[])
+
   const modulesOnDay = (day: string) =>
-    modulesByWeight([...(byDay.get(day) ?? []), ...plannedOn(day)].map(colours.moduleOf))
-  const modulesOn = (d: Date) => modulesOnDay(key(d))
+    modulesByWeight([...itemsOn(day).map((i) => i.module_key), ...plannedOn(day).map(colours.moduleOf)])
 
-  // A followed event counts by its length when it has a time; a whole-day
-  // one (a holiday, a birthday) adds nothing to the load.
-  const loadOn = (day: string) => [...(byDay.get(day) ?? []), ...plannedOn(day)]
-    .reduce((sum, t) => sum + (t.duration_min ?? 15), 0)
+  /** What a day holds, in minutes: its items, the planned repeats, and
+   *  timed events from followed calendars. */
+  const loadOn = (day: string) => plannedMinutes(itemsOn(day))
+    + plannedOn(day).reduce((sum, t) => sum + (t.duration_min ?? 15), 0)
     + followedOn(day).reduce((sum, f) => sum + f.minutes, 0)
-  const load = (d: Date) => loadOn(key(d))
 
-  /** The heat ramp belongs to Month and Year, and never appears without its
-   *  legend, so a colour never has to be guessed at. */
-  const heat = (minutes: number) => `var(--e-heat-${heatStep(minutes)})`
+  function openItem(it: DayItem) {
+    if (it.task) return setEditing({ task: it.task, isNew: false })
+    // Everything else opens on its own module's page.
+    const page = it.kind === 'habit' ? 'habits' : it.kind === 'chore' ? 'household' : it.kind === 'supplements' ? 'supplements'
+      : it.kind === 'event' ? 'agenda' : it.module_key
+    if (page) navigate(`/m/${page}`)
+  }
 
-  const yearLegend = useMemo(() => modulesByWeight(
-    [...tasks, ...[...planned.values()].flat()].map(colours.moduleOf)), [tasks, planned, colours])
+  const addOn = (day: string | null) => profile && setEditing({ task: blankTask(profile.id, day ?? today, { planned_date: day }), isNew: true })
 
-  const month = startOfMonth(date)
-  const monthStep = (n: number) => go(addMonths(date, n))
+  const toggleChosen = (id: string) => setChosen((s) => {
+    const n = new Set(s)
+    if (n.has(id)) n.delete(id)
+    else n.add(id)
+    return n
+  })
+  const shownTasks = span.flatMap((d) => byDay.get(d) ?? [])
+  const picked = shownTasks.filter((t) => chosen.has(t.id))
+  const endSelect = () => { setSelecting(false); setChosen(new Set()); setSure(false) }
+
+  async function moveTo(list: Task[], day: string | null) {
+    const undo = await moveWithUndo(list.map((task) => ({ task, to: day })))
+    const words = day ? `planned for ${dayLabel(day)}` : 'sent to the Inbox'
+    offerUndo(list.length === 1 ? `“${list[0].title}” ${words}` : `${list.length} tasks ${words}`, undo)
+    setChosen(new Set())
+  }
+
+  const dayMenu = (day: string) => [
+    { label: 'Open this day', onSelect: () => go(day, 'day', true) },
+    { label: 'Add a task here', onSelect: () => addOn(day) },
+    { label: 'Copy this day…', onSelect: () => setCopying({ kind: 'day', day }) },
+    view === 'week' && { label: 'Swap with another day…', onSelect: () => swap.startSwap(day) },
+    { label: 'Save day as template…', onSelect: () => setSaving({ kind: 'day', first: day }) },
+    { label: 'Add a template to this day…', onSelect: () => setDropping(day) },
+  ]
+
+  const showStrip = view === 'day' || view === 'week'
+  const inboxCount = inboxTasks.length
 
   return (
     <div className="page">
       <div className="page-inner">
-        <PageHead date={date} onPick={go} sections={SECTIONS} active={section} onSection={setSection} />
+        <PageHead date={parseISO(date)} onPick={(d) => go(key(d))} sections={SECTIONS} active={VIEW_NAMES[view]}
+          onSection={(s) => { endSelect(); go(date, viewOf(s), true) }}
+          heading={view === 'inbox' ? 'Inbox' : undefined}
+          sub={view === 'inbox' ? 'Tasks without a day, waiting to be planned.' : undefined}
+          strip={showStrip}
+          note={view === 'day' ? <HolidayChips marks={holidayMarks(holidays, parseISO(date))} /> : undefined}
+          tabLabel={(s) => (s === 'Inbox' && inboxCount > 0
+            ? <>Inbox <span className="plan-count" aria-label={`, ${inboxCount} waiting`}>{inboxCount}</span></> : s)} />
 
-        {section === 'Week' && (
+        {view !== 'inbox' && subs.length > 0 && (
+          <div className="plan-cals" role="group" aria-label="Calendars you follow: show or hide them on Plan">
+            {subs.map((s) => {
+              const on = !hidden.includes(s.id)
+              return (
+                <button key={s.id} type="button" className="plan-cal" aria-pressed={on}
+                  title={on ? `Hide ${s.name} on Plan (it stays followed)` : `Show ${s.name} on Plan`}
+                  onClick={() => profile && void savePlanPrefs(profile.id, { hidden_calendars: toggleHidden(hidden, s.id) })}>
+                  <i style={{ '--fe': s.colour } as CSSProperties} aria-hidden="true" />{s.name}
+                </button>
+              )
+            })}
+          </div>
+        )}
+
+        {view === 'day' && (
           <>
-            {swap.ui}
-            <div className={`week-grid${swap.gridClass}`} style={{ margin: 'var(--space-3) var(--space-4) 0' }}>
-              {weekDays(date).map((d) => {
-                const day = key(d)
-                const items = (byDay.get(day) ?? [])
-                  .sort((a, b) => (a.planned_time ?? '99').localeCompare(b.planned_time ?? '99'))
+            <div className="plan-bar">
+              <button type="button" className="btn plan-step" aria-label="Previous day" disabled={date <= range.first}
+                onClick={() => go(addDays(date, -1))}>‹</button>
+              <span className="plan-bar-label">{date === today ? 'Today' : dayLabel(date)}</span>
+              <button type="button" className="btn plan-step" aria-label="Next day" disabled={date >= range.last}
+                onClick={() => go(addDays(date, 1))}>›</button>
+              {date !== today && <button type="button" className="btn plan-today" onClick={() => go(today)}>Today</button>}
+              <MoreMenu className="plan-bar-more" label={`More for ${dayLabel(date)}`} items={[
+                { label: 'Add a task here', onSelect: () => addOn(date) },
+                { label: 'Copy this day…', onSelect: () => setCopying({ kind: 'day', day: date }) },
+                { label: 'Save day as template…', onSelect: () => setSaving({ kind: 'day', first: date }) },
+                { label: 'Add a template to this day…', onSelect: () => setDropping(date) },
+                { label: 'See its week', onSelect: () => go(date, 'week', true) },
+              ]} />
+            </div>
+            <DayRail day={date} where="plan" />
+            {profile && <PlannedDay profileId={profile.id} day={date} />}
+          </>
+        )}
+
+        {view === 'week' && (
+          <>
+            <div className="plan-bar">
+              <button type="button" className="btn plan-step" aria-label={`Previous ${weekDays === 1 ? 'day' : `${weekDays} days`}`}
+                disabled={span[0] <= range.first} onClick={() => go(stepSpan(date, weekDays, -1))}>‹</button>
+              <span className="plan-bar-label">{spanLabel(span)}</span>
+              <button type="button" className="btn plan-step" aria-label={`Next ${weekDays === 1 ? 'day' : `${weekDays} days`}`}
+                disabled={span[span.length - 1] >= range.last} onClick={() => go(stepSpan(date, weekDays, 1))}>›</button>
+              <div className="plan-days">
+                <Dropdown label="Days shown" value={String(weekDays)}
+                  options={Array.from({ length: MAX_WEEK_DAYS }, (_, i) => ({ value: String(i + 1), label: i === 0 ? '1 day' : `${i + 1} days` }))}
+                  onChange={(v) => profile && void savePlanPrefs(profile.id, { week_days: cleanWeekDays(v) })} />
+              </div>
+              <button type="button" className="btn plan-select" aria-pressed={selecting}
+                onClick={() => (selecting ? endSelect() : setSelecting(true))}>{selecting ? 'Done' : 'Select'}</button>
+              <MoreMenu className="plan-bar-more" label="More for these days" items={[
+                { label: 'Copy this week…', onSelect: () => setCopying({ kind: 'week', monday: mondayOf(date) }) },
+                { label: 'Save week as template…', onSelect: () => setSaving({ kind: 'week', first: mondayOf(date) }) },
+                { label: 'Add a template…', onSelect: () => setDropping(date) },
+              ]} />
+            </div>
+            {!selecting && swap.ui}
+            {selecting && <p className="week-hint">Tap tasks to select them.</p>}
+            <div className={`week-grid pw-grid${swap.gridClass}`} style={{ '--pw-cols': weekColumns(weekDays) } as CSSProperties}>
+              {span.map((day) => {
+                const list = itemsOn(day)
                 const later = plannedOn(day)
-                const hol = holidayMarks(holidays, d)
+                const followed = followedOn(day)
+                const hol = holidayMarks(holidays, parseISO(day))
+                const busy = busyness(loadOn(day), capacity)
+                const head = swap.headProps(day)
                 return (
-                  <div key={d.toISOString()} className={`week-col${isSameDay(d, new Date()) ? ' is-today' : ''}${swap.colClass(day)}`}
+                  <div key={day} className={`week-col${day === today ? ' is-today' : ''}${day === date ? ' is-chosen' : ''}${swap.colClass(day)}`}
                     {...swap.colProps(day)}>
-                    <h3 {...swap.headProps(day)} title={[holidaysText(hol), swap.headProps(day).title].filter(Boolean).join(' · ')}>{format(d, 'EEE d')}<HolidayMark marks={hol} variant="bar" /></h3>
+                    <div className="pw-head">
+                      <h3 {...(selecting ? {} : head)} title={[holidaysText(hol), selecting ? '' : head.title].filter(Boolean).join(' · ')}
+                        onClick={() => { if (!swap.holding && !selecting) go(day, 'day', true) }}>
+                        {format(parseISO(day), 'EEE d')}<HolidayMark marks={hol} variant="bar" />
+                      </h3>
+                      {!selecting && <MoreMenu label={`More for ${dayLabel(day)}`} items={dayMenu(day)} />}
+                    </div>
+                    <div className={`pw-busy${busy.over ? ' is-over' : ''}`} title={busy.words}>
+                      <span className="pw-busy-fill" style={{ width: `${Math.round(busy.share * 100)}%` }} aria-hidden="true" />
+                      <span className="visually-hidden">{busy.words}</span>
+                    </div>
                     <div className="week-items">
-                      {items.map((t) => {
-                        const c = colours.ofTask(t)
+                      {list.map((it) => {
+                        const c = it.module_key && colours.on ? colours.of(it.module_key) : it.task ? colours.ofTask(it.task) : null
+                        const isTask = !!it.task
+                        const sel = selecting && isTask
                         return (
-                          <div key={t.id} className={`week-item${c ? ' has-mod' : ''}${swap.itemClass(t)}`}
-                            {...swap.itemProps(t)}>
+                          <button key={it.key} type="button"
+                            className={`week-item pw-item${c ? ' has-mod' : ''}${it.done ? ' is-done' : ''}${isTask ? swap.itemClass(it.task!) : ''}`}
+                            aria-pressed={sel ? chosen.has(it.task!.id) : undefined}
+                            disabled={selecting && !isTask}
+                            {...(isTask && !selecting ? swap.itemProps(it.task!) : {})}
+                            onClick={(e) => {
+                              if (swap.holding) return
+                              e.stopPropagation()
+                              if (sel) toggleChosen(it.task!.id)
+                              else openItem(it)
+                            }}>
+                            {sel && <span className="pw-tick" aria-hidden="true">{chosen.has(it.task!.id) ? '✓' : ''}</span>}
                             {c && <i className="mod-dot" style={{ '--mod': c } as CSSProperties} aria-hidden="true" />}
-                            <span><span className="t">{t.planned_time?.slice(0, 5)}</span> {t.title}</span>
-                          </div>
+                            <span><span className="t">{it.time}</span> {it.title}
+                              {it.kind !== 'task' && <span className="visually-hidden">, {kindWords(it, colours)}</span>}
+                              {it.done && <span className="visually-hidden">, done</span>}</span>
+                          </button>
                         )
                       })}
                       {later.map((r) => <PlannedItem key={`${r.seriesId}:${r.base}`} repeat={r} colours={colours} />)}
-                      {followedOn(day).map((f) => <FollowedWeekItem key={`${f.event.id}:${day}`} item={f} onOpen={setOpenEvent} />)}
-                      {items.length === 0 && later.length === 0 && followedOn(day).length === 0 && <span className="t" style={{ color: 'var(--e-ink-soft)' }}>—</span>}
+                      {followed.map((f) => <FollowedWeekItem key={`${f.event.id}:${day}`} item={f} onOpen={setOpenEvent} />)}
+                      {list.length === 0 && later.length === 0 && followed.length === 0 && (
+                        <button type="button" className="pw-empty" disabled={selecting} onClick={(e) => { if (swap.holding) return; e.stopPropagation(); addOn(day) }}
+                          aria-label={`Add a task on ${dayLabel(day)}`}>—</button>
+                      )}
                     </div>
                   </div>
                 )
               })}
             </div>
-            {weekDays(date).some((d) => plannedOn(key(d)).length > 0) && (
+            {span.some((d) => plannedOn(d).length > 0) && (
               <p className="planned-note">
                 <span className="planned-mark" aria-hidden="true">↻</span> Planned repeat: worked out from its
                 series, it becomes a task you can tick eight weeks before the day.
               </p>
             )}
-            <ModuleLegend colours={colours} keys={modulesByWeight(weekDays(date).flatMap(modulesOn))} />
-            <HolidayLegend countries={holidayLegend(weekDays(date))} />
-            <FollowedLegend calendars={followedLegend(weekDays(date))} />
+            <ModuleLegend colours={colours} keys={modulesByWeight(span.flatMap(modulesOnDay))} />
+            <HolidayLegend countries={holidayLegend(span)} />
+            <FollowedLegend calendars={calendarsIn(span.map(followedOn))} />
+            {selecting && (
+              <SelectBar count={picked.length} noun="tasks" allShown={shownTasks.length > 0 && shownTasks.every((t) => chosen.has(t.id))}
+                anyShown={shownTasks.length > 0}
+                onAll={() => setChosen((s) => (shownTasks.every((t) => s.has(t.id)) ? new Set() : new Set(shownTasks.map((t) => t.id))))}
+                onDone={endSelect} status={null}>
+                <button type="button" className="btn" disabled={!picked.length} onClick={() => setCopying({ kind: 'tasks', tasks: picked })}>Copy to day…</button>
+                <button type="button" className="btn" disabled={!picked.length} onClick={() => setMoving(picked)}>Move to day…</button>
+                <button type="button" className="btn" disabled={!picked.length} onClick={() => void moveTo(picked, null)}>Send to Inbox</button>
+                <button type="button" className="btn" disabled={!picked.length}
+                  onClick={() => profile && void duplicateTasks(profile.id, picked).then((r) => { offerUndo(r.summary, r.undo); setChosen(new Set()) })}>Duplicate</button>
+                <button type="button" className="btn sb-delete" disabled={!picked.length} onBlur={() => setSure(false)}
+                  onClick={() => {
+                    if (!sure && picked.length > 1) { setSure(true); return }
+                    setSure(false)
+                    void deleteTasks(picked).then((undo) => { offerUndo(picked.length === 1 ? 'Task deleted' : `${picked.length} tasks deleted`, undo); setChosen(new Set()) })
+                  }}>{sure ? `Delete ${picked.length}? Tap again` : 'Delete'}</button>
+              </SelectBar>
+            )}
           </>
         )}
 
-        {section === 'Month' && (
+        {view === 'month' && (
           <>
             <div className="plan-monthnav">
               <button type="button" className="btn" aria-label="Previous month"
-                disabled={key(month) <= range.first} onClick={() => monthStep(-1)}>‹</button>
-              <span>{format(date, 'MMMM yyyy')}</span>
+                disabled={`${date.slice(0, 7)}-01` <= range.first} onClick={() => go(addMonth(date, -1))}>‹</button>
+              <span>{format(parseISO(date), 'MMMM yyyy')}</span>
               <button type="button" className="btn" aria-label="Next month"
-                disabled={key(endOfMonth(date)) >= range.last} onClick={() => monthStep(1)}>›</button>
+                disabled={monthEnd(date) >= range.last} onClick={() => go(addMonth(date, 1))}>›</button>
             </div>
-            <HeatLegend />
+            <HeatLegend note="Tap a day for its week" />
             <div className="month-grid">
-              {monthDays(date).map((d) => (
-                <button
-                  key={d.toISOString()}
-                  className="month-cell"
-                  onClick={() => { go(d); setSection('Week') }}
-                  style={{ opacity: isSameMonth(d, date) ? 1 : 0.4, textAlign: 'left' }}
-                  title={[holidaysText(holidayMarks(holidays, d)), followedWords(followedOn(key(d)).length)].filter(Boolean).join(', ') || undefined}
-                >
-                  <HolidayMark marks={holidayMarks(holidays, d)} variant="top" />
-                  <span className="d">{format(d, 'd')}</span>
-                  <span className="load" style={{ background: heat(load(d)) }} />
-                  {/* Under the heat, up to four of the day's modules; the
-                      legend below names each colour. */}
-                  {colours.on && (
-                    <span className="month-mods" aria-hidden="true">
-                      {modulesOn(d).slice(0, 4).map((k) => (
-                        <i key={k} className="mod-dot" style={{ '--mod': colours.of(k) } as CSSProperties} />
-                      ))}
-                    </span>
-                  )}
-                  {followedColours(key(d)).length > 0 && (
-                    <span className="fe-marks" aria-hidden="true">
-                      {followedColours(key(d)).slice(0, 4).map((c) => <i key={c} style={{ '--fe': c } as CSSProperties} />)}
-                    </span>
-                  )}
-                </button>
-              ))}
+              {monthGrid.map((d) => {
+                const inMonth = d.slice(0, 7) === date.slice(0, 7)
+                const marks = holidayMarks(holidays, parseISO(d))
+                const fc = followedColours(d)
+                return (
+                  <button key={d} className={`month-cell${d === today ? ' is-today' : ''}`}
+                    onClick={() => go(d, 'week', true)}
+                    style={{ opacity: inMonth ? 1 : 0.4, textAlign: 'left' }}
+                    aria-label={[format(parseISO(d), 'EEEE d MMMM'), dayWords(loadOn(d), colours.on ? modulesOnDay(d)[0] : undefined, plannedOn(d).length, colours),
+                      followedWords(followedOn(d).length), holidaysText(marks)].filter(Boolean).join(', ')}
+                    title={[holidaysText(marks), followedWords(followedOn(d).length)].filter(Boolean).join(', ') || undefined}>
+                    <HolidayMark marks={marks} variant="top" />
+                    <span className="d">{Number(d.slice(8, 10))}</span>
+                    <span className="load" style={{ background: `var(--e-heat-${heatStep(loadOn(d))})` }} />
+                    {colours.on && (
+                      <span className="month-mods" aria-hidden="true">
+                        {modulesOnDay(d).slice(0, 4).map((k) => <i key={k} className="mod-dot" style={{ '--mod': colours.of(k) } as CSSProperties} />)}
+                      </span>
+                    )}
+                    {fc.length > 0 && (
+                      <span className="fe-marks" aria-hidden="true">
+                        {fc.slice(0, 4).map((c) => <i key={c} style={{ '--fe': c } as CSSProperties} />)}
+                      </span>
+                    )}
+                  </button>
+                )
+              })}
             </div>
-            <ModuleLegend colours={colours}
-              keys={modulesByWeight(monthDays(date).filter((d) => isSameMonth(d, date)).flatMap(modulesOn))} />
-            <HolidayLegend countries={holidayLegend(monthDays(date))} />
-            <FollowedLegend calendars={followedLegend(monthDays(date))} />
+            <ModuleLegend colours={colours} keys={modulesByWeight(monthGrid.filter((d) => d.slice(0, 7) === date.slice(0, 7)).flatMap(modulesOnDay))} />
+            <HolidayLegend countries={holidayLegend(monthGrid)} />
+            <FollowedLegend calendars={calendarsIn(monthGrid.map(followedOn))} />
           </>
         )}
 
-        {section === 'Year' && (
+        {view === 'year' && (
           <>
             <HeatLegend note="Tap a day for its week" />
             {/* Months stacked, scrolling from three years back to five ahead;
-                it opens on the month being looked at. */}
+                it opens on the month being looked at. Only the months drawn
+                are worked out. */}
             <div className="plan-year">
               <MonthScroller
-                first={range.first} last={range.last} openAt={key(date)} today={today}
+                first={range.first} last={range.last} openAt={date} today={today}
                 label="Every day, month by month"
                 // Sideways or wide, up to three months stand side by side.
                 columns={layout === 'bar' ? 1 : 3}
+                onShown={(a, b) => setYearWindow((w) => (w[0] === a && w[1] === b ? w : [a, b]))}
                 heat={(day): DayHeat => {
                   const step = heatStep(loadOn(day))
                   return { colour: `var(--e-heat-${step})`, strong: step === 4 }
                 }}
                 marks={(day) => [...(colours.on ? modulesOnDay(day).map(colours.of) : []), ...followedColours(day)]}
                 describe={(day) => [dayWords(loadOn(day), colours.on ? modulesOnDay(day)[0] : undefined,
-                  plannedOn(day).length, colours), followedWords(followedOn(day).length), holidaysText(holidayMarks(holidays, day))].filter(Boolean).join(', ') || undefined}
-                extra={(day) => <HolidayMark marks={holidayMarks(holidays, day)} variant="top" />}
-                onDayClick={(day) => { go(parseISO(day)); setSection('Week') }}
+                  plannedOn(day).length, colours), followedWords(followedOn(day).length), holidaysText(holidayMarks(holidays, parseISO(day)))].filter(Boolean).join(', ') || undefined}
+                extra={(day) => <HolidayMark marks={holidayMarks(holidays, parseISO(day))} variant="top" />}
+                onDayClick={(day) => go(day, 'week', true)}
               />
             </div>
-            <ModuleLegend colours={colours} keys={yearLegend} />
-            <HolidayLegend countries={countriesIn([...holidays.values()], readSettings(profile).holidays.countries)} />
-            <FollowedLegend calendars={calendarsIn([...followed.values()])} />
+            <ModuleLegend colours={colours} keys={modulesByWeight([...itemsByDay.keys()].flatMap(modulesOnDay))} />
+            <HolidayLegend countries={countriesIn([...holidays.values()], settings.holidays.countries)} />
+            <FollowedLegend calendars={calendarsIn([...followedAll.values()].map((l) => l.filter((f) => !hidden.includes(f.sub.id))))} />
             <p className="section-title">Goals and phases</p>
             <Goals />
           </>
         )}
-        <ExportLink calendar source={{ dataset: 'calendar', range: rangeFor(section === 'Week' ? 'week' : section === 'Month' ? 'month' : 'year', format(date, 'yyyy-MM-dd')) }} />
+
+        {view === 'inbox' && profile && (
+          <Inbox profileId={profile.id} tasks={inboxTasks} onOpen={(t) => setEditing({ task: t, isNew: false })} />
+        )}
+
+        {view !== 'inbox' && view !== 'day' && (
+          <ExportLink calendar source={{
+            dataset: 'calendar',
+            range: view === 'week' ? rangeFor('custom', date, { from: span[0], to: span[span.length - 1] }) : rangeFor(view, date),
+          }} />
+        )}
       </div>
+
+      {!selecting && (
+        <button type="button" className="fab" aria-label={view === 'inbox' ? 'Add to the Inbox' : `Add a task on ${dayLabel(date)}`}
+          onClick={() => addOn(view === 'inbox' ? null : date)}>+</button>
+      )}
+      {editing && <TaskSheet key={editing.task.id} task={editing.task} isNew={editing.isNew} onClose={() => setEditing(null)} />}
+      {copying && <CopySheet what={copying} onClose={() => setCopying(null)} onDone={() => setChosen(new Set())} />}
+      {saving && <SaveTemplateSheet kind={saving.kind} first={saving.first} onClose={() => setSaving(null)} />}
+      {dropping && <DropTemplateSheet day={dropping} onClose={() => setDropping(null)} onSave={() => setSaving({ kind: 'day', first: dropping })} />}
+      {moving && (
+        <DayPickSheet title={moving.length === 1 ? `Move “${moving[0].title}” to…` : `Move ${moving.length} tasks to…`} inbox
+          onPick={(d) => { const list = moving; setMoving(null); void moveTo(list, d) }} onClose={() => setMoving(null)} />
+      )}
       {openEvent && <FollowedSheet event={openEvent} onClose={() => setOpenEvent(null)} />}
     </div>
   )
 }
 
+/** What a non-task item is, read out after its name. */
+function kindWords(it: DayItem, colours: ModuleColours): string {
+  const what = it.kind === 'supplements' ? 'supplements' : it.kind === 'event' ? 'event' : it.module_key ? colours.label(it.module_key) : it.kind
+  return [what, it.meta].filter(Boolean).join(', ')
+}
+
 /** How many events from followed calendars a day has, in words, or nothing. */
 const followedWords = (n: number) => (n ? `${n} ${n === 1 ? 'event' : 'events'} from your calendars` : '')
 
-/** Minutes of the day's tasks as a step on the heat ramp, 0 to 4. */
-function heatStep(minutes: number): number {
-  return minutes === 0 ? 0 : minutes < 60 ? 1 : minutes < 180 ? 2 : minutes < 360 ? 3 : 4
+/** Every day of the weeks a month touches, Monday to Sunday. */
+function monthDays(date: string): string[] {
+  const first = mondayOf(`${date.slice(0, 7)}-01`)
+  const last = monthEnd(date)
+  const end = addDays(mondayOf(last), 6)
+  const out: string[] = []
+  for (let d = first; d <= end; d = addDays(d, 1)) out.push(d)
+  return out
 }
 
-const weekDays = (date: Date) => eachDayOfInterval({
-  start: startOfWeek(date, { weekStartsOn: 1 }),
-  end: endOfWeek(date, { weekStartsOn: 1 }),
-})
+function monthEnd(date: string): string {
+  const [y, m] = date.split('-').map(Number)
+  return `${date.slice(0, 7)}-${String(new Date(Date.UTC(y, m, 0)).getUTCDate()).padStart(2, '0')}`
+}
 
-const monthDays = (date: Date) => eachDayOfInterval({
-  start: startOfWeek(startOfMonth(date), { weekStartsOn: 1 }),
-  end: endOfWeek(endOfMonth(date), { weekStartsOn: 1 }),
-})
+/** The same day of another month, or that month's last day. */
+function addMonth(date: string, n: number): string {
+  const [y, m, d] = date.split('-').map(Number)
+  const total = y * 12 + (m - 1) + n
+  const ny = Math.floor(total / 12)
+  const nm = total - ny * 12 + 1
+  const last = new Date(Date.UTC(ny, nm, 0)).getUTCDate()
+  return `${String(ny).padStart(4, '0')}-${String(nm).padStart(2, '0')}-${String(Math.min(d, last)).padStart(2, '0')}`
+}
 
 /** What a year day says when read out: its load, the module that filled
  *  most of it, and how much of it is planned repeats. */
