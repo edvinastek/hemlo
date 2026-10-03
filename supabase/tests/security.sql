@@ -944,6 +944,70 @@ insert into _r (check_name, expected, actual) values
      || (select count(*) from workout_log where profile_id = (select pm from _h) and exercise_id = (select ex from _h))::text),
   ('A logged set outlives its routine with no link to it', '0',
      (select count(*) from workout_log where routine_id = (select r from _h))::text);
+-- C2 (v16): the NEVO catalogue, replaced foods, units and ready meals (027) ---
+declare
+  n int;
+  old_food uuid := (select id from food where replaced_by is not null and owner_id is null limit 1);
+  new_food uuid := (select replaced_by from food where id = (select id from food where replaced_by is not null and owner_id is null limit 1));
+  nevo_food uuid := (select id from food where nevo_code is not null limit 1);
+  rb uuid;
+  got uuid;
+  -- A ready meal is a recipe role (one scanned product as one portion).
+  insert into recipe (owner_id, name, role) values ((select b from _ids), 'B''s ready lasagne', 'ready') returning id into rb;
+    ('A recipe can be a ready meal', 'ready', (select role from recipe where id = rb));
+    insert into recipe (owner_id, name, role) values ((select b from _ids), 'B''s odd role', 'elevenses');
+    insert into _r (check_name, expected, actual) values ('A recipe role off the list is refused', 'denied', 'allowed');
+    insert into _r (check_name, expected, actual) values ('A recipe role off the list is refused', 'denied', 'denied');
+  -- The shared catalogue is NEVO's: nobody changes it or adds to it.
+  update food set kcal = 1 where id = nevo_food;
+  insert into _r (check_name, expected, actual) values ('B cannot change a NEVO food', '0', n::text);
+  update food set replaced_by = null, deleted_at = null where id = old_food;
+  insert into _r (check_name, expected, actual) values ('B cannot bring back a replaced food', '0', n::text);
+    insert into food (owner_id, name, nevo_code) values (null, 'A fake NEVO food', 99999);
+    insert into _r (check_name, expected, actual) values ('B cannot add to the shared catalogue', 'denied', 'allowed');
+    insert into _r (check_name, expected, actual) values ('B cannot add to the shared catalogue', 'denied', 'denied');
+  -- A person's own food never carries a NEVO code or a replacement.
+    insert into food (owner_id, name, nevo_code) values ((select b from _ids), 'B''s food passing as NEVO', 99998);
+    insert into _r (check_name, expected, actual) values ('An own food cannot carry a NEVO code', 'denied', 'allowed');
+    insert into _r (check_name, expected, actual) values ('An own food cannot carry a NEVO code', 'denied', 'denied');
+    insert into food (owner_id, name, replaced_by) values ((select b from _ids), 'B''s food pointing away', nevo_food);
+    insert into _r (check_name, expected, actual) values ('An own food cannot say it is replaced', 'denied', 'allowed');
+    insert into _r (check_name, expected, actual) values ('An own food cannot say it is replaced', 'denied', 'denied');
+  -- A copy of a NEVO food is the person's own, saying where it came from.
+  insert into food (owner_id, name, kcal, source, source_ref)
+    values ((select b from _ids), 'B''s own yoghurt', 60, 'own', 'nevo:' || (select nevo_code from food where id = nevo_food));
+    ('An own copy of a NEVO food can be saved', '1', (select count(*) from food where name = 'B''s own yoghurt')::text);
+  -- Units with sizes and as-bought weights.
+  insert into food (owner_id, name, units) values ((select b from _ids), 'B''s mango',
+    '[{"name":"mango","g":200,"bought_g":300,"size":"M","source":"mine"}]'::jsonb);
+    ('A unit can carry a size and an as-bought weight', '300', (select units -> 0 ->> 'bought_g' from food where name = 'B''s mango'));
+    insert into food (owner_id, name, units) values ((select b from _ids), 'B''s odd mango', '[{"name":"mango","g":200,"bought_g":150}]'::jsonb);
+    insert into _r (check_name, expected, actual) values ('As bought cannot weigh less than what is eaten', 'denied', 'allowed');
+    insert into _r (check_name, expected, actual) values ('As bought cannot weigh less than what is eaten', 'denied', 'denied');
+    insert into food (owner_id, name, units) values ((select b from _ids), 'B''s huge mango', '[{"name":"mango","g":200,"size":"XXL"}]'::jsonb);
+    insert into _r (check_name, expected, actual) values ('A unit size off the list is refused', 'denied', 'allowed');
+    insert into _r (check_name, expected, actual) values ('A unit size off the list is refused', 'denied', 'denied');
+  -- A phone that missed the change still sends the old food: it lands on the replacement.
+  insert into food_log (profile_id, log_date, food_id, grams) values ((select pb from _ids), current_date, old_food, 100) returning food_id into got;
+    ('A meal logged against a replaced food lands on its replacement', 'new', case when got = new_food then 'new' else coalesce(got::text, 'null') end);
+  insert into recipe_line (recipe_id, food_id, grams_per_portion) values (rb, old_food, 50) returning food_id into got;
+    ('An ingredient for a replaced food lands on its replacement', 'new', case when got = new_food then 'new' else coalesce(got::text, 'null') end);
+  insert into recipe_line (recipe_id, food_id, raw_text) values (rb, null, 'a pinch of saffron');
+    ('An ingredient can be kept as text', '1', (select count(*) from recipe_line where recipe_id = rb and raw_text = 'a pinch of saffron')::text);
+    insert into recipe_line (recipe_id, raw_text) values (rb, repeat('x', 201));
+    insert into _r (check_name, expected, actual) values ('An ingredient''s text keeps to 200 characters', 'denied', 'allowed');
+    insert into _r (check_name, expected, actual) values ('An ingredient''s text keeps to 200 characters', 'denied', 'denied');
+  -- An activity factor keeps to what can be typed.
+    update profile set activity_level = 3 where id = (select pb from _ids);
+    insert into _r (check_name, expected, actual) values ('An activity factor of 3 is refused', 'denied', 'allowed');
+    insert into _r (check_name, expected, actual) values ('An activity factor of 3 is refused', 'denied', 'denied');
+  update profile set activity_level = 1.65 where id = (select pb from _ids);
+  insert into _r (check_name, expected, actual) values ('A preset activity factor is kept', '1', n::text);
+  ('The catalogue holds NEVO''s 2,328 foods', '2328', (select count(*) from food where nevo_code is not null and deleted_at is null)::text),
+  ('Every NEVO food says which NEVO it is', '0', (select count(*) from food where nevo_code is not null and source_version is distinct from 'NEVO-online 2025/9.0')::text),
+  ('A replaced food is hidden, not deleted', '0', (select count(*) from food where replaced_by is not null and deleted_at is null)::text),
+  ('No ingredient points at a replaced food', '0', (select count(*) from recipe_line l join food f on f.id = l.food_id where f.replaced_by is not null)::text),
+  ('The nutrition module has no default meal slots', '{}', (select default_settings::text from module where key = 'nutrition'));
 
 -- The reviewer row made for this run goes (the rollback would take it anyway).
 delete from app_admin where user_id = (select m from _ids);

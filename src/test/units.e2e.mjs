@@ -39,8 +39,8 @@ const overflow = () => p.evaluate(() => {
 // 1. The food's page: add the unit egg, 50 g.
 await p.click('.bottom-nav a[href="/food"]')
 await p.click('.tabs button:has-text("Foods")')
-await p.fill('input[aria-label="Search foods"]', food)
-await p.locator(`button[aria-label="Open ${food}: its units"]`).first().click({ timeout: 20000 })
+await p.fill('input[aria-label="Search foods, in English or Dutch"]', food)
+await p.locator(`button[aria-label="Open ${food}"]`).first().click({ timeout: 20000 })
 const sheet = p.locator('.bottom-sheet')
 is('its page says grams only', (await sheet.locator('.fu-facts', { hasText: 'Counted in grams only' }).count()) > 0, true)
 await sheet.getByRole('textbox', { name: 'Unit', exact: true }).fill('egg')
@@ -63,26 +63,33 @@ await p.getByRole('button', { name: 'New recipe' }).click()
 const editor = p.locator('.bottom-sheet')
 await editor.getByRole('textbox', { name: 'Name', exact: true }).fill(recipe)
 await editor.locator('input[aria-label="Add an ingredient"]').fill(food)
-await p.locator('.sp-list li[role=option]', { hasText: food }).first().click()
-is('a food with units starts in its unit', await editor.locator('.re-amount button[aria-pressed="true"]').textContent(), 'egg')
+await p.locator('.ip-list li[role=option]', { hasText: food }).first().click()
+is('a food with units starts in its unit', await editor.locator('.rl-amount button[aria-pressed="true"]').first().textContent(), 'egg')
 await editor.locator(`input[aria-label="${food}, eggs per portion"]`).fill('2')
-is('it says what that comes to', (await editor.locator('.re-amount .amt-hint').textContent())?.trim(), '2 eggs (100 g)')
+is('it says what that comes to', (await editor.locator('.rl-amount .amt-hint').textContent())?.trim(), '2 eggs (100 g)')
 is('the portion counts 100 g of egg', (await editor.locator('.re-total').textContent())?.startsWith('One portion: 143 kcal'), true)
 is('the editor fits 360 px', (await overflow()).join(', '), '')
 await editor.getByRole('button', { name: 'Save' }).click()
 await p.waitForTimeout(800)
+// A new recipe opens on its own page once saved.
+is('the saved recipe opens on its page', (await p.locator('.bottom-sheet.rcp h2').textContent())?.trim(), recipe)
+await p.locator('.bottom-sheet.rcp .rcp-actions button:has-text("Close")').click()
 is('the recipe reached the server', await drained(p), true)
 const line = await one(`select l.unit, l.unit_qty::float qty, l.grams_per_portion::float g
   from public.recipe_line l join public.recipe r on r.id = l.recipe_id where r.owner_id = ${user} and r.name = '${recipe}'`)
 is('Postgres holds 2 eggs as 100 g', `${line.qty} ${line.unit}, ${line.g} g`, '2 egg, 100 g')
 is('the recipe counts 143 kcal a portion',
-  (await p.locator('.my-recipes .setting-row', { hasText: recipe }).locator('.row-meta').textContent())?.startsWith('143 kcal a portion'), true)
+  (await p.locator('.my-recipes .setting-row', { hasText: recipe }).locator('.row-meta').textContent())?.includes('143 kcal a portion'), true)
 
 // Opened again, it reads 2 eggs, not 100 g.
-await p.locator(`button[aria-label="Edit ${recipe}"]`).click()
+await p.locator(`.my-recipes button[aria-label="Open ${recipe}"]`).click()
+await p.locator('.bottom-sheet.rcp .rcp-actions button:has-text("Edit")').click()
 is('opened again it is 2 eggs', await p.locator(`.bottom-sheet input[aria-label="${food}, eggs per portion"]`).inputValue(), '2')
-is('with its grams', (await p.locator('.bottom-sheet .re-amount .amt-hint').textContent())?.trim(), '2 eggs (100 g)')
+is('with its grams', (await p.locator('.bottom-sheet .rl-amount .amt-hint').textContent())?.trim(), '2 eggs (100 g)')
 await p.locator('.bottom-sheet').getByRole('button', { name: 'Cancel' }).click()
+// Back on the recipe's page: its ingredients say eggs too.
+is('the recipe page lists 2 eggs', /2 eggs/.test((await p.locator('.bottom-sheet.rcp').textContent()) ?? ''), true)
+await p.locator('.bottom-sheet.rcp .rcp-actions button:has-text("Close")').click()
 
 // 3. The combined ingredient list says eggs.
 await p.click('.bk-select')

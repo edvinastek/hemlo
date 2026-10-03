@@ -25,7 +25,7 @@ export interface ImportSummary {
 // Every field the import sets, so the server receives the whole row. updated_at
 // is left out: the server keeps its own.
 const FOOD_FIELDS: (keyof FoodRowPlan)[] = [
-  'owner_id', 'name', 'kcal', 'carbs_g', 'fiber_g', 'fat_g', 'protein_g',
+  'owner_id', 'name', 'kcal', 'carbs_g', 'fiber_g', 'fat_g', 'protein_g', 'carb_basis',
   'state', 'cook_yield', 'pack_size_g', 'store_section', 'source', 'deleted_at',
 ]
 const RECIPE_FIELDS: (keyof RecipeRowPlan)[] = [

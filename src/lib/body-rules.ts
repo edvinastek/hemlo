@@ -2,6 +2,9 @@
  *  can be checked by hand in src/test/body.check.mjs. Days are the user's
  *  local calendar days as 'yyyy-MM-dd' strings throughout. */
 
+import { readPlan, type BodyPlan } from './calc.ts'
+import { readAnswers, type ActivityAnswers } from './activity.ts'
+
 export const WEIGHT_MIN = 30
 export const WEIGHT_MAX = 300
 export const WAIST_MIN = 40
@@ -132,19 +135,23 @@ export function formatChange(change: number | null): string {
 }
 
 /** What the targets calculation still needs from the profile, in the user's
- *  words. The calculation would otherwise fall back to a guessed height and
- *  age and show numbers that look precise and are not. */
-export function missingForTargets(p: { height_cm: number | null; birth_date: string | null }): string | null {
-  const missing = missingFields(p).map((f) => (f === 'height' ? 'height' : 'date of birth'))
+ *  words. The calculation would otherwise have to guess a height, an age or
+ *  a sex and show numbers that look precise and are not (BODY-05). */
+export function missingForTargets(p: { height_cm: number | null; birth_date: string | null; sex?: string | null }): string | null {
+  const names = { sex: 'sex', height: 'height', birth_date: 'date of birth' } as const
+  const missing = missingFields(p).map((f) => names[f])
   if (missing.length === 0) return null
-  return `Targets need your ${missing.join(' and ')}.`
+  const list = missing.length === 1 ? missing[0] : `${missing.slice(0, -1).join(', ')} and ${missing[missing.length - 1]}`
+  return `Targets need your ${list}.`
 }
 
 /** The same check as a list, so the form can ask for exactly what is absent.
  *  A height of 0 or one that is not a number counts as absent: More saves
- *  Number(text), which turns an empty box into 0. */
-export function missingFields(p: { height_cm: number | null; birth_date: string | null }): ('height' | 'birth_date')[] {
-  const out: ('height' | 'birth_date')[] = []
+ *  Number(text), which turns an empty box into 0. Sex is checked when the
+ *  profile carries the field (a profile row always does). */
+export function missingFields(p: { height_cm: number | null; birth_date: string | null; sex?: string | null }): ('sex' | 'height' | 'birth_date')[] {
+  const out: ('sex' | 'height' | 'birth_date')[] = []
+  if ('sex' in p && p.sex !== 'male' && p.sex !== 'female') out.push('sex')
   const h = Number(p.height_cm)
   if (!p.height_cm || !Number.isFinite(h) || h <= 0) out.push('height')
   if (!p.birth_date) out.push('birth_date')
@@ -198,4 +205,29 @@ export function latestOnOrBefore<T extends WeighInPoint>(rows: T[], day: string)
  *  Another profile is never used in its place. */
 export function pickProfile<T extends { id: string }>(profiles: T[], active: T | null, id: string): T | null {
   return profiles.find((p) => p.id === id) ?? (active?.id === id ? active : null)
+}
+
+// ---- the body settings kept with Health (BODY-03, BODY-10, BODY-16) ------------------------
+
+
+export interface BodySettings { plan: BodyPlan; activity: ActivityAnswers }
+
+/** As stored in the Health module's settings ("body"), every value checked. */
+export function readBodySettings(v: unknown): BodySettings {
+  const r = (v && typeof v === 'object' ? v : {}) as Record<string, unknown>
+  return { plan: readPlan(r.plan), activity: readAnswers(r.activity) }
+}
+
+/** Which change led to new targets, as the note under them says it. */
+export type RecalcWhy = 'goal' | 'activity' | 'height' | 'birth_date' | 'sex' | 'plan' | 'weigh-in'
+export function recalcReason(why: RecalcWhy): string {
+  switch (why) {
+    case 'goal': return 'recalculated after the goal changed'
+    case 'activity': return 'recalculated after the activity changed'
+    case 'height': return 'recalculated after the height changed'
+    case 'birth_date': return 'recalculated after the date of birth changed'
+    case 'sex': return 'recalculated after sex changed'
+    case 'plan': return 'recalculated after the plan’s numbers changed'
+    default: return ''
+  }
 }

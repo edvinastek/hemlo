@@ -110,14 +110,14 @@ is('the barcode finds the food already kept', await p.locator('.pf-page .pf-note
 is('and offers no second add', await p.locator('button:has-text("Add to my foods")').count(), 0)
 await p.click('button:has-text("Show in Foods")')
 is('Show in Foods closes the sheet', await sheet.count(), 0)
-is('and narrows the table to it', await p.inputValue('input[aria-label="Search foods"]'), name)
+is('and narrows the table to it', await p.inputValue('input[aria-label="Search foods, in English or Dutch"]'), name)
 is('the food is in the table', await p.locator('.sheet tbody tr', { hasText: name }).count() > 0, true)
 await drained(p)
 rows = await offFoods()
 is('still one food in Postgres', rows.length, 1)
 
 // 4. Shared prices for a product that has some, or "none yet".
-await p.fill('input[aria-label="Search foods"]', '')
+await p.fill('input[aria-label="Search foods, in English or Dutch"]', '')
 await p.click('.pf-bar button:has-text("Scan barcode")')
 await p.fill('input[aria-label="Barcode digits"]', KNOWN)
 await p.click('button:has-text("Look up")')

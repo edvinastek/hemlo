@@ -59,9 +59,10 @@ try {
   await one.p.getByRole('button', { name: 'New recipe' }).click()
   const sheet = one.p.locator('.bottom-sheet')
   await sheet.getByRole('textbox', { name: 'Name', exact: true }).fill(name)
-  await sheet.locator('input[aria-label="Add an ingredient"]').fill('Brown Rice')
-  await one.p.locator('.sp-list li[role=option]', { hasText: 'Brown Rice' }).first().click()
-  await sheet.locator('input[aria-label="Brown Rice, grams per portion"]').fill('75')
+  await sheet.locator('input[aria-label="Add an ingredient"]').fill('brown rice')
+  // The one search: NEVO's food, in its display name (v16).
+  await one.p.locator('.ip-list li[role=option]', { hasText: 'Brown rice, boiled' }).first().click()
+  await sheet.locator('input[aria-label="Brown rice, boiled, grams per portion"]').fill('75')
   is('"Only me" is the default', await sheet.locator('input[name=sharing][value=private]').isChecked(), true)
   await sheet.locator('.sh-option', { hasText: 'Propose to everyone' }).click()
   is('it says what saving does', await sheet.locator('.sh-effect').textContent(),
@@ -69,6 +70,8 @@ try {
   is('the editor fits 360 px', JSON.stringify(await overflow(one.p)), '[]')
   await sheet.getByRole('button', { name: 'Save' }).click()
   await one.p.waitForTimeout(800)
+  // A new recipe opens on its own page once saved (v16).
+  await one.p.locator('.bottom-sheet.rcp .rcp-actions button:has-text("Close")').click()
   is('the author sees it waiting', await one.p.locator('.my-recipes .setting-row', { hasText: name }).locator('.sh-chip').textContent(),
     'Waiting for review')
   is('it reached the server', await drained(one.p), true)
@@ -88,8 +91,8 @@ try {
   await two.p.getByText(/^Recipes to review \(\d+\)$/).waitFor({ timeout: 10000 })
   const card = two.p.locator('.rv-card', { hasText: name })
   is('the queue shows it', await card.count(), 1)
-  await card.locator('.rv-lines', { hasText: 'Brown Rice' }).waitFor({ timeout: 15000 }).catch(() => {})
-  is('with its ingredient and grams', (await card.locator('.rv-lines').textContent()).includes('Brown Rice · 75 g'), true)
+  await card.locator('.rv-lines', { hasText: 'Brown rice, boiled' }).waitFor({ timeout: 15000 }).catch(() => {})
+  is('with its ingredient and grams', (await card.locator('.rv-lines').textContent()).includes('Brown rice, boiled · 75 g'), true)
   is('never with an email address', (await card.textContent()).includes('@'), false)
   is('the queue fits 360 px', JSON.stringify(await overflow(two.p)), '[]')
   await card.locator('.rv-note').fill('Thanks, looks good')

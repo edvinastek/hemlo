@@ -8,6 +8,7 @@ import {
   namesText, pruneBooks, recipeIngredients, recolourBook, removeFromBook, renameBook, sharedNote, splitOwned, toggleAll,
   MAX_NAME, type Book, type BookKind, type BookResult,
 } from '../lib/books-rules'
+import { search as find } from '../lib/search-rules'
 import { DataTable } from '../ui/DataTable'
 import { BookBar } from '../ui/BookBar'
 import { SelectBar } from '../ui/SelectBar'
@@ -28,7 +29,7 @@ type Status = { text: string; bad?: boolean } | null
  *  rows in a book, take them out, copy them, export them or delete the ones
  *  that are the person's own. Shared catalogue rows are never deleted. */
 export function BookTable<T extends Row>({
-  kind, rows, fields, priority, emptyNote, head, search = '', limit, lines = [], foods, onOpen, openLabel,
+  kind, rows, fields, priority, emptyNote, head, search = '', limit, lines = [], foods, onOpen, openLabel, extra, order, more, actions,
 }: {
   kind: BookKind
   /** Every row that still exists, in the table's order. */
@@ -40,8 +41,20 @@ export function BookTable<T extends Row>({
   head: ReactNode
   /** Typed search, applied inside the chosen book. */
   search?: string
-  /** At most this many rows are shown at once. */
+  /** At most this many rows are drawn while nothing is typed; "Show all"
+   *  draws the rest. A search always finds the whole list (FOOD-14). */
   limit?: number
+  /** Text a search also looks in besides the name: ingredients, the Dutch
+   *  name, a brand. */
+  extra?: (row: T) => string
+  /** An order the person chose (kcal, most cooked); without one, the one
+   *  search's own: best match first, else own first, then A to Z. */
+  order?: (a: T, b: T) => number
+  /** Shown under the table, before "Show all" (the catalogue's attribution). */
+  more?: ReactNode
+  /** More buttons for the select bar, for the rows ticked ("Add to shopping
+   *  list"); `say` puts a line in the bar. */
+  actions?: (picked: T[], say: (text: string, bad?: boolean) => void) => ReactNode
   /** For "Copy ingredients" on recipes. */
   lines?: RecipeLine[]
   foods?: Map<string, Food>
@@ -63,12 +76,18 @@ export function BookTable<T extends Row>({
   const book = books.find((b) => b.id === active) ?? null
   const counts = new Map(books.map((b) => [b.id, liveCount(b, ids)]))
 
+  const [showAll, setShowAll] = useState(false)
+  // The one search (GEN-10 to GEN-12): every word, in any order, accents
+  // ignored, in the name or the extra text; names starting with the first
+  // word first, the person's own first, then plainer names.
   const matched = useMemo(() => {
     const inside = inBook(rows, book)
-    const q = search.trim().toLowerCase()
-    return q ? inside.filter((r) => r.name.toLowerCase().includes(q)) : inside
-  }, [rows, book, search])
-  const shown = limit ? matched.slice(0, limit) : matched
+    const items = inside.map((r) => ({ row: r, name: String(r.name ?? ''), extra: extra?.(r), mine: !!userId && r.owner_id === userId }))
+    const hits = find(items, search).map((x) => x.row)
+    return order ? [...hits].sort(order) : hits
+  }, [rows, book, search, extra, order, userId])
+  const capped = !!limit && !showAll && !search.trim() && matched.length > limit
+  const shown = capped ? matched.slice(0, limit) : matched
   const picked = useMemo(() => chosen(rows, selected), [rows, selected])
 
   /** Change the books, always from what is stored now (not what this screen
@@ -196,6 +215,7 @@ export function BookTable<T extends Row>({
 
       <div className="totals">{head}</div>
 
+      <div className="bk-table">
       <DataTable
         fields={fields}
         priority={priority}
@@ -210,8 +230,13 @@ export function BookTable<T extends Row>({
         onOpen={selecting || !onOpen ? undefined : (row) => onOpen(row as T)}
         openLabel={openLabel ? (row) => openLabel(row as T) : undefined}
       />
-      {limit && matched.length > shown.length && (
-        <p className="empty">Showing {shown.length} of {matched.length}. Search to narrow it.</p>
+      </div>
+      {more}
+      {capped && (
+        <div className="bk-more">
+          <span className="row-meta">Showing {shown.length} of {matched.length}. Type to search them all.</span>
+          <button type="button" className="btn" onClick={() => setShowAll(true)}>Show all {matched.length}</button>
+        </div>
       )}
 
       {selecting && (
@@ -222,6 +247,7 @@ export function BookTable<T extends Row>({
           {kind === 'recipe'
             ? <button type="button" className="btn" disabled={none} onClick={copyIngredients}>Copy ingredients</button>
             : <button type="button" className="btn" disabled={none} onClick={() => void copy(namesText(picked), countOf(picked.length, 'food'))}>Copy names</button>}
+          {actions?.(picked, (text, bad) => setStatus({ text, bad }))}
           {!none && <span className="sb-export"><ExportLink source={exportSource} /></span>}
           <button type="button" className="btn sb-delete" disabled={none} onClick={() => setSheet('delete')}>Delete…</button>
         </SelectBar>

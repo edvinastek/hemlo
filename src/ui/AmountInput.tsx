@@ -1,6 +1,6 @@
 import type { InputHTMLAttributes } from 'react'
 import { Dropdown } from './Dropdown'
-import { gramsLabel, type AmountChoice } from '../lib/units-rules'
+import { choiceLabel, gramsLabel, type AmountChoice } from '../lib/units-rules'
 import './amount.css'
 
 /** An amount and what it is counted in: a number field, then grams (and,
@@ -34,19 +34,20 @@ export function AmountInput({
   )
   let pick
   if (choices.length <= 1) {
-    pick = <span className="amt-only" aria-hidden="true">{choices[0]?.label ?? 'g'}</span>
+    pick = <span className="amt-only" aria-hidden="true">{choices[0] ? choiceLabel(choices[0], text) : 'g'}</span>
   } else if (choices.length <= 4) {
     pick = (
       <div className={`amt-units${groupClass ? ` ${groupClass}` : ''}`} role="group" aria-label="Unit">
         {choices.map((c) => (
-          <button key={c.key} type="button" aria-pressed={c.key === choice} onClick={() => onChoice(c.key)}>{c.label}</button>
+          // The word follows the number typed: "1 onion", "2 onions" (UNIT-21).
+          <button key={c.key} type="button" aria-pressed={c.key === choice} onClick={() => onChoice(c.key)}>{choiceLabel(c, text)}</button>
         ))}
       </div>
     )
   } else {
     pick = (
       <Dropdown className="amt-dd" value={choice} label="Unit"
-        options={choices.map((c) => ({ value: c.key, label: c.label, hint: c.key === 'g' || c.key === 'kg' ? undefined : `${gramsLabel(c.g)} each` }))}
+        options={choices.map((c) => ({ value: c.key, label: choiceLabel(c, text), hint: c.key === 'g' || c.key === 'kg' ? undefined : `${gramsLabel(c.g)} each` }))}
         onChange={onChoice} />
     )
   }

@@ -1,8 +1,7 @@
-// Checks the starting layouts, the keyword suggestion, the activity levels
-// and the country list: every template is whole, typed words lead to the
+// Checks the starting layouts, the keyword suggestion and the country list
+// (the activity levels are in activity.check.mjs): every template is whole, typed words lead to the
 // template a person would expect, and nothing is guessed from no words.
 import { TEMPLATES, DEFAULT_TEMPLATE, templateByKey, suggestTemplate, modulesFor } from '../lib/templates.ts'
-import { ACTIVITY_LEVELS, nearestActivity } from '../lib/activity.ts'
 import { COUNTRIES, countryName, cleanCountry, cleanCity } from '../lib/countries.ts'
 
 let fail = 0
@@ -64,18 +63,6 @@ const s = suggestTemplate('Student, EXAMS')
 is('says which words matched, as listed', s?.matched, ['student', 'exams'])
 is('scores clear words at 2 each', s?.score, 4)
 is('a tie goes to the template listed first', pick('calendar student'), 'minimal')
-
-// Activity levels.
-is('at least eight levels', ACTIVITY_LEVELS.length >= 8, true)
-is('from 1.2', ACTIVITY_LEVELS[0].value, 1.2)
-is('to 1.9', ACTIVITY_LEVELS[ACTIVITY_LEVELS.length - 1].value, 1.9)
-is('in rising order, no repeats', ACTIVITY_LEVELS.every((l, i) => i === 0 || l.value > ACTIVITY_LEVELS[i - 1].value), true)
-is('each has a short description', ACTIVITY_LEVELS.every((l) => l.label.length > 5 && l.label.length < 60), true)
-is('the first is the desk job', ACTIVITY_LEVELS[0].label, 'desk job, little walking')
-is('a stored level on the list stays', nearestActivity(1.55), 1.55)
-is('an old typed-in 1.58 snaps to the nearest', nearestActivity(1.58), 1.55)
-is('nothing stored gives light activity', nearestActivity(null), 1.375)
-is('far above the list gives the top', nearestActivity(2.4), 1.9)
 
 // Countries.
 const codes = COUNTRIES.map((c) => c.code)

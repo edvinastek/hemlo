@@ -184,7 +184,7 @@ export function WeighIn({ profileId, day }: { profileId: string; day: string }) 
 }
 
 
-/** Asks for the height or date of birth the targets are waiting for, right
+/** Asks for the sex, height or date of birth the targets are waiting for, right
  *  where the gap shows. More has no date of birth field, so without this a
  *  profile made without one could never get targets. */
 function ProfileGaps({ profile, day, hasWeighIn, message }: {
@@ -193,13 +193,18 @@ function ProfileGaps({ profile, day, hasWeighIn, message }: {
   const gaps = missingFields(profile)
   const [height, setHeight] = useState('')
   const [birth, setBirth] = useState('')
+  const [sex, setSex] = useState<'female' | 'male' | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [saving, setSaving] = useState(false)
 
   async function save(e: FormEvent) {
     e.preventDefault()
     const today = format(new Date(), 'yyyy-MM-dd')
-    const fields: Partial<Pick<Profile, 'height_cm' | 'birth_date'>> = {}
+    const fields: Partial<Pick<Profile, 'height_cm' | 'birth_date' | 'sex'>> = {}
+    if (gaps.includes('sex')) {
+      if (!sex) return setError('Choose female or male: the resting burn differs between the two, so it is not guessed.')
+      fields.sex = sex
+    }
     if (gaps.includes('height')) {
       const h = parseHeight(height)
       if (!h.ok) return setError(h.message)
@@ -228,7 +233,15 @@ function ProfileGaps({ profile, day, hasWeighIn, message }: {
           ? ' and the targets are worked out from your latest weigh-in.'
           : ', then save a weigh-in to work the targets out.'}
       </p>
-      <div className={gaps.length > 1 ? 'two' : undefined}>
+      {gaps.includes('sex') && (
+        <div role="group" aria-label="Sex" style={{ display: 'flex', gap: 'var(--space-2)' }}>
+          {(['female', 'male'] as const).map((v) => (
+            <button key={v} type="button" className={sex === v ? 'btn btn-primary grow' : 'btn grow'} aria-pressed={sex === v}
+              style={{ minHeight: 48 }} onClick={() => setSex(v)}>{v === 'female' ? 'Female' : 'Male'}</button>
+          ))}
+        </div>
+      )}
+      <div className={gaps.filter((g) => g !== 'sex').length > 1 ? 'two' : undefined}>
         {gaps.includes('height') && (
           <label>
             Height, cm

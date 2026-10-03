@@ -13,11 +13,11 @@ import { readSettings } from '../lib/settings'
 import './more.css'
 import { ModuleEditor } from '../ui/ModuleEditor'
 import { BuiltModules } from '../modules/ModuleBuilder'
-import { Dropdown } from '../ui/Dropdown'
 import { PlanningSettings } from '../settings/PlanningSettings'
 import { HoldSettings } from '../settings/HoldSettings'
 import { TodayCardsSettings } from '../settings/TodayCardsSettings'
 import { FoodSettings } from '../settings/FoodSettings'
+import { BodySettings } from '../settings/BodySettings'
 import { NavSettings } from '../settings/NavSettings'
 import { ColourSettings } from '../settings/ColourSettings'
 import { HolidaySettings } from '../settings/HolidaySettings'
@@ -37,7 +37,6 @@ import { saveTipState, tipState } from '../lib/tips'
 import { setMeta } from '../lib/db'
 import { reviewSettings, setReviewTime, DEFAULT_EXTENSION_LIMIT } from '../lib/review'
 import { cleanLimit } from '../lib/review-rules'
-import { heightFrom } from '../lib/profile-fields-rules'
 import { NoteTemplates } from '../settings/NoteTemplates'
 import { exportBundle, importBundle } from '../lib/bundle'
 import { getReminderSettings, setReminderSettings, requestPermission, type ReminderSettings } from '../lib/notify'
@@ -219,32 +218,7 @@ function ProfilePanel() {
       <HolidaySettings />
       <CalendarLinks />
       <NoteTemplates />
-      <p className="section-title">Body and goal</p>
-      <Field label="Height" value={String(profile.height_cm ?? '')} unit="cm" inputMode="decimal"
-        hint="Emptied, it is saved as not known, never as 0."
-        check={(v) => (heightFrom(v) === undefined ? 'A height from 50 to 260 cm, or empty.' : null)}
-        onSave={(v) => edit('profile', profile, { height_cm: heightFrom(v) ?? null })} />
-      <Field label="Date of birth" type="date" value={profile.birth_date ?? ''}
-        hint="Used for the calorie budget. Change it here if it was entered wrong."
-        onSave={(v) => edit('profile', profile, { birth_date: v || null })} />
-      <Field label="Activity factor" value={String(profile.activity_level)}
-        hint="1.2 desk job, 1.5 hard training twice a day, 1.9 very active"
-        onSave={(v) => edit('profile', profile, { activity_level: Number(v) })} />
-      <div className="setting-row">
-        <div>
-          <div className="row-name">Goal</div>
-          <div className="row-meta">Cut takes 500 kcal off, bulk adds 300, recomp holds the line.</div>
-        </div>
-        <div style={{ width: 170 }}>
-          <Dropdown label="Body goal" value={profile.goal}
-            options={[
-              { value: 'cut', label: 'Lose fat' },
-              { value: 'recomp', label: 'Maintain and recomp' },
-              { value: 'bulk', label: 'Build muscle' },
-            ]}
-            onChange={(v) => void edit('profile', profile, { goal: v })} />
-        </div>
-      </div>
+      <BodySettings />
       <FoodSettings />
     </>
   )

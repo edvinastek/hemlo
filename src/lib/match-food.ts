@@ -20,13 +20,14 @@ const PARENS = /\([^)]*\)/g
 const STOP = new Set([
   'and', 'with', 'or', 'in', 'the', 'a', 'of', 'sliced', 'slices', 'sticks', 'fillet', 'breast',
   'plain', 'mixed', 'frozen', 'fresh', 'low-fat', 'lean', 'unsweetened', 'firm', 'whole', 'large',
-  'medium', 'small', 'water', 'canned',
+  'medium', 'small', 'water', 'canned', 'average', 'raw', 'unprepared', 'without',
 ])
 
 /** One form per word, so "Blueberries" meets "Blueberry" and "Walnuts" meets
  *  "Walnut". Short words are left alone: "oats" and "peas" are already the
  *  form the catalogue uses. */
 function singular(w: string): string {
+  if (w === 'oats') return 'oat'
   if (w.length <= 4) return w
   if (w.endsWith('ies')) return w.slice(0, -3) + 'y'
   if (w.endsWith('oes')) return w.slice(0, -2)
@@ -55,39 +56,78 @@ export function jaccard(a: Set<string>, b: Set<string>): number {
 
 // ---- matching --------------------------------------------------------------
 
-/** Names the catalogue gives a food that no amount of word overlap would
- *  find: D_Food is a USDA-style list with inverted names ("Fish Cod
- *  Atlantic"), and a recipe says "Hard-boiled egg". Taken from the notes in
- *  seed/match2.py, with three targets corrected to the names the catalogue
- *  really uses (Turkey Breast Meat+Skin, Beef Sirloin Top, Tomato Red). */
+/** What a recipe says, and the food in the shared catalogue (NEVO-online
+ *  2025/9.0 since migration 027, with the few old foods kept) it means, where
+ *  word overlap alone would land on the wrong one ("Apple" on dried apples,
+ *  "Milk" on milk chocolate). The workbook's 26 recipes and the plainest
+ *  words people type. A cooked line points at the raw food when the food
+ *  knows its cook yield (rice, oats, pulses, meat, fish), so the cooked
+ *  weight is turned back into raw. */
 export const ALIAS: Record<string, string> = {
-  'peanut butter': 'Butter Peanut Smooth',
-  'hard-boiled egg': 'Egg Chicken',
-  'baked cod': 'Fish Cod Atlantic',
-  'grilled chicken breast': 'Chicken Broiler/Fryer Breast Meat',
-  'turkey breast (grilled)': 'Turkey Breast Meat+Skin',
-  'salmon fillet (grilled or baked)': 'Fish Salmon Atlantic Farmed',
-  'tuna (canned in water, drained)': 'Fish Tuna Skipjack',
-  'greek yogurt (plain)': 'Yogurt Greek',
-  'greek yogurt (plain, low-fat)': 'Yogurt Greek',
-  'romaine lettuce': 'Lettuce Cos/Romaine',
-  'mixed greens': 'Lettuce Green Leaf',
-  'red bell pepper': 'Bell Peppers',
-  'cucumber slices': 'Cucumber (with peel)',
-  'cucumber': 'Cucumber (with peel)',
-  'carrot sticks': 'Carrot',
-  'cherry tomatoes': 'Tomato Red',
-  'sliced strawberries': 'Strawberry',
-  'frozen berries': 'Strawberry',
-  'berries (mixed)': 'Strawberry',
-  'steamed broccoli': 'Broccoli',
-  'zucchini (grilled)': 'Squash Winter Zucchini (with skin)',
-  'tofu (firm, grilled)': 'Tofu Firm',
-  'blueberries': 'Blueberry',
-  'raspberries': 'Raspberry',
-  'whole-wheat toast': 'Whole-wheat bread',
-  'beef steak (grilled, lean)': 'Beef Sirloin Top',
+  'apple': 'Apple with skin average',
+  'almonds': 'Almonds with skin unsalted',
+  'almond milk (unsweetened)': 'Almond drink unsweetened',
+  'asparagus': 'Green asparagus, raw',
+  'baked cod': 'Cod, raw',
+  'beef steak (grilled, lean)': 'Beef rump steak, raw',
+  'berries (mixed)': 'Fruit forest average',
+  'broccoli (steamed)': 'Broccoli, raw',
+  'brown rice (cooked)': 'Brown rice, boiled',
+  'butter': 'Butter unsalted',
+  'carrot': 'Carrot, raw average',
+  'carrot sticks': 'Carrot, raw average',
+  'cauliflower (steamed)': 'Cauliflower, raw',
+  'cherry tomatoes': 'Cherry tomato, raw',
+  'chia seeds': 'Chia seeds, dried',
+  'chicken breast': 'Chicken fillet, raw',
+  'chickpeas (cooked)': 'Chickpeas, boiled',
+  'courgette': 'Courgettes, raw',
+  'cucumber': 'Cucumber with skin, raw',
+  'cucumber slices': 'Cucumber with skin, raw',
+  'egg': 'Egg average, raw',
+  'eggs': 'Egg average, raw',
+  'flour': 'Wheat flour white',
+  'frozen berries': 'Fruit forest average',
+  'garlic': 'Garlic, raw',
+  'greek yogurt (plain)': 'Greek yoghurt full fat',
+  'greek yogurt (plain, low-fat)': 'Greek yoghurt skimmed',
+  'grilled chicken breast': 'Chicken fillet, raw',
+  'hard-boiled egg': 'Egg average, boiled',
+  'hummus': 'Hummus natural',
+  'lentils (cooked)': 'Lentils green and brown, dried',
+  'milk': 'Semi-skimmed milk',
+  'mixed greens': 'Lettuce average, raw',
+  'mixed nuts': 'Mixed nuts unsalted',
+  'oats': 'Oat flakes',
+  'oats (cooked)': 'Oat flakes',
+  'onion': 'Onions, raw',
+  'potato': 'Potatoes, raw',
+  'quinoa (cooked)': 'Quinoa, raw',
+  'red bell pepper': 'Sweet pepper red, raw',
+  'rice': 'White rice, raw',
+  'romaine lettuce': 'Romaine lettuce, raw',
+  'salmon fillet (grilled or baked)': 'Salmon farmed, raw',
+  'shrimp (grilled or steamed)': 'Shrimp, raw',
+  'sliced strawberries': 'Strawberries',
+  'spinach': 'Spinach, raw',
+  'steamed broccoli': 'Broccoli, raw',
+  'sugar': 'Granulated sugar',
+  'sweet potato (baked)': 'Sweet potato, raw',
+  'tofu (firm, grilled)': 'Tofu, unprepared',
+  'tomato': 'Tomato average, raw',
+  'tuna (canned in water, drained)': 'Tuna in water, tinned',
+  'turkey breast (grilled)': 'Turkey fillet, raw',
+  'walnuts': 'Walnuts unsalted',
+  'whole-wheat pasta (cooked)': 'Wholemeal pasta, boiled',
+  'whole-wheat pita': 'Wholemeal pitta bread',
+  'whole-wheat toast': 'Wheat bread wholemeal average fine and coarse',
+  'zucchini': 'Courgettes, raw',
+  'zucchini (grilled)': 'Courgettes, raw',
 }
+
+/** Words that make a food something made from another: "Almond drink" is
+ *  not almonds, "Rice flour" is not rice. */
+const MADE_FROM = /\b(drink|juice|sauce|flour|paste|powder|dried|tinned|canned|glass|soup|salad|pie|cake|cakes|biscuit|biscuits|bread|oil|syrup|spread|product|processed|chocolate|sweets|dessert|pudding|cereal|bar|chips|crisps|fried|baked|meal|dish|mix|candied|coated|filled|stuffed|marinated|pickled|smoked|frozen|instant|formula|infant|toddler|liqueur|wine|beer)\b/
 
 /** Below this, two names share a word by accident ("Almond milk" and
  *  "Almond oil"), and a wrong food is worse than none: an unmatched line is
@@ -141,6 +181,22 @@ export class FoodMatcher<T extends { name: string }> {
 
     const want = tokens(raw)
     if (want.size === 0) return { food: null, how: 'none', score: 0 }
+
+    // Every word of the line at the start of a word of the food's name,
+    // the plainest such food first: "Walnuts" is "Walnuts unsalted", not a
+    // food that only shares a word with it. Foods made from it (a drink, a
+    // sauce, a flour, a dried or tinned one) come after the food itself.
+    const words = [...want]
+    let plain: T | null = null
+    let plainScore = Infinity
+    for (const c of this.cands) {
+      const name = normalName(c.food.name)
+      const parts = name.split(/[^a-z]+/).filter(Boolean).map(singular)
+      if (!words.every((w) => parts.some((p) => p.startsWith(w)))) continue
+      const score = (MADE_FROM.test(name) ? 1000 : 0) + name.length
+      if (score < plainScore) { plain = c.food; plainScore = score }
+    }
+    if (plain) return { food: plain, how: 'token', score: 0.9 }
     let best: T | null = null
     let bestScore = 0
     for (const c of this.cands) {
@@ -268,6 +324,7 @@ export function parseIngredients(text: string): ParsedLine[] {
 export interface FoodRowPlan {
   id: string; owner_id: string; name: string
   kcal: number | null; carbs_g: number | null; fiber_g: number | null; fat_g: number | null; protein_g: number | null
+  carb_basis: 'eu'
   state: 'raw'; cook_yield: null; pack_size_g: null; store_section: null
   source: 'import'; updated_at: string; deleted_at: null
 }
@@ -342,9 +399,14 @@ export function planImport(
 
   for (const f of preview.foods) {
     if (matcher.has(f.name)) { plan.foodsExisting++; continue }
+    // The workbook's figures come from the same US list the old catalogue
+    // did: carbohydrate there includes fibre. It is kept on the EU basis, as
+    // every food is since 026 (FOOD-03).
+    const m = macros(f)
     const row: FoodRowPlan = {
       id: newId(), owner_id: ownerId, name: f.name.trim(),
-      ...macros(f),
+      ...m, carbs_g: m.carbs_g === null ? null : Math.max(0, Math.round((m.carbs_g - (m.fiber_g ?? 0)) * 100) / 100),
+      carb_basis: 'eu',
       state: 'raw', cook_yield: null, pack_size_g: null, store_section: null,
       source: 'import', updated_at: now, deleted_at: null,
     }

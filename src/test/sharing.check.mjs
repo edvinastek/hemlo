@@ -139,6 +139,22 @@ is('a new name is a change', [c.fields, c.contentChanged], [{ name: 'Chicken & r
 c = recipeChanges(null, [], values([{ id: null, food_id: 'rice', grams_per_portion: 75 }]))
 is('a new recipe sends every field', Object.keys(c.fields), ['name', 'role', 'portions_per_batch', 'cook_minutes', 'steps'])
 
+// Lines of every kind (REC-04): free text, raw or cooked, a note.
+const rich = readRecipe(draft({ lines: [
+  { id: null, food_id: 'rice', grams: '75', state: 'cooked', note: ' rinsed ', raw_text: 'Brown rice (cooked)' },
+  { id: null, food_id: null, grams: '', raw_text: 'Salt to taste' },
+  { id: null, food_id: null, grams: '', raw_text: '  ' },
+] }))
+is('a cooked line with a note and its own words', rich.values.lines[0], { id: null, food_id: 'rice', grams_per_portion: 75, raw_text: 'Brown rice (cooked)', state: 'cooked', note: 'rinsed' })
+is('a free-text line without an amount', rich.values.lines[1], { id: null, food_id: null, grams_per_portion: null, raw_text: 'Salt to taste' })
+is('an empty free-text line is dropped', rich.values.lines.length, 2)
+is('free text alone is not an ingredient', readRecipe(draft({ lines: [{ id: null, food_id: null, grams: '', raw_text: 'Salt' }] })), { error: 'Add at least one ingredient.' })
+is('a note past 200 characters is refused', 'error' in readRecipe(draft({ lines: [{ id: null, food_id: 'rice', grams: '75', note: 'x'.repeat(201) }] })), true)
+c = recipeChanges(before, [{ ...saved[0], state: 'cooked', raw_text: 'Brown rice (cooked)' }], values([{ id: 'l1', food_id: 'rice', grams_per_portion: 75, state: 'cooked', raw_text: 'Brown rice (cooked)' }]))
+is('a line read back as saved is no change (so an approved recipe stays approved)', c.contentChanged, false)
+c = recipeChanges(before, [saved[0]], values([{ id: 'l1', food_id: 'rice', grams_per_portion: 75, state: 'cooked' }]))
+is('marking a line cooked is a change', [c.upsert.map((l) => l.state), c.contentChanged], [['cooked'], true])
+
 is('one portion in a line', macroLine({ kcal: 519.6, protein_g: 31.5, carbs_g: 60, fat_g: 12.2, fiber_g: 4.9 }),
   '520 kcal · 32 g protein · 60 g carbs · 12 g fat · 5 g fibre')
 

@@ -5,6 +5,7 @@ import {
   parseIngredientLine, parseIngredients, stateOf, tokens, jaccard, FoodMatcher, ALIAS, planImport,
   fit, pendingEntry, MAX_MACRO,
 } from '../lib/match-food.ts'
+import { KEEP } from '../../scripts/nevo-additions.mjs'
 
 let fail = 0
 const is = (label, got, want) => {
@@ -103,29 +104,32 @@ is('jaccard', jaccard(new Set(['a', 'b']), new Set(['b', 'c'])), 1 / 3)
 is('jaccard of nothing', jaccard(new Set(), new Set(['a'])), 0)
 
 // ---- matching against the real catalogue -----------------------------------
+// The shared list since migration 027: NEVO-online 2025/9.0, and the old foods
+// it keeps. The workbook's recipes still read their own names.
 const cat = JSON.parse(readFileSync(new URL('../../seed/catalogue.json', import.meta.url), 'utf8'))
-const foods = cat.foods.map((f, i) => ({ id: `f${i}`, name: f.name }))
+const sql027 = readFileSync(new URL('../../supabase/migrations/027_food_catalogue.sql', import.meta.url), 'utf8')
+const nevoRows = JSON.parse(sql027.slice(sql027.indexOf('$nevo$[') + 6, sql027.indexOf(']$nevo$') + 1))
+const foods = [...nevoRows.map((r) => ({ id: r.id, name: r.name })), ...Object.values(KEEP).map((n, i) => ({ id: `kept${i}`, name: n }))]
 const m = new FoodMatcher(foods)
 const name = (raw) => m.match(raw).food?.name ?? null
 
-is('exact, any case', m.match('olive oil'), { food: foods.find((f) => f.name === 'Olive Oil'), how: 'exact', score: 1 })
-is('bracket is state, not name', name('Lentils (cooked)'), 'Lentils')
-is('oats cooked', name('Oats (cooked)'), 'Oats')
+is('exact, any case', m.match('olive oil'), { food: foods.find((f) => f.name === 'Olive oil'), how: 'exact', score: 1 })
+is('bracket is state, not name', name('Avocado (ripe)'), 'Avocado')
+is('oats cooked are oat flakes, turned back to raw by their yield', name('Oats (cooked)'), 'Oat flakes')
 
-// Every alias the seed notes list must land on a food the catalogue has.
+// Every alias lands on a food the catalogue has.
 for (const [raw, target] of Object.entries(ALIAS)) {
   is(`alias "${raw}"`, name(raw), target)
 }
 
-// Inverted USDA names and near misses, found by word overlap.
-is('cottage cheese low-fat', name('Cottage cheese (low-fat)'), 'Cottage Cheese')
-is('almond milk', name('Almond milk (unsweetened)'), 'Milk Almond')
-is('chia seeds', name('Chia seeds'), 'Chia Seed')
+// Words found in a food's name, the plainest food first; never a food made
+// from it (a drink, a flour, a dried one) when the food itself is there.
 is('protein powder', name('Protein powder'), 'Whey protein powder')
-is('walnuts', name('Walnuts'), 'Walnut')
-is('almonds', name('Almonds'), 'Almond')
-is('shrimp grilled or steamed', name('Shrimp (grilled or steamed)'), 'Shrimp')
-is('sweet potato baked', name('Sweet potato (baked)'), 'Sweet Potato')
+is('walnuts are walnuts, not walnut oil', name('Walnuts'), 'Walnuts unsalted')
+is('blueberries', name('Blueberries'), 'Blueberries')
+is('plain yoghurt', name('Yoghurt'), 'Yoghurt low fat')
+is('a Dutch shopper’s quark', name('Quark'), 'Quark low fat')
+is('skyr', name('Skyr'), 'Skyr skimmed plain')
 is('red bell pepper, alias beats overlap', m.match('Red bell pepper').how, 'alias')
 is('nonsense matches nothing', m.match('Dragon scales'), { food: null, how: 'none', score: 0 })
 is('only stop words matches nothing', m.match('Fresh sliced').food, null)
@@ -162,6 +166,7 @@ const plan = planImport(preview, {
 
 is('food already there is skipped, case-insensitive', plan.foodsExisting, 1)
 is('new food added as the user\'s own', plan.foods.map((f) => [f.name, f.owner_id, f.state]), [['Skyr', 'user-1', 'raw']])
+is('a workbook food’s carbohydrate is put on the EU basis (fibre taken out)', [plan.foods[0].carbs_g, plan.foods[0].carb_basis], [4, 'eu'])
 is('recipe already there is skipped', plan.recipesExisting, 1)
 is('one recipe added', plan.recipes.map((r) => [r.recipe.name, r.recipe.owner_id, r.recipe.kcal]), [['Skyr bowl', 'user-1', 200]])
 const planned = plan.recipes[0].lines
@@ -192,7 +197,7 @@ const counted = planImport({
   recipes: [{ name: 'Egg toast', kcal: null, carbs_g: null, fiber_g: null, fat_g: null, protein_g: null,
     ingredients: 'Hard-boiled egg – 1 large (50g)\nWhole-wheat bread – 2 slices\nOats – 40g' }],
 }, {
-  foods: [{ id: 'egg', name: 'Egg Chicken', units: [{ name: 'egg', plural: 'eggs', g: 50 }] },
+  foods: [{ id: 'egg', name: 'Egg average, boiled', units: [{ name: 'egg', plural: 'eggs', g: 50 }] },
     { id: 'bread', name: 'Whole-wheat bread', units: [{ name: 'slice', plural: 'slices', g: 35 }] },
     { id: 'oats', name: 'Oats', units: [{ name: 'tbsp', g: 5 }] }],
   recipes: [],
