@@ -73,14 +73,19 @@ await reload()
 is('a work day has a Work tab', (await tabs()).includes('Work'), true)
 await p.click('[role=tab]:has-text("Work")')
 is('Work is chosen', await selected(), 'Work')
-const other = p.locator('.week-strip button:not([aria-current="date"])').first()
-await other.click()
-await p.waitForTimeout(1200)
+// v17: Today shows today only (other days are on Plan), so the day loses
+// its Work tab by work hours switched off on another device, while the tab
+// is chosen. The change comes down with the next sync.
+const workOn = async (on) => {
+  await sql(`update public.profile set settings = jsonb_set(settings, '{work,on}', '${on}'::jsonb) where id = ${me}`)
+  await p.evaluate(() => window.dispatchEvent(new Event('online')))
+  for (let i = 0; i < 30 && (await tabs()).includes('Work') !== on; i++) await p.waitForTimeout(500)
+}
+await workOn(false)
 is('a day without work shows no Work tab', (await tabs()).includes('Work'), false)
 is('and the chosen tab falls back to Today', await selected(), 'Today')
-await p.locator('.week-strip button.today').click()
-await p.waitForTimeout(1200)
-is('back on today, Today stays chosen', await selected(), 'Today')
+await workOn(true)
+is('with work back, Today stays chosen', [(await tabs()).includes('Work'), await selected()].join(' '), 'true Today')
 
 // 5. Colours: a Work task carries the Work colour on the rail; off removes it.
 await sql(`insert into public.task (profile_id, title, planned_date, planned_time, category)
