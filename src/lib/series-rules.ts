@@ -1,5 +1,5 @@
 import type { Series, SeriesException } from './types'
-import { ruleMatches, describeSchedule, weekdayOf as wdOf, type Schedule, type RuleConfig } from './schedule-rules.ts'
+import { ruleMatches, describeSchedule, cleanRule, weekdayOf as wdOf, type Schedule, type RuleConfig, type RuleKind as ScheduleKind } from './schedule-rules.ts'
 
 /** Pure date logic for recurring series: no database, no React, no clock.
  *
@@ -304,4 +304,88 @@ export function plannedRepeats(
   out.sort((a, b) => a.date.localeCompare(b.date) || (a.time ?? '99').localeCompare(b.time ?? '99')
     || a.title.localeCompare(b.title))
   return out
+}
+
+/* ---------- a series from the one repeat control ------------------------ */
+
+/** What the repeat control (RepeatPicker) hands back, as far as a series
+ *  needs it: the same shape as repeat-choice-rules' RepeatValue. */
+export interface RepeatShape {
+  rule: ScheduleKind | null
+  rule_config: RuleConfig
+  end_date: string | null
+  count?: number | null
+}
+
+/** The kinds a task's series can take. "A number of times a week" is for
+ *  habits: a task has to land on a day. */
+export const TASK_RULE_KINDS: ScheduleKind[] = ['daily', 'weekdays', 'weekends', 'weekly', 'every_n_weeks', 'monthly', 'monthly_nth', 'yearly', 'dates']
+
+/** A series' rule fields from the repeat control, for a series starting on
+ *  `start`. Days picked by hand run from the first to the last of them; a
+ *  count of times (GEN-21) is kept only when there is no last day. Null when
+ *  the control says it does not repeat, or holds a kind a task cannot take. */
+export function seriesRuleFields(v: RepeatShape, start: string): RuleFields | null {
+  const { rule, rule_config } = cleanRule(v.rule, v.rule_config)
+  if (!rule || !TASK_RULE_KINDS.includes(rule)) return null
+  const r = { rule: rule as Series['rule'], rule_config }
+  const bounds = seriesBounds(r, start, v.end_date && v.end_date >= start ? v.end_date : null)
+  const count = rule !== 'dates' && !bounds.end_date && v.count != null && Number.isFinite(v.count) && v.count >= 1
+    ? Math.min(999, Math.floor(v.count)) : null
+  return { ...r, ...bounds, occurrence_count: count }
+}
+
+/** A stored series as the repeat control shows it. */
+export function repeatOfSeries(s: RuleFields): RepeatShape {
+  return { rule: s.rule, rule_config: s.rule_config ?? {}, end_date: s.rule === 'dates' ? null : s.end_date, count: s.occurrence_count }
+}
+
+/** Does the control hold a different rule from the series' own? Order of
+ *  weekdays, picked days kept in order and leftover settings do not count. */
+export function repeatChanged(series: RuleFields, v: RepeatShape): boolean {
+  const a = repeatOfSeries(series)
+  const ca = cleanRule(a.rule, a.rule_config)
+  const cb = cleanRule(v.rule, v.rule_config)
+  const norm = (c: { rule: ScheduleKind | null; rule_config: RuleConfig }) => {
+    const cfg = c.rule_config
+    // Only the settings the kind reads.
+    const keep: Record<string, (keyof RuleConfig)[]> = {
+      daily: ['n'], weekdays: [], weekends: [], weekly: ['weekdays'], every_n_weeks: ['n', 'weekdays'],
+      monthly: ['day_of_month', 'n'], monthly_nth: ['nth', 'weekday', 'n'], yearly: ['month', 'day'], dates: ['dates'], times_per_week: ['times'],
+    }
+    const out: Record<string, unknown> = {}
+    for (const k of keep[c.rule ?? ''] ?? []) if (cfg[k] != null && !(k === 'n' && cfg.n === 1)) out[k] = cfg[k]
+    return JSON.stringify([c.rule, out])
+  }
+  if (norm(ca) !== norm(cb)) return true
+  if (v.rule === 'dates') return false
+  return (a.end_date ?? null) !== (v.end_date ?? null) || (a.count ?? null) !== (v.count ?? null)
+}
+
+/** How a new rule meets a running series (GEN-23).
+ *  - "All days" changes the series where it stands: its start stays, past
+ *    days stay as they happened, days still to come follow the new rule.
+ *  - "This and following" ends the series the day before this one and
+ *    carries on from this day with the new rule. From the series' first day
+ *    the two are the same, and nothing is split. */
+export function planRuleChange(seriesStart: string, base: string, scope: 'all' | 'following'): { split: boolean; oldEnd: string | null } {
+  if (scope === 'all' || base <= seriesStart) return { split: false, oldEnd: null }
+  return { split: true, oldEnd: addDays(base, -1) }
+}
+
+/** Under a changed rule, which of the series' days still to come keep their
+ *  task, and which lose it. A task is judged by the day it was made for (its
+ *  base, before any move); one already done always stays: it happened. */
+export function sortAfterRuleChange(
+  rule: RuleFields, tasks: { id: string; base: string; done: boolean }[], from: string,
+): { keep: string[]; drop: string[] } {
+  const keep: string[] = []
+  const drop: string[] = []
+  const last = tasks.reduce((m, t) => (t.base > m ? t.base : m), from)
+  const days = new Set(baseDates(rule, last))
+  for (const t of tasks) {
+    if (t.done || t.base < from) continue
+    ;(days.has(t.base) ? keep : drop).push(t.id)
+  }
+  return { keep, drop }
 }

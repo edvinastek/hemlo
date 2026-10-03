@@ -4,7 +4,10 @@ import { push } from './sync'
 import { blankTask, deleteTask, saveTask } from './tasks'
 import { edit } from './write'
 import type { PendingChange, Series, SeriesException, Task } from './types'
-import { addDays, occurrenceId, plan, ruleFromChoice, seriesBounds, WINDOW_DAYS, type RepeatKind } from './series-rules'
+import {
+  addDays, occurrenceId, plan, planRuleChange, ruleFromChoice, seriesBounds, seriesRuleFields, sortAfterRuleChange,
+  WINDOW_DAYS, type RepeatKind, type RepeatShape, type RuleFields,
+} from './series-rules'
 
 /** The fields a series copies onto every task it makes, and the ones "this and
  *  following" carries forward. Date is never among them: moving one day is
@@ -167,16 +170,30 @@ export async function startSeries(
   task: Task, choice: RepeatChoice, isNew: boolean, changed: (keyof Task & string)[] = [],
 ): Promise<Series> {
   const start = task.planned_date ?? dayOf(new Date())
-  const now = new Date().toISOString()
   const rule = ruleFromChoice(choice.kind, start, choice.weekdays, { n: choice.n, dates: choice.dates })
+  // Days picked by hand run from the first of them to the last, whatever
+  // day the task itself is on.
+  return startWith(task, { ...rule, ...seriesBounds(rule, start, choice.endDate), occurrence_count: null }, isNew, changed)
+}
+
+/** Start repeating a task with a rule from the one repeat control
+ *  (RepeatPicker): every kind it offers a task, and "after N times". The
+ *  same as startSeries otherwise. Null when the control does not repeat. */
+export async function startSeriesWith(
+  task: Task, value: RepeatShape, isNew: boolean, changed: (keyof Task & string)[] = [],
+): Promise<Series | null> {
+  const start = task.planned_date ?? dayOf(new Date())
+  const rule = seriesRuleFields(value, start)
+  return rule ? startWith(task, rule, isNew, changed) : null
+}
+
+async function startWith(task: Task, rule: RuleFields, isNew: boolean, changed: (keyof Task & string)[]): Promise<Series> {
+  const start = task.planned_date ?? dayOf(new Date())
+  const now = new Date().toISOString()
   const fields: Omit<Series, 'id' | 'updated_at'> = {
     profile_id: task.profile_id,
     title: task.title,
     ...rule,
-    // Days picked by hand run from the first of them to the last, whatever
-    // day the task itself is on.
-    ...seriesBounds(rule, start, choice.endDate),
-    occurrence_count: null,
     time_of_day: hhmm(task.planned_time),
     task_template: {
       category: task.category, duration_min: task.duration_min, locked: task.locked, notes: task.notes,
@@ -313,7 +330,8 @@ export async function stopSeries(series: Series, today: Date = new Date()) {
 }
 
 /** Move tasks to other days, each keeping its time: Plan's week, when two
- *  days are swapped or one task is moved. A repeating task is moved for that
+ *  days are swapped or one task is moved, and the Inbox (a day of null is
+ *  no day: the task goes to the Inbox, PLN-07). A repeating task is moved for that
  *  day alone, written down against its series as a move, the same as
  *  changing its day on its sheet.
  *
@@ -321,7 +339,7 @@ export async function stopSeries(series: Series, today: Date = new Date()) {
  *  swap moves one day's occurrence onto the day another is leaving, and once
  *  the first move is written the second would be taken for the first. The
  *  tasks go up in one push. */
-export async function moveToDays(moves: { task: Task; to: string }[]) {
+export async function moveToDays(moves: { task: Task; to: string | null }[]) {
   const todo = moves.filter((m) => m.task.planned_date !== m.to)
   const bases = await Promise.all(todo.map((m) => baseDayOf(m.task)))
   for (let i = 0; i < todo.length; i++) {
@@ -329,4 +347,123 @@ export async function moveToDays(moves: { task: Task; to: string }[]) {
     if (task.series_id && bases[i]) await recordMove(task.series_id, bases[i]!, to)
   }
   await writeTasks(todo.map((m) => ({ task: { ...m.task, planned_date: m.to }, fields: ['planned_date'] })))
+}
+
+/** Moves with a way back: the same moves, then an undo that puts every
+ *  task back on the day it came from (GEN-54). */
+export async function moveWithUndo(moves: { task: Task; to: string | null }[]): Promise<() => Promise<void>> {
+  const todo = moves.filter((m) => m.task.planned_date !== m.to)
+  await moveToDays(todo)
+  return async () => {
+    const now = await db.task.bulkGet(todo.map((m) => m.task.id))
+    await moveToDays(todo.map((m, i) => ({ task: now[i] ?? { ...m.task, planned_date: m.to }, to: m.task.planned_date })))
+  }
+}
+
+/** Delete several tasks at once (one day of a series each, for a repeating
+ *  one, written down as a skip as deleteOccurrence does). Returns an undo
+ *  that brings every one back where it was, and the series day with it. */
+export async function deleteTasks(tasks: Task[]): Promise<() => Promise<void>> {
+  const live = tasks.filter((t) => !t.deleted_at)
+  const bases = await Promise.all(live.map((t) => baseDayOf(t)))
+  for (let i = 0; i < live.length; i++) {
+    const t = live[i]
+    if (t.series_id && bases[i]) await recordMove(t.series_id, bases[i]!, null)
+  }
+  const now = new Date().toISOString()
+  await writeTasks(live.map((t) => ({ task: { ...t, deleted_at: now }, fields: ['deleted_at'] })))
+  return async () => {
+    for (let i = 0; i < live.length; i++) {
+      const t = live[i]
+      if (t.series_id && bases[i]) await recordMove(t.series_id, bases[i]!, t.planned_date)
+    }
+    const rows = await db.task.bulkGet(live.map((t) => t.id))
+    await writeTasks(live.map((t, i) => ({ task: { ...(rows[i] ?? t), deleted_at: null }, fields: ['deleted_at'] })))
+  }
+}
+
+/** New tasks written in one push (a copy, a template dropped on a day). */
+export async function addTasks(tasks: Task[]) {
+  await writeTasks(tasks.map((t) => ({ task: t, fields: everyTaskField(t) })))
+}
+
+/** Change the rule of a running series without stopping it (GEN-23).
+ *
+ *  `before` is the day's task as it was, `after` as the sheet now has it
+ *  (other changes, such as a new title, go along as "this and following"
+ *  would take them). `scope`:
+ *  - 'all': the series keeps its start and takes the new rule; every day
+ *    still to come that the new rule does not land on loses its task, the
+ *    ones it does keep theirs, and the gaps are filled.
+ *  - 'following': the series ends the day before this one, and a new series
+ *    with the new rule carries on from this day, this task its first day.
+ *  Done tasks are never touched: they happened. */
+export async function changeSeriesRule(
+  before: Task, after: Task, fields: (keyof Task & string)[], value: RepeatShape, scope: 'all' | 'following',
+  today: Date = new Date(),
+) {
+  const series = after.series_id ? await db.series.get(after.series_id) : undefined
+  if (!series) return editOccurrence(before, after, fields)
+  const day = dayOf(today)
+  const base = (await baseDayOf(before)) ?? before.planned_date ?? day
+  const changed = seriesChanges(before, after)
+  const carry = pick(after as unknown as Record<string, unknown>, changed)
+  const template = { ...series.task_template }
+  for (const f of TEMPLATE_FIELDS) if (changed.includes(f)) (template as Record<string, unknown>)[f] = after[f]
+  const named: Partial<Series> = {
+    ...(changed.includes('title') ? { title: after.title } : {}),
+    ...(changed.includes('planned_time') ? { time_of_day: hhmm(after.planned_time) } : {}),
+    task_template: template,
+  }
+  const { split, oldEnd } = planRuleChange(series.start_date, base, scope)
+  const exceptions = await liveExceptions(series.id)
+  const baseOf = (t: Task) => exceptions.find((e) => e.action === 'move' && e.moved_to === t.planned_date)?.exception_date ?? t.planned_date
+  const others = (await seriesTasks(series.id, series.profile_id))
+    .filter((t) => t.id !== after.id && !t.deleted_at && !!t.planned_date)
+  const now = new Date().toISOString()
+
+  if (!split) {
+    const rule = seriesRuleFields(value, series.start_date)
+    if (!rule) return
+    const patch: Partial<Series> = { ...named, ...rule, start_date: rule.rule === 'dates' ? rule.start_date : series.start_date }
+    const next = await edit('series', series, patch)
+    const from = day
+    const { keep, drop } = sortAfterRuleChange(next, others.map((t) => ({ id: t.id, base: baseOf(t)!, done: t.status === 'done' })), from)
+    const rows: { task: Task; fields: (keyof Task & string)[] }[] = []
+    for (const t of others) {
+      if (drop.includes(t.id)) rows.push({ task: { ...t, deleted_at: now }, fields: ['deleted_at'] })
+      else if (keep.includes(t.id) && changed.length) rows.push({ task: { ...t, ...carry }, fields: [...changed] })
+    }
+    // This day itself: if the new rule no longer lands on it, it stays
+    // where it is, as a one-off, rather than vanish under the person's eyes.
+    const own = sortAfterRuleChange(next, [{ id: after.id, base, done: false }], base).keep.length > 0
+    const self: Task = own ? after : { ...after, series_id: null }
+    rows.push({ task: self, fields: [...new Set([...fields, ...(own ? [] : ['series_id' as const])])] })
+    await writeTasks(rows)
+    // The fill must look at every day again, from today, under the new rule.
+    await setMeta(throughKey(series.id), null)
+    await materializeSeries(series.profile_id)
+    return
+  }
+
+  // "This and following": the old series stops the day before.
+  await edit('series', series, { end_date: oldEnd })
+  const later = others.filter((t) => t.status !== 'done' && ((t.planned_date ?? '') >= base || (baseOf(t) ?? '') >= base))
+  const start = after.planned_date ?? base
+  const rule = seriesRuleFields(value, start)
+  if (!rule) return
+  const fresh: Series = {
+    ...series, ...named, ...rule,
+    id: crypto.randomUUID(), updated_at: now, active: true, deleted_at: null,
+  }
+  const own = plan(fresh, start, start).length > 0
+  const self: Task = { ...after, series_id: own ? fresh.id : null }
+  const sent = Object.keys(fresh).filter((k) => k !== 'id' && k !== 'updated_at') as (keyof Series & string)[]
+  await writeRows([
+    { table: 'series', row: fresh, fields: sent },
+    ...later.map((t) => ({ table: 'task' as const, row: { ...t, deleted_at: now }, fields: ['deleted_at'] as (keyof Task & string)[] })),
+    { table: 'task', row: self, fields: [...new Set([...fields, 'series_id' as const])] },
+  ], false)
+  const made = await materializeSeries(series.profile_id)
+  if (made === 0 && navigator.onLine) void push()
 }

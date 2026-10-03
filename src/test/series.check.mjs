@@ -3,7 +3,7 @@
 import {
   occurrences, plan, baseDates, addDays, weekdayOf, ruleFromChoice, describeRule, toDayNumber, fromDayNumber,
   occurrenceId, endsBeforeStart, everyN, choiceFromRule, isDay, cleanDates, togglePicked, seriesBounds,
-  plannedRepeats, fillHorizon, WINDOW_DAYS,
+  plannedRepeats, fillHorizon, WINDOW_DAYS, seriesRuleFields, repeatOfSeries, repeatChanged, planRuleChange, sortAfterRuleChange,
 } from '../lib/series-rules.ts'
 
 let fail = 0
@@ -279,6 +279,50 @@ eq('end before start', endsBeforeStart('2026-09-24', '2026-09-23'), true)
 eq('end on the start day is fine', endsBeforeStart('2026-09-24', '2026-09-24'), false)
 eq('no end is fine', endsBeforeStart('2026-09-24', null), false)
 eq('an end before the start produces no days', occurrences(series('daily', '2026-09-24', { end_date: '2026-09-23' }), '2026-09-01', '2026-10-30'), [])
+
+// The one repeat control (RepeatPicker) starting and changing a series (GEN-20, GEN-21, GEN-23).
+eq('weekly from the control', seriesRuleFields({ rule: 'weekly', rule_config: { weekdays: [3, 1] }, end_date: null }, '2026-09-28'),
+  { rule: 'weekly', rule_config: { weekdays: [1, 3] }, start_date: '2026-09-28', end_date: null, occurrence_count: null })
+eq('after N times (GEN-21)', seriesRuleFields({ rule: 'daily', rule_config: {}, end_date: null, count: 5 }, '2026-09-28').occurrence_count, 5)
+eq('a last day wins over a count', seriesRuleFields({ rule: 'daily', rule_config: {}, end_date: '2026-10-10', count: 5 }, '2026-09-28'),
+  { rule: 'daily', rule_config: {}, start_date: '2026-09-28', end_date: '2026-10-10', occurrence_count: null })
+eq('a last day before the start is dropped', seriesRuleFields({ rule: 'daily', rule_config: {}, end_date: '2026-09-01' }, '2026-09-28').end_date, null)
+eq('picked days set their own bounds', seriesRuleFields({ rule: 'dates', rule_config: { dates: ['2026-10-09', '2026-10-02'] }, end_date: null, count: 3 }, '2026-09-28'),
+  { rule: 'dates', rule_config: { dates: ['2026-10-02', '2026-10-09'] }, start_date: '2026-10-02', end_date: '2026-10-09', occurrence_count: null })
+eq('no repeat gives no series', seriesRuleFields({ rule: null, rule_config: {}, end_date: null }, '2026-09-28'), null)
+eq('a task cannot be N times a week', seriesRuleFields({ rule: 'times_per_week', rule_config: { times: 3 }, end_date: null }, '2026-09-28'), null)
+eq('a count of 5 lands five times', occurrences(seriesRuleFields({ rule: 'weekdays', rule_config: {}, end_date: null, count: 5 }, '2026-09-28'), '2026-09-28', '2026-10-31'),
+  ['2026-09-28', '2026-09-29', '2026-09-30', '2026-10-01', '2026-10-02'])
+eq('second Tuesday of each month', occurrences(seriesRuleFields({ rule: 'monthly_nth', rule_config: { nth: 2, weekday: 2 }, end_date: null }, '2026-10-13'), '2026-10-01', '2026-12-31'),
+  ['2026-10-13', '2026-11-10', '2026-12-08'])
+eq('last Friday of each month', occurrences(seriesRuleFields({ rule: 'monthly_nth', rule_config: { nth: -1, weekday: 5 }, end_date: null }, '2026-10-30'), '2026-10-01', '2026-12-31'),
+  ['2026-10-30', '2026-11-27', '2026-12-25'])
+eq('yearly', occurrences(seriesRuleFields({ rule: 'yearly', rule_config: { month: 10, day: 3 }, end_date: null }, '2026-10-03'), '2026-01-01', '2028-12-31'),
+  ['2026-10-03', '2027-10-03', '2028-10-03'])
+eq('weekends', occurrences(seriesRuleFields({ rule: 'weekends', rule_config: {}, end_date: null }, '2026-10-01'), '2026-10-01', '2026-10-11'),
+  ['2026-10-03', '2026-10-04', '2026-10-10', '2026-10-11'])
+const running = series('weekly', '2026-09-07', { rule_config: { weekdays: [1, 3] } })
+eq('the series as the control shows it', repeatOfSeries(running), { rule: 'weekly', rule_config: { weekdays: [1, 3] }, end_date: null, count: null })
+eq('same rule, days in another order, is no change', repeatChanged(running, { rule: 'weekly', rule_config: { weekdays: [3, 1] }, end_date: null, count: null }), false)
+eq('another day is a change', repeatChanged(running, { rule: 'weekly', rule_config: { weekdays: [1, 3, 5] }, end_date: null }), true)
+eq('another kind is a change', repeatChanged(running, { rule: 'daily', rule_config: {}, end_date: null }), true)
+eq('an end date is a change', repeatChanged(running, { rule: 'weekly', rule_config: { weekdays: [1, 3] }, end_date: '2026-12-31' }), true)
+eq('a count is a change', repeatChanged(running, { rule: 'weekly', rule_config: { weekdays: [1, 3] }, end_date: null, count: 4 }), true)
+eq('leftover settings of another kind do not count', repeatChanged(series('daily', '2026-09-07'), { rule: 'daily', rule_config: { weekdays: [1] }, end_date: null }), false)
+eq('"all days" never splits', planRuleChange('2026-09-07', '2026-10-05', 'all'), { split: false, oldEnd: null })
+eq('"this and following" from the first day does not split', planRuleChange('2026-09-07', '2026-09-07', 'following'), { split: false, oldEnd: null })
+eq('"this and following" later ends the old series the day before', planRuleChange('2026-09-07', '2026-10-05', 'following'), { split: true, oldEnd: '2026-10-04' })
+const everyDay = series('daily', '2026-09-28')
+const weekdaysOnly = { ...everyDay, rule: 'weekdays' }
+eq('under the new rule: weekend days lose their task, done ones stay, past ones are left',
+  sortAfterRuleChange(weekdaysOnly, [
+    { id: 'fri', base: '2026-10-02', done: false }, { id: 'sat', base: '2026-10-03', done: false },
+    { id: 'sun', base: '2026-10-04', done: true }, { id: 'mon', base: '2026-10-05', done: false }, { id: 'old', base: '2026-09-27', done: false },
+  ], '2026-10-01'),
+  { keep: ['fri', 'mon'], drop: ['sat'] })
+eq('a count that is used up drops the later days',
+  sortAfterRuleChange({ ...everyDay, occurrence_count: 3 }, [{ id: 'a', base: '2026-09-30', done: false }, { id: 'b', base: '2026-10-01', done: false }], '2026-09-28'),
+  { keep: ['a'], drop: ['b'] })
 
 console.log(fail ? `\n${fail} check(s) failed` : '\nall checks passed')
 process.exit(fail ? 1 : 0)
