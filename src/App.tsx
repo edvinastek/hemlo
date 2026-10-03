@@ -140,14 +140,19 @@ export default function App() {
   const [setupDone, setSetupDone] = useState(false)
   // Another account opened on this device has its own first run.
   useEffect(() => { setSetupDone(false) }, [session?.user.id])
-  const needsSetup = useLiveQuery(async () => {
-    if (!profile || setupDone) return false
-    if (readSettings(profile).onboarded) return false
+  const setup = useLiveQuery(async () => {
+    if (!profile) return undefined
+    if (setupDone || readSettings(profile).onboarded) return { id: profile.id, needs: false }
     // Accounts set up before the flag existed are done if they have targets
     // or a height; targets are optional now, so the flag is the real sign.
     const targets = await db.target.where('profile_id').equals(profile.id).count()
-    return targets === 0 && !profile.height_cm
+    return { id: profile.id, needs: targets === 0 && !profile.height_cm }
   }, [profile?.id, setupDone, profile?.settings], undefined)
+  // The answer counts only for the profile it was worked out for: a live
+  // query keeps its last answer while the next one is read, and the answer
+  // from before the profile arrived let a new account glimpse Today (and its
+  // page bar) for a moment before the first-run wizard.
+  const needsSetup = setup && setup.id === profile?.id ? setup.needs : undefined
 
   useEffect(() => watchConnection(() => useApp.getState().profiles.map((p) => p.id)), [])
   // Calendars the person follows: fetched on opening and every three hours.
