@@ -3,47 +3,60 @@ import { format } from 'date-fns'
 import { useLiveQuery } from 'dexie-react-hooks'
 import type { Task } from '../lib/types'
 import { db } from '../lib/db'
-import { deleteTask, saveTask } from '../lib/tasks'
-import { deleteOccurrence, editFollowing, editOccurrence, seriesChanges, startSeries, stopSeries, upcomingCount } from '../lib/series'
+import { useApp } from '../lib/store'
+import { readSettings } from '../lib/settings'
+import { saveSettings } from '../lib/write'
+import { saveTask } from '../lib/tasks'
 import {
-  dayName, describeRule, endsBeforeStart, everyN, MAX_EVERY_N_DAYS, MAX_PICKED_DATES, ruleFromChoice, seriesBounds,
-  togglePicked, weekdayOf, WEEK_ORDER, type RepeatKind,
-} from '../lib/series-rules'
+  changeSeriesRule, deleteTasks, editFollowing, editOccurrence, seriesChanges, startSeriesWith, stopSeries, upcomingCount,
+} from '../lib/series'
+import { describeRule, repeatChanged, repeatOfSeries, TASK_RULE_KINDS } from '../lib/series-rules'
+import { cleanSection, sectionChoices } from '../lib/plan-view-rules'
+import { savePlanPrefs, usePlanPrefs } from '../lib/plan-prefs'
+import { applyTaskTemplate, duplicateOf, templateOfTask, templateRepeat, withTaskTemplate } from '../lib/task-sheet-rules'
+import { useModuleColours } from '../lib/colours'
 import { durationBetween, endFrom, shortSpan, toMinutes } from '../lib/timeframe'
 import { Dropdown, type Option } from './Dropdown'
 import { NoteEditor } from './NoteEditor'
 import { NotesPage } from './NotesPage'
-import { MonthScroller } from './MonthScroller'
-import { useDayRange } from './useDayRange'
+import { RepeatPicker, NO_REPEAT, type RepeatValue } from './RepeatPicker'
+import { CopySheet } from './CopySheet'
+import { useBackClose } from './useBackClose'
+import { offerUndo } from './Undo'
 import './tasksheet.css'
 
-const REPEAT_OPTIONS: Option<RepeatKind>[] = [
-  { value: 'never', label: 'Never' },
-  { value: 'daily', label: 'Every day' },
-  { value: 'every_n_days', label: 'Every few days' },
-  { value: 'weekdays', label: 'Weekdays' },
-  { value: 'weekly', label: 'Weekly on chosen days' },
-  { value: 'biweekly', label: 'Every 2 weeks' },
-  { value: 'monthly', label: 'Monthly, same day' },
-  { value: 'dates', label: 'Pick dates' },
-]
+type Step = 'form' | 'scope' | 'rule' | 'stop' | 'template'
 
-const END_OPTIONS: Option<'never' | 'date'>[] = [
-  { value: 'never', label: 'Never' },
-  { value: 'date', label: 'On a date' },
-]
-
-const SECTIONS = ['Work', 'Meal', 'Training', 'Learning', 'Home', 'Body', 'Night']
-
-type Step = 'form' | 'scope' | 'stop'
-
-/** Add or edit one task. Duration goes after the name, never inside it, and a
- *  locked task is one nothing — reminders' pushes or a future assistant — may move.
+/** Add or edit one task (TSK-01 to TSK-09, TSK-20 to TSK-26).
  *
- *  A task can repeat. A new repeating task starts a series, which fills the
- *  weeks ahead with its own tasks; editing one of those asks whether the
- *  change is for that day or for it and every day after. */
+ *  Duration goes after the name, never inside it, and a locked task is one
+ *  nothing (reminders' pushes or a future assistant) may move. A task with
+ *  no day waits in Plan's Inbox (PLN-07): clearing its day never makes it
+ *  vanish. Back and Escape close the sheet (TSK-09).
+ *
+ *  A task can repeat, with the one repeat control used everywhere. A new
+ *  repeating task starts a series, which fills the weeks ahead; editing one
+ *  of its days asks whether the change is for that day or for it and every
+ *  day after, and a new rule asks whether it is for every day or from this
+ *  one on (GEN-23).
+ *
+ *  Duplicate opens a copy of the task in this same sheet, as a new task,
+ *  so anything can be changed before saving (TSK-24). */
 export function TaskSheet({ task, isNew, onClose }: { task: Task; isNew: boolean; onClose: () => void }) {
+  const [open, setOpen] = useState({ task, isNew, n: 0 })
+  return (
+    <TaskForm key={open.n} task={open.task} isNew={open.isNew} onClose={onClose}
+      onDuplicate={(t) => setOpen((o) => ({ task: duplicateOf(t, crypto.randomUUID(), new Date().toISOString()), isNew: true, n: o.n + 1 }))} />
+  )
+}
+
+function TaskForm({ task, isNew, onClose, onDuplicate }: {
+  task: Task; isNew: boolean; onClose: () => void; onDuplicate: (draft: Task) => void
+}) {
+  const profile = useApp((s) => s.profile)
+  const settings = readSettings(profile)
+  const prefs = usePlanPrefs(profile?.id)
+  const colours = useModuleColours()
   const [draft, setDraft] = useState<Task>(task)
   // The task as it is saved. It starts as the one opened and moves on when
   // the notes page saves a tick, so Save afterwards sees only what else
@@ -54,53 +67,54 @@ export function TaskSheet({ task, isNew, onClose }: { task: Task; isNew: boolean
   const [until, setUntil] = useState(false)
   const [endTime, setEndTime] = useState('')
   const [notesOpen, setNotesOpen] = useState(false)
+  const [copyOpen, setCopyOpen] = useState(false)
   const [confirmDelete, setConfirmDelete] = useState(false)
   const [step, setStep] = useState<Step>('form')
   const [busy, setBusy] = useState(false)
-  const [repeat, setRepeat] = useState<RepeatKind>('never')
-  const [weekdays, setWeekdays] = useState<number[]>([])
-  const [endKind, setEndKind] = useState<'never' | 'date'>('never')
-  const [endDate, setEndDate] = useState('')
-  // "Every few days": what is typed, kept as text so the box can be cleared
-  // while typing; the rule reads it as 2 to 365.
-  const [everyText, setEveryText] = useState('2')
-  // "Pick dates": the days picked on the calendar, in order.
-  const [dates, setDates] = useState<string[]>([])
-  const pickedSet = useMemo(() => new Set(dates), [dates])
-  const { range } = useDayRange()
   const [upcoming, setUpcoming] = useState(0)
+  const [newSection, setNewSection] = useState<string | null>(null)
+  const [templateName, setTemplateName] = useState('')
+  const [said, setSaid] = useState('')
   const set = <K extends keyof Task>(k: K, v: Task[K]) => setDraft((d) => ({ ...d, [k]: v }))
 
+  useBackClose(onClose)
+  useBackClose(() => setNotesOpen(false), notesOpen)
+
   const today = format(new Date(), 'yyyy-MM-dd')
-  // A section set elsewhere (by a module, say) stays choosable rather than
-  // showing as blank.
-  const sectionOptions: Option[] = [{ value: '', label: '—' },
-    ...[...SECTIONS, ...(task.category && !SECTIONS.includes(task.category) ? [task.category] : [])]
-      .map((c) => ({ value: c, label: c }))]
+  // Undefined while it is being read, null when there is none.
   const series = useLiveQuery(
     async () => (task.series_id ? (await db.series.get(task.series_id)) ?? null : null),
-    [task.series_id], null)
+    [task.series_id])
   const inSeries = !!series && !series.deleted_at
   // A series that ended before today has nothing left to change or stop.
   const running = inSeries && series.active && (!series.end_date || series.end_date >= today)
 
-  const start = draft.planned_date ?? today
-  const pickedDays = weekdays.length ? weekdays : [weekdayOf(start)]
-  const rule = repeat === 'never' ? null
-    : ruleFromChoice(repeat, start, pickedDays, { n: everyN(everyText), dates })
-  const preview = rule && {
-    ...rule,
-    ...seriesBounds(rule, start, endKind === 'date' && endDate ? endDate : null),
-    occurrence_count: null,
-  }
+  // The repeat control: a new rule for a one-off task, or the series' own
+  // rule, which can be changed while it runs (GEN-23).
+  const [repeatEdit, setRepeatEdit] = useState<RepeatValue | null>(null)
+  // Redraws the control when a saved task brings its own repeat.
+  const [pickerKey, setPickerKey] = useState(0)
+  const seriesRepeat = useMemo<RepeatValue | null>(() => (series ? { ...repeatOfSeries(series) } as RepeatValue : null), [series])
+  const repeat: RepeatValue = repeatEdit ?? seriesRepeat ?? NO_REPEAT
+  const ruleChanged = inSeries && running && !!repeatEdit && !!series && repeatChanged(series, repeatEdit)
 
-  const endsEarly = !!preview && endsBeforeStart(preview.start_date, preview.end_date)
+  const day = draft.planned_date
+  const start = day ?? today
+  const endsEarly = !!repeat.rule && !!repeat.end_date && repeat.end_date < start
   // Picking dates with none picked would be a series with nothing in it.
-  const noDates = repeat === 'dates' && dates.length === 0
+  const noDates = repeat.rule === 'dates' && (repeat.rule_config.dates ?? []).length === 0
+
+  // GEN-05: sections of modules that are on, the person's own, and the
+  // task's own, so it never shows blank.
+  const sections = sectionChoices(colours.enabled, prefs.own_sections, task.category)
+  const sectionOptions: Option[] = [{ value: '', label: '—' }, ...sections.map((c) => ({ value: c, label: c })),
+    { value: '__new', label: 'New section…' }]
 
   // An end time means nothing without a start, so the choice waits for one.
   const hasStart = toMinutes(draft.planned_time) !== null
   const showUntil = until && hasStart
+
+  const savedTemplates = settings.task_templates
 
   function chooseUntil(on: boolean) {
     // Ticking never changes the length by itself: the end shown is the one the
@@ -124,6 +138,19 @@ export function TaskSheet({ task, isNew, onClose }: { task: Task; isNew: boolean
     if (mins !== null) set('duration_min', mins || null)
   }
 
+  function chooseSection(v: string) {
+    if (v === '__new') { setNewSection(''); return }
+    set('category', v || null)
+  }
+
+  async function addSection() {
+    const name = cleanSection(newSection)
+    setNewSection(null)
+    if (!name || !profile) return
+    set('category', name)
+    if (!sections.includes(name)) await savePlanPrefs(profile.id, { own_sections: [...prefs.own_sections, name].slice(-20) })
+  }
+
   /** The notes page keeps what it changes at once for a task that exists, so
    *  a ticked box lasts even if the sheet is then cancelled. Only the note is
    *  written, on top of the row as it is on this device, so a half-edited
@@ -135,22 +162,6 @@ export function TaskSheet({ task, isNew, onClose }: { task: Task; isNew: boolean
     setBase((b) => ({ ...b, notes }))
     const current = (await db.task.get(task.id)) ?? base
     await saveTask({ ...current, notes }, ['notes'])
-  }
-
-  function chooseRepeat(kind: RepeatKind) {
-    setRepeat(kind)
-    if ((kind === 'weekly' || kind === 'biweekly') && weekdays.length === 0) setWeekdays([weekdayOf(start)])
-    // The task's own day starts out picked, when it is not already past.
-    if (kind === 'dates' && dates.length === 0 && start >= today) setDates([start])
-  }
-
-  // At least one day stays picked: a weekly series on no day is not a series.
-  function toggleDay(wd: number) {
-    setWeekdays((ws) => {
-      const now = ws.length ? ws : [weekdayOf(start)]
-      if (now.includes(wd)) return now.length > 1 ? now.filter((w) => w !== wd) : now
-      return [...now, wd]
-    })
   }
 
   /** Only what the person changed is sent, so an edit here and a tick on
@@ -168,27 +179,24 @@ export function TaskSheet({ task, isNew, onClose }: { task: Task; isNew: boolean
     }
   }
 
-  async function save(e: React.FormEvent) {
-    e.preventDefault()
+  async function save(e?: React.FormEvent) {
+    e?.preventDefault()
     const title = draft.title.trim()
-    if (!title || busy) return
+    if (!title || busy || endsEarly || noDates) return
     const next = { ...draft, title }
     setDraft(next)
 
     if (!inSeries) {
-      if (preview) {
-        const choice = {
-          kind: repeat as Exclude<RepeatKind, 'never'>, weekdays: pickedDays, endDate: preview.end_date,
-          n: everyN(everyText), dates,
-        }
-        // A last day before the first would leave the series empty and the new
-        // task saved nowhere, so nothing is saved until the dates make sense.
-        if (endsEarly || noDates) return
-        return run(() => startSeries(next, choice, isNew, isNew ? [] : changedFields(next)))
+      // A repeat needs a day to start from.
+      if (repeat.rule && next.planned_date) {
+        return run(() => startSeriesWith(next, repeat, isNew, isNew ? [] : changedFields(next)))
       }
       return run(() => saveTask(next))
     }
 
+    // "Does not repeat" chosen for a running series is Stop repeating.
+    if (running && repeatEdit && !repeatEdit.rule) return askStop()
+    if (ruleChanged) return setStep('rule')
     const fields = changedFields(next)
     if (fields.length === 0) return onClose()
     // Only a change the series itself carries needs the question; a new day or
@@ -203,11 +211,37 @@ export function TaskSheet({ task, isNew, onClose }: { task: Task; isNew: boolean
     setStep('stop')
   }
 
+  async function remove() {
+    const undo = await deleteTasks([task])
+    offerUndo(inSeries ? 'This day deleted' : 'Task deleted', undo)
+    onClose()
+  }
+
+  async function saveTemplate() {
+    if (!profile) return
+    const t = templateOfTask({ ...draft, title: draft.title.trim() }, templateName, repeat.rule ? repeat : null,
+      savedTemplates.map((x) => x.id))
+    await saveSettings(profile, { task_templates: withTaskTemplate(savedTemplates, t) })
+    setSaid(`Saved as the template “${t.name}”.`)
+    setStep('form')
+  }
+
+  function startFrom(id: string) {
+    const tpl = savedTemplates.find((t) => t.id === id)
+    if (!tpl) return
+    setDraft((d) => applyTaskTemplate(d, tpl, settings.note_templates))
+    const r = templateRepeat(tpl)
+    setRepeatEdit(r ? { ...r } as RepeatValue : null)
+    setPickerKey((k) => k + 1)
+  }
+
+  const heading = isNew ? (task.planned_date ? 'New task' : 'New task for the Inbox') : 'Edit task'
+
   return (
     <>
       <div className="sheet-scrim" onClick={onClose} />
-      <form className="bottom-sheet" onSubmit={save} role="dialog" aria-label={isNew ? 'New task' : 'Edit task'}>
-        <h2>{isNew ? 'New task' : 'Edit task'}</h2>
+      <form className="bottom-sheet" onSubmit={(e) => void save(e)} role="dialog" aria-modal="true" aria-label={heading}>
+        <h2>{heading}</h2>
 
         {step === 'scope' && series && (
           <div className="ts-question">
@@ -222,6 +256,28 @@ export function TaskSheet({ task, isNew, onClose }: { task: Task; isNew: boolean
               onClick={() => void run(() => editFollowing(base, draft, changedFields()))}>
               <span className="ts-offer-name">This and following</span>
               <span className="ts-offer-why">The series changes, and so does every later day that is not done.</span>
+            </button>
+            <div className="sheet-actions">
+              <button type="button" className="btn" onClick={() => setStep('form')}>Back</button>
+            </div>
+          </div>
+        )}
+
+        {step === 'rule' && series && repeatEdit && (
+          <div className="ts-question">
+            <p className="ts-question-title">{draft.title}</p>
+            <p className="ts-question-sub">
+              From “{describeRule(series)}” to “{describeRule({ ...series, ...repeatEdit, occurrence_count: repeatEdit.count ?? null } as never)}”. For which days?
+            </p>
+            <button type="button" className="ts-offer" disabled={busy}
+              onClick={() => void run(() => changeSeriesRule(base, { ...draft, title: draft.title.trim() }, changedFields(), repeatEdit, 'following'))}>
+              <span className="ts-offer-name">This and following</span>
+              <span className="ts-offer-why">Days before this one keep the old rule; from this day on, the new one.</span>
+            </button>
+            <button type="button" className="ts-offer" disabled={busy}
+              onClick={() => void run(() => changeSeriesRule(base, { ...draft, title: draft.title.trim() }, changedFields(), repeatEdit, 'all'))}>
+              <span className="ts-offer-name">All days</span>
+              <span className="ts-offer-why">The whole series takes the new rule. Days already past, and anything done, stay as they were.</span>
             </button>
             <div className="sheet-actions">
               <button type="button" className="btn" onClick={() => setStep('form')}>Back</button>
@@ -247,21 +303,56 @@ export function TaskSheet({ task, isNew, onClose }: { task: Task; isNew: boolean
           </div>
         )}
 
+        {step === 'template' && (
+          <div className="ts-question">
+            <label className="ts-template-name">Template name
+              <input autoFocus value={templateName} placeholder={draft.title || 'Morning read'} maxLength={60}
+                onChange={(e) => setTemplateName(e.target.value)}
+                onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); void saveTemplate() } }} />
+            </label>
+            <p className="ts-question-sub">Keeps the title, length, section, lock, note{repeat.rule ? ' and repeat' : ''}. Start a new task from it with “Start from a saved task”.</p>
+            <div className="sheet-actions">
+              <button type="button" className="btn" onClick={() => setStep('form')}>Back</button>
+              <button type="button" className="btn btn-primary grow" onClick={() => void saveTemplate()}>Save template</button>
+            </div>
+          </div>
+        )}
+
         {step === 'form' && (
           <>
             <div className="form-grid">
+              {isNew && savedTemplates.length > 0 && (
+                <div className="ts-field">
+                  <span className="ts-field-name">Start from a saved task</span>
+                  <Dropdown label="Start from a saved task" value="" placeholder="Choose one"
+                    options={savedTemplates.map((t) => ({ value: t.id, label: t.name }))} onChange={startFrom} />
+                </div>
+              )}
               <label>What
                 <input autoFocus required value={draft.title} placeholder="Mobility"
                   onChange={(e) => set('title', e.target.value)} />
               </label>
               <div className="two">
-                <label>Day
-                  <input type="date" value={draft.planned_date ?? ''} onChange={(e) => set('planned_date', e.target.value || null)} />
-                </label>
+                <div className="ts-daycell">
+                  <label>Day
+                    <input type="date" value={day ?? ''} onChange={(e) => set('planned_date', e.target.value || null)} />
+                  </label>
+                  {day ? (
+                    <button type="button" className="ts-inbox-link"
+                      onClick={() => set('planned_date', null)}>No day (Inbox)</button>
+                  ) : (
+                    <button type="button" className="ts-inbox-link" onClick={() => set('planned_date', today)}>Today</button>
+                  )}
+                </div>
                 <label>Time
                   <input type="time" value={draft.planned_time?.slice(0, 5) ?? ''} onChange={(e) => changeStart(e.target.value)} />
                 </label>
               </div>
+              {!day && (
+                <p className="ts-repeat-rule ts-inbox-note" role="note">
+                  No day: it waits in Plan’s Inbox until you give it one.
+                </p>
+              )}
               <div className="two">
                 {/* One cell, two ways to give the length; the box in its corner
                     switches between them without adding a row. */}
@@ -285,95 +376,67 @@ export function TaskSheet({ task, isNew, onClose }: { task: Task; isNew: boolean
                 </div>
                 <div className="ts-field">
                   <span className="ts-field-name">Section</span>
-                  <Dropdown className="dd-end" label="Section" placeholder="—" value={draft.category ?? ''}
-                    options={sectionOptions} onChange={(v) => set('category', v || null)} />
+                  {newSection === null ? (
+                    <Dropdown className="dd-end" label="Section" placeholder="—" value={draft.category ?? ''}
+                      options={sectionOptions} onChange={chooseSection} />
+                  ) : (
+                    <div className="ts-newsection">
+                      <input autoFocus aria-label="New section name" value={newSection} maxLength={30} placeholder="Garden"
+                        onChange={(e) => setNewSection(e.target.value)}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') { e.preventDefault(); void addSection() }
+                          if (e.key === 'Escape') { e.preventDefault(); setNewSection(null) }
+                        }}
+                        onBlur={() => void addSection()} />
+                    </div>
+                  )}
                 </div>
               </div>
 
-              {inSeries ? (
+              {inSeries && !running && (
                 <div className="ts-repeat">
                   <span className="ts-repeat-label">Repeat</span>
-                  <p className="ts-repeat-rule">{describeRule(series)}</p>
+                  <p className="ts-repeat-rule">{describeRule(series)}. This series has ended.</p>
+                </div>
+              )}
+              {series !== undefined && (!inSeries || running) && (day ? (
+                <div className="ts-repeatbox">
+                  <RepeatPicker key={`${series?.id ?? 'new'}:${pickerKey}`} value={repeat} onChange={setRepeatEdit} start={start} today={today}
+                    kinds={TASK_RULE_KINDS} allowCount noneLabel={inSeries ? 'Stop repeating' : 'Does not repeat'} />
                   {running && (
                     <button type="button" className="btn ts-stop" onClick={() => void askStop()}>Stop repeating</button>
                   )}
+                  {!inSeries && repeat.rule === 'dates' && !noDates && !(repeat.rule_config.dates ?? []).includes(start) && (
+                    <p className="ts-repeat-rule">
+                      {isNew ? 'The day above is not picked, so nothing is added on it.' : 'The day above is not picked, so this task stays there as a one-off.'}
+                    </p>
+                  )}
+                  {ruleChanged && <p className="ts-repeat-rule">Saving asks whether the new rule is for every day or from this one on.</p>}
                 </div>
               ) : (
-                <>
-                  <div className="ts-field">
-                    <span className="ts-field-name">Repeat</span>
-                    <Dropdown label="Repeat" value={repeat} options={REPEAT_OPTIONS} onChange={chooseRepeat} />
-                  </div>
-                  {(repeat === 'weekly' || repeat === 'biweekly') && (
-                    <div className="ts-days" role="group" aria-label="Days">
-                      {WEEK_ORDER.map((wd) => (
-                        <button key={wd} type="button" className="ts-day" aria-pressed={pickedDays.includes(wd)}
-                          onClick={() => toggleDay(wd)}>{dayName(wd)}</button>
-                      ))}
-                    </div>
-                  )}
-                  {repeat === 'every_n_days' && (
-                    <label className="ts-every">
-                      <span>Every</span>
-                      <input type="number" inputMode="numeric" min={2} max={MAX_EVERY_N_DAYS} step={1} value={everyText}
-                        aria-label="Number of days between" onChange={(e) => setEveryText(e.target.value)}
-                        onBlur={() => setEveryText(String(everyN(everyText)))} />
-                      <span>days</span>
-                    </label>
-                  )}
-                  {repeat === 'dates' && (
-                    <div className="ts-dates">
-                      <div className="ts-dates-head">
-                        <span aria-live="polite">
-                          {dates.length === 0 ? 'Tap the days it should be on.'
-                            : `${dates.length} ${dates.length === 1 ? 'day' : 'days'} picked`}
-                          {dates.length >= MAX_PICKED_DATES ? ' — the most there can be' : ''}
-                        </span>
-                        <button type="button" className="btn ts-dates-clear" disabled={dates.length === 0}
-                          onClick={() => setDates([])}>Clear</button>
-                      </div>
-                      <MonthScroller first={range.first} last={range.last} openAt={start > today ? start : today}
-                        today={today} label="Days to repeat on" selected={pickedSet}
-                        disabled={(d) => d < today} onDayClick={(d) => setDates((ds) => togglePicked(ds, d))} />
-                    </div>
-                  )}
-                  {repeat !== 'never' && repeat !== 'dates' && (
-                    <div className="two">
-                      <div className="ts-field">
-                        <span className="ts-field-name">Ends</span>
-                        <Dropdown label="Ends" value={endKind} options={END_OPTIONS} onChange={setEndKind} />
-                      </div>
-                      {endKind === 'date' && (
-                        <label>Last day
-                          <input type="date" min={start} value={endDate} onChange={(e) => setEndDate(e.target.value)} />
-                        </label>
-                      )}
-                    </div>
-                  )}
-                  {preview && repeat !== 'dates' && (
-                    <p className="ts-repeat-rule">
-                      {describeRule(preview)}. Starts {format(new Date(`${start}T12:00:00`), 'd MMM')}.
-                      {endsEarly ? ' The last day is before the first. Pick a later one to save.' : ''}
-                    </p>
-                  )}
-                  {preview && repeat === 'dates' && !noDates && (
-                    <p className="ts-repeat-rule">
-                      {describeRule(preview)}.
-                      {!dates.includes(start) && (isNew
-                        ? ' The day above is not picked, so nothing is added on it.'
-                        : ' The day above is not picked, so this task stays there as a one-off.')}
-                    </p>
-                  )}
-                </>
-              )}
+                <p className="ts-repeat-rule">Give it a day to make it repeat.</p>
+              ))}
 
-              <label style={{ gridTemplateColumns: 'auto 1fr', alignItems: 'center', gap: 10 }}>
+              <label className="ts-check">
+                <input type="checkbox" checked={draft.fixed} onChange={(e) => set('fixed', e.target.checked)} />
+                <span>Fixed<span className="ts-check-sub">It belongs at this day and time: moving it asks first.</span></span>
+              </label>
+              <label className="ts-check">
                 <input type="checkbox" checked={draft.locked} onChange={(e) => set('locked', e.target.checked)} />
-                Locked — nothing may move it
+                <span>Locked<span className="ts-check-sub">Nothing may move it: no pushes, and it stays when days swap.</span></span>
               </label>
               <NoteEditor value={draft.notes ?? ''} onChange={(text) => set('notes', text || null)}
                 aside={<button type="button" className="ne-open" onClick={() => setNotesOpen(true)}>Open as page</button>} />
             </div>
+
+            <div className="ts-more" role="group" aria-label="More for this task">
+              {!isNew && <button type="button" className="ts-more-btn" disabled={!draft.title.trim()} onClick={() => setCopyOpen(true)}>Copy to…</button>}
+              {!isNew && <button type="button" className="ts-more-btn" disabled={!draft.title.trim()} onClick={() => onDuplicate({ ...draft, title: draft.title.trim() })}>Duplicate</button>}
+              <button type="button" className="ts-more-btn" disabled={!draft.title.trim()}
+                onClick={() => { setTemplateName(draft.title.trim()); setStep('template') }}>Save as template</button>
+            </div>
+            {said && <p className="ts-repeat-rule" role="status">{said}</p>}
+
             {inSeries && confirmDelete && (
               <p className="ts-repeat-rule">Deleting removes this day only. The series goes on.</p>
             )}
@@ -381,7 +444,7 @@ export function TaskSheet({ task, isNew, onClose }: { task: Task; isNew: boolean
               {!isNew && !confirmDelete && <button type="button" className="btn" onClick={() => setConfirmDelete(true)}>Delete</button>}
               {!isNew && confirmDelete && (
                 <button type="button" className="btn" style={{ color: 'var(--e-warn)' }}
-                  onClick={() => void (inSeries ? deleteOccurrence(task) : deleteTask(task)).then(onClose)}>{inSeries ? 'Delete this day' : 'Delete for good'}</button>
+                  onClick={() => void remove()}>{inSeries ? 'Delete this day' : 'Delete'}</button>
               )}
               <button type="button" className="btn grow" onClick={onClose}>Cancel</button>
               <button type="submit" className="btn btn-primary" disabled={busy || endsEarly || noDates}>Save</button>
@@ -391,6 +454,9 @@ export function TaskSheet({ task, isNew, onClose }: { task: Task; isNew: boolean
       </form>
       {notesOpen && (
         <NotesPage title={draft.title} notes={draft.notes} onKeep={(n) => void keepNotes(n)} onClose={() => setNotesOpen(false)} />
+      )}
+      {copyOpen && (
+        <CopySheet what={{ kind: 'task', task: { ...draft, title: draft.title.trim() } }} onClose={() => setCopyOpen(false)} />
       )}
     </>
   )
