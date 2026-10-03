@@ -349,12 +349,24 @@ function RowMenu({ actions, up, down, steps, onStep, onClose }: {
 }) {
   const box = useRef<HTMLDivElement>(null)
   const [above, setAbove] = useState(false)
+  const [room, setRoom] = useState<number | undefined>(undefined)
 
   useLayoutEffect(() => {
     const el = box.current
     if (!el) return
-    // Opens upwards when there is no room below (the last rows, the add button).
-    setAbove(el.getBoundingClientRect().bottom > window.innerHeight - 96)
+    // Opens on the side with more room (upwards for the last rows, clear of
+    // the round +), and never past the screen's edge: a long menu scrolls
+    // inside itself rather than putting its first items out of reach.
+    const row = (el.offsetParent ?? el.parentElement)?.getBoundingClientRect()
+    const height = el.getBoundingClientRect().height
+    if (row) {
+      const below = window.innerHeight - 96 - row.bottom
+      const over = row.top - 8
+      const up = height > below && over > below
+      setAbove(up)
+      const space = Math.floor(up ? over : below)
+      setRoom(height > space ? Math.max(space, 160) : undefined)
+    }
     el.querySelector<HTMLButtonElement>('button:not(:disabled)')?.focus()
   }, [])
 
@@ -383,6 +395,7 @@ function RowMenu({ actions, up, down, steps, onStep, onClose }: {
   const run = (a: MenuAction) => { onClose(); a.run() }
   return (
     <div ref={box} className={`move-menu${above ? ' is-above' : ''}`} role="menu" data-no-swipe data-no-hold
+      style={room ? { maxHeight: room, overflowY: 'auto' } : undefined}
       onPointerDown={(e) => e.stopPropagation()}>
       {plain.map((a) => (
         <button key={a.label} type="button" role="menuitem" disabled={a.disabled} onClick={() => run(a)}>{a.label}</button>
