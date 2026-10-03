@@ -4,6 +4,7 @@ import {
   periodRange, shiftAnchor, previousRange, daysOf, dayCount, reach, canShift, clampAnchor, periodTitle, isCurrent,
   summarise, percent, ratioBuckets, latest, upTo, sumMetric, meanMetric, ratioMetric, habitSeries, supplementSeries,
   sleepHours, toNumber, fieldSeries, plural, formatNumber, formatDelta, statsRows, monthLength,
+  habitFacts, choreFacts, clockHours,
 } from '../lib/stats-rules.ts'
 
 let fail = 0
@@ -205,6 +206,41 @@ is('export rows: one per figure and per average, none for empty cards or missing
 is('a day’s rows name the day once', statsRows('day', { start: today, end: today }, [
   { key: 'x', label: 'X', off: false, chart: null, empty: null, metrics: [{ key: 'a', label: 'A', unit: '', value: 1, perDay: null, delta: null, decimals: 0 }] },
 ])[0].period, 'day 2026-09-24')
+
+/* ---------- facts for the stats builder ---------- */
+const sum = (fs, m, day) => fs.filter((f) => f.measure === m && (!day || f.day === day)).reduce((a, f) => a + f.value, 0)
+const wk = { start: '2026-09-21', end: '2026-09-27' }
+const daily = { id: 'h1', name: 'Walk', schedule: 'daily', active: true, start_date: '2026-09-01' }
+const hf = habitFacts([daily], { h1: ['2026-09-21', '2026-09-23', '2026-09-24'] }, { h1: { '2026-09-21': 5 } }, wk, today)
+is('a daily habit: ticks', sum(hf, 'habits:ticks'), 3)
+is('due: every day so far, today counted once done', sum(hf, 'habits:due'), 4)
+is('hit: the ticks that answered a due day', sum(hf, 'habits:hit'), 3)
+is('nothing due after today', hf.filter((f) => f.day > today).length, 0)
+is('an amount counted', sum(hf, 'habits:amount'), 5)
+is('facts carry the habit\'s name and row', [hf[0].item, hf[0].ref.table], ['Walk', 'habit'])
+const notDoneToday = habitFacts([daily], { h1: [] }, {}, wk, today)
+is('today not ticked yet is not missed', sum(notDoneToday, 'habits:due', today), 0)
+const twice = { id: 'h2', name: 'Swim', rule: 'times_per_week', rule_config: { times: 2 }, active: true, start_date: '2026-09-01' }
+const lastWeek = { start: '2026-09-14', end: '2026-09-20' }
+const tw = habitFacts([twice], { h2: ['2026-09-15'] }, {}, lastWeek, today)
+is('twice a week, done once: one hit, and the missing one due on Sunday', [sum(tw, 'habits:hit'), sum(tw, 'habits:due'), sum(tw, 'habits:due', '2026-09-20')], [1, 2, 1])
+is('a week still under way is not short yet', sum(habitFacts([twice], { h2: [] }, {}, wk, today), 'habits:due'), 0)
+is('done three times, still due twice', sum(habitFacts([twice], { h2: ['2026-09-14', '2026-09-15', '2026-09-16'] }, {}, lastWeek, today), 'habits:due'), 2)
+is('a habit put away keeps its ticks but is not due', [sum(habitFacts([{ ...daily, active: false }], { h1: ['2026-09-21'] }, {}, wk, today), 'habits:ticks'), sum(habitFacts([{ ...daily, active: false }], { h1: ['2026-09-21'] }, {}, wk, today), 'habits:due')], [1, 0])
+is('a deleted habit gives nothing', habitFacts([{ ...daily, deleted_at: 'x' }], { h1: ['2026-09-21'] }, {}, wk, today), [])
+is('a habit not started yet is not due', sum(habitFacts([{ ...daily, start_date: '2026-09-23' }], { h1: [] }, {}, wk, today), 'habits:due'), 1)
+
+const chores = [
+  { id: 'c1', name: 'Bins', room: 'Kitchen', minutes: 5, mode: 'fixed', rule: 'weekly', rule_config: { weekdays: [1] }, every_days: null, start_date: '2026-09-01', end_date: null },
+  { id: 'c2', name: 'Dust', room: null, minutes: null, mode: 'flexible', rule: null, rule_config: {}, every_days: 3, start_date: '2026-09-01', end_date: null },
+]
+const clogs = [{ id: 'l1', chore_id: 'c1', done_on: '2026-09-23', done_by: 'u1' }, { id: 'l2', chore_id: 'c2', done_on: '2026-09-22', done_by: 'u2' }]
+const cf = choreFacts(chores, clogs, wk, today, (u) => (u === 'u1' ? 'You' : 'Sam'))
+is('chores done, by person', [sum(cf, 'household:chores_done'), cf.filter((f) => f.measure === 'household:chores_done').map((f) => f.person)], [2, ['You', 'Sam']])
+is('minutes of chores done', sum(cf, 'household:chore_minutes'), 5)
+is('a fixed chore overdue from the day after it fell due until done', cf.filter((f) => f.measure === 'household:chores_overdue').map((f) => f.day), ['2026-09-22'])
+is('a flexible chore is never overdue', cf.some((f) => f.measure === 'household:chores_overdue' && f.item === 'Dust'), false)
+is('bedtime after midnight counts on from the evening', [clockHours('23:30', true), clockHours('00:30', true), clockHours('07:15'), clockHours('nope')], [23.5, 24.5, 7.25, null])
 
 console.log(fail ? `\n${fail} check(s) failed` : '\nall checks passed')
 process.exit(fail ? 1 : 0)

@@ -29,6 +29,7 @@ import { Switching } from './screens/Switching'
 import { watchCalendarFollows } from './lib/calendar-links'
 import { pickProfile } from './lib/accounts-rules'
 import { rememberedProfile } from './settings/Profiles'
+import { StatsAddress } from './sections/Stats'
 
 export default function App() {
   const { session, profile, recovering, setSession, setProfile, setProfiles } = useApp()
@@ -171,6 +172,7 @@ export default function App() {
         <Route path="/more" element={<More />} />
         <Route path="/modules" element={<Modules />} />
         <Route path="/m/:key" element={<ModuleRoute pages={pages} />} />
+        <Route path="/stats" element={<StatsAddress />} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
       <Nav pages={pages} />

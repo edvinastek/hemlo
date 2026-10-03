@@ -4,6 +4,9 @@ import { need, open, signIn, sql, profileOf, today, checks, drained, modulesOn }
 // a done task and a habit tick today show on the Day tab; the arrows stop
 // three years back; the "Show switched-off modules" tick brings Sleep's card
 // and reaches profile.settings in Postgres; nothing runs off the side.
+// The builder (v16): a new view of tasks done is saved, reaches
+// profile.settings.stats_views, pins to Today (today_cards), opens at
+// /stats?view=<id>, shows as a table, and is deleted with Undo bringing it back.
 // Needs TEST_EMAIL, TEST_PASSWORD and SB.
 need('TEST_EMAIL', 'TEST_PASSWORD', 'SB')
 const email = process.env.TEST_EMAIL
@@ -14,7 +17,7 @@ const day = today()
 await sql(`
   update public.task set deleted_at = now() where profile_id = ${me} and deleted_at is null;
   update public.habit set active = false, deleted_at = now() where profile_id = ${me} and deleted_at is null;
-  update public.profile set settings = coalesce(settings, '{}'::jsonb) || jsonb_build_object('stats', jsonb_build_object('show_disabled', false))
+  update public.profile set settings = coalesce(settings, '{}'::jsonb) || jsonb_build_object('stats', jsonb_build_object('show_disabled', false), 'stats_views', '[]'::jsonb, 'today_cards', '[]'::jsonb)
     where id = ${me};`)
 await modulesOn(email, ['agenda', 'habits', 'stats'], { only: true })
 await sql(`
@@ -43,18 +46,18 @@ for (const colorScheme of ['light', 'dark']) {
 
   await p.click('.st-periods [role=tab]:has-text("Day")')
   // Habit ticks come down after the habits themselves; wait for them.
-  for (let i = 0; i < 40 && (await figure(p, 'Habits', 'Ticks').catch(() => '0')) === '0'; i++) await p.waitForTimeout(500)
-  is(`${colorScheme}: tasks done today`, await figure(p, 'Tasks', 'Done'), '1')
-  is(`${colorScheme}: tasks planned today`, await figure(p, 'Tasks', 'Planned'), '2')
-  is(`${colorScheme}: half of them completed`, await figure(p, 'Tasks', 'Completed'), '50%')
+  for (let i = 0; i < 40 && (await figure(p, 'Habits', 'Habit ticks').catch(() => '0')) === '0'; i++) await p.waitForTimeout(500)
+  is(`${colorScheme}: tasks done today`, await figure(p, 'Tasks', 'Tasks done'), '1')
+  is(`${colorScheme}: tasks planned today`, await figure(p, 'Tasks', 'Tasks planned'), '2')
+  is(`${colorScheme}: half of them completed`, await figure(p, 'Tasks', 'Tasks completed'), '50%')
   is(`${colorScheme}: minutes done`, await figure(p, 'Tasks', 'Minutes done'), '25 min')
-  is(`${colorScheme}: the habit tick`, await figure(p, 'Habits', 'Ticks'), '1')
+  is(`${colorScheme}: the habit tick`, await figure(p, 'Habits', 'Habit ticks'), '1')
   is(`${colorScheme}: Sleep is off, so no card`, await card(p, 'Sleep').count(), 0)
 
   for (const tab of ['Week', 'Month', 'Year']) {
     await p.click(`.st-periods [role=tab]:has-text("${tab}")`)
     await p.waitForTimeout(1000)
-    is(`${colorScheme} ${tab}: a chart on the Tasks card`, await card(p, 'Tasks').locator('.st-bars .st-col').count() > 0, true)
+    is(`${colorScheme} ${tab}: a chart on the Tasks card`, await card(p, 'Tasks').locator('svg.ch-svg path').count() > 0, true)
     is(`${colorScheme} ${tab}: nothing runs off a 360 px screen`, (await overflow(p)).join(', '), '')
   }
 
@@ -75,6 +78,37 @@ for (const colorScheme of ['light', 'dark']) {
     await p.locator('.st-check input').uncheck()
     await p.waitForTimeout(900)
     await drained(p)
+
+    // Every measure a module keeps, one tap away.
+    await card(p, 'Tasks').locator('.st-more').click()
+    is('the Tasks card lists every measure', await card(p, 'Tasks').locator('.st-measures li').count() >= 6, true)
+
+    // The builder: one screen, a measure, saved as a view.
+    await p.click('button:has-text("+ New view")')
+    await p.fill('.sb-search', 'tasks done')
+    await p.locator('.sb-pick', { hasText: 'Tasks done' }).first().click()
+    await p.waitForSelector('.sb-preview svg, .sb-preview .ch-number', { timeout: 15000 })
+    is('the builder fits 360 px', (await overflow(p)).join(', '), '')
+    await p.locator('.sb-check', { hasText: 'As a card on Today' }).locator('input').check()
+    await p.click('.sb-foot button:has-text("Save as a view")')
+    await p.waitForSelector('article.sv', { timeout: 15000 })
+    await drained(p)
+    const [saved] = await sql(`select settings->'stats_views'->0->>'id' as id, settings->'stats_views'->0->>'name' as name,
+      settings->'today_cards'->0->>'key' as card from public.profile where id = ${me}`)
+    is('the view reached profile.settings', saved?.name, 'Tasks done')
+    is('and its card is on Today', saved?.card, saved?.id)
+    await p.goto(new URL(`/stats?view=${saved?.id}`, p.url()).toString(), { waitUntil: 'domcontentloaded' })
+    await p.waitForSelector(`#view-${saved?.id}`, { timeout: 20000 })
+    is('/stats?view=<id> opens the Stats page at the view', new URL(p.url()).pathname, '/m/stats')
+    await p.locator(`#view-${saved?.id} .sv-toggle`).click()
+    is('the view shows as a table', await p.locator(`#view-${saved?.id} .pt-table`).count(), 1)
+    await p.locator(`#view-${saved?.id} .mm-button`).click()
+    await p.click('.mm-list button:has-text("Delete")')
+    await p.waitForTimeout(600)
+    is('deleted', await p.locator(`#view-${saved?.id}`).count(), 0)
+    await p.click('.undo-bar .undo-btn')
+    await p.waitForSelector(`#view-${saved?.id}`, { timeout: 10000 })
+    is('Undo brings it back', await p.locator(`#view-${saved?.id}`).count(), 1)
   }
   is(`${colorScheme}: no page errors`, errors.join(' | '), '')
   await b.close()
