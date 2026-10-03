@@ -139,7 +139,7 @@ export function ViewBody({ view, outcome, compact = false, showTable }: { view: 
   return (
     <div className="sv-body">
       {chart}
-      {!compact && <p className="sv-summary">{summary}</p>}
+      {!compact && type !== 'number' && type !== 'ring' && <p className="sv-summary">{summary}</p>}
       {compareLine && <p className="sv-summary">{compareLine}</p>}
       {outcome.modulesOff.length > 0 && <p className="st-note">Part of this view comes from a module that is switched off, so it shows as missing.</p>}
       {!compact && (table || type === 'table') && (

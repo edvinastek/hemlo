@@ -1,5 +1,5 @@
 import { useId, useMemo, useRef, useState, type KeyboardEvent, type PointerEvent } from 'react'
-import { formatValue, labelStep, niceScale, shortNumber, type ChartData, type ChartSeries } from '../../lib/chart-rules'
+import { formatValue, labelStep, niceScale, shortNumber, tickDecimals, type ChartData, type ChartSeries } from '../../lib/chart-rules'
 import { useWidth } from './useWidth'
 import './charts.css'
 
@@ -161,7 +161,7 @@ function Panel({ series, data, type, width, height, last, x, slot, step, picked,
       {scale.ticks.map((t) => (
         <g key={t}>
           <line x1={PAD.left} x2={width - PAD.right} y1={y(t)} y2={y(t)} className={t === 0 ? 'ch-base' : 'ch-grid'} />
-          <text x={PAD.left - 5} y={y(t)} className="ch-tick" textAnchor="end" dominantBaseline="middle">{shortNumber(t, unit)}</text>
+          <text x={PAD.left - 5} y={y(t)} className="ch-tick" textAnchor="end" dominantBaseline="middle">{shortNumber(t, unit, tickDecimals(scale.ticks))}</text>
         </g>
       ))}
       {(type === 'bar' || type === 'stacked') && series.map((s, k) => s.values.map((v, i) => {

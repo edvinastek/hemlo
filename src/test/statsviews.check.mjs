@@ -7,13 +7,16 @@ import {
   rangeChoice, newViewId, autoChart, blankView, viewSpec, viewModules, migrateSource, putView, duplicateView, moveView,
   removeView, TEMPLATES, templatesFor, fromTemplate, cardsFor, addCard, moveCard, changeCard, plural, cardFigure, patterns, cardText,
 } from '../lib/stats-builder-rules.ts'
-import { formatValue, shortNumber, niceScale, readable, splitColour, chartData, labelStep, describe, toWidgetView } from '../lib/chart-rules.ts'
+import { formatValue, shortNumber, tickDecimals, niceScale, readable, splitColour, chartData, labelStep, describe, toWidgetView } from '../lib/chart-rules.ts'
 import { contrast, PAPER } from '../lib/colours-rules.ts'
 import { pivot, spanDays } from '../lib/pivot-rules.ts'
 import { MODULES } from '../modules/registry.ts'
 
 let fail = 0
+// Figures keep their unit on the same line with a no-break space; compared as plain spaces.
+const plain = (v) => (typeof v === 'string' ? v.replace(/\u00a0/g, ' ') : Array.isArray(v) ? v.map(plain) : v)
 const is = (label, got, want) => {
+  got = plain(got)
   const ok = JSON.stringify(got) === JSON.stringify(want)
   if (!ok) fail++
   console.log(`${ok ? 'ok  ' : 'FAIL'}  ${label}${ok ? '' : `: got ${JSON.stringify(got)}, expected ${JSON.stringify(want)}`}`)
@@ -202,6 +205,8 @@ is('a built module shows its first figure with something today', cardText({ ...b
 /* ---------- charts ---------- */
 is('values written out', [formatValue(142.4, 'g'), formatValue(86, '%'), formatValue(23.5, 'time'), formatValue(24.75, 'time'), formatValue(1, 'days'), formatValue(3, 'days'), formatValue(null, 'g'), formatValue(2216.4, 'kcal'), formatValue(7.25, 'h', 1)],
   ['142 g', '86%', '23:30', '00:45', '1 day', '3 days', '–', '2,216 kcal', '7.3 h'])
+is('a big figure has no decimals', formatValue(2011.5, 'kcal', 1), '2,012 kcal')
+is('tick decimals so no two ticks read the same', [tickDecimals([79, 79.5, 80]), tickDecimals([0, 50]), tickDecimals([0.05, 0.1])], [1, 0, 2])
 is('short numbers for an axis', [shortNumber(12500), shortNumber(1250), shortNumber(7.25), shortNumber(140)], ['13k', '1.3k', '7.3', '140'])
 is('an axis from zero in round steps', niceScale([3, 142]), { min: 0, max: 150, ticks: [0, 50, 100, 150] })
 is('an axis the person fixed', niceScale([3, 142], { min: 50, max: 200 }).ticks[0], 50)

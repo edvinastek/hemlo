@@ -20,22 +20,33 @@ export function formatValue(v: number | null, unit: string, decimals = 0): strin
     const mins = Math.round((((v % 24) + 24) % 24) * 60) % 1440
     return `${String(Math.floor(mins / 60)).padStart(2, '0')}:${String(mins % 60).padStart(2, '0')}`
   }
+  // Big figures need no decimals: 2,011 kcal, not 2,011.5 kcal.
+  if (Math.abs(v) >= 100) decimals = 0
   const r = Math.round(v * 10 ** decimals) / 10 ** decimals
+  // A no-break space keeps a figure and its unit on one line.
   if (unit === '%') return `${group(r, decimals)}%`
   if (unit === 'days' || unit === 'entries') {
     const one = unit === 'days' ? 'day' : 'entry'
-    return `${group(r, decimals)} ${r === 1 ? one : unit}`
+    return `${group(r, decimals)}\u00a0${r === 1 ? one : unit}`
   }
-  return unit ? `${group(r, decimals)} ${unit}` : group(r, decimals)
+  return unit ? `${group(r, decimals)}\u00a0${unit}` : group(r, decimals)
 }
 
 /** A number short enough for an axis: 1.2k, 15k. */
-export function shortNumber(v: number, unit = ''): string {
+export function shortNumber(v: number, unit = '', decimals?: number): string {
   if (unit === 'time') return formatValue(v, 'time')
   const a = Math.abs(v)
   if (a >= 10000) return `${Math.round(v / 1000)}k`
   if (a >= 1000) return `${Math.round(v / 100) / 10}k`
-  return group(Math.round(v * 10) / 10, a < 10 ? 1 : 0)
+  const d = decimals ?? (a < 10 ? 1 : 0)
+  return group(Math.round(v * 10 ** d) / 10 ** d, d)
+}
+
+/** Decimals an axis needs so no two of its ticks read the same. */
+export function tickDecimals(ticks: number[]): number {
+  if (ticks.length < 2) return 0
+  const step = Math.abs(ticks[1] - ticks[0])
+  return step >= 1 ? 0 : step >= 0.1 ? 1 : 2
 }
 
 /* ---------- the axis ------------------------------------------------------- */
