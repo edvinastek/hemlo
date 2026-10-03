@@ -1,4 +1,4 @@
-import { need, sql, checks, open, signIn, profileOf, drained } from './e2e.mjs'
+import { need, sql, checks, open, signIn, profileOf, drained, todayPart } from './e2e.mjs'
 
 // The task sheet after the phone feedback, at 360 px as on the owner's phone:
 // a task given a time range instead of minutes (across midnight), the compact
@@ -21,7 +21,8 @@ const A = await open({ viewport: { width: 360, height: 640 } })
 const p = A.p
 await signIn(p, email)
 // Today shows its tabs only while there are three or fewer (v17).
-if (await p.locator('.tabs button:has-text("Today")').count()) await p.click('.tabs button:has-text("Today")')
+await p.waitForTimeout(1500)
+if (await p.getByRole('tab', { name: 'Today', exact: true }).or(p.getByRole('button', { name: 'Show part of today' })).count()) await todayPart(p, 'Today')
 
 /** Anything inside the open sheet that runs past the right edge of the screen. */
 const offScreen = () => p.evaluate(() => {
@@ -51,7 +52,7 @@ await moreOptions()
 const before = await sheetHeight()
 await p.click(UNTIL)
 is('ticking Until swaps Minutes for an end time', await p.locator('.bottom-sheet input[aria-label="End time"]').count(), 1)
-is('and the Minutes field is gone', await p.locator('.bottom-sheet label', { hasText: 'Minutes' }).count(), 0)
+is('and the Minutes field is gone', await p.locator('.bottom-sheet label', { hasText: /^Minutes/ }).count(), 0)
 await p.fill('.bottom-sheet input[aria-label="End time"]', '00:15')
 is('the length is shown beside the end', (await p.locator('.bottom-sheet .ts-dur-name').textContent()).includes('1 h 45'), true)
 is('the sheet did not grow', Math.abs((await sheetHeight()) - before) <= 2, true)
@@ -73,12 +74,12 @@ is('in the section picked from the list', r.category, 'Work')
 
 // Opened again, the task shows minutes; unticking Until brings them back too.
 await p.locator('.row', { hasText: 'Sheet late shift' }).locator('.row-name button').click()
-is('a task opens showing its minutes', await p.locator('.bottom-sheet label', { hasText: 'Minutes' }).locator('input').inputValue(), '105')
+is('a task opens showing its minutes', await p.locator('.bottom-sheet label', { hasText: /^Minutes/ }).locator('input').inputValue(), '105')
 await moreOptions()
 await p.click(UNTIL)
 is('ticking shows the end the minutes give', await p.locator('.bottom-sheet input[aria-label="End time"]').inputValue(), '00:15')
 await p.click(UNTIL)
-is('unticking gives the minutes back to edit', await p.locator('.bottom-sheet label', { hasText: 'Minutes' }).locator('input').isEditable(), true)
+is('unticking gives the minutes back to edit', await p.locator('.bottom-sheet label', { hasText: /^Minutes/ }).locator('input').isEditable(), true)
 await p.click('.bottom-sheet button:has-text("Cancel")')
 
 // 2. A checklist note, written with the toolbar and Enter.
@@ -127,9 +128,16 @@ await settle(p)
 const plain = p.locator('.row', { hasText: 'Sheet plain' })
 is('a plain note shows a note mark', await plain.locator('.row-notemark').count(), 1)
 is('and no progress chip', await plain.locator('.row-chip').count(), 0)
-const heights = await p.evaluate(() => [...document.querySelectorAll('.row')]
-  .filter((el) => /Sheet (trip|plain)/.test(el.textContent)).map((el) => Math.round(el.getBoundingClientRect().height)))
-is(`rows with a chip or a mark are the plain row height (${heights.join(', ')} px)`, heights.every((h) => h <= 44), true)
+// The plain row to measure against: a task with a time and nothing else.
+await addTask()
+await p.fill('.bottom-sheet input[placeholder="Mobility"]', 'Sheet bare')
+await p.fill('.bottom-sheet input[type=time]', '09:10')
+await p.click('.bottom-sheet button:has-text("Save")')
+await settle(p)
+const heightOf = (title) => p.locator('.row', { hasText: title }).evaluate((el) => Math.round(el.getBoundingClientRect().height))
+const bare = await heightOf('Sheet bare')
+const heights = [await heightOf('Sheet trip'), await heightOf('Sheet plain')]
+is(`rows with a chip or a mark are the plain row height (${heights.join(', ')} px, plain ${bare} px)`, heights.every((h) => h <= bare), true)
 
 await sql(`delete from public.task where ${mine} and title like 'Sheet %'`)
 console.log(A.errors.length ? 'PAGE ERRORS: ' + A.errors.join(' | ') : 'no page errors')

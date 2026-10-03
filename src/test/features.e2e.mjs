@@ -52,7 +52,7 @@ await signIn(p, email, undefined, { template: 'Fitness & nutrition', targets: tr
 await addTask(p)
 await p.fill('.bottom-sheet input[placeholder="Mobility"]', 'Mobility')
 await p.fill('.bottom-sheet input[type=time]', '07:30')
-await p.locator('.bottom-sheet label', { hasText: 'Minutes' }).locator('input').fill('15')
+await p.locator('.bottom-sheet label', { hasText: /^Minutes/ }).locator('input').fill('15')
 await p.click('.bottom-sheet button:has-text("Save")')
 await p.waitForTimeout(800)
 is('a new task appears on Today', await p.locator('.row', { hasText: 'Mobility' }).count(), 1)
