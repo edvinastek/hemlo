@@ -15,6 +15,7 @@ import { PlanningSettings } from '../settings/PlanningSettings'
 import { FoodSettings } from '../settings/FoodSettings'
 import { NavSettings } from '../settings/NavSettings'
 import { ColourSettings } from '../settings/ColourSettings'
+import { LooksSettings } from '../settings/Looks'
 import { HolidaySettings } from '../settings/HolidaySettings'
 import { CalendarLinks } from '../settings/CalendarLinks'
 import { TransferSettings } from '../settings/TransferSettings'
@@ -148,6 +149,7 @@ function ProfilePanel() {
       ))}
 
       <PlanningSettings />
+      <LooksSettings />
       <ColourSettings />
       <HolidaySettings />
       <CalendarLinks />
