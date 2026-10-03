@@ -120,7 +120,7 @@ for (const colorScheme of ['light', 'dark']) {
     is('the view shows as a table', await p.locator(`#view-${saved?.id} .pt-table`).count(), 1)
     await p.locator(`#view-${saved?.id} .mm-button`).click()
     await p.click('.mm-list button:has-text("Delete")')
-    await p.waitForTimeout(600)
+    await p.locator(`#view-${saved?.id}`).waitFor({ state: 'detached', timeout: 5000 }).catch(() => {})
     is('deleted', await p.locator(`#view-${saved?.id}`).count(), 0)
     await p.click('.undo-bar .undo-btn')
     await p.waitForSelector(`#view-${saved?.id}`, { timeout: 10000 })
