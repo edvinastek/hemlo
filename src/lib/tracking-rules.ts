@@ -146,7 +146,7 @@ export function nextSortOrder(rows: { sort_order: number }[]): number {
 /** Supplements grouped by slot in the order of the day, each group sorted by
  *  its sort order then name. Rows without a slot go last under "Any time".
  *  Empty groups are left out. */
-export function groupBySlot<T extends { time_slot: SupplementSlot | null; sort_order: number; name: string }>(
+export function groupBySlot<T extends { time_slot: string | null; sort_order: number; name: string }>(
   rows: T[],
 ): { slot: SupplementSlot | null; label: string; rows: T[] }[] {
   const order: (SupplementSlot | null)[] = [...SLOTS, null]

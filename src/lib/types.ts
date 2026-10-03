@@ -287,6 +287,12 @@ export interface Habit {
   /** A count to reach each time it is due ("8" glasses), and its unit. */
   target?: number | null
   unit?: string | null
+  /** A colour of the person's choosing (030), '#rrggbb', and a mark of one
+   *  or two characters shown in it. */
+  colour?: string | null
+  mark?: string | null
+  /** Part of the day when it has no clock time (030). */
+  day_part?: 'morning' | 'afternoon' | 'evening' | null
   sort_order: number
   active: boolean
   updated_at: string
@@ -350,6 +356,9 @@ export interface Chore {
   rotation: 'none' | 'each_time' | 'each_week' | 'least_recent'
   note: string | null
   paused: boolean
+  /** A pause between two dates, for a holiday (030). */
+  paused_from?: string | null
+  paused_until?: string | null
   sort_order: number
   created_at?: string
   updated_at: string
@@ -370,7 +379,14 @@ export interface Supplement {
   profile_id: UUID
   name: string
   dose_text: string | null
-  time_slot: 'morning' | 'midday' | 'evening' | null
+  /** One of the person's slots (030: their own, kept in the supplements
+   *  module's settings; 'morning', 'midday' and 'evening' by default). */
+  time_slot: string | null
+  /** Its own schedule (030); none means every day. */
+  rule?: import('./schedule-rules').RuleKind | null
+  rule_config?: import('./schedule-rules').RuleConfig
+  start_date?: string | null
+  end_date?: string | null
   active: boolean
   sort_order: number
   updated_at: string
