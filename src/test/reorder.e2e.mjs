@@ -128,7 +128,8 @@ is('an untimed task never gains a time by dragging', (await got('Reorder z')).t,
 
 // 5. The ⋮ menu, for anyone who does not drag.
 await item('Reorder x').locator('.row-more').click()
-is('the menu has Move up and Move down', await p.locator('.move-menu [role=menuitem]').count(), 2)
+is('the menu has Move up and Move down', await p.locator('.move-menu [role=menuitem]', { hasText: /^Move (up|down)$/ }).count(), 2)
+is('and the row\'s other actions', await p.locator('.move-menu [role=menuitem]', { hasText: /^(Open here|Edit|Copy to…|Duplicate|Move to…|Skip|Open note as page|Delete)$/ }).count(), 8)
 await p.click('.move-menu button:has-text("Move down")')
 await settle(p, 1200)
 is('Move down moved it down one', (await order()).filter((t) => /Reorder [xyz]$/.test(t)).join(', '),
@@ -136,6 +137,39 @@ is('Move down moved it down one', (await order()).filter((t) => /Reorder [xyz]$/
 const off = await p.evaluate(() => [...document.querySelectorAll('.drag-item *')]
   .filter((e) => e.getBoundingClientRect().right > document.documentElement.clientWidth + 1).length)
 is('nothing on the rows runs off a 360 px screen', off, 0)
+
+// 5b. The two-stage hold (TOD-10): held still for the long time, the row
+//     opens in place instead of dragging; a tap on its name closes it.
+{
+  const loc = item('Reorder y')
+  await loc.scrollIntoViewIfNeeded()
+  const box = await loc.boundingBox()
+  await p.mouse.move(box.x + 120, box.y + box.height / 2)
+  await p.mouse.down()
+  await p.waitForTimeout(1000)
+  await p.mouse.up()
+  await p.waitForTimeout(300)
+  is('a long still hold opens the row in place', await loc.locator('.ir.is-open').count(), 1)
+  is('with its quick actions', await loc.locator('.ir-actions button').count() >= 7, true)
+  is('and nothing moved', (await order()).filter((t) => /Reorder [xyz]$/.test(t)).join(', '), 'Reorder z, Reorder y, Reorder x')
+  await loc.locator('.row-name button').click()
+  is('a tap on the name closes it', await p.locator('.ir.is-open').count(), 0)
+  // Held between the two times and let go: nothing at all, not even the sheet.
+  await p.mouse.move(box.x + 120, box.y + box.height / 2)
+  await p.mouse.down()
+  await p.waitForTimeout(500)
+  await p.mouse.up()
+  await p.waitForTimeout(300)
+  is('let go between the stages: nothing opens', await p.locator('.bottom-sheet, .ir.is-open').count(), 0)
+}
+
+// 5c. A drag offers Undo, which puts the order back.
+await holdOnto(item('Reorder x'), item('Reorder z'))
+await settle(p, 1200)
+is('the drag moved x to the top', (await order()).filter((t) => /Reorder [xyz]$/.test(t))[0], 'Reorder x')
+await p.click('.undo-bar .undo-btn')
+await settle(p, 1200)
+is('Undo puts it back', (await order()).filter((t) => /Reorder [xyz]$/.test(t)).join(', '), 'Reorder z, Reorder y, Reorder x')
 
 // 6. A finger: hold, then drag sideways and down. The page must not swipe.
 {

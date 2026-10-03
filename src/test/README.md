@@ -36,7 +36,9 @@ Types, then every check that needs nothing but Node. CI runs the same command.
   side by side on a wide screen).
 - `reorder` — moving tasks by hand: a drag on Today stays among its kind (timed or not), timed tasks swap
   times with the one they land on, untimed ones take new order numbers; the warnings asked first (locked,
-  fixed, locked work hours, a new clash); swapping two days on Plan's week and moving one task to a day.
+  fixed, locked work hours, a new clash); swapping two days on Plan's week and moving one task to a day; push 15/30/60
+  going past midnight onto the next day (never round the clock), flagging on the third push, and an untimed task
+  asking for a time (with one offered: now plus the push, rounded up to five minutes).
 - `holidays` — public holidays: the country list matches date-holidays, only public holidays come through
   (King's Day on 27 April 2026 in NL, Unity Day on 3 October in DE), several-day holidays, the years worked
   out, colours picked without clashing, adding and removing countries, several countries on one day, the names.
@@ -141,6 +143,17 @@ Types, then every check that needs nothing but Node. CI runs the same command.
 - `tasksheet` — the task sheet's pure parts (task-sheet-rules.ts): Duplicate keeps what was set and starts fresh;
   Save as template keeps title, length, section, lock, note and repeat; a new task from a template, its note
   template filled for the day.
+- `dayitems` — one day's items from every module: switched-off modules and the person's "Show on Today" respected,
+  own and followed events in local time (an event at 00:30 on the right day), all-day and long events at the top, a
+  count habit's count and a checklist habit's ticks from the newest log, supplement slots as one item in slot order;
+  the timeline and the morning / afternoon / evening layout (slots in their part); where the "now" line goes; "Mark it
+  done?" only after the last tick; a slot's one tick; carry-over and the Inbox.
+- `todayprefs` — Today's own choices kept in the core module's settings, read back clean (layout, the + menu's counts,
+  hidden entries and own order); the + menu: six at most, most used first, the person's own order winning, hidden
+  entries listed apart and never lost, counts halved now and then.
+- `hold` — the two-stage hold: a tap opens, moving before the short hold is a scroll (never a drag), the short hold
+  arms the drag and a move then drags, holding still to the long hold expands, letting go in between does nothing,
+  rows that cannot be dragged only expand; when the clock next matters; the hold times kept sane.
 
 ## Browser checks
 
@@ -172,7 +185,8 @@ to the test accounts, because they run against the live project.
 - `tour` — walks every screen and reports what rendered.
 - `widget` — the app’s side of the Android widget, with a stand-in for the native bridge:
   what it is sent, ticks applied while open and after a restart, cleared on sign-out.
-- `tasksheet` — a task with a time range, a checklist note ticked on its page, the chip on Today.
+- `tasksheet` — a task with a time range (added through the round + menu's "Task"), a checklist note ticked on its
+  page, the chip on Today.
 - `repeat` — a task repeating on days picked in the sheet's calendar (Clear, the count, one day past the eight
   weeks the series fills), what Postgres holds, "every few days", Plan's Year as scrolling months with the
   far day marked as a planned repeat and opening its week, and the header's calendar reaching three years
@@ -181,8 +195,9 @@ to the test accounts, because they run against the live project.
   sending it back; a task on the Week view opened, copied to the next day with ticks cleared (Postgres holds
   two independent tasks), Back closing the sheet, and a three-day week.
 - `reorder` — at 360 px: hold and drag on Today (timed tasks swap times, untimed ones slide into place), the sheet
-  that asks before a clash, Move up and Move down in the ⋮ menu, taps still tick and open, a held drag never
-  swipes the page; on Plan's week, two days swapped (a locked task stays) and one task dragged onto a day.
+  that asks before a clash, Move up and Move down among the row's actions in the ⋮ menu, taps still tick and open,
+  the two-stage hold (held still for the long time the row opens in place with its actions and nothing moves; let go
+  between the stages nothing happens), Undo after a drag putting the order back, a held drag never swipes the page; on Plan's week, two days swapped (a locked task stays) and one task dragged onto a day.
 - `stock` — the cupboard: add by search, adjust, remove; the trip less stock; ingredients
   taken out when a meal is eaten and put back when it is unticked.
 - `daytabs` — Today's tabs follow the day: none on a Minimal planner, Habits once a habit is due, no

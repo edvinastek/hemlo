@@ -1,0 +1,130 @@
+/* A row on the day's rail (ItemRow.tsx), for every kind of item, and the
+   rail's own lines: group headings, the "now" line, the layout switch.
+   Tokens only, so light and dark both work; no shadows. Serif for what the
+   person wrote (names, notes), sans for what the app says. */
+
+/* The row keeps the planner's look (app.css .row), with its head as a grid. */
+.ir { display: block; }
+.ir-head { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: var(--space-2); }
+.ir-main { min-width: 0; }
+.ir .row-name { overflow-wrap: anywhere; }
+.ir .row-name button { padding: 2px 0; min-height: 32px; }
+
+/* Ready to drag after the short hold: a quiet lift, before any move. */
+.drag-item.is-armed > .row { background: var(--e-tint); border-radius: var(--radius-md); }
+@media (prefers-reduced-motion: no-preference) {
+  .drag-item.is-armed > .row { transition: background 120ms ease-out; }
+}
+
+/* The tick: 22 px to look at, 40 px to press (negative margins keep the
+   row its height). */
+.ir .tick { position: relative; }
+.ir .tick::after { content: ""; position: absolute; inset: -9px; }
+.tick.is-partly { border-color: var(--e-done); }
+.tick.is-partly::before { content: ""; width: 8px; height: 2px; background: var(--e-done); border-radius: 1px; }
+
+/* Push buttons: 28 px tall targets. */
+.ir .push button { min-width: 28px; min-height: 28px; }
+
+/* Skipped (dropped): kept on the day, quieter, not struck through. */
+.row.is-skipped .row-name { color: var(--e-ink-soft); }
+.row.is-skipped .row-dot { background: var(--e-rule); }
+
+/* A chore waiting a while: a soft word, never an alarm (B's wording). */
+.row.is-waiting .row-dot { background: var(--e-warn); }
+
+/* A read-only event (followed calendar): the mark is a short upright bar. */
+.ir-event.is-readonly .row-dot { width: 3px; height: 12px; border-radius: 1px; top: 16px; left: -8px; background: var(--row-mod, var(--e-rail)); }
+.ir-event.is-readonly.has-mod { border-left: 0; padding-left: 0; }
+.rail.is-coloured .ir-event.is-readonly { padding-left: 12px; }
+.ir-event .row-name { font-style: normal; }
+
+/* How due a flexible chore is. */
+.ir-due { display: block; height: 3px; margin-top: 4px; max-width: 120px; background: var(--e-tint); border-radius: 2px; overflow: hidden; }
+.ir-due i { display: block; height: 100%; background: var(--e-ink-soft); }
+
+/* A count habit: − 3/8 +. */
+.ir-count { display: flex; align-items: center; gap: 2px; font-family: var(--font-sans); font-size: 12px; color: var(--e-ink-soft); }
+.ir-count button {
+  width: 30px; height: 30px; border-radius: var(--radius-pill); background: var(--e-tint);
+  color: var(--e-ink); font-size: 16px; line-height: 1; display: grid; place-items: center;
+}
+.ir-count button:disabled { opacity: 0.4; }
+.ir-count span { min-width: 36px; text-align: center; white-space: nowrap; }
+.ir-count .is-met { color: var(--e-done); font-weight: 600; }
+
+/* ---------- open in place ---------------------------------------------------- */
+/* The head stays in sight while the open row's content scrolls (TOD-11). */
+.ir.is-open { background: var(--e-paper); }
+.ir.is-open .ir-head {
+  position: sticky; top: 0; z-index: 2; background: var(--e-paper);
+  padding: 2px 0; border-bottom: 1px solid var(--e-rule);
+}
+.ir.is-open .row-name button { font-weight: 600; }
+.drag-item.is-expanded { z-index: 2; }
+
+.ir-body { padding: var(--space-2) 0 var(--space-3); display: grid; gap: var(--space-2); min-width: 0; }
+.ir-facts { margin: 0; font-family: var(--font-sans); font-size: 12px; color: var(--e-ink-soft); }
+.ir-empty { margin: 0; font-family: var(--font-sans); font-size: 13px; color: var(--e-ink-soft); }
+.ir-asks { margin: 0; font-family: var(--font-sans); font-size: 12px; color: var(--e-ink-soft); border-left: 2px solid var(--e-accent); padding-left: var(--space-2); }
+
+.ir-note { font-family: var(--font-serif); font-size: 15px; line-height: 1.45; color: var(--e-ink); min-width: 0; overflow-wrap: anywhere; }
+.ir-note p { margin: 0 0 var(--space-1); }
+.ir-h { font-weight: 600; }
+.ir-h1 { font-size: 17px; }
+.ir-h2 { font-size: 16px; }
+.ir-h3 { font-size: 15px; color: var(--e-ink-soft); }
+.ir-list { list-style: none; margin: 0 0 var(--space-1); padding: 0; }
+.ir-item { display: flex; gap: var(--space-2); align-items: flex-start; }
+.ir-bullet { width: 24px; text-align: center; color: var(--e-ink-soft); flex: none; }
+/* A whole line to press, 40 px tall. */
+.ir-check { display: flex; align-items: flex-start; gap: var(--space-2); min-height: 40px; padding: 8px 0; cursor: pointer; flex: 1; min-width: 0; }
+.ir-check input { width: 20px; height: 20px; margin: 1px 2px 0; flex: none; accent-color: var(--e-done); }
+.ir-item.is-done .ir-check > span { color: var(--e-ink-soft); text-decoration: line-through; }
+.ir-parts { font-family: var(--font-serif); font-size: 15px; }
+.ir-dose { font-family: var(--font-sans); font-size: 12px; color: var(--e-ink-soft); }
+
+.ir-amount { display: flex; align-items: center; gap: var(--space-2); font-family: var(--font-sans); font-size: 13px; color: var(--e-ink-soft); flex-wrap: wrap; }
+.ir-amount input {
+  width: 80px; min-height: 40px; padding: 6px 8px; box-sizing: border-box; font: inherit; font-size: 15px;
+  border: 1px solid var(--e-field-line); border-radius: var(--radius-md); background: var(--e-field); color: var(--e-ink);
+}
+
+/* Quick actions: wrap onto as many lines as a 360 px phone needs. */
+.ir-actions { display: flex; flex-wrap: wrap; gap: var(--space-2); }
+.ir-act { min-height: 40px; padding: 6px 12px; font-size: 13px; color: var(--e-ink); background: var(--e-paper); }
+.ir-act.is-danger, .move-menu button.is-danger { color: var(--e-warn); }
+
+/* ---------- the rail's own lines ------------------------------------------- */
+/* A group heading: "All day", "Morning", "Any time". Sits on the rail. */
+.rail-group {
+  margin: 0; padding: var(--space-4) var(--space-4) var(--space-1) 0;
+  font-family: var(--font-sans); font-size: 12px; font-weight: 500; letter-spacing: 0.04em;
+  text-transform: uppercase; color: var(--e-ink-soft);
+}
+.drag-list > .rail-group:first-of-type { padding-top: var(--space-2); }
+
+/* Now: an accent line across the rail with the time in the margin. */
+.rail-now { position: relative; height: 0; margin: 0 var(--space-4) 0 0; border-top: 1px solid var(--e-accent); }
+.rail-now::before {
+  content: ""; position: absolute; left: -11px; top: -4px; width: 7px; height: 7px;
+  border-radius: var(--radius-pill); background: var(--e-accent);
+}
+.rail-now span {
+  position: absolute; left: -64px; top: -8px; width: 44px; text-align: right;
+  font-family: var(--font-sans); font-size: 11px; color: var(--e-accent);
+}
+
+/* The layout switch above the rail, and the rail's empty state. */
+.rail-bar {
+  display: flex; align-items: center; justify-content: space-between; gap: var(--space-2);
+  padding: var(--space-2) var(--space-4) 0; flex-wrap: wrap;
+}
+.rail-bar-title { font-family: var(--font-sans); font-size: 12px; color: var(--e-ink-soft); }
+.seg { display: inline-flex; border: 1px solid var(--e-rule); border-radius: var(--radius-pill); overflow: hidden; }
+.seg button {
+  font-family: var(--font-sans); font-size: 12px; color: var(--e-ink-soft);
+  padding: 6px 10px; min-height: 32px;
+}
+.seg button[aria-pressed="true"] { background: var(--e-tint); color: var(--e-ink); font-weight: 600; }
+.rail-empty { padding: var(--space-4) var(--space-4) var(--space-4) 0; margin: 0; }

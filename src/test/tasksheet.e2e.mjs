@@ -31,8 +31,14 @@ const offScreen = () => p.evaluate(() => {
 })
 const sheetHeight = () => p.locator('.bottom-sheet .form-grid').evaluate((el) => Math.round(el.getBoundingClientRect().height))
 
+// The round + opens a short menu (GEN-50); "Task" adds a task on the day.
+const addTask = async () => {
+  await p.click('.fab')
+  await p.locator('.add-pick', { has: p.locator('.add-label', { hasText: /^Task$/ }) }).click()
+}
+
 // 1. A time range: half ten at night until quarter past midnight.
-await p.click('.fab')
+await addTask()
 await p.fill('.bottom-sheet input[placeholder="Mobility"]', 'Sheet late shift')
 await p.fill('.bottom-sheet input[type=time]', '22:30')
 const before = await sheetHeight()
@@ -68,7 +74,7 @@ is('unticking gives the minutes back to edit', await p.locator('.bottom-sheet la
 await p.click('.bottom-sheet button:has-text("Cancel")')
 
 // 2. A checklist note, written with the toolbar and Enter.
-await p.click('.fab')
+await addTask()
 await p.fill('.bottom-sheet input[placeholder="Mobility"]', 'Sheet trip')
 await p.fill('.bottom-sheet input[type=time]', '09:00')
 await p.click('.bottom-sheet textarea[aria-label="Note"]')
@@ -104,7 +110,7 @@ is('the tick was saved to the note on the server', JSON.stringify(r.notes), JSON
 is('Today’s chip moved on', (await row.locator('.row-chip').textContent())?.trim(), '1/3')
 
 // 4. A note with no checklist shows only a small mark, and rows keep their height.
-await p.click('.fab')
+await addTask()
 await p.fill('.bottom-sheet input[placeholder="Mobility"]', 'Sheet plain')
 await p.fill('.bottom-sheet input[type=time]', '09:05')
 await p.fill('.bottom-sheet textarea[aria-label="Note"]', 'Ring before leaving.')
