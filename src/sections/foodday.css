@@ -1,0 +1,66 @@
+/* Food's Day tab (FoodDay.tsx): meals as cards with their items. One column
+   at 360 px; the name and meta shrink and wrap, the ticks and buttons keep
+   their 44–48 px. Tokens only, so light and dark both follow. */
+
+.fd-bar { display: flex; flex-wrap: wrap; gap: var(--space-2); padding: var(--space-2) var(--space-4) var(--space-3); }
+.fd-bar .btn { min-height: 44px; }
+.fd-addbtn { font-weight: 600; }
+
+.fd-empty { padding: var(--space-4); border-bottom: 1px solid var(--e-rule); }
+.fd-empty p { margin: 0 0 var(--space-2); font-family: var(--font-sans); font-size: 15px; color: var(--e-ink); }
+.fd-empty .row-meta { font-size: 13px; color: var(--e-ink-soft); }
+
+.fd-meal { display: grid; gap: var(--space-2); padding: var(--space-3) var(--space-4); border-bottom: 1px solid var(--e-rule); min-width: 0; }
+.fd-meal.is-skipped .fd-name { color: var(--e-ink-soft); text-decoration: line-through; }
+.fd-head { display: flex; align-items: center; gap: var(--space-2); min-width: 0; }
+.fd-name {
+  flex: 1; min-width: 0; margin: 0; display: flex; align-items: baseline; flex-wrap: wrap; gap: 0 var(--space-2);
+  font-family: var(--font-sans); font-size: 15px; font-weight: 600; color: var(--e-ink); overflow-wrap: anywhere;
+}
+.fd-time { font-weight: 400; font-size: 13px; color: var(--e-ink-soft); font-variant-numeric: tabular-nums; }
+.fd-kcal { font-family: var(--font-sans); font-size: 13px; color: var(--e-ink-soft); white-space: nowrap; }
+.fd-tick { display: inline-flex; align-items: center; justify-content: center; gap: 4px; min-width: 44px; min-height: 44px;
+  font-family: var(--font-sans); font-size: 12px; color: var(--e-ink-soft); cursor: pointer; }
+.fd-tick input { width: 20px; height: 20px; margin: 0; }
+.fd-icon {
+  flex: none; min-width: 44px; min-height: 44px; border-radius: var(--radius-md);
+  font-family: var(--font-sans); font-size: 20px; line-height: 1; color: var(--e-ink-soft);
+}
+.fd-icon:hover, .fd-icon[aria-expanded="true"] { background: var(--e-tint); color: var(--e-ink); }
+.fd-icon:focus-visible, .fd-item-main:focus-visible, .fd-nothing:focus-visible { outline: 2px solid var(--e-accent); outline-offset: 1px; }
+
+.fd-menu, .fd-panel { display: flex; flex-wrap: wrap; gap: var(--space-2); align-items: center; }
+.fd-menu .btn, .fd-panel .btn { min-height: 44px; }
+.fd-danger { color: var(--e-warn); }
+.fd-timefield { display: grid; gap: 4px; font-family: var(--font-sans); font-size: 12px; color: var(--e-ink-soft); }
+.fd-timefield input { min-height: 44px; padding: 4px 8px; font-family: var(--font-sans); font-size: 15px; }
+.fd-namefield { flex: 1 1 160px; min-width: 0; min-height: 44px; padding: 6px 10px; font-family: var(--font-serif); font-size: 16px; }
+.fd-said, .fd-skipped { margin: 0; font-family: var(--font-sans); font-size: 13px; color: var(--e-ink-soft); }
+.fd-nothing { justify-self: start; min-height: 44px; text-align: left; font-family: var(--font-sans); font-size: 14px; color: var(--e-accent); }
+
+.fd-items { list-style: none; margin: 0; padding: 0; display: grid; }
+.fd-item + .fd-item { border-top: 1px solid var(--e-rule); }
+.fd-item-row { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: var(--space-1); }
+.fd-item-main { display: grid; min-width: 0; min-height: 48px; padding: var(--space-1) 0; text-align: left; color: var(--e-ink); }
+.fd-item-name { font-family: var(--font-serif); font-size: 16px; overflow-wrap: anywhere; display: inline-flex; flex-wrap: wrap; gap: var(--space-2); align-items: baseline; }
+.fd-item-meta { font-family: var(--font-sans); font-size: 12px; color: var(--e-ink-soft); overflow-wrap: anywhere; }
+.fd-item.is-skipped .fd-item-name { color: var(--e-ink-soft); }
+.fd-item > .fd-menu, .fd-item > .fd-edit { padding: 0 0 var(--space-2) 48px; }
+
+.fd-edit { display: grid; gap: var(--space-2); }
+.fd-amount { display: flex; align-items: stretch; gap: var(--space-2); min-width: 0; }
+.fd-amount .amt-input { flex: 1 1 64px; width: auto; min-width: 56px; min-height: 44px; padding: 6px 10px; font-size: 16px; }
+.fd-amount .amt-units { min-height: 44px; overflow-x: auto; }
+.fd-preview { font-family: var(--font-sans); font-size: 12px; color: var(--e-ink-soft); }
+.fd-edit-actions { display: flex; flex-wrap: wrap; gap: var(--space-2); justify-content: flex-end; }
+.fd-edit-actions .btn { min-height: 44px; }
+.fd-edit > .fd-danger { justify-self: start; min-height: 44px; }
+
+.fd-copy { display: grid; padding: 0 var(--space-4) var(--space-3); }
+.fd-meal .fd-copy { padding: 0; }
+.fd-copy .row-meta { margin: 0; font-size: 13px; }
+.fd-days { display: flex; flex-wrap: wrap; gap: var(--space-2); }
+
+.fd-suggest { justify-self: start; min-height: 40px; text-align: left; font-family: var(--font-sans); font-size: 13px; color: var(--e-accent); }
+.fd-foot { padding: var(--space-3) var(--space-4); margin: 0; font-family: var(--font-sans); font-size: 12px; color: var(--e-ink-soft); }
+

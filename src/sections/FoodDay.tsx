@@ -23,6 +23,7 @@ import { QuickNumbers } from '../ui/QuickNumbers'
 import { offerUndo } from '../ui/Undo'
 import { useBuiltinRuleOn } from '../modules/rule-switch'
 import type { Food, MealPlanSlot, Recipe, RecipeLine } from '../lib/types'
+import '../ui/addfood.css'
 import './foodday.css'
 
 /** Food's Day tab (MEAL-01 to MEAL-20): the day's food as meals, what it
