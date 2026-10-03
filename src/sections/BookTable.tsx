@@ -10,9 +10,11 @@ import {
 } from '../lib/books-rules'
 import { search as find } from '../lib/search-rules'
 import { DataTable } from '../ui/DataTable'
-import { BookBar } from '../ui/BookBar'
+import { BookBar, MINE } from '../ui/BookBar'
 import { SelectBar } from '../ui/SelectBar'
-import { ExportLink } from '../ui/ExportLink'
+import { useExport } from '../ui/ExportLink'
+import type { MenuItem } from '../ui/MoreMenu'
+import { FoodPageMenu } from './FoodMenu'
 import { useLongPress } from '../ui/useLongPress'
 import type { FieldDef } from '../modules/types'
 import type { Food, RecipeLine } from '../lib/types'
@@ -23,13 +25,16 @@ type Status = { text: string; bad?: boolean } | null
 
 /** The Recipes or Foods table with its books and select mode.
  *
- *  Books: a row of chips above the table ("All", each book, "+ New book");
- *  picking one shows only its rows. Select: a tick box on every row (or hold
- *  a row to start with it ticked), and a bar at the bottom to put the ticked
- *  rows in a book, take them out, copy them, export them or delete the ones
- *  that are the person's own. Shared catalogue rows are never deleted. */
+ *  Books: a row of chips above the table ("All", "Mine", each book); picking
+ *  one shows only its rows. Select: hold a row to start with it ticked (or
+ *  Select in the page's ⋮), then a tick box on every row and a bar at the
+ *  bottom to put the ticked rows in a book, take them out, copy them, export
+ *  them or delete the ones that are the person's own. Shared catalogue rows
+ *  are never deleted. The tab's page ⋮ is drawn here (v17): the tab's own
+ *  items first, then New book, Edit book and Select. */
 export function BookTable<T extends Row>({
-  kind, rows, fields, priority, emptyNote, head, search = '', limit, lines = [], foods, onOpen, openLabel, extra, order, more, actions,
+  kind, rows, fields, priority, emptyNote, head, search = '', limit, lines = [], foods, onOpen, openLabel, extra, order, after, actions,
+  menu = [], menuSheets,
 }: {
   kind: BookKind
   /** Every row that still exists, in the table's order. */
@@ -50,8 +55,13 @@ export function BookTable<T extends Row>({
   /** An order the person chose (kcal, most cooked); without one, the one
    *  search's own: best match first, else own first, then A to Z. */
   order?: (a: T, b: T) => number
-  /** Shown under the table, before "Show all" (the catalogue's attribution). */
-  more?: ReactNode
+  /** Shown under the table, before "Show all", knowing how many rows the
+   *  search found (the Foods tab's "Find in stores"). */
+  after?: (matched: number) => ReactNode
+  /** The tab's own items for the page's ⋮ (sort, import, export…), and the
+   *  sheets they open. */
+  menu?: (MenuItem | null | false)[]
+  menuSheets?: ReactNode
   /** More buttons for the select bar, for the rows ticked ("Add to shopping
    *  list"); `say` puts a line in the bar. */
   actions?: (picked: T[], say: (text: string, bad?: boolean) => void) => ReactNode
@@ -70,10 +80,13 @@ export function BookTable<T extends Row>({
   const [selected, setSelected] = useState<Set<string>>(() => new Set())
   const [status, setStatus] = useState<Status>(null)
   const [sheet, setSheet] = useState<'add' | 'delete' | null>(null)
+  const [bookSheet, setBookSheet] = useState<'new' | 'edit' | null>(null)
   const plural = kind === 'recipe' ? 'recipes' : 'foods'
 
   const ids = useMemo(() => new Set(rows.map((r) => r.id)), [rows])
   const book = books.find((b) => b.id === active) ?? null
+  const mineCount = useMemo(() => (userId ? rows.filter((r) => r.owner_id === userId).length : 0), [rows, userId])
+  const onlyMine = active === MINE
   const counts = new Map(books.map((b) => [b.id, liveCount(b, ids)]))
 
   const [showAll, setShowAll] = useState(false)
@@ -81,11 +94,11 @@ export function BookTable<T extends Row>({
   // ignored, in the name or the extra text; names starting with the first
   // word first, the person's own first, then plainer names.
   const matched = useMemo(() => {
-    const inside = inBook(rows, book)
+    const inside = onlyMine ? rows.filter((r) => !!userId && r.owner_id === userId) : inBook(rows, book)
     const items = inside.map((r) => ({ row: r, name: String(r.name ?? ''), extra: extra?.(r), mine: !!userId && r.owner_id === userId }))
     const hits = find(items, search).map((x) => x.row)
     return order ? [...hits].sort(order) : hits
-  }, [rows, book, search, extra, order, userId])
+  }, [rows, book, onlyMine, search, extra, order, userId])
   const capped = !!limit && !showAll && !search.trim() && matched.length > limit
   const shown = capped ? matched.slice(0, limit) : matched
   const picked = useMemo(() => chosen(rows, selected), [rows, selected])
@@ -190,12 +203,14 @@ export function BookTable<T extends Row>({
     label: `${book ? book.name : kind === 'recipe' ? 'Recipes' : 'Foods'} (selected)`,
   }), [picked, fields, book, kind])
 
+  const exportPicked = useExport(exportSource)
   const allShown = shown.length > 0 && shown.every((r) => selected.has(r.id))
   const none = picked.length === 0
 
   return (
     <>
-      <BookBar kind={kind} books={books} counts={counts} active={book?.id ?? null} onPick={setActive}
+      <BookBar kind={kind} books={books} counts={counts} active={onlyMine ? MINE : book?.id ?? null} onPick={setActive}
+        mine={mineCount} total={rows.length} sheet={bookSheet} onSheet={setBookSheet}
         onCreate={async (name, colour) => {
           const id = crypto.randomUUID()
           const error = await updateBooks((current) => addBook(current, id, name, kind, colour ?? undefined))
@@ -207,11 +222,13 @@ export function BookTable<T extends Row>({
         onDelete={(id) => {
           void updateBooks((current) => ({ books: deleteBook(current, id) }))
           setActive(null)
-        }}
-        end={!selecting && (
-          <button type="button" className="btn bk-select" disabled={rows.length === 0}
-            onClick={() => { setSelecting(true); setStatus(null) }}>Select</button>
-        )} />
+        }} />
+      <FoodPageMenu items={[
+        ...menu,
+        { label: 'New book…', onSelect: () => setBookSheet('new') },
+        book && { label: `Edit book “${book.name}”…`, onSelect: () => setBookSheet('edit') },
+        !selecting && { label: 'Select', disabled: rows.length === 0, onSelect: () => { setSelecting(true); setStatus(null) } },
+      ]} sheets={menuSheets} />
 
       <div className="totals">{head}</div>
 
@@ -221,7 +238,7 @@ export function BookTable<T extends Row>({
         priority={priority}
         rows={shown as never}
         emptyNote={book && !search.trim()
-          ? `Nothing in ${book.name} yet. Choose All, tap Select, tick some ${plural} and use Add to book.`
+          ? `Nothing in ${book.name} yet. Hold one of the ${plural} under All to add it.`
           : emptyNote}
         selected={selecting ? selected : undefined}
         onSelect={selecting ? (row) => tick(row as T, !selected.has((row as T).id)) : undefined}
@@ -231,7 +248,7 @@ export function BookTable<T extends Row>({
         openLabel={openLabel ? (row) => openLabel(row as T) : undefined}
       />
       </div>
-      {more}
+      {after?.(matched.length)}
       {capped && (
         <div className="bk-more">
           <span className="row-meta">Showing {shown.length} of {matched.length}. Type to search them all.</span>
@@ -248,7 +265,7 @@ export function BookTable<T extends Row>({
             ? <button type="button" className="btn" disabled={none} onClick={copyIngredients}>Copy ingredients</button>
             : <button type="button" className="btn" disabled={none} onClick={() => void copy(namesText(picked), countOf(picked.length, 'food'))}>Copy names</button>}
           {actions?.(picked, (text, bad) => setStatus({ text, bad }))}
-          {!none && <span className="sb-export"><ExportLink source={exportSource} /></span>}
+          {!none && exportPicked.item && <button type="button" className="btn" onClick={exportPicked.item.onSelect}>Export…</button>}
           <button type="button" className="btn sb-delete" disabled={none} onClick={() => setSheet('delete')}>Delete…</button>
         </SelectBar>
       )}
@@ -281,6 +298,8 @@ export function BookTable<T extends Row>({
             return null
           }} />
       )}
+
+      {exportPicked.sheet}
 
       {sheet === 'delete' && (
         <DeleteSheet kind={kind} rows={picked} userId={userId} onClose={() => setSheet(null)} onDelete={remove} />

@@ -1,51 +1,64 @@
-import { useEffect, useState, type CSSProperties, type FormEvent, type ReactNode } from 'react'
+import { useEffect, useState, type CSSProperties, type FormEvent } from 'react'
 import { SWATCHES } from '../lib/colours-rules'
 import { MAX_BOOKS, MAX_NAME, type Book, type BookKind } from '../lib/books-rules'
 import './books.css'
 
-/** The row of books above the Recipes or Foods table: "All", each book, and
- *  "+ New book". Picking a book shows only its rows. The book being shown
- *  can be renamed, coloured or deleted from "Edit book". */
-export function BookBar({ kind, books, counts, active, onPick, onCreate, onRename, onRecolour, onDelete, end }: {
+/** "Mine" in the row of books: the person's own recipes or foods, the list
+ *  that sat above the Recipes table until v16. Not a stored book. */
+export const MINE = '\u0000mine'
+
+/** The row of books above the Recipes or Foods table: "All", "Mine" (when
+ *  the list holds both one's own and shared ones) and each book. Picking one
+ *  shows only its rows. Making a book and changing the one shown are in the
+ *  page's ⋮ (v17), which opens the sheets drawn here; with no book and
+ *  nothing to tell apart, the row is not drawn at all. */
+export function BookBar({ kind, books, counts, active, onPick, mine = 0, total = 0, sheet, onSheet, onCreate, onRename, onRecolour, onDelete }: {
   kind: BookKind
   books: Book[]
   /** How many rows each book holds that still exist, by book id. */
   counts: Map<string, number>
+  /** A book's id, MINE, or null for all. */
   active: string | null
   onPick: (id: string | null) => void
+  /** How many of the rows are the person's own, and how many there are. */
+  mine?: number
+  total?: number
+  /** The sheet open: a new book, or the one shown being changed. */
+  sheet: 'new' | 'edit' | null
+  onSheet: (s: 'new' | 'edit' | null) => void
   onCreate: (name: string, colour: string | null) => Promise<string | null>
   onRename: (id: string, name: string) => Promise<string | null>
   onRecolour: (id: string, colour: string | null) => void
   onDelete: (id: string) => void
-  /** Kept at the end of the row, after "Edit book" (the Select button). */
-  end?: ReactNode
 }) {
-  const [sheet, setSheet] = useState<'new' | 'edit' | null>(null)
   const current = books.find((b) => b.id === active) ?? null
   const noun = kind === 'recipe' ? 'Recipe' : 'Food'
+  const showMine = mine > 0 && mine < total
+  const setSheet = onSheet
 
   return (
     <>
-      <div className="bk-row">
-        <div className="bk-bar" role="group" aria-label={`${noun} books`}>
-          <button type="button" className="bk-chip" aria-pressed={!current} onClick={() => onPick(null)}>All</button>
-          {books.map((b) => (
-            <button key={b.id} type="button" className="bk-chip" aria-pressed={b.id === active} onClick={() => onPick(b.id)}
-              style={b.colour ? ({ '--bk': b.colour } as CSSProperties) : undefined}>
-              {b.colour && <i className="bk-dot" aria-hidden="true" />}
-              <span className="bk-name">{b.name}</span>
-              <span className="bk-count">{counts.get(b.id) ?? 0}</span>
-            </button>
-          ))}
-          <button type="button" className="bk-chip bk-new" onClick={() => setSheet('new')}>+ New book</button>
+      {(books.length > 0 || showMine) && (
+        <div className="bk-row">
+          <div className="bk-bar" role="group" aria-label={`${noun} books`}>
+            <button type="button" className="bk-chip" aria-pressed={active === null} onClick={() => onPick(null)}>All</button>
+            {(showMine || active === MINE) && (
+              <button type="button" className="bk-chip" aria-pressed={active === MINE} onClick={() => onPick(MINE)}>
+                <span className="bk-name">Mine</span>
+                <span className="bk-count">{mine}</span>
+              </button>
+            )}
+            {books.map((b) => (
+              <button key={b.id} type="button" className="bk-chip" aria-pressed={b.id === active} onClick={() => onPick(b.id)}
+                style={b.colour ? ({ '--bk': b.colour } as CSSProperties) : undefined}>
+                {b.colour && <i className="bk-dot" aria-hidden="true" />}
+                <span className="bk-name">{b.name}</span>
+                <span className="bk-count">{counts.get(b.id) ?? 0}</span>
+              </button>
+            ))}
+          </div>
         </div>
-        {current && (
-          <button type="button" className="bk-edit" onClick={() => setSheet('edit')} aria-label={`Edit book ${current.name}`}>
-            Edit book
-          </button>
-        )}
-        {end}
-      </div>
+      )}
 
       {sheet === 'new' && (
         <BookSheet kind={kind} book={null} full={books.length >= MAX_BOOKS} onClose={() => setSheet(null)}

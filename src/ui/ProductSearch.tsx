@@ -29,19 +29,6 @@ type Chosen = { product: Product; food: Food | null; said?: string }
 const problemText = (e: unknown) =>
   e instanceof ProductProblem ? e.message : 'Something went wrong asking Open Food Facts. Try again.'
 
-/** The Foods tab's way into the shops: search Open Food Facts, or scan a
- *  barcode. "Show in Foods" narrows the table to the food. */
-export function FindProducts({ onShow }: { onShow: (name: string) => void }) {
-  const [open, setOpen] = useState<null | 'search' | 'scan'>(null)
-  return (
-    <div className="pf-bar">
-      <button type="button" className="btn" onClick={() => setOpen('search')}>Find in stores</button>
-      <button type="button" className="btn" onClick={() => setOpen('scan')}>Scan barcode</button>
-      {open && <ProductFinder start={open} purpose="foods" onClose={() => setOpen(null)} onShow={onShow} />}
-    </div>
-  )
-}
-
 /** The Stock tab's scan: read a barcode, find the food (or add it from Open
  *  Food Facts), say how much, and it goes in the cupboard like any other. */
 export function ScanToStock({ householdId }: { householdId: string }) {

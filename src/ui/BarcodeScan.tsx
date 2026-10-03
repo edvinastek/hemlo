@@ -173,3 +173,16 @@ function useLatest<T>(value: T) {
   ref.current = value
   return ref
 }
+
+/** A barcode drawn as stripes, for a scan button that sits inside a search
+ *  field (v17: "Scan barcode" is no longer a button of its own on the page).
+ *  It takes the text colour, so it follows light and dark. */
+export function ScanIcon({ size = 22 }: { size?: number }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" aria-hidden="true" focusable="false"
+      fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round">
+      <path d="M3 7V4.5A1.5 1.5 0 0 1 4.5 3H7M17 3h2.5A1.5 1.5 0 0 1 21 4.5V7M21 17v2.5a1.5 1.5 0 0 1-1.5 1.5H17M7 21H4.5A1.5 1.5 0 0 1 3 19.5V17" />
+      <path d="M7 8v8M10 8v8M12.5 8v8M15 8v8M17 8v8" />
+    </svg>
+  )
+}

@@ -22,6 +22,9 @@ import { AddFoodSheet } from '../ui/AddFoodSheet'
 import { QuickNumbers } from '../ui/QuickNumbers'
 import { offerUndo } from '../ui/Undo'
 import { useBuiltinRuleOn } from '../modules/rule-switch'
+import { useExport } from '../ui/ExportLink'
+import { MoreMenu } from '../ui/MoreMenu'
+import { FoodPageMenu } from './FoodMenu'
 import type { Food, MealPlanSlot, Recipe, RecipeLine } from '../lib/types'
 import '../ui/addfood.css'
 import './foodday.css'
@@ -29,9 +32,9 @@ import './foodday.css'
 /** Food's Day tab (MEAL-01 to MEAL-20): the day's food as meals, what it
  *  comes to against the targets, and what was eaten. No fixed meals: the
  *  person's own meals show as cards (when they made some), and everything
- *  else by its time, or under Any time. "+ Add food" opens the one add
- *  sheet. Loads what it needs itself, so the Food page only says which tab
- *  is open. */
+ *  else by its time, or under Any time. The round + opens the one add
+ *  sheet; copying the day and exporting it are in the page's ⋮ (v17). Loads
+ *  what it needs itself, so the Food page only says which tab is open. */
 export function FoodDay({ day }: { day: string }) {
   const profile = useApp((s) => s.profile)
   const settings = readSettings(profile)
@@ -51,6 +54,8 @@ export function FoodDay({ day }: { day: string }) {
   const sizeOn = useBuiltinRuleOn(profile?.id, 'nutrition', 'size_main')
   const [adding, setAdding] = useState<{ meal: string | null; time?: string | null } | null>(null)
   const [copying, setCopying] = useState(false)
+  const exportSource = useMemo(() => ({ dataset: 'm:nutrition:meal_plan_slot', range: { from: day, to: day, label: format(parseISO(day), 'd MMM yyyy') } }), [day])
+  const exp = useExport(exportSource)
 
   if (!profile) return null
   const groups = rows ? groupDay(rows, ctx) : []
@@ -73,12 +78,6 @@ export function FoodDay({ day }: { day: string }) {
         {planned.unknown > 0 && <span>{planned.unknown} without calories</span>}
       </div>
 
-      <div className="fd-bar">
-        <button type="button" className="btn btn-primary fd-addbtn" onClick={() => setAdding({ meal: null })}>+ Add food</button>
-        {anything && (
-          <button type="button" className="btn" aria-expanded={copying} onClick={() => setCopying((v) => !v)}>Copy day to…</button>
-        )}
-      </div>
       {copying && (
         <CopyDays from={day} label="this day’s food" onCancel={() => setCopying(false)}
           onCopy={async (days) => {
@@ -88,15 +87,7 @@ export function FoodDay({ day }: { day: string }) {
           }} />
       )}
 
-      {rows && groups.length === 0 && (
-        <div className="fd-empty">
-          <p>Nothing eaten or planned on this day yet.</p>
-          <p className="row-meta">
-            Add food with the button above: from what you had lately, a recipe, a food, a barcode, or just the numbers.
-            It sits on the day by its time; your own meals, if you want fixed ones, are set in More → Food → Meals.
-          </p>
-        </div>
-      )}
+      {rows && groups.length === 0 && <p className="fd-empty">Nothing eaten or planned on this day yet.</p>}
 
       {groups.map((g) => (
         <MealCard key={`${day}:${g.key}`} group={g} day={day} profileId={profile.id} look={look} ctx={ctx} shown={shown}
@@ -104,14 +95,13 @@ export function FoodDay({ day }: { day: string }) {
           onAdd={() => setAdding({ meal: g.meal, time: g.key.startsWith('t:') ? g.time : null })} />
       ))}
 
-      {anything && (
-        <p className="fd-foot">
-          Each meal is also a task on Today when “every planned meal becomes a task” is on; ticking either one ticks both.
-          Planned meals fill the shopping list.
-        </p>
-      )}
-
       {adding && <AddFoodSheet day={day} meal={adding.meal} time={adding.time} onClose={() => setAdding(null)} />}
+      <FoodPageMenu items={[
+        anything && { label: 'Copy day to…', onSelect: () => setCopying(true) },
+        exp.item,
+      ]} sheets={exp.sheet} />
+      {/* The page's one add (CALM-01): the add-food sheet, which guesses the meal. */}
+      <button type="button" className="fab" aria-label="Add food" onClick={() => setAdding({ meal: null })}>+</button>
     </div>
   )
 }
@@ -125,14 +115,13 @@ function MealCard({ group: g, day, profileId, look, ctx, shown, suggestion, onAd
   suggestion: { item: Item; portions: number; kcal: number } | null
   onAdd: () => void
 }) {
-  const [panel, setPanel] = useState<null | 'menu' | 'time' | 'copy' | 'save'>(null)
+  const [panel, setPanel] = useState<null | 'time' | 'copy' | 'save'>(null)
   const [name, setName] = useState('')
   const [said, setSaid] = useState<string | null>(null)
   const title = groupTitle(g)
   const items = g.items as MealPlanSlot[]
   const live = items.filter((i) => i.status !== 'skipped')
   const { total, unknown } = sumItems(items, look)
-  const toggle = (p: typeof panel) => setPanel(panel === p ? null : p)
 
   async function removeAll() {
     setPanel(null)
@@ -143,35 +132,29 @@ function MealCard({ group: g, day, profileId, look, ctx, shown, suggestion, onAd
 
   return (
     <section className={`fd-meal${g.skipped ? ' is-skipped' : ''}`} aria-label={title}>
+      {/* Name, what it comes to, + and ⋮ (v17): whether it was eaten shows on
+          its items' ticks, and "Mark all eaten" is in the ⋮. */}
       <header className="fd-head">
         <h3 className="fd-name">{title}{g.name && g.time && <span className="fd-time">{g.time}</span>}</h3>
         {live.length > 0 && <span className="fd-kcal">{kcalText(total, unknown)}</span>}
-        {live.length > 0 && (
-          <label className="fd-tick">
-            <input type="checkbox" checked={g.eaten} onChange={(e) => void setEaten(live, e.target.checked)} aria-label={`${title} eaten`} />
-            <span aria-hidden="true">eaten</span>
-          </label>
-        )}
         <button type="button" className="fd-icon" aria-label={`Add food to ${title}`} onClick={onAdd}>+</button>
-        <button type="button" className="fd-icon" aria-label={`More for ${title}`} aria-expanded={panel === 'menu'} onClick={() => toggle('menu')}>⋮</button>
-      </header>
-
-      {panel === 'menu' && (
-        <div className="fd-menu" role="group" aria-label={`${title}: more`}>
-          {g.meal && <button type="button" className="btn" onClick={() => setPanel('time')}>{g.time ? 'Change time' : 'Give it a time'}</button>}
-          {live.length > 0 && <button type="button" className="btn" onClick={() => { setPanel(null); void setEaten(live, !g.eaten) }}>{g.eaten ? 'Not eaten after all' : 'Mark all eaten'}</button>}
-          {(g.meal || items.length > 0) && (
-            <button type="button" className="btn" onClick={async () => {
+        <MoreMenu className="fd-more" label={`More for ${title}`} items={[
+          g.meal ? { label: g.time ? 'Change time' : 'Give it a time', onSelect: () => setPanel('time') } : null,
+          live.length > 0 ? { label: g.eaten ? 'Not eaten after all' : 'Mark all eaten', onSelect: () => { setPanel(null); void setEaten(live, !g.eaten) } } : null,
+          g.meal || items.length > 0 ? {
+            label: g.skipped ? 'Not skipped' : 'Skip this meal',
+            onSelect: async () => {
               setPanel(null)
               await setSkipped(profileId, day, g, !g.skipped)
               if (!g.skipped) offerUndo(`${title} skipped`, () => unskipMeal(profileId, day, g.key))
-            }}>{g.skipped ? 'Not skipped' : 'Skip this meal'}</button>
-          )}
-          {items.length > 0 && <button type="button" className="btn" onClick={() => setPanel('copy')}>Copy to…</button>}
-          {items.length > 0 && <button type="button" className="btn" onClick={() => { setName(g.name ?? ''); setPanel('save') }}>Save as a saved meal</button>}
-          {(items.length > 0 || g.holders.length > 0) && <button type="button" className="btn fd-danger" onClick={() => void removeAll()}>Remove {items.length > 1 ? 'all' : ''}</button>}
-        </div>
-      )}
+            },
+          } : null,
+          items.length > 0 ? { label: 'Copy to…', onSelect: () => setPanel('copy') } : null,
+          items.length > 0 ? { label: 'Save as a saved meal', onSelect: () => { setName(g.name ?? ''); setPanel('save') } } : null,
+          items.length > 0 || g.holders.length > 0 ? { label: items.length > 1 ? 'Remove all' : 'Remove', danger: true, onSelect: () => void removeAll() } : null,
+        ]} />
+      </header>
+
       {panel === 'time' && (
         <div className="fd-panel">
           <label className="fd-timefield">
@@ -213,10 +196,8 @@ function MealCard({ group: g, day, profileId, look, ctx, shown, suggestion, onAd
       )}
       {said && <p className="fd-said" role="status">{said}</p>}
 
-      {g.skipped && <p className="fd-skipped">Skipped. It has no task and stays off the shopping list.</p>}
-      {!g.skipped && items.length === 0 && (
-        <button type="button" className="fd-nothing" onClick={onAdd}>Nothing yet. Add food to {title}</button>
-      )}
+      {g.skipped && <p className="fd-skipped">Skipped</p>}
+      {!g.skipped && items.length === 0 && <p className="fd-nothing">Nothing yet</p>}
       {items.length > 0 && (
         <ul className="fd-items">
           {items.map((i, n) => (
@@ -238,7 +219,7 @@ function MealCard({ group: g, day, profileId, look, ctx, shown, suggestion, onAd
 function ItemRow({ item, look, ctx, shown, siblings }: {
   item: MealPlanSlot; look: Lookup; ctx: MealsCtx; shown: Nutrient[]; first: boolean; last: boolean; siblings: MealPlanSlot[]
 }) {
-  const [open, setOpen] = useState<null | 'edit' | 'menu' | 'move'>(null)
+  const [open, setOpen] = useState<null | 'edit' | 'move'>(null)
   const name = itemName(item, look)
   const kind = itemKind(item)
   const m = itemMacros(item, look)
@@ -271,16 +252,12 @@ function ItemRow({ item, look, ctx, shown, siblings }: {
           <span className="fd-item-name">{name}{recipe && isReadyMeal(recipe) && <span className="sp-tag">ready meal</span>}</span>
           <span className="fd-item-meta">{[amount, m ? amountLine(m, knownKeys(item, look, shown.slice(0, 2))) : 'kcal unknown'].filter(Boolean).join(' · ')}</span>
         </button>
-        <button type="button" className="fd-icon" aria-label={`More for ${name}`} aria-expanded={open === 'menu' || open === 'move'}
-          onClick={() => setOpen(open === 'menu' ? null : 'menu')}>⋮</button>
+        <MoreMenu className="fd-more" label={`More for ${name}`} items={[
+          { label: 'Change amount', onSelect: () => setOpen('edit') },
+          { label: 'Move to another meal', onSelect: () => setOpen('move') },
+          { label: 'Remove', danger: true, onSelect: () => void remove() },
+        ]} />
       </div>
-      {open === 'menu' && (
-        <div className="fd-menu" role="group" aria-label={`${name}: more`}>
-          <button type="button" className="btn" onClick={() => setOpen('edit')}>Change amount</button>
-          <button type="button" className="btn" onClick={() => setOpen('move')}>Move to another meal</button>
-          <button type="button" className="btn fd-danger" onClick={() => void remove()}>Remove</button>
-        </div>
-      )}
       {open === 'move' && (
         <div className="fd-menu" role="group" aria-label={`Move ${name} to`}>
           {ctx.meals.names.filter((x) => x.key !== item.slot).map((x) => (

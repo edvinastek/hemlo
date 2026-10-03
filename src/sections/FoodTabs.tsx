@@ -11,27 +11,33 @@ import { FoodEditor } from '../ui/FoodEditor'
 import { saveSettings } from '../lib/write'
 import { saveLabelChoice, useNutritionPrefs } from '../lib/nutrition-prefs'
 import {
-  EXTRA_FIGURES, NEVO_AND_OTHERS, figureName, foodSearchText, saltOf, shownFigures, type ExtraFigure,
+  EXTRA_FIGURES, figureName, foodSearchText, saltOf, shownFigures, type ExtraFigure,
 } from '../lib/eu-label-rules'
 import '../ui/food.css'
-import { MyRecipes } from '../ui/MyRecipes'
+import { RecipesExportSheet } from '../ui/MyRecipes'
+import { RecipeImport } from '../ui/RecipeImport'
 import { RecipeView } from '../ui/RecipeView'
 import { RecipeEditor } from '../ui/RecipeEditor'
-import { Dropdown } from '../ui/Dropdown'
+import { useExport } from '../ui/ExportLink'
+import { ScanIcon } from '../ui/BarcodeScan'
 import { offerUndo } from '../ui/Undo'
 import { stockMap } from '../lib/stock'
 import { addToShoppingList } from '../lib/recipe-actions'
 import {
   SORTS, recipeFigures, recipeOrder, recipeSearchText, roleLabel, scaleLines, toBuy, usage, variationName, type RecipeSort,
 } from '../lib/recipe-rules'
-import type { RecipeDraft } from '../lib/sharing-rules'
+import { statusOf, type RecipeDraft } from '../lib/sharing-rules'
 import '../ui/recipes.css'
-import { FindProducts } from '../ui/ProductSearch'
+import { ProductFinder } from '../ui/ProductSearch'
 import type { FieldDef } from '../modules/types'
 import type { Food as FoodRow, Recipe, RecipeLine } from '../lib/types'
 
 
 const live = (r: object) => !(r as { deleted_at?: string | null }).deleted_at
+const RECIPE_EXPORT = { dataset: 'm:nutrition:recipe' }
+/** A recipe's sharing in one word for the list (the recipe's page says it in full). */
+const SHARING_WORD: Record<string, string | null> = { plain: null, waiting: 'Waiting', done: 'Shared', warn: 'Not accepted' }
+const FOOD_EXPORT = { dataset: 'm:nutrition:food' }
 
 /** A recipe or food asked for by the page's address (/food?recipe=<id>):
  *  read straight from the local copy, so it opens as soon as it is found.
@@ -52,10 +58,12 @@ function useFoodData() {
   return { foods, recipes, lines, foodMap }
 }
 
-/** Food's Recipes tab (REC-01 to REC-08, REC-20, REC-21): the person's own
- *  recipes and the ways to add some, then every recipe (ready meals too), in
- *  books, found by the one search over names, ingredients and what each is
- *  for, and sorted as the person chooses. Tapping a recipe opens it in full. */
+/** Food's Recipes tab (REC-01 to REC-08, REC-20, REC-21): every recipe
+ *  (ready meals too, and the person's own under "Mine"), in books, found by
+ *  the one search over names, ingredients and what each is for. Tapping a
+ *  recipe opens it in full; the round + makes a new one. Sort, import,
+ *  export, books and select are in the page's ⋮ (v17). Only a recipe shared
+ *  or waiting for review is marked: private is how one's own start. */
 export function RecipesTab({ openId, onOpened }: { openId?: string | null; onOpened?: () => void } = {}) {
   const profile = useApp((s) => s.profile)
   const userId = useApp((s) => s.session?.user.id ?? null)
@@ -66,6 +74,8 @@ export function RecipesTab({ openId, onOpened }: { openId?: string | null; onOpe
   const [sort, setSort] = useState<RecipeSort>('name')
   const [open, setOpen] = useState<Recipe | null>(null)
   const [editing, setEditing] = useState<{ recipe: Recipe | null; start?: RecipeDraft } | null>(null)
+  const [tool, setTool] = useState<null | 'sort' | 'import' | 'export'>(null)
+  const exp = useExport(RECIPE_EXPORT)
   // A recipe asked for by the address (a note's "Open recipe", the hub's
   // search) opens on its page; the address is then cleared so Back and a
   // reload do not open it again.
@@ -93,21 +103,27 @@ export function RecipesTab({ openId, onOpened }: { openId?: string | null; onOpe
       kcal: own.some((l) => l.food_id) ? Math.round(f.kcal.value) : null,
       role_label: roleLabel(r.role),
       lines_count: own.length,
+      // Shared, waiting or not accepted: said in the list in a word. Private,
+      // how one's own start, says nothing (a space, so the cell stays blank).
+      sharing_label: (userId && r.owner_id === userId && SHARING_WORD[statusOf(r).tone]) || '\u00a0',
     }
-  }), [liveRecipes, lines, foodMap, figures.join(',')])
+  }), [liveRecipes, lines, foodMap, figures.join(','), userId])
+  const anyFlagged = recipeRows.some((r) => r.sharing_label !== '\u00a0')
   const extraText = useMemo(() => {
     const m = new Map(liveRecipes.map((r) => [r.id, recipeSearchText(r, lines, foodMap)]))
     return (r: { id: string }) => m.get(r.id) ?? ''
   }, [liveRecipes, lines, foodMap])
   const order = useMemo(() => recipeOrder(sort, use), [sort, use])
-  const narrowColumns = ['name', 'kcal', ...figures.slice(0, 1)]
+  const narrowColumns = ['name', 'kcal', ...figures.slice(0, 1), ...(anyFlagged ? ['sharing_label'] : [])]
   const recipeFields: FieldDef[] = [
     { name: 'name', label: 'Recipe', type: 'text', width: 230 },
     { name: 'role_label', label: 'For', type: 'text', width: 110 },
     { name: 'lines_count', label: 'Items', type: 'integer', width: 60 },
     { name: 'kcal', label: 'kcal', type: 'integer', unit: 'a portion', width: 90 },
     ...figures.map((k): FieldDef => ({ name: k, label: figureName(k), type: 'number', unit: 'g', width: 80 })),
+    ...(anyFlagged ? [{ name: 'sharing_label', label: 'Sharing', type: 'text', width: 120 } as FieldDef] : []),
   ]
+  const sortLabel = SORTS.find((x) => x.value === sort)?.label
 
   function variation(r: Recipe) {
     const own = lines.filter((l) => l.recipe_id === r.id).sort((a, b) => a.sort_order - b.sort_order)
@@ -142,15 +158,13 @@ export function RecipesTab({ openId, onOpened }: { openId?: string | null; onOpe
   return (
     <>
       {gone && <p className="empty" role="status">That recipe is no longer here. It may have been deleted.</p>}
-      <MyRecipes userId={userId} recipes={liveRecipes} lines={lines} foods={foodMap} onOpen={setOpen} onNew={() => setEditing({ recipe: null })} />
       <div className="rt-tools">
         <input className="ft-search" type="search" placeholder="Search recipes and ingredients" aria-label="Search recipes"
           value={search} onChange={(e) => setSearch(e.target.value)} autoComplete="off" />
-        <Dropdown<RecipeSort> value={sort} options={SORTS} label="Sort recipes" onChange={setSort} />
       </div>
       <BookTable
         kind="recipe"
-        head={<span><b>{liveRecipes.length}</b> recipes · figures a portion, worked out from the ingredients</span>}
+        head={<span><b>{liveRecipes.length}</b> {liveRecipes.length === 1 ? 'recipe' : 'recipes'}{sort !== 'name' ? ` · ${sortLabel}` : ''}</span>}
         fields={recipeFields}
         priority={narrowColumns}
         rows={recipeRows as never}
@@ -165,8 +179,28 @@ export function RecipesTab({ openId, onOpened }: { openId?: string | null; onOpe
           <button type="button" className="btn" disabled={picked.length === 0}
             onClick={() => void addSelectedToList(picked as unknown as Recipe[], say)}>Add to shopping list</button>
         ) : undefined}
-        emptyNote={search.trim() ? `No recipe matches “${search.trim()}”.` : 'No recipes yet. Make one with New recipe, import one, or bring in your Excel workbook in More.'}
+        emptyNote={search.trim() ? `No recipe matches “${search.trim()}”.` : 'No recipes yet.'}
+        menu={[
+          { label: 'Sort…', onSelect: () => setTool('sort') },
+          userId ? { label: 'Import recipes…', onSelect: () => setTool('import') } : null,
+          { label: 'Export recipes…', disabled: liveRecipes.length === 0, onSelect: () => setTool('export') },
+          exp.item && { ...exp.item, label: 'Export as a table…' },
+        ]}
+        menuSheets={(
+          <>
+            {exp.sheet}
+            {tool === 'sort' && (
+              <ChoiceSheet title="Sort recipes" options={SORTS} value={sort} onClose={() => setTool(null)}
+                onPick={(v) => { setSort(v); setTool(null) }} />
+            )}
+            {tool === 'import' && userId && <RecipeImport userId={userId} onClose={() => setTool(null)} />}
+            {tool === 'export' && <RecipesExportSheet recipes={liveRecipes} lines={lines} foods={foodMap} onClose={() => setTool(null)} />}
+          </>
+        )}
       />
+      {userId && !editing && !open && (
+        <button type="button" className="fab" aria-label="New recipe" onClick={() => setEditing({ recipe: null })}>+</button>
+      )}
       {open && !editing && (
         <RecipeView recipe={open} lines={lines} foods={foodMap} userId={userId} onClose={() => setOpen(null)}
           onEdit={(r) => setEditing({ recipe: r })} onVariation={variation} />
@@ -182,9 +216,13 @@ export function RecipesTab({ openId, onOpened }: { openId?: string | null; onOpe
   )
 }
 
-/** Food's Foods tab (FOOD-14): find products in shops, add a food by hand,
- *  and every food, in books: sorted by name, found by the one search (the
- *  Dutch name and synonyms too), with the figures the person chose. */
+/** Food's Foods tab (FOOD-14): every food, in books, sorted by name and
+ *  found by the one search (the Dutch name and synonyms too), with the
+ *  figures the person chose. One search field, with the barcode scanner in
+ *  it; a search that finds nothing offers the shops (Open Food Facts) and a
+ *  new food. The round + makes a new food; Find in stores, Figures, books and
+ *  select are in the page's ⋮ (v17). The data credits are on each food's own
+ *  page and in Settings → About (CALM-13). */
 export function FoodsTab({ openId, onOpened }: { openId?: string | null; onOpened?: () => void } = {}) {
   const profile = useApp((s) => s.profile)
   const userId = useApp((s) => s.session?.user.id ?? null)
@@ -193,8 +231,9 @@ export function FoodsTab({ openId, onOpened }: { openId?: string | null; onOpene
   const { foods, foodMap } = useFoodData()
   const [search, setSearch] = useState('')
   const [openFood, setOpenFood] = useState<FoodRow | null>(null)
-  const [adding, setAdding] = useState(false)
-  const [choosing, setChoosing] = useState(false)
+  const [adding, setAdding] = useState<string | null>(null)
+  const [tool, setTool] = useState<null | 'figures' | 'find' | 'scan'>(null)
+  const exp = useExport(FOOD_EXPORT)
   // A food asked for by the address (/food?food=<id>, the hub's search).
   const asked = useAsked(openId, (id) => db.food.get(id))
   const [gone, setGone] = useState(false)
@@ -211,7 +250,6 @@ export function FoodsTab({ openId, onOpened }: { openId?: string | null; onOpene
   const foodRows = useMemo(() => liveFoods.map((f) => ({
     ...f, salt_g: saltOf(f), units: unitsText(readUnits(f.units)),
   })), [liveFoods])
-  const mineCount = liveFoods.filter((f) => userId && f.owner_id === userId).length
   const fields: FieldDef[] = [
     { name: 'name', label: 'Food', type: 'text', width: 230 },
     { name: 'name_nl', label: 'Dutch name', type: 'text', width: 180 },
@@ -222,48 +260,104 @@ export function FoodsTab({ openId, onOpened }: { openId?: string | null; onOpene
     { name: 'units', label: 'Units', type: 'text', width: 200 },
   ]
   const narrowColumns = ['name', ...figures.slice(0, 2)]
+  const typed = search.trim()
   return (
     <>
       {gone && <p className="empty" role="status">That food is no longer here. It may have been deleted.</p>}
-      <FindProducts onShow={setSearch} />
       <div className="ft-tools">
-        <input className="ft-search" type="search" placeholder="Search, in English or Dutch" aria-label="Search foods, in English or Dutch"
-          value={search} onChange={(e) => setSearch(e.target.value)} autoComplete="off" />
-        <button type="button" className="btn" aria-expanded={choosing} onClick={() => setChoosing((v) => !v)}>Figures</button>
-        {userId && <button type="button" className="btn btn-primary" onClick={() => setAdding(true)}>New food</button>}
+        <div className="ft-field">
+          <input className="ft-search" type="search" placeholder="Search, in English or Dutch" aria-label="Search foods, in English or Dutch"
+            value={search} onChange={(e) => setSearch(e.target.value)} autoComplete="off" />
+          <button type="button" className="ft-scan" aria-label="Scan a barcode" title="Scan a barcode" onClick={() => setTool('scan')}>
+            <ScanIcon />
+          </button>
+        </div>
       </div>
-      {choosing && <FigureChoice />}
       <BookTable
         kind="food"
-        head={<span><b>{liveFoods.length}</b> foods{mineCount ? <> · <b>{mineCount}</b> your own</> : null} · per 100 g or 100 ml</span>}
+        head={<span><b>{liveFoods.length}</b> {liveFoods.length === 1 ? 'food' : 'foods'} · per 100 g or 100 ml</span>}
         fields={fields}
         priority={narrowColumns}
         rows={foodRows}
         search={search}
         limit={200}
         extra={foodSearchText}
-        emptyNote={search.trim() ? `No food matches “${search.trim()}”. Add it as a new food, or find it in stores.` : 'No foods yet.'}
+        emptyNote={typed ? `No food called “${typed}” here yet.` : 'No foods yet.'}
         onOpen={(row) => setOpenFood(foodMap.get(row.id) ?? null)}
         openLabel={(row) => `Open ${row.name}`}
-        more={<p className="ft-credit">Shared foods: {NEVO_AND_OTHERS} (a few kept from a USDA list, and products from Open Food Facts).</p>}
+        // Not found, or not the one: the shops, or the person's own.
+        after={() => typed ? (
+          <div className="ft-more">
+            <button type="button" className="btn" onClick={() => setTool('find')}>Find “{typed}” in stores</button>
+            {userId && <button type="button" className="btn" onClick={() => setAdding(typed)}>Add it as a new food</button>}
+          </div>
+        ) : null}
+        menu={[
+          { label: 'Find in stores…', onSelect: () => setTool('find') },
+          { label: 'Figures in the lists…', onSelect: () => setTool('figures') },
+          exp.item,
+        ]}
+        menuSheets={(
+          <>
+            {exp.sheet}
+            {tool === 'figures' && <FigureChoice onClose={() => setTool(null)} />}
+            {(tool === 'find' || tool === 'scan') && (
+              <ProductFinder start={tool === 'scan' ? 'scan' : 'search'} purpose="foods" query={typed}
+                onClose={() => setTool(null)} onShow={setSearch} />
+            )}
+          </>
+        )}
       />
-      {search.trim() && userId && (
-        <div className="ft-more"><button type="button" className="btn" onClick={() => setAdding(true)}>Add “{search.trim()}” as a new food</button></div>
-      )}
       {openFood && <FoodUnitsSheet food={openFood} onClose={() => setOpenFood(null)} />}
-      {adding && userId && (
-        <FoodEditor userId={userId} name={search.trim()} onClose={() => setAdding(false)} onSaved={(f) => setOpenFood(f)} />
+      {adding !== null && userId && (
+        <FoodEditor userId={userId} name={adding} onClose={() => setAdding(null)} onSaved={(f) => setOpenFood(f)} />
+      )}
+      {userId && adding === null && !openFood && (
+        <button type="button" className="fab" aria-label="New food" onClick={() => setAdding(typed)}>+</button>
       )}
     </>
   )
 }
 
+/** One choice from a short list, as a sheet: how the recipes are sorted. */
+function ChoiceSheet<V extends string>({ title, options, value, onPick, onClose }: {
+  title: string; options: { value: V; label: string }[]; value: V; onPick: (v: V) => void; onClose: () => void
+}) {
+  useEscape(onClose)
+  return (
+    <>
+      <div className="sheet-scrim" onClick={onClose} />
+      <div className="bottom-sheet" role="dialog" aria-modal="true" aria-label={title}>
+        <h2>{title}</h2>
+        <div className="ft-choices" role="group" aria-label={title}>
+          {options.map((o) => (
+            <button key={o.value} type="button" className="ft-choice" aria-pressed={o.value === value} onClick={() => onPick(o.value)}>
+              {o.label}
+            </button>
+          ))}
+        </div>
+        <div className="sheet-actions"><button type="button" className="btn grow" onClick={onClose}>Close</button></div>
+      </div>
+    </>
+  )
+}
+
+function useEscape(onClose: () => void) {
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose() }
+    document.addEventListener('keydown', onKey)
+    return () => document.removeEventListener('keydown', onKey)
+  }, [onClose])
+}
+
 /** Which figures the food and recipe lists show (FOOD-16): any line of the
  *  EU label. The five the app has always counted are the profile's own
- *  choice (also in More → Profile → Food); the rest are kept with Nutrition. */
-function FigureChoice() {
+ *  choice (also in Settings → Food); the rest are kept with Nutrition. A
+ *  sheet from the Foods tab's ⋮. */
+function FigureChoice({ onClose }: { onClose: () => void }) {
   const profile = useApp((s) => s.profile)
   const prefs = useNutritionPrefs()
+  useEscape(onClose)
   if (!profile) return null
   const settings = readSettings(profile)
   const core = NUTRIENTS.map((n) => n.key as string)
@@ -280,10 +374,10 @@ function FigureChoice() {
   }
   const lines = [{ key: 'kcal', label: 'Calories' }, ...EXTRA_FIGURES]
   return (
-    <div className="setting-row">
-      <div>
-        <div className="row-name">Figures in the lists</div>
-        <div className="row-meta">Any line of the EU label. A food’s own page always shows the whole label.</div>
+    <>
+      <div className="sheet-scrim" onClick={onClose} />
+      <div className="bottom-sheet" role="dialog" aria-modal="true" aria-label="Figures in the lists">
+        <h2>Figures in the lists</h2>
         <div className="ft-figures" role="group" aria-label="Figures in the lists">
           {lines.map((f) => (
             <label key={f.key}>
@@ -292,7 +386,8 @@ function FigureChoice() {
             </label>
           ))}
         </div>
+        <div className="sheet-actions"><button type="button" className="btn grow" onClick={onClose}>Done</button></div>
       </div>
-    </div>
+    </>
   )
 }
