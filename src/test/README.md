@@ -41,6 +41,19 @@ Types, then every check that needs nothing but Node. CI runs the same command.
 - `stats` — the Stats page's arithmetic: day, week, month and year ranges (weeks from Monday, month ends, leap
   years), the arrows' reach, totals and averages that never count days still to come, best day, the bars per day or
   month, shares done, habit and supplement due days, hours slept, record fields, the export rows.
+- `pivot` — the stats pivot: days, weeks, months and weekdays as buckets (Monday first, year ends), groupings by section,
+  item, tag and multi-choice field, filters (case and accents ignored, values, weekdays, days); each summary worked out by
+  hand (total, average over days that happened only, lowest, highest, latest, change, streak with today still open, best
+  streak, a share skipping days with nothing to do, % of days on target with a floor, a ceiling or the person's own
+  targets); unknown days left out and never 0, a week still to come with no figure; rows by columns with totals from the
+  facts, sorting by value, a measure no module gives reported; the facts behind a cell; days with against days without
+  (and "too few days" below three each side); the heat grid (calendar or year in pixels, unknown days apart from 0, no 30
+  February); export rows.
+- `statsviews` — saved stats views read strictly (bad ids, names, measures, groupings, colours, ranges dropped; old views
+  still read; at most 50 views and 10 measures), the measure catalogue for every module (built modules' number, yes/no
+  and choice fields), the ready-made views and which modules they need, making, duplicating, moving and deleting views,
+  ranges (last n days, this week, month and year, custom; shifted back and on), the chart picked automatically, series
+  colours checked for contrast on the page, the text summary, the widget shape, and Today's cards.
 - `ics` — calendar files (RFC 5545): tasks as floating local time or whole days, agenda events in UTC,
   repeats as RRULE/RDATE/EXDATE with changed copies; folding at 75 bytes, escaping, CRLF, stable UIDs. A file
   shaped like a Google Calendar export read back in the reader's zone (TZID, UTC, whole days, DURATION,
