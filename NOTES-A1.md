@@ -18,7 +18,8 @@ Plan, in order; each step committed when tsc passes.
 - 3 today-prefs (23581ab)
 - 4-7 DragList/ItemRow/DayRail/RailSheets/rail-actions, Today rewrite, AddMenu, CarryOverRow (8ad00e5)
 
+- 8 HoldSettings + More line
+- polish, e2e updates (reorder, tasksheet), README; screenshots in scratchpad shots/a1
+
 ## Left
-- HoldSettings + More line
-- build check, screenshots (harness), e2e updates (reorder, tasksheet), README e2e notes
-- report
+- Nothing in scope. For the lead: Plan should render <AddFab day={date}/> beside <DayRail day={date} where="plan"/>.
