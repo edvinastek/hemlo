@@ -85,10 +85,10 @@ export function Today() {
 
   // The tabs follow the day: Today always, the others only when their part
   // of the app is on and the day has something for it (lib/day-tabs.ts).
-  const work = readSettings(profile).work
-  const workKey = `${work.on}|${work.days.join(',')}`
+  const { work, module_views } = readSettings(profile)
+  const workKey = `${work.on}|${work.days.join(',')}|${JSON.stringify(module_views)}`
   const input = useLiveQuery(
-    async () => (profile ? loadDayInput(profile.id, day, day, { work }) : null),
+    async () => (profile ? loadDayInput(profile.id, day, day, { work, module_views }) : null),
     [profile?.id, day, workKey], null)
   const tabs = useMemo(() => (input ? dayTabs(input) : ONLY_TODAY), [input])
   const tab = activeTab(tabs, section)

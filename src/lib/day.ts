@@ -1,7 +1,7 @@
 import { useLiveQuery } from 'dexie-react-hooks'
 import { db } from './db'
 import { useApp } from './store'
-import { modulesOn } from './module-view-rules'
+import { moduleView, modulesOn } from './module-view-rules'
 import { loadReview } from './review'
 import type { ProfileSettings } from './settings'
 import type { ModuleRow } from './types'
@@ -43,7 +43,7 @@ export function useModulesOn(): Set<string> | undefined {
  *  the local copy. Only what a rule needs is counted: a flag or a number,
  *  never the rows, so the live query stays small. */
 export async function loadDayInput(
-  profileId: string, day: string, today: string, settings: Pick<ProfileSettings, 'work'>,
+  profileId: string, day: string, today: string, settings: Pick<ProfileSettings, 'work'> & Partial<Pick<ProfileSettings, 'module_views'>>,
 ): Promise<DayInput> {
   const built = (await db.module.toArray()).filter((m) => !m.builtin && !m.deleted_at)
   const [enabled, tasks, allHabits, supplements, bodyRows, sleepRows, review, records, habitsDaily] = await Promise.all([
@@ -65,6 +65,9 @@ export async function loadDayInput(
     day,
     today,
     enabled,
+    // Show on Today switched off (GEN-03): the module's items leave Today,
+    // and with them its tab (HAB-23 for habits).
+    offToday: enabled.filter((k) => !moduleView(settings.module_views ?? {}, k).today),
     work: { on: settings.work.on, days: settings.work.days },
     tasks: tasks.filter((t) => !t.deleted_at),
     habits,

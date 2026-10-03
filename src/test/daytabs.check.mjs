@@ -37,6 +37,11 @@ is('a habit not started yet is not due', keys(day({ day: SAT, enabled: ['habits'
 is('a three-times-a-week habit is due any day', labels(day({ day: SAT, enabled: ['habits'], habits: [{ rule: 'times_per_week', rule_config: { times: 3 }, active: true }] })), ['Today', 'Habits'])
 is('an archived habit does not count', keys(day({ enabled: ['habits'], habits: [{ schedule: 'daily', active: false }] })), ['today'])
 is('a deleted habit does not count', keys(day({ enabled: ['habits'], habits: [{ ...daily, deleted_at: '2026-01-01' }] })), ['today'])
+// Show on Today off (GEN-03, HAB-23): the module's items leave Today, its tab too.
+is('habits kept off Today: no Habits tab', keys(day({ enabled: ['habits'], offToday: ['habits'], habits: [daily] })), ['today'])
+is('only the part kept off goes from Body', labels(day({ enabled: ['habits', 'supplements'], offToday: ['habits'], habits: [daily], supplements: [{ active: true }] })), ['Today', 'Supplements'])
+is('training kept off Today: no Training tab', keys(day({ enabled: ['training'], offToday: ['training'], tasks: [task({ module_key: 'training' })] })), ['today'])
+is('a built module kept off Today: no tab', keys(day({ enabled: ['u_abc'], offToday: ['u_abc'], records: ['u_abc'] })), ['today'])
 is('supplements on with one active: Supplements', labels(day({ enabled: ['supplements'], supplements: [{ active: true }] })), ['Today', 'Supplements'])
 is('health on, today: Body (the weigh-in can be taken)', labels(day({ enabled: ['health'] })), ['Today', 'Body'])
 is('health on, a past day with no weigh-in: no tab', keys(day({ day: '2026-09-27', enabled: ['health'] })), ['today'])

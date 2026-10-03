@@ -44,7 +44,7 @@ Types, then every check that needs nothing but Node. CI runs the same command.
   shop a new price is for, the device's 7-day cache and how many products are asked about at once, and the chains'
   official weekly offers pages. No network.
 - `pages` — which pages the bar has for which modules, their order, hidden pages, where a swipe lands, which addresses go to Today, and how each bar style shares the pages out.
-- `daytabs` — which tabs Today shows for a day (only what is on and has something that day), their order, the fallback to Today.
+- `daytabs` — which tabs Today shows for a day (only what is on and has something that day), their order, the fallback to Today; a module kept off Today (Show on Today off) has no tab.
 - `colours` — module colours: the palette at 3:1 or more on both the light and the dark page, defaults, a task's module, choosing and resetting.
 - `moduledefs` — module definitions read from storage are checked and cleaned (names, types, formulas, options,
   sizes); a built-in module's changes survive the stored overlay; a record's day; the rule that turns dated

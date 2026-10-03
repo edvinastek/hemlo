@@ -57,6 +57,9 @@ export interface DayInput {
   today: string
   /** Module keys switched on for the profile, built modules included. */
   enabled: Iterable<string>
+  /** Modules that are on but have Show on Today off (GEN-03): their items
+   *  leave Today, so they make no tab either. */
+  offToday?: Iterable<string>
   work: { on: boolean; days: number[] }
   /** The day's tasks. */
   tasks: DayTask[]
@@ -86,6 +89,12 @@ const MODULE_ORDER = ['learning', 'projects', 'finance', 'household', 'custom']
 
 const live = <T extends { deleted_at?: string | null }>(rows: T[]) => rows.filter((r) => !r.deleted_at)
 
+/** The modules that may show on Today: on, and not kept off Today. */
+function onToday(input: Pick<DayInput, 'enabled' | 'offToday'>): Set<string> {
+  const off = new Set(input.offToday ?? [])
+  return new Set([...input.enabled].filter((k) => !off.has(k)))
+}
+
 export function isEvening(t: Pick<DayTask, 'category' | 'planned_time'>): boolean {
   return t.category === 'Night' || (t.planned_time ?? '').slice(0, 5) >= '18:00'
 }
@@ -95,7 +104,7 @@ export function isWork(t: Pick<DayTask, 'category'>): boolean {
 }
 
 export function bodyParts(input: DayInput): BodyPart[] {
-  const on = new Set(input.enabled)
+  const on = onToday(input)
   const parts: BodyPart[] = []
   if (on.has('health') && (input.weighIn || input.day === input.today)) parts.push('health')
   if (on.has('habits') && input.habits.some((h) => h.active && !h.deleted_at && habitShows(h, input.day, []))) {
@@ -108,7 +117,7 @@ export function bodyParts(input: DayInput): BodyPart[] {
 const BODY_LABEL: Record<BodyPart, string> = { health: 'Body', habits: 'Habits', supplements: 'Supplements' }
 
 export function dayTabs(input: DayInput): DayTab[] {
-  const on = new Set(input.enabled)
+  const on = onToday(input)
   const tasks = live(input.tasks)
   const tabs: DayTab[] = [{ key: 'today', label: 'Today' }]
 
