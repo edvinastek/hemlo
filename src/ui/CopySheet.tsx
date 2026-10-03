@@ -5,7 +5,7 @@ import { useApp } from '../lib/store'
 import { readSettings } from '../lib/settings'
 import { addDays } from '../lib/schedule-rules'
 import {
-  cleanTargets, copiesWithDay, dayLabel, mealHasFood, mondayOf, shortcutDays, shortcutLabel, shortcutsFor, shownDays,
+  cleanTargets, copiesWithDay, dayLabel, mealCount, mondayOf, shortcutDays, shortcutLabel, shortcutsFor, shownDays,
   targetWords, toggleShortcut, toggleTarget, type CopyChoices, type NotesChoice, type TimeChoice,
 } from '../lib/copy-rules'
 import { runCopy, type CopyWhat } from '../lib/copy'
@@ -70,7 +70,7 @@ export function CopySheet({ what, onClose, onDone }: { what: CopyWhat; onClose: 
     return {
       tasks: live.filter((t) => !t.series_id).length,
       repeats: live.filter((t) => !!t.series_id).length,
-      meals: source.meals.filter(mealHasFood).length,
+      meals: mealCount(source.meals),
     }
   }, [source, c])
 

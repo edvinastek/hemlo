@@ -4,8 +4,9 @@ import { writeBatch, unmakeBatch, type BatchRow } from './batch'
 import { builtinRuleOn } from '../modules/rule-switch'
 import { addDays } from './schedule-rules'
 import {
-  copySummary, copyTaskFields, dayPairs, DEFAULT_CHOICES, planCopy, weekPairs, type CopyChoices, type CopyKind,
+  copySummary, copyTaskFields, dayPairs, DEFAULT_CHOICES, mealCount, planCopy, weekPairs, type CopyChoices, type CopyKind,
 } from './copy-rules'
+import { copyMeals, removeItems } from './meals'
 import { dropTemplate, templateFrom, withTemplate, type PlanTemplate, type TemplateChoices } from './plan-templates-rules'
 import { loadPlanPrefs, savePlanPrefs } from './plan-prefs'
 import type { NoteTemplate } from './template-rules'
@@ -41,9 +42,10 @@ async function mealsOn(profileId: string, from: string, to: string): Promise<Mea
 }
 
 /** Copy to the days picked, as the person chose (TSK-20 to TSK-25, PLN-06).
- *  Every copy is a new task; meals come with their own task when the
- *  original meal had one. All of it is written in one go and can be undone
- *  in one go. */
+ *  Every copy is a new task, written in one go. Meals copy through Food's
+ *  own copyMeals (meals.ts), so a day's meals copy exactly as Food's "Copy
+ *  day to…" does: the same meals at the same times, planned, with their
+ *  meal tasks made the way the meal plan makes them. Undo takes back both. */
 export async function runCopy(
   profileId: string, what: CopyWhat, targets: string[], c: CopyChoices, noteTemplates: NoteTemplate[],
 ): Promise<CopyResult> {
@@ -51,6 +53,7 @@ export async function runCopy(
   let skippedRepeats = 0
   let tasks = 0
   let meals = 0
+  let pairs: { from: string; to: string[] }[] = []
   const daysTouched = [...targets]
   const lo = targets[0]
   const hi = what.kind === 'week' ? addDays(targets[targets.length - 1], 6) : targets[targets.length - 1]
@@ -70,40 +73,29 @@ export async function runCopy(
   } else {
     const first = what.kind === 'day' ? what.day : what.monday
     const last = what.kind === 'day' ? what.day : addDays(what.monday, 6)
-    const [srcTasks, srcMeals] = await Promise.all([tasksOn(profileId, first, last), mealsOn(profileId, first, last)])
-    const pairs = what.kind === 'day' ? dayPairs(first, targets) : weekPairs(first, targets)
-    const plan = planCopy(pairs, { tasks: srcTasks, meals: srcMeals }, c, noteTemplates, onDay)
+    const srcTasks = await tasksOn(profileId, first, last)
+    pairs = what.kind === 'day' ? dayPairs(first, targets) : weekPairs(first, targets)
+    // Meals are not planned here: Food's copy does them below. A meal's own
+    // task is never copied as a task either (planCopy leaves them out);
+    // copyMeals makes it afresh for the copied meal.
+    const plan = planCopy(pairs, { tasks: srcTasks, meals: [] }, { ...c, meals: false }, noteTemplates, onDay)
     skippedRepeats = plan.skippedRepeats
     for (const t of plan.tasks) rows.push({ table: 'task', row: blankTask(profileId, t.day, t.fields), fields: [] })
     tasks = plan.tasks.length
-    const mealTasksOn = await builtinRuleOn(profileId, 'nutrition', 'meal_tasks')
-    for (const m of plan.meals) {
-      const slot: MealPlanSlot = {
-        ...(m.fields as MealPlanSlot), id: crypto.randomUUID(), profile_id: profileId, updated_at: new Date().toISOString(),
-      }
-      rows.push({ table: 'meal_plan_slot', row: slot, fields: [] })
-      meals++
-      // The meal's own task, as the meal plan would have made it: same
-      // title, the meal's time on that day, not ticked.
-      const own = srcTasks.find((t) => t.source === 'meal' && t.source_ref === m.from.id && !t.deleted_at)
-      if (own && mealTasksOn) {
-        rows.push({
-          table: 'task', fields: [],
-          row: blankTask(profileId, m.day, {
-            title: own.title, category: own.category, module_key: own.module_key, planned_time: own.planned_time,
-            duration_min: own.duration_min, source: 'meal', source_ref: slot.id, sort_order: own.sort_order,
-          }),
-        })
-      }
-    }
   }
   // New rows are sent whole: the server has nothing with these ids yet.
   for (const r of rows) r.fields = Object.keys(r.row).filter((k) => k !== 'id' && k !== 'updated_at') as never
   await writeBatch(rows)
+  const madeMeals: MealPlanSlot[] = []
+  if (c.meals) for (const p of pairs) madeMeals.push(...await copyMeals(p.from, p.to, 'all', profileId))
+  meals = mealCount(madeMeals)
   return {
     summary: copySummary({ tasks, meals }, daysTouched, what.kind),
     tasks, meals, skippedRepeats,
-    undo: () => unmakeBatch(rows),
+    undo: async () => {
+      await removeItems(madeMeals)
+      await unmakeBatch(rows)
+    },
   }
 }
 

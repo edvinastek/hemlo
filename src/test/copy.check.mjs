@@ -3,7 +3,7 @@
 // 2026-10-03 is a Saturday; 2026-10-05 a Monday; 2026-10-07 a Wednesday.
 import {
   DEFAULT_CHOICES, readCopyChoices, shortcutsFor, shortcutDays, shortcutLabel, cleanTargets, toggleTarget,
-  toggleShortcut, shownDays, copyNote, copyTime, copyTaskFields, copiesWithDay, mealHasFood, copyMealFields,
+  toggleShortcut, shownDays, copyNote, copyTime, copyTaskFields, copiesWithDay, mealHasFood, copyMealFields, mealCount,
   planCopy, dayPairs, weekPairs, targetWords, copySummary, mondayOf, MAX_COPY_DAYS,
 } from '../lib/copy-rules.ts'
 
@@ -113,6 +113,9 @@ eq('a meal with a recipe has food', mealHasFood(slot()), true)
 eq('a slot holding only a time has none', mealHasFood(slot({ recipe_id: null })), false)
 eq('a quick meal has food', mealHasFood(slot({ recipe_id: null, label: 'Sandwich', kcal: 450 })), true)
 eq('a single food has food', mealHasFood(slot({ recipe_id: null, food_id: 'f' })), true)
+eq('two foods in one meal are one meal', mealCount([slot({ id: 'a', slot: 'lunch' }), slot({ id: 'b', slot: 'lunch', recipe_id: null, food_id: 'f' })]), 1)
+eq('two meals, a time-only row not counted', mealCount([slot({ id: 'a', slot: 'lunch' }), slot({ id: 'b', slot: 'dinner' }), slot({ id: 'c', slot: 'breakfast', recipe_id: null })]), 2)
+eq('the same meal on two days is two', mealCount([slot({ id: 'a', slot: 'lunch' }), slot({ id: 'b', slot: 'lunch', slot_date: '2026-10-09' })]), 2)
 const mf = copyMealFields(slot({ unit: 'slice', unit_qty: 2 }), '2026-10-09')
 eq('a copied meal is planned again, same portions and unit', [mf.slot_date, mf.status, mf.portion_multiplier, mf.recipe_id, mf.unit, mf.unit_qty, mf.slot_time],
   ['2026-10-09', 'planned', 1.5, 'r', 'slice', 2, '08:00'])

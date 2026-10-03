@@ -9,6 +9,7 @@
 import { addDays, isDay, weekdayOf } from './schedule-rules.ts'
 import { clearTicks, fillTemplate, type NoteTemplate } from './template-rules.ts'
 import { afterDoneMarker } from './after-done-rules.ts'
+import { groupKey } from './meal-rules.ts'
 import type { MealPlanSlot, Task } from './types'
 
 export type CopyKind = 'task' | 'tasks' | 'day' | 'week'
@@ -217,6 +218,13 @@ export function copiesWithDay(t: Task, c: CopyChoices): boolean {
 /** A meal slot that holds something to eat (not only a time for the day). */
 export const mealHasFood = (s: MealPlanSlot) =>
   !s.deleted_at && (!!s.recipe_id || !!s.food_id || s.kcal != null || !!(s.label && s.label.trim()))
+
+/** How many meals some items make: the items of one meal on one day (the
+ *  same meal, or the same time) count once, so "2 meals" means two meals,
+ *  not two foods. Only items with food count. */
+export function mealCount(slots: MealPlanSlot[]): number {
+  return new Set(slots.filter(mealHasFood).map((s) => `${s.slot_date}|${groupKey(s)}`)).size
+}
 
 /** A planned meal for another day: what it is, how much, and its own time;
  *  planned again, not eaten. */
