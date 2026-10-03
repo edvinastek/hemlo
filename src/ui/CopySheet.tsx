@@ -11,6 +11,7 @@ import {
 import { runCopy, type CopyWhat } from '../lib/copy'
 import { savePlanPrefs, usePlanPrefs } from '../lib/plan-prefs'
 import { MonthScroller } from './MonthScroller'
+import { MoreOptions } from './MoreOptions'
 import { Dropdown } from './Dropdown'
 import { useDayRange } from './useDayRange'
 import { useBackClose } from './useBackClose'
@@ -31,7 +32,11 @@ export type { CopyWhat } from '../lib/copy'
  *  4. what to keep (section, length, lock) and, for a day or week, what to
  *     bring along (tasks, repeating tasks as one-offs, meals).
  *
- *  Copies are new, independent tasks. Undo takes the whole copy back. */
+ *  Copies are new, independent tasks. Undo takes the whole copy back.
+ *
+ *  Calm (v17): the days and the calendar are in sight; 2 to 4 wait in one
+ *  "Options" line that says what is chosen ("Same time, same notes"), since
+ *  they are remembered and seldom changed (CALM-08). */
 export function CopySheet({ what, onClose, onDone }: { what: CopyWhat; onClose: () => void; onDone?: (days: string[]) => void }) {
   useBackClose(onClose)
   const profile = useApp((s) => s.profile)
@@ -84,6 +89,16 @@ export function CopySheet({ what, onClose, onDone }: { what: CopyWhat; onClose: 
   const tpl = noteTemplates.find((t) => t.id === c.templateId)
   const nothing = !isTasks && ((!c.tasks || counts.tasks === 0) && (!c.repeats || counts.repeats === 0) && (!c.meals || counts.meals === 0))
   const badTime = c.time === 'new' && !c.newTime
+
+  // The closed Options line: what the copy will do, in a few words.
+  const summary = [
+    isTasks ? (c.time === 'keep' ? (list.length > 1 ? 'Times kept' : 'Same time') : c.time === 'new' ? (c.newTime ? `At ${c.newTime}` : 'A new time') : 'No time') : null,
+    c.notes === 'same' ? 'same notes' : c.notes === 'cleared' ? 'notes with ticks cleared' : c.notes === 'none' ? 'no notes' : `notes from ${tpl?.name ?? 'a template'}`,
+    !isTasks ? ([c.tasks && 'tasks', c.repeats && 'repeats', c.meals && 'meals'].filter(Boolean).join(', ') || 'nothing brought') : null,
+    [!c.keepSection && 'section', !c.keepMinutes && 'length', !c.keepLocked && 'lock'].filter(Boolean).length
+      ? `without ${[!c.keepSection && 'section', !c.keepMinutes && 'length', !c.keepLocked && 'lock'].filter(Boolean).join(', ')}` : null,
+  ].filter(Boolean).join(', ')
+  const said = summary.charAt(0).toUpperCase() + summary.slice(1)
 
   async function copy() {
     if (!profile || busy || targets.length === 0 || nothing || badTime) return
@@ -145,6 +160,7 @@ export function CopySheet({ what, onClose, onDone }: { what: CopyWhat; onClose: 
             onDayClick={(d) => setDays((ds) => toggleTarget(cleanTargets(ds, kind, from, range), d, kind))} />
         </section>
 
+        <MoreOptions label="Options" summary={said} open={badTime || nothing}>
         {isTasks && (
           <section className="cs-part" role="radiogroup" aria-labelledby="cs-time">
             <h3 id="cs-time" className="cs-head">Time</h3>
@@ -194,8 +210,8 @@ export function CopySheet({ what, onClose, onDone }: { what: CopyWhat; onClose: 
             {check(c.keepLocked, (keepLocked) => set({ keepLocked }), 'Locked')}
           </div>
         </section>
+        </MoreOptions>
 
-        <p className="cs-note">Copies are new tasks: changing one never changes another{isTasks && list.some((t) => t.series_id) ? ', and a repeating task copies as a one-off' : ''}.</p>
         <div className="sheet-actions cs-actions">
           <button type="button" className="btn" onClick={onClose}>Cancel</button>
           <button type="button" className="btn btn-primary grow" disabled={busy || targets.length === 0 || nothing || badTime} onClick={() => void copy()}>

@@ -71,8 +71,14 @@
 .ne-tools { flex-wrap: wrap; }
 /* At least 36 px wide and 32 high: a row that fits a 360 px phone. */
 .ne-tool { min-width: 36px; height: 32px; }
-.ne-insert { padding: 0 10px; font-size: 13px; color: var(--e-ink); }
-.ne-insert[aria-expanded="true"] { background: var(--e-tint); }
+/* "Insert ▾" on the label line: a quiet word, a finger tall. */
+.ne-insert {
+  min-height: 36px; padding: 4px 2px; white-space: nowrap;
+  font-family: var(--font-sans); font-size: 13px; color: var(--e-accent);
+}
+.ne-insert[aria-expanded="true"] { color: var(--e-ink); }
+.ne-head .ne-insert { margin-left: auto; }
+.ne-head .ne-insert + .ne-open { margin-left: var(--space-3); }
 
 .ne-menu {
   display: grid; border: 1px solid var(--e-rule); border-radius: var(--radius-md); overflow: hidden;
