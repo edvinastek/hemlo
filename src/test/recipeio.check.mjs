@@ -4,7 +4,7 @@
 // CSV both ways, plain text, and schema.org written out.
 import {
   readLine, lineGrams, isoMinutes, isoDuration, yieldPortions, recipesInJsonLd, jsonLdBlocks, readRecipes, toGetItJson,
-  toCsv, csvRows, toSchemaOrg, CSV_HEAD,
+  toCsv, csvRows, toSchemaOrg, CSV_HEAD, planRecipes,
 } from '../lib/recipe-io-rules.ts'
 
 let fail = 0
@@ -110,6 +110,27 @@ is('ingredients for the batch, in their unit', out.recipeIngredient, ['80 g Oat 
 is('steps', out.recipeInstructions, [{ '@type': 'HowToStep', text: 'Stir.' }])
 is('nutrition a portion, sodium from salt', [out.nutrition.calories, out.nutrition.proteinContent, out.nutrition.sodiumContent], ['278 kcal', '18 g', '140 mg'])
 is('and read back in', readRecipes(JSON.stringify(out)).recipes[0].name, 'Oat bowl')
+
+// An import planned: matched lines in grams a portion, the rest as text.
+const cat = [
+  { id: 'egg', name: 'Egg average, raw', nevo_code: 83, units: [{ name: 'egg', plural: 'eggs', g: 50, size: 'M' }] },
+  { id: 'tom', name: 'Tomatoes, tinned', units: [] },
+  { id: 'onion', name: 'Onions, raw', units: [{ name: 'onion', plural: 'onions', g: 95, size: 'M' }] },
+  { id: 'oats', name: 'Oat flakes', nevo_code: 213, units: [] },
+]
+const byName = (n) => cat.find((f) => n.toLowerCase().includes(f.name.split(/[ ,]/)[0].toLowerCase().replace(/s$/, ''))) ?? null
+const [pl] = planRecipes([shak], cat, byName)
+is('portions and name kept', [pl.name, pl.portions_per_batch, pl.cook_minutes], ['Shakshuka', 2, 30])
+is('4 eggs for 2 portions: 2 eggs a portion', pl.lines[0], { food_id: 'egg', raw_text: '4 eggs', grams_per_portion: 100, unit: 'egg', unit_qty: 2, state: null, note: null })
+is('400 g tinned tomatoes: 200 g a portion', [pl.lines[1].food_id, pl.lines[1].grams_per_portion], ['tom', 200])
+is('a note travels with the line', pl.lines[2].note, 'chopped')
+is('counted matches', [pl.matched, pl.unmatched], [3, []])
+const [gp] = planRecipes(readRecipes(file).recipes, cat, () => null)
+is('a GetIt file finds foods by their NEVO code', gp.lines.map((l) => l.food_id), ['oats', 'egg', null])
+is('… keeps its grams a portion and its unit', [gp.lines[1].grams_per_portion, gp.lines[1].unit, gp.lines[1].unit_qty], [100, 'egg', 2])
+is('… and keeps unknown lines as text', gp.unmatched, ['Salt to taste'])
+const [nf] = planRecipes(readRecipes('Toast\n1 tbsp mystery paste\n2 slices bread').recipes, cat, () => null)
+is('no food: every line kept as text, nothing lost', [nf.lines.map((l) => l.raw_text), nf.matched], [['1 tbsp mystery paste', '2 slices bread'], 0])
 
 console.log(fail ? `\n${fail} failed` : '\nAll recipe import and export checks passed')
 process.exit(fail ? 1 : 0)

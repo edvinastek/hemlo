@@ -102,6 +102,8 @@ export interface ScaledLine {
   id: string
   /** The food's name, or the free text ("Salt to taste"). */
   name: string
+  /** What the recipe calls it, when it says ("Peanut butter"). */
+  said: string | null
   food: Food | null
   /** Grams for the portions asked, or null for a line without an amount. */
   grams: number | null
@@ -123,7 +125,7 @@ export function scaleLines(recipeId: string, lines: RecipeLine[], foods: Map<str
       const grams = l.grams_per_portion == null ? null : Math.round(Number(l.grams_per_portion) * p * 100) / 100
       const count = unitCount({ ...l, grams: l.grams_per_portion }, readUnits(food?.units), p)
       return {
-        id: l.id, name: food?.name ?? (l.raw_text?.trim() || 'A food not on this device'), food, grams, count,
+        id: l.id, name: food?.name ?? (l.raw_text?.trim() || 'A food not on this device'), said: l.raw_text?.trim() || null, food, grams, count,
         state: l.state ?? null, note: l.note ?? null,
       }
     })

@@ -3,9 +3,8 @@ import { useLiveQuery } from 'dexie-react-hooks'
 import { db } from '../lib/db'
 import { useApp } from '../lib/store'
 import { BookTable } from './BookTable'
-import { recipeMacros } from '../lib/calc'
 import { NUTRIENTS, readSettings, type Nutrient } from '../lib/settings'
-import { nutrientLabel, shownNutrients } from '../lib/quick-food'
+import { shownNutrients } from '../lib/quick-food'
 import { readUnits, unitsText } from '../lib/units-rules'
 import { FoodUnitsSheet } from '../ui/FoodUnits'
 import { FoodEditor } from '../ui/FoodEditor'
@@ -16,6 +15,17 @@ import {
 } from '../lib/eu-label-rules'
 import '../ui/food.css'
 import { MyRecipes } from '../ui/MyRecipes'
+import { RecipeView } from '../ui/RecipeView'
+import { RecipeEditor } from '../ui/RecipeEditor'
+import { Dropdown } from '../ui/Dropdown'
+import { offerUndo } from '../ui/Undo'
+import { stockMap } from '../lib/stock'
+import { addToShoppingList } from '../lib/recipe-actions'
+import {
+  SORTS, recipeFigures, recipeOrder, recipeSearchText, roleLabel, scaleLines, toBuy, usage, variationName, type RecipeSort,
+} from '../lib/recipe-rules'
+import type { RecipeDraft } from '../lib/sharing-rules'
+import '../ui/recipes.css'
 import { FindProducts } from '../ui/ProductSearch'
 import type { FieldDef } from '../modules/types'
 import type { Food as FoodRow, Recipe, RecipeLine } from '../lib/types'
@@ -31,49 +41,120 @@ function useFoodData() {
   return { foods, recipes, lines, foodMap }
 }
 
-/** Food's Recipes tab: the person's own recipes, then every recipe, in books. */
+/** Food's Recipes tab (REC-01 to REC-08, REC-20, REC-21): the person's own
+ *  recipes and the ways to add some, then every recipe (ready meals too), in
+ *  books, found by the one search over names, ingredients and what each is
+ *  for, and sorted as the person chooses. Tapping a recipe opens it in full. */
 export function RecipesTab() {
   const profile = useApp((s) => s.profile)
   const userId = useApp((s) => s.session?.user.id ?? null)
-  const shown = shownNutrients(readSettings(profile))
+  const settings = readSettings(profile)
+  const prefs = useNutritionPrefs()
   const { recipes, lines, foodMap } = useFoodData()
+  const [search, setSearch] = useState('')
+  const [sort, setSort] = useState<RecipeSort>('name')
+  const [open, setOpen] = useState<Recipe | null>(null)
+  const [editing, setEditing] = useState<{ recipe: Recipe | null; start?: RecipeDraft } | null>(null)
+  const logs = useLiveQuery(async () => (profile ? db.food_log.where('profile_id').equals(profile.id).toArray() : []), [profile?.id], [])
+  const slots = useLiveQuery(async () => (profile ? db.meal_plan_slot.where('profile_id').equals(profile.id).toArray() : []), [profile?.id], [])
+  const use = useMemo(() => usage(logs, slots), [logs, slots])
   const liveRecipes = useMemo(() => recipes.filter(live), [recipes])
-  /** Recipe macros are calculated from the lines every time they are shown,
-   *  never read from a stored column, so a changed ingredient is reflected at
-   *  once — and a figure typed into the old sheet can never contradict them. */
+  const figures = shownFigures(shownNutrients(settings).filter((k) => k !== 'kcal'), prefs.label.figures)
+  /** Recipe figures are worked out from the lines every time they are shown,
+   *  never read from a stored column, so a changed ingredient shows at once. */
   const recipeRows = useMemo(() => liveRecipes.map((r) => {
-    const m = recipeMacros(lines.filter((l) => l.recipe_id === r.id), foodMap)
+    const own = lines.filter((l) => l.recipe_id === r.id)
+    const f = recipeFigures(own, foodMap, ['kcal', ...figures], 1)
+    const values = Object.fromEntries(figures.map((k) => [k, f[k].missing === own.filter((l) => l.food_id).length && own.length ? null : Math.round(f[k].value * 10) / 10]))
     return {
-      ...r,
-      kcal: Math.round(m.kcal),
-      protein_g: Math.round(m.protein_g * 10) / 10,
-      carbs_g: Math.round(m.carbs_g * 10) / 10,
-      fat_g: Math.round(m.fat_g * 10) / 10,
-      fiber_g: Math.round(m.fiber_g * 10) / 10,
-      lines_count: lines.filter((l) => l.recipe_id === r.id).length,
+      ...r, ...values,
+      kcal: own.some((l) => l.food_id) ? Math.round(f.kcal.value) : null,
+      role_label: roleLabel(r.role),
+      lines_count: own.length,
     }
-  }), [liveRecipes, lines, foodMap])
-  const narrowColumns = ['name', ...shown.slice(0, 2)]
+  }), [liveRecipes, lines, foodMap, figures.join(',')])
+  const extraText = useMemo(() => {
+    const m = new Map(liveRecipes.map((r) => [r.id, recipeSearchText(r, lines, foodMap)]))
+    return (r: { id: string }) => m.get(r.id) ?? ''
+  }, [liveRecipes, lines, foodMap])
+  const order = useMemo(() => recipeOrder(sort, use), [sort, use])
+  const narrowColumns = ['name', 'kcal', ...figures.slice(0, 1)]
   const recipeFields: FieldDef[] = [
     { name: 'name', label: 'Recipe', type: 'text', width: 230 },
-    { name: 'role', label: 'Role', type: 'select', options: ['breakfast','lunch','dinner','snack','shake','main'], width: 110 },
+    { name: 'role_label', label: 'For', type: 'text', width: 110 },
     { name: 'lines_count', label: 'Items', type: 'integer', width: 60 },
-    { name: 'kcal', label: 'kcal', type: 'integer', width: 70 },
-    ...shown.filter((k) => k !== 'kcal').map((k): FieldDef => ({ name: k, label: nutrientLabel(k), type: 'number', unit: 'g', width: 80 })),
+    { name: 'kcal', label: 'kcal', type: 'integer', unit: 'a portion', width: 90 },
+    ...figures.map((k): FieldDef => ({ name: k, label: figureName(k), type: 'number', unit: 'g', width: 80 })),
   ]
+
+  function variation(r: Recipe) {
+    const own = lines.filter((l) => l.recipe_id === r.id).sort((a, b) => a.sort_order - b.sort_order)
+    const taken = liveRecipes.filter((x) => x.owner_id === userId).map((x) => x.name)
+    setOpen(null)
+    setEditing({
+      recipe: null,
+      start: {
+        name: variationName(r.name, taken), role: r.role ?? '', portions: String(Number(r.portions_per_batch) || 1),
+        minutes: r.cook_minutes == null ? '' : String(r.cook_minutes), steps: r.steps ?? '',
+        // The copy's lines are new lines with the same amounts.
+        lines: own.map((l) => ({
+          id: null, food_id: l.food_id, grams: l.unit && l.unit_qty != null ? String(Number(l.unit_qty)) : l.grams_per_portion == null ? '' : String(Number(l.grams_per_portion)),
+          unit: l.unit ?? null, raw_text: l.raw_text ?? null, state: l.state ?? null, note: l.note ?? '',
+          saved: l.unit && l.unit_qty != null ? { unit: l.unit, qty: Number(l.unit_qty), grams: Number(l.grams_per_portion ?? 0) } : null,
+        })),
+      },
+    })
+  }
+
+  async function addSelectedToList(picked: Recipe[], say: (t: string, bad?: boolean) => void) {
+    if (!profile) return
+    const stock = await stockMap(profile.household_id)
+    const scaled = picked.flatMap((r) => scaleLines(r.id, lines, foodMap, Number(r.portions_per_batch) || 1))
+    const { buy, inStock } = toBuy(scaled, stock)
+    if (buy.length === 0) { say(inStock.length ? 'Everything they need is in the cupboard already.' : 'These recipes have no ingredients to buy.'); return }
+    const { count, undo } = await addToShoppingList(buy, profile.household_id, profile.id, picked.length === 1 ? `For ${picked[0].name}` : `For ${picked.length} recipes`)
+    offerUndo('Added to the shopping list', undo)
+    say(`${count} ${count === 1 ? 'item' : 'items'} on the shopping list, a batch of each${inStock.length ? `; ${inStock.length} already in the cupboard` : ''}.`)
+  }
+
   return (
     <>
-      <MyRecipes userId={userId} recipes={liveRecipes} lines={lines} foods={foodMap} />
+      <MyRecipes userId={userId} recipes={liveRecipes} lines={lines} foods={foodMap} onOpen={setOpen} onNew={() => setEditing({ recipe: null })} />
+      <div className="rt-tools">
+        <input className="ft-search" type="search" placeholder="Search recipes and ingredients" aria-label="Search recipes"
+          value={search} onChange={(e) => setSearch(e.target.value)} autoComplete="off" />
+        <Dropdown<RecipeSort> value={sort} options={SORTS} label="Sort recipes" onChange={setSort} />
+      </div>
       <BookTable
         kind="recipe"
-        head={<span><b>{liveRecipes.length}</b> recipes · macros calculated from the ingredient lines</span>}
+        head={<span><b>{liveRecipes.length}</b> recipes · figures a portion, worked out from the ingredients</span>}
         fields={recipeFields}
         priority={narrowColumns}
-        rows={recipeRows}
+        rows={recipeRows as never}
         lines={lines}
         foods={foodMap}
-        emptyNote="No recipes yet — import them from your Excel file in More."
+        search={search}
+        extra={extraText}
+        order={order as never}
+        onOpen={(row) => setOpen(liveRecipes.find((r) => r.id === row.id) ?? null)}
+        openLabel={(row) => `Open ${row.name}`}
+        actions={profile ? (picked, say) => (
+          <button type="button" className="btn" disabled={picked.length === 0}
+            onClick={() => void addSelectedToList(picked as unknown as Recipe[], say)}>Add to shopping list</button>
+        ) : undefined}
+        emptyNote={search.trim() ? `No recipe matches “${search.trim()}”.` : 'No recipes yet. Make one with New recipe, import one, or bring in your Excel workbook in More.'}
       />
+      {open && !editing && (
+        <RecipeView recipe={open} lines={lines} foods={foodMap} userId={userId} onClose={() => setOpen(null)}
+          onEdit={(r) => setEditing({ recipe: r })} onVariation={variation} />
+      )}
+      {editing && userId && (
+        <RecipeEditor key={editing.recipe?.id ?? 'new'} recipe={editing.recipe} userId={userId} foods={foodMap} start={editing.start}
+          lines={editing.recipe ? lines.filter((l) => l.recipe_id === editing.recipe!.id) : []}
+          onClose={() => setEditing(null)}
+          // A new recipe or a variation opens on its page once saved.
+          onSaved={(r) => { if (!editing.recipe) setOpen(r) }} />
+      )}
     </>
   )
 }

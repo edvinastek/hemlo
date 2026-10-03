@@ -380,3 +380,68 @@ export function toSchemaOrg(r: ExportRecipe, attribution: string | null): Record
     ...(attribution ? { comment: attribution } : {}),
   }
 }
+
+// ---- an import planned before anything is saved ----------------------------------------
+
+export interface PlannedLine {
+  food_id: string | null
+  raw_text: string
+  grams_per_portion: number | null
+  unit: string | null
+  unit_qty: number | null
+  state: string | null
+  note: string | null
+}
+export interface PlannedRecipe {
+  name: string
+  role: string | null
+  portions_per_batch: number
+  cook_minutes: number | null
+  steps: string | null
+  lines: PlannedLine[]
+  matched: number
+  /** Lines kept as text, for the person to finish: no food found, or an
+   *  amount the food cannot weigh. */
+  unmatched: string[]
+}
+
+type Matchable = { id: string; name: string; nevo_code?: number | null; units?: unknown; per_ml?: boolean; density?: number | string | null }
+
+/** Recipes read from a file or a page, as rows to save: each line matched to
+ *  a food (`match` finds one by name; a GetIt file's NEVO code finds it
+ *  first), its amount for the whole batch turned into grams a portion, in the
+ *  food's unit where it was counted. A line that finds no food, or whose
+ *  amount the food cannot weigh, is kept as a line of text. */
+export function planRecipes<T extends Matchable>(recipes: ImportedRecipe[], foods: T[], match: (name: string) => T | null): PlannedRecipe[] {
+  const byCode = new Map(foods.filter((f) => f.nevo_code).map((f) => [f.nevo_code!, f]))
+  const round = (n: number) => Math.round(n * 100) / 100
+  return recipes.map((r) => {
+    const portions = r.portions > 0 ? r.portions : 1
+    const out: PlannedRecipe = {
+      name: r.name.trim().slice(0, 120) || 'Imported recipe', role: r.role, portions_per_batch: round(Math.min(999, portions)),
+      cook_minutes: r.minutes && r.minutes <= 10000 ? r.minutes : null, steps: r.steps, lines: [], matched: 0, unmatched: [],
+    }
+    for (const l of r.lines) {
+      const food = (l.nevo_code ? byCode.get(l.nevo_code) : undefined) ?? match(l.name)
+      const said = l.text.slice(0, 200)
+      // A GetIt file says the grams a portion itself.
+      if (food && l.grams_per_portion != null && l.grams_per_portion > 0) {
+        out.lines.push({ food_id: food.id, raw_text: said, grams_per_portion: round(l.grams_per_portion), unit: l.unit_name && l.unit_qty ? l.unit_name : null,
+          unit_qty: l.unit_name && l.unit_qty ? l.unit_qty : null, state: l.state, note: l.note })
+        out.matched++
+        continue
+      }
+      const g = food ? lineGrams(l, food) : null
+      if (food && g && g.grams / portions <= 10000) {
+        const perUnit = g.unit && g.unit_qty ? round(g.unit_qty / portions) : null
+        out.lines.push({ food_id: food.id, raw_text: said, grams_per_portion: round(g.grams / portions), unit: perUnit ? g.unit! : null,
+          unit_qty: perUnit, state: l.state, note: l.note })
+        out.matched++
+      } else {
+        out.lines.push({ food_id: null, raw_text: said, grams_per_portion: null, unit: null, unit_qty: null, state: null, note: null })
+        out.unmatched.push(said)
+      }
+    }
+    return out
+  })
+}

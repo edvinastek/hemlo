@@ -29,7 +29,7 @@ type Status = { text: string; bad?: boolean } | null
  *  rows in a book, take them out, copy them, export them or delete the ones
  *  that are the person's own. Shared catalogue rows are never deleted. */
 export function BookTable<T extends Row>({
-  kind, rows, fields, priority, emptyNote, head, search = '', limit, lines = [], foods, onOpen, openLabel, extra, order, more,
+  kind, rows, fields, priority, emptyNote, head, search = '', limit, lines = [], foods, onOpen, openLabel, extra, order, more, actions,
 }: {
   kind: BookKind
   /** Every row that still exists, in the table's order. */
@@ -52,6 +52,9 @@ export function BookTable<T extends Row>({
   order?: (a: T, b: T) => number
   /** Shown under the table, before "Show all" (the catalogue's attribution). */
   more?: ReactNode
+  /** More buttons for the select bar, for the rows ticked ("Add to shopping
+   *  list"); `say` puts a line in the bar. */
+  actions?: (picked: T[], say: (text: string, bad?: boolean) => void) => ReactNode
   /** For "Copy ingredients" on recipes. */
   lines?: RecipeLine[]
   foods?: Map<string, Food>
@@ -242,6 +245,7 @@ export function BookTable<T extends Row>({
           {kind === 'recipe'
             ? <button type="button" className="btn" disabled={none} onClick={copyIngredients}>Copy ingredients</button>
             : <button type="button" className="btn" disabled={none} onClick={() => void copy(namesText(picked), countOf(picked.length, 'food'))}>Copy names</button>}
+          {actions?.(picked, (text, bad) => setStatus({ text, bad }))}
           {!none && <span className="sb-export"><ExportLink source={exportSource} /></span>}
           <button type="button" className="btn sb-delete" disabled={none} onClick={() => setSheet('delete')}>Delete…</button>
         </SelectBar>

@@ -1,20 +1,28 @@
 import { useMemo, useState } from 'react'
 import { macrosFor } from '../lib/meals'
 import { statusOf } from '../lib/sharing-rules'
+import { roleLabel } from '../lib/recipe-rules'
 import { SharingStatus } from './SharingChoice'
-import { RecipeEditor } from './RecipeEditor'
+import { RecipeImport, exportRecipes } from './RecipeImport'
 import type { Food, Recipe, RecipeLine } from '../lib/types'
 import './sharing.css'
+import './recipes.css'
 
-/** The person's own recipes, each with who can see it, and the way to add
- *  one. Sits above the recipe table on the Food page. */
-export function MyRecipes({ userId, recipes, lines, foods }: {
+/** The person's own recipes, each with who can see it, and the ways to add
+ *  some: a new one, or imported (pasted, a page, a file); and all of them
+ *  out as a file. Sits above the recipe table on the Food page. Tapping one
+ *  opens its page. */
+export function MyRecipes({ userId, recipes, lines, foods, onOpen, onNew }: {
   userId: string | null
   recipes: Recipe[]
   lines: RecipeLine[]
   foods: Map<string, Food>
+  onOpen: (r: Recipe) => void
+  onNew: () => void
 }) {
-  const [open, setOpen] = useState<Recipe | 'new' | null>(null)
+  const [importing, setImporting] = useState(false)
+  const [exporting, setExporting] = useState(false)
+  const [said, setSaid] = useState<string | null>(null)
   const mine = useMemo(() => recipes
     .filter((r) => userId && r.owner_id === userId && !r.deleted_at)
     .sort((a, b) => a.name.localeCompare(b.name)), [recipes, userId])
@@ -22,13 +30,30 @@ export function MyRecipes({ userId, recipes, lines, foods }: {
   const flagged = mine.filter((r) => ['waiting', 'warn'].includes(statusOf(r).tone)).length
 
   if (!userId) return null
-  const editing = open === 'new' ? null : open
+  async function out(kind: 'json' | 'csv' | 'schema') {
+    const all = recipes.filter((r) => !r.deleted_at)
+    const how = await exportRecipes(kind, all, lines, foods)
+    if (how !== 'cancelled') setSaid(`Exported ${all.length} ${all.length === 1 ? 'recipe' : 'recipes'}.`)
+    setExporting(false)
+  }
   return (
     <div className="my-recipes">
       <div className="my-recipes-head">
         <span className="row-meta">Your own recipes stay private unless you propose one to everyone.</span>
-        <button type="button" className="btn btn-primary" onClick={() => setOpen('new')}>New recipe</button>
+        <button type="button" className="btn btn-primary" onClick={onNew}>New recipe</button>
       </div>
+      <div className="my-recipes-head" style={{ paddingTop: 0 }}>
+        <button type="button" className="btn" onClick={() => setImporting(true)}>Import</button>
+        <button type="button" className="btn" aria-expanded={exporting} onClick={() => setExporting((v) => !v)}>Export all</button>
+        {exporting && (
+          <span className="rv-actions" style={{ margin: 0 }}>
+            <button type="button" className="slot-link" onClick={() => void out('json')}>GetIt file</button>
+            <button type="button" className="slot-link" onClick={() => void out('csv')}>CSV</button>
+            <button type="button" className="slot-link" onClick={() => void out('schema')}>schema.org</button>
+          </span>
+        )}
+      </div>
+      {said && <p className="rv-done" style={{ padding: '0 var(--space-4) var(--space-2)' }} role="status">{said}</p>}
       {mine.length > 0 && (
         <details open={mine.length <= 5 || flagged > 0}>
           <summary className="my-recipes-head">Your recipes · {mine.length}</summary>
@@ -37,19 +62,15 @@ export function MyRecipes({ userId, recipes, lines, foods }: {
               <div>
                 <div className="row-name">{r.name}</div>
                 <div className="row-meta">
-                  {Math.round(macrosFor(r.id, lines, foods).kcal)} kcal a portion · <SharingStatus recipe={r} />
+                  {roleLabel(r.role)} · {Math.round(macrosFor(r.id, lines, foods).kcal)} kcal a portion · <SharingStatus recipe={r} />
                 </div>
               </div>
-              <button type="button" className="btn" onClick={() => setOpen(r)} aria-label={`Edit ${r.name}`}>Edit</button>
+              <button type="button" className="btn" onClick={() => onOpen(r)} aria-label={`Open ${r.name}`}>Open</button>
             </div>
           ))}
         </details>
       )}
-      {open && (
-        <RecipeEditor key={editing?.id ?? 'new'} recipe={editing} userId={userId} foods={foods}
-          lines={editing ? lines.filter((l) => l.recipe_id === editing.id) : []}
-          onClose={() => setOpen(null)} />
-      )}
+      {importing && <RecipeImport userId={userId} onClose={() => setImporting(false)} />}
     </div>
   )
 }

@@ -163,7 +163,18 @@ export interface LineDraft {
   /** The line as saved in a unit. Typed the same again, it keeps its saved
    *  grams, even if the unit's weight has been changed since. */
   saved?: { unit: string; qty: number; grams: number } | null
+  /** What the recipe calls it ("Peanut butter"), or, on a line with no food,
+   *  the whole line ("Salt to taste") (REC-04). */
+  raw_text?: string | null
+  /** Weighed raw or cooked: a cooked weight is turned back into raw by the
+   *  food's cook yield (REC-04). */
+  state?: string | null
+  /** A short note: "finely chopped". */
+  note?: string
 }
+
+/** The longest note or free-text line kept. */
+export const LINE_TEXT_MAX = 200
 
 export interface RecipeDraft {
   name: string
@@ -180,8 +191,13 @@ export interface RecipeValues {
   portions_per_batch: number
   cook_minutes: number | null
   steps: string | null
-  /** unit and unit_qty only on a line typed in a unit. */
-  lines: { id: string | null; food_id: string; grams_per_portion: number; unit?: string; unit_qty?: number }[]
+  /** unit and unit_qty only on a line typed in a unit; raw_text, state and
+   *  note only when set. A line without a food (free text) may have no
+   *  amount. */
+  lines: {
+    id: string | null; food_id: string | null; grams_per_portion: number | null; unit?: string; unit_qty?: number
+    raw_text?: string; state?: string; note?: string
+  }[]
 }
 
 const num = (s: string) => {
@@ -225,14 +241,26 @@ export function readRecipe(d: RecipeDraft, unitsOf: (foodId: string) => FoodUnit
   if (minutes !== null && (Number.isNaN(minutes) || minutes < 0 || minutes > 10000)) return { error: 'Minutes: a whole number, or leave it empty.' }
   const lines: RecipeValues['lines'] = []
   for (const l of d.lines) {
-    if (!l.food_id) continue
+    const text = (l.raw_text ?? '').replace(/\s+/g, ' ').trim()
+    const note = (l.note ?? '').replace(/\s+/g, ' ').trim()
+    if (text.length > LINE_TEXT_MAX || note.length > LINE_TEXT_MAX) return { error: `A line or its note is at most ${LINE_TEXT_MAX} characters.` }
+    const extra = { ...(text ? { raw_text: text } : {}), ...(l.state ? { state: l.state } : {}), ...(note ? { note } : {}) }
+    if (!l.food_id) {
+      // A line of free text ("Salt to taste"): no food, so it adds nothing
+      // to the figures; an amount in grams is kept if one is typed.
+      if (!text) continue
+      const g = num(l.grams)
+      if (g !== null && (Number.isNaN(g) || g < 0 || g > 10000)) return { error: `“${text}”: grams up to 10 kg, or leave it empty.` }
+      lines.push({ id: l.id, food_id: null, grams_per_portion: g === null ? null : Math.round(g * 100) / 100, ...extra })
+      continue
+    }
     const read = lineGrams(l, unitsOf(l.food_id))
     if ('error' in read) return { error: read.error }
     lines.push(read.unit
-      ? { id: l.id, food_id: l.food_id, grams_per_portion: read.grams, unit: read.unit, unit_qty: read.unit_qty }
-      : { id: l.id, food_id: l.food_id, grams_per_portion: read.grams })
+      ? { id: l.id, food_id: l.food_id, grams_per_portion: read.grams, unit: read.unit, unit_qty: read.unit_qty, ...extra }
+      : { id: l.id, food_id: l.food_id, grams_per_portion: read.grams, ...extra })
   }
-  if (lines.length === 0) return { error: 'Add at least one ingredient.' }
+  if (!lines.some((l) => l.food_id)) return { error: 'Add at least one ingredient.' }
   const steps = d.steps.trim()
   return {
     values: {
@@ -247,7 +275,10 @@ export function readRecipe(d: RecipeDraft, unitsOf: (foodId: string) => FoodUnit
  *  decides whether an approved recipe goes back for review. */
 export function recipeChanges(
   before: { name: string; role: string | null; portions_per_batch: number; cook_minutes: number | null; steps: string | null } | null,
-  beforeLines: { id: string; food_id: string | null; grams_per_portion: number | null; sort_order: number; unit?: string | null; unit_qty?: number | string | null }[],
+  beforeLines: {
+    id: string; food_id: string | null; grams_per_portion: number | null; sort_order: number; unit?: string | null; unit_qty?: number | string | null
+    raw_text?: string | null; state?: string | null; note?: string | null
+  }[],
   after: RecipeValues,
 ) {
   const fields: Partial<Pick<RecipeValues, 'name' | 'role' | 'portions_per_batch' | 'cook_minutes' | 'steps'>> = {}
@@ -262,8 +293,10 @@ export function recipeChanges(
     const old = l.id ? byId.get(l.id) : undefined
     if (!old) { upsert.push({ ...l, sort_order: i }); linesChanged = true; return }
     const oldQty = old.unit_qty === null || old.unit_qty === undefined ? null : Number(old.unit_qty)
-    const same = old.food_id === l.food_id && Number(old.grams_per_portion) === l.grams_per_portion
+    const oldGrams = old.grams_per_portion === null || old.grams_per_portion === undefined ? null : Number(old.grams_per_portion)
+    const same = old.food_id === l.food_id && oldGrams === l.grams_per_portion
       && (old.unit ?? null) === (l.unit ?? null) && oldQty === (l.unit_qty ?? null)
+      && (old.raw_text || null) === (l.raw_text ?? null) && (old.state || null) === (l.state ?? null) && (old.note || null) === (l.note ?? null)
     if (!same) linesChanged = true
     if (!same || old.sort_order !== i) upsert.push({ ...l, sort_order: i })
   })
