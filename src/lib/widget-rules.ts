@@ -7,7 +7,8 @@
  *  after midnight the widget shows the new day, not an empty one. Ticks made
  *  on the widget come back as a queue the app applies the next time it runs. */
 
-import { doneDays, doneThisWeek, isScheduled, type HabitSchedule } from './tracking-rules.ts'
+import { doneDays } from './tracking-rules.ts'
+import { habitDay, type HabitLike } from './schedule-rules.ts'
 import type { DayItem } from './day-items-rules.ts'
 
 export interface WidgetTask { id: string; title: string; time: string | null; done: boolean }
@@ -39,7 +40,7 @@ interface TaskRow {
   id: string; title: string; planned_date: string | null; planned_time: string | null
   status: string; horizon?: string; deleted_at: string | null
 }
-interface HabitRow { id: string; name: string; schedule: HabitSchedule; sort_order: number; active: boolean; deleted_at: string | null }
+interface HabitRow extends HabitLike { id: string; name: string; sort_order: number; active: boolean; deleted_at: string | null }
 interface HabitLogRow { habit_id: string; log_date: string; done: boolean; updated_at: string }
 
 /** More than a home screen can show; the widget draws as many as fit. */
@@ -69,16 +70,16 @@ export function buildDay(
     .slice(0, MAX_TASKS)
 
   // Habits is a module that can be switched off; then the widget has none.
+  // Through the one repeat engine: weekends, chosen days, dates and
+  // N-times-a-week all count; a habit whose week is already met (once a
+  // week, three times a week) shows as done for the rest of that week.
   const dayHabits = (habits ?? [])
-    .filter((h) => h.active && !h.deleted_at && isScheduled(h.schedule, day))
-    .sort((a, b) => a.sort_order - b.sort_order || a.name.localeCompare(b.name))
+    .filter((h) => h.active && !h.deleted_at)
+    .map((h) => ({ h, state: habitDay(h, day, doneDays(logs.filter((l) => l.habit_id === h.id))) }))
+    .filter((x) => x.state !== 'off')
+    .sort((a, b) => a.h.sort_order - b.h.sort_order || a.h.name.localeCompare(b.h.name))
     .slice(0, MAX_HABITS)
-    .map((h): WidgetHabit => {
-      const days = doneDays(logs.filter((l) => l.habit_id === h.id))
-      // A weekly habit is done for the whole week once it is done on any day of it.
-      const done = h.schedule === 'weekly' ? doneThisWeek(days, day) : days.includes(day)
-      return { id: h.id, name: clip(h.name), done }
-    })
+    .map(({ h, state }): WidgetHabit => ({ id: h.id, name: clip(h.name), done: state === 'done' || state === 'met' }))
 
   return { tasks: dayTasks, habits: dayHabits }
 }

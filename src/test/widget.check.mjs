@@ -59,6 +59,16 @@ is('a weekly habit done on Tuesday is done all week', h.find((x) => x.id === 'Ca
 is('a weekdays habit is not on Saturday', buildDay('2026-09-26', [], habits, logs).habits.map((x) => x.id), ['Stretch', 'Call home'])
 is('the weekly habit is still done on Sunday of that week', buildDay('2026-09-27', [], habits, logs).habits.find((x) => x.id === 'Call home').done, true)
 is('and open again next Monday', buildDay('2026-09-28', [], habits, logs).habits.find((x) => x.id === 'Call home').done, false)
+const ruled = [
+  habit('Weekend run', null, 0, { rule: 'weekends', rule_config: {} }),
+  habit('Gym', null, 1, { rule: 'times_per_week', rule_config: { times: 2 } }),
+  habit('Mon and Wed', null, 2, { rule: 'weekly', rule_config: { weekdays: [1, 3] } }),
+]
+const gymLogs = [log('Gym', '2026-09-21'), log('Gym', '2026-09-23')]
+is('rules decide the day: weekends and N times a week on Saturday', buildDay('2026-09-26', [], ruled, gymLogs).habits.map((x) => x.id), ['Weekend run', 'Gym'])
+is('chosen days on a Wednesday', buildDay('2026-09-23', [], ruled, []).habits.map((x) => x.id), ['Gym', 'Mon and Wed'])
+is('a week already met shows done', buildDay('2026-09-26', [], ruled, gymLogs).habits.find((x) => x.id === 'Gym').done, true)
+is('half met is still open', buildDay('2026-09-22', [], ruled, gymLogs.slice(0, 1)).habits.find((x) => x.id === 'Gym').done, false)
 is('habits switched off means none', buildDay('2026-09-25', [], null, logs).habits, [])
 
 // The snapshot holds each day asked for.

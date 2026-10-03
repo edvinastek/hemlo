@@ -3,7 +3,7 @@ import {
   addDays as addDay, choreState, habitDay, habitSchedule, mondayOf, fromDayNumber, toDayNumber,
   type ChoreDone, type ChoreLike, type HabitLike as ScheduledHabit,
 } from './schedule-rules.ts'
-import { addDays, isScheduled, weekday, weekStart, type HabitSchedule } from './tracking-rules.ts'
+import { addDays, weekday, weekStart } from './tracking-rules.ts'
 
 /** The arithmetic behind the Stats page, with no database and no React, so
  *  every figure can be checked by hand in src/test/stats.check.mjs.
@@ -319,13 +319,16 @@ export function ratioMetric(key: string, label: string, part: Summary, whole: Su
 
 /* ---------- habits and supplements ----------------------------------------- */
 
-export interface HabitLike { id: string; schedule: HabitSchedule; active: boolean; deleted_at?: string | null }
+export interface HabitLike extends ScheduledHabit { id: string; active: boolean; deleted_at?: string | null }
 
 /** Per day: ticks (every tick), due (what the schedule asked for) and hits
- *  (ticks that answered a due day). A weekly habit is due once a week: on
- *  the day it was done, or, when it was not, on the week's Sunday, so a week
- *  still under way is not counted as missed. Only habits still in use are
- *  due; a habit put away keeps the ticks it had. */
+ *  (ticks that answered a due day), through the one repeat engine
+ *  (schedule-rules.ts), so weekends, chosen days, dates, start and end days
+ *  all count. An N-times-a-week habit (the old "weekly" is once a week) is
+ *  due N times in each week: on the days it was done, up to N, and, for
+ *  what was not done, on the week's Sunday, so a week still under way is
+ *  not counted as missed. Only habits still in use are due; a habit put
+ *  away keeps the ticks it had. */
 export function habitSeries(habits: HabitLike[], done: Record<string, string[]>, range: Range): { ticks: Series; due: Series; hits: Series } {
   const ticks: Series = {}; const due: Series = {}; const hits: Series = {}
   const days = daysOf(range)
@@ -333,20 +336,22 @@ export function habitSeries(habits: HabitLike[], done: Record<string, string[]>,
     const doneSet = new Set((done[h.id] ?? []).filter((d) => d >= range.start && d <= range.end))
     for (const d of doneSet) add(ticks, d, 1)
     if (!h.active || h.deleted_at) continue
-    if (h.schedule === 'weekly') {
+    const s = habitSchedule(h)
+    const running = (d: string) => d >= s.start_date && (!s.end_date || d <= s.end_date)
+    if (s.rule === 'times_per_week') {
+      const times = Math.min(7, Math.max(1, Math.round(Number(s.rule_config.times) || 1)))
       const weeks = new Map<string, string[]>()
-      for (const d of days) { const w = weekStart(d); weeks.set(w, [...(weeks.get(w) ?? []), d]) }
+      for (const d of days) if (running(d)) { const w = weekStart(d); weeks.set(w, [...(weeks.get(w) ?? []), d]) }
       for (const [w, inRange] of weeks) {
-        const first = inRange.find((d) => doneSet.has(d))
-        if (first) { add(due, first, 1); add(hits, first, 1) } else {
-          const sunday = addDays(w, 6)
-          if (inRange.includes(sunday)) add(due, sunday, 1)
-        }
+        const doneIn = inRange.filter((d) => doneSet.has(d)).slice(0, times)
+        for (const d of doneIn) { add(due, d, 1); add(hits, d, 1) }
+        const sunday = addDays(w, 6)
+        if (doneIn.length < times && inRange.includes(sunday)) add(due, sunday, times - doneIn.length)
       }
       continue
     }
     for (const d of days) {
-      if (!isScheduled(h.schedule, d)) continue
+      if (habitDay(h, d, []) !== 'due') continue
       add(due, d, 1)
       if (doneSet.has(d)) add(hits, d, 1)
     }

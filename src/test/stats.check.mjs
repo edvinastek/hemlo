@@ -153,6 +153,12 @@ const undone = habitSeries([{ id: 'weekly', schedule: 'weekly', active: true }],
 is('a weekly habit not done is due on its Sunday', undone.due, { '2026-09-27': 1 })
 const partial = habitSeries([{ id: 'weekly', schedule: 'weekly', active: true }], {}, { start: '2026-09-21', end: '2026-09-23' })
 is('a week cut short by the range without its Sunday asks nothing', partial.due, {})
+const twiceGym = habitSeries([{ id: 'gym', rule: 'times_per_week', rule_config: { times: 2 }, active: true }], { gym: ['2026-09-22'] }, week)
+is('twice a week, done once: due on the day done and once more on Sunday', twiceGym.due, { '2026-09-22': 1, '2026-09-27': 1 })
+const weekends = habitSeries([{ id: 'we', rule: 'weekends', rule_config: {}, active: true }], { we: ['2026-09-26'] }, week)
+is('a weekends habit is due Saturday and Sunday only', [sorted(weekends.due), weekends.hits], [{ '2026-09-26': 1, '2026-09-27': 1 }, { '2026-09-26': 1 }])
+const late = habitSeries([{ id: 'late', rule: 'daily', rule_config: {}, start_date: '2026-09-25', active: true }], {}, week)
+is('nothing due before its start day', Object.keys(late.due), ['2026-09-25', '2026-09-26', '2026-09-27'])
 const hDone = summarise(hs.hits, week, 'week', today); const hDue = summarise(hs.due, week, 'week', today)
 is('the week so far: 5 hits of 9 due', percent(hDone.sofar, hDue.sofar), 56)
 

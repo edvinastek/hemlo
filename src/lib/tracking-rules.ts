@@ -59,8 +59,11 @@ export function weekStart(day: string): string {
   return addDays(day, -((weekday(day) + 6) % 7))
 }
 
-/** Whether a habit is due on the given day. A weekly habit is due every day
- *  of its week until it is done once, so it counts as scheduled on each. */
+/** Whether a habit is due on the given day, from the old three-way field
+ *  only. Kept for its checks; the app asks schedule-rules.ts (habitDay,
+ *  habitShows, habitSchedule), which also knows weekends, chosen days,
+ *  dates, start and end days and N times a week. A weekly habit is due
+ *  every day of its week until it is done once. */
 export function isScheduled(schedule: HabitSchedule, day: string): boolean {
   if (schedule === 'weekdays') {
     const w = weekday(day)

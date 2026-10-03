@@ -1,4 +1,5 @@
-import { isScheduled, weekday, type HabitSchedule } from './tracking-rules.ts'
+import { weekday } from './tracking-rules.ts'
+import { habitShows, type HabitLike } from './schedule-rules.ts'
 import { moduleLabel, taskModule } from './colours-rules.ts'
 
 /** Which tabs Today shows for a day. Pure: no database, no React, so every
@@ -59,7 +60,9 @@ export interface DayInput {
   work: { on: boolean; days: number[] }
   /** The day's tasks. */
   tasks: DayTask[]
-  habits: { schedule: HabitSchedule; active: boolean; deleted_at?: string | null }[]
+  /** Habits with their schedule (rule, its days, start and end; or the
+   *  old daily / weekdays / weekly). */
+  habits: (HabitLike & { active: boolean; deleted_at?: string | null })[]
   supplements: { active: boolean; deleted_at?: string | null }[]
   weighIn: boolean
   sleepLog: boolean
@@ -95,7 +98,7 @@ export function bodyParts(input: DayInput): BodyPart[] {
   const on = new Set(input.enabled)
   const parts: BodyPart[] = []
   if (on.has('health') && (input.weighIn || input.day === input.today)) parts.push('health')
-  if (on.has('habits') && input.habits.some((h) => h.active && !h.deleted_at && isScheduled(h.schedule, input.day))) {
+  if (on.has('habits') && input.habits.some((h) => h.active && !h.deleted_at && habitShows(h, input.day, []))) {
     parts.push('habits')
   }
   if (on.has('supplements') && input.supplements.some((s) => s.active && !s.deleted_at)) parts.push('supplements')
