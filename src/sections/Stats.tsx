@@ -105,11 +105,12 @@ export function Stats({ profileId, day }: { profileId: string; day: string }) {
 
   return (
     <section className="st" aria-label="Stats">
-      {/* One call to action (CALM-01): the empty card while there are no
-          views, the page's ⋮ once there are. */}
+      {/* One call to action (CALM-01): the empty card's Build a view while
+          there are no views, the page's ⋮ once there are. The ready-made
+          views are always in the ⋮ (an empty state keeps one button, CALM-11). */}
       <ModuleMenu items={[
         views.length > 0 && { label: 'New view', onSelect: () => setBuilding('new') },
-        views.length > 0 && { label: 'Ready-made views…', onSelect: () => setShowTemplates(true) },
+        { label: 'Ready-made views…', onSelect: () => setShowTemplates(true) },
         { label: showDisabled ? 'Hide switched-off modules' : 'Show switched-off modules', disabled: !canTick, onSelect: toggleDisabled },
       ]} exportSource={data ? { rows: exportRows as unknown as Record<string, unknown>[], fields: EXPORT_FIELDS, label: `Stats, ${periodTitle(period, anchor)}` } : null} />
       {showTemplates && (
@@ -129,7 +130,6 @@ export function Stats({ profileId, day }: { profileId: string; day: string }) {
           <p>Build the stats you want to see, from any module.</p>
           <div className="st-empty-actions">
             <button type="button" className="btn btn-primary" onClick={() => setBuilding('new')}>Build a view</button>
-            <button type="button" className="btn" onClick={() => setShowTemplates(true)}>Ready-made views</button>
           </div>
         </div>
       ) : (
