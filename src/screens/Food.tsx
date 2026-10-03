@@ -36,8 +36,8 @@ export function Food() {
         <FoodMenuSlot value={slot}>
           <div className={`food-head${onDay ? ' has-day' : ''}`}>
             <PageHead date={date} onPick={setDate} sections={SECTIONS} active={section} onSection={setSection}
-              heading={onDay ? undefined : 'Food'} strip={onDay} />
-            <span className="food-menu" ref={setSlot} />
+              heading={onDay ? undefined : 'Food'} strip={onDay}
+              menu={<span className="food-menu" ref={setSlot} />} />
           </div>
           {section === 'Day' && <FoodDay day={day} />}
           {section === 'Recipes' && <RecipesTab openId={address.recipe} onOpened={opened} />}

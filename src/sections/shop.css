@@ -162,7 +162,10 @@
 
 /* ---- version 17: calm ---------------------------------------------------------- */
 /* The title and the page's one ⋮, which the open tab fills. */
-.shop-title { display: flex; align-items: center; gap: var(--space-2); min-width: 0; min-height: 48px; }
+/* As tall as PageHead's title line with its ⋮, so the title and the ⋮ sit
+   where they do on every other page, also on Stores (no ⋮ there). */
+.shop-title { display: flex; align-items: center; gap: var(--space-2); min-width: 0; min-height: 40px; }
+.shop-title .page-date { margin: 0; }
 .shop-menu-slot { margin-left: auto; display: flex; align-items: center; }
 
 /* Scan sits inside the add field while nothing is typed; Add takes its

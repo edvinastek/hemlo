@@ -77,12 +77,8 @@
 .ft-figures label { display: inline-flex; align-items: center; gap: 6px; min-height: 36px;
   font-family: var(--font-sans); font-size: 13px; color: var(--e-ink); }
 
-/* The Food page's header (screens/Food.tsx): the page's one ⋮ sits at the
-   top right, level with the date or with "Food". The date keeps clear of it;
-   sideways, the week strip beside the date does too. */
-.food-head { position: relative; }
-.food-head .page-date { padding-right: 48px; }
-.food-menu { position: absolute; top: calc(var(--space-4) - 6px); right: var(--space-2); }
-[data-layout="rail"] .food-menu { top: calc(var(--space-2) - 6px); }
-[data-layout="rail"] .food-head.has-day .week-strip { margin-right: 48px; }
+/* The Food page's header (screens/Food.tsx): the page's one ⋮ is in the
+   title line, as on every page (PageHead's menu), level with the date or
+   with "Food". */
+.food-menu { display: flex; align-items: center; margin-left: auto; }
 
