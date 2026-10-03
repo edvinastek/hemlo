@@ -32,3 +32,15 @@ Branch v17/k3, worktree /home/claude/wt17/k3. Harness: vite on 5303, script in s
   that may now live on the Modules page go through toPage (books, daytabs, features, food-units, food, holidays,
   products, sharing, stock, tour, units). nav.e2e: six styles, Sleep opened by address, grid ≤4 across, nothing
   scrolls, "Let GetIt pick" gives ≤5 with one marked; puts the person's style back.
+- Step 8: tip slot keyed by tip id (StrictMode draws twice with new useId); rail marks the holder; What moved lines
+  shortened. Verified: npx tsc -b, npm run check, npx vite build pass. Harness and scratch copy deleted; screenshots in
+  scratchpad/shots17/k3 (before = base build, after = this branch; -dark, -few = three modules, -land = 740×360).
+
+## For the lead at merge
+- Bump package.json to 0.17.0: tips.ts RUNNING comes from it, and What moved where shows only once the running
+  version is 17. Set MOVED_SINCE (tips-rules.ts) to the release day.
+- WHAT_MOVED holds K3's moves; add the other engineers' lines there.
+- calendar-links.ts CALENDAR_SETTINGS ('/more?section=Profile#calendar-links') still works (pageForAddress maps the
+  hash); it may become '/more?page=calendars'. ModulePage's '/more?section=Data' and Chores' '?section=Profile&find=
+  Household' also still land (data, shopping).
+- useInboxCount is in src/lib/inbox-count.ts; if K1 exported one too, keep one.
