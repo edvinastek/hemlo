@@ -20,5 +20,8 @@ Running log. The lead deletes this file at merge.
 - REM-02/03/04 notify.ts rewrite
 - SYNC-02 light pull; SYNC-03 settings 3-way merge + checks; SET-06/DATA-06 restore-rules
 
-## Left
-- screenshots; e2e notes; AGN-03 (report); final verification; report
+- MOD-16 design file export/import; NAV-23 More is "Settings" in hub style
+- Screenshots in scratchpad/shots/g (light and dark, 360 px, plus wide and landscape)
+
+## Left / not done (see report)
+- AGN-03 (needs day-items to expand repeating events: Today engineer's file), MOD-12 photo, MOD-15, GEN-70, Classic layout switch
