@@ -1,6 +1,7 @@
 // Checks what the home-screen widget is given, against days worked out by hand.
 // 2026-09-25 is a Friday, 2026-09-26 a Saturday; the week starts Monday 21.
-import { buildDay, buildSnapshot, latestTicks, MAX_TASKS } from '../lib/widget-rules.ts'
+import { buildDay, buildSnapshot, latestTicks, MAX_TASKS, dayFromItems, snapshotFromItems, slotIds, widgetPath, widgetPalette, WIDGET_LIGHT, MAX_ITEMS } from '../lib/widget-rules.ts'
+import { dayItems } from '../lib/day-items-rules.ts'
 
 let fail = 0
 const is = (label, got, want) => {
@@ -75,6 +76,66 @@ const ticks = latestTicks([
 is('tick then untick nets to untick', ticks.find((t) => t.kind === 'task' && t.day === '2026-09-25').done, false)
 is('a habit with the same id is its own row', ticks.filter((t) => t.kind === 'habit').length, 1)
 is('another day is its own row', ticks.length, 3)
+
+
+// WID-02: the widget reads the same day items as Today, for the modules set
+// to "Show on the widget".
+const T = (id, over = {}) => ({ id, title: id, planned_date: '2026-09-25', planned_time: null, status: 'todo', horizon: 'day', deleted_at: null,
+  duration_min: null, module_key: null, category: null, sort_order: 0, notes: null, source: null, source_ref: null, ...over })
+const H = (id, over = {}) => ({ id, name: id, active: true, deleted_at: null, sort_order: 0, schedule: 'daily', rule: 'daily', rule_config: {},
+  start_date: '2026-01-01', end_date: null, time_of_day: null, note: null, target: null, unit: null, ...over })
+const C = (id, over = {}) => ({ id, name: id, deleted_at: null, mode: 'fixed', rule: 'daily', rule_config: {}, start_date: '2026-09-01', end_date: null,
+  paused: false, time_of_day: null, minutes: 15, room: null, note: null, every_days: null, assign: null, members: [], ...over })
+const S = (id, slot, over = {}) => ({ id, name: id, active: true, deleted_at: null, time_slot: slot, sort_order: 0, dose_text: null, ...over })
+const src = (over = {}) => ({
+  today: '2026-09-25', enabled: ['habits', 'household', 'supplements', 'agenda'], views: {},
+  tasks: [], habits: [], habitLogs: [], chores: [], choreLogs: [], supplements: [], supplementLogs: [], events: [], records: [], ...over,
+})
+const sources = src({
+  tasks: [T('Standup', { planned_time: '09:00:00' }), T('Dropped', { status: 'dropped' }), T('Week goal', { horizon: 'week' }), T('Done one', { status: 'done' })],
+  habits: [H('Stretch')],
+  habitLogs: [{ habit_id: 'Stretch', log_date: '2026-09-25', done: true, updated_at: '2026-09-25T07:00:00Z' }],
+  chores: [C('Dishes', { time_of_day: '19:00' }), C('Bins', { start_date: '2026-09-20', rule: 'weekly', rule_config: { days: [1] } })],
+  supplements: [S('11111111-1111-1111-1111-111111111111', 'morning'), S('22222222-2222-2222-2222-222222222222', 'morning')],
+  events: [{ id: 'e1', title: 'Dentist', starts_at: '2026-09-25T14:00:00', ends_at: '2026-09-25T14:30:00', all_day: false, deleted_at: null, subscription_id: null, location: null }],
+})
+const di = dayItems(['2026-09-25'], 'widget', sources)
+const wd = dayFromItems(di, '2026-09-25')
+is('day items: tasks of the day, dropped and week goals left out', wd.tasks.map((t) => t.id), ['Standup', 'Done one'])
+is('day items: habits with their state', wd.habits, [{ id: 'Stretch', name: 'Stretch', done: true }])
+is('day items: the rest by time, events and chores and the slot',
+  wd.items.map((i) => [i.kind, i.title, i.time, i.tick]),
+  [['event', 'Dentist', '14:00', false], ['chore', 'Dishes', '19:00', true], ['chore', 'Bins', null, true], ['supplements', 'Morning supplements', null, true]])
+is('a slot tick names its supplements', slotIds(wd.items.find((i) => i.kind === 'supplements').id).length, 2)
+is('slot ids are checked', slotIds('11111111-1111-1111-1111-111111111111,../etc,'), ['11111111-1111-1111-1111-111111111111'])
+const off = dayFromItems(dayItems(['2026-09-25'], 'widget', { ...sources, views: { household: { widget: false }, habits: { widget: false } } }), '2026-09-25')
+is('"Show on the widget" off: chores and habits leave the widget', [off.habits.length, off.items.some((i) => i.kind === 'chore')], [0, false])
+is('…but stay on Today', dayItems(['2026-09-25'], 'today', { ...sources, views: { household: { widget: false } } }).some((i) => i.kind === 'chore'), true)
+const offMod = dayFromItems(dayItems(['2026-09-25'], 'widget', { ...sources, enabled: [] }), '2026-09-25')
+is('modules switched off show nowhere on the widget', [offMod.habits.length, offMod.items.map((i) => i.kind)], [0, []])
+is('a chore waiting since Monday is marked late',
+  dayFromItems(dayItems(['2026-09-25'], 'widget', src({ chores: [C('Bins', { start_date: '2026-09-21', rule: 'weekly', rule_config: { days: [1] } })] })), '2026-09-25').items[0]?.late, true)
+const lots = dayFromItems(dayItems(['2026-09-25'], 'widget', src({ chores: Array.from({ length: 30 }, (_, i) => C(`c${i}`)) })), '2026-09-25')
+is('at most MAX_ITEMS other items', lots.items.length, MAX_ITEMS)
+const snap2 = snapshotFromItems(['2026-09-25', '2026-09-26'], dayItems(['2026-09-25', '2026-09-26'], 'widget', sources), new Date('2026-09-25T10:00:00Z'))
+is('the snapshot from items has both days', Object.keys(snap2.days), ['2026-09-25', '2026-09-26'])
+is('a snapshot from items keeps the old shape for old widgets', Object.keys(snap2.days['2026-09-25']), ['tasks', 'habits', 'items'])
+
+// Ticks of the new kinds are their own rows too.
+is('chore and slot ticks', latestTicks([
+  { kind: 'chore', id: 'a', day: '2026-09-25', done: true, at: '1' },
+  { kind: 'supplements', id: 'a', day: '2026-09-25', done: true, at: '2' },
+]).length, 2)
+
+// A stats widget's tap opens the view in the app.
+is('widget link to a path', widgetPath('app.getit.planner://open/stats?view=abc'), '/stats?view=abc')
+is('the bare link opens the app', widgetPath('app.getit.planner://open'), '/')
+is('an auth link is not ours', widgetPath('app.getit.planner://auth-callback?code=1'), null)
+is('no leaving the app', widgetPath('app.getit.planner://open//evil.example'), null)
+
+// The widgets' colours (LOOK-09): plain colours only, else the default's.
+is('palette takes hex colours', widgetPalette({ paper: '#000000', ink: 'red' }, WIDGET_LIGHT).paper, '#000000')
+is('…and ignores anything else', widgetPalette({ paper: '#000000', ink: 'red' }, WIDGET_LIGHT).ink, WIDGET_LIGHT.ink)
 
 console.log(fail ? `\n${fail} check(s) failed` : '\nall checks passed')
 process.exit(fail ? 1 : 0)

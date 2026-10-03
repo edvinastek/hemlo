@@ -1,17 +1,24 @@
 import { Capacitor, registerPlugin, type PluginListenerHandle } from '@capacitor/core'
+import { App as NativeApp } from '@capacitor/app'
 import { liveQuery, type Subscription } from 'dexie'
 import { db, onResetLocal } from './db'
 import { setTaskDone } from './tasks'
-import { moduleEnabled, toggleHabit } from './tracking'
+import { toggleHabit, toggleSupplement } from './tracking'
+import { toggleChore } from './chores'
 import { addDays, pickLog } from './tracking-rules'
 import { localDay } from './review-rules'
-import { buildSnapshot, latestTicks, type WidgetSnapshot, type WidgetTick } from './widget-rules'
-import { builtinRuleOn } from '../modules/rule-switch'
+import { loadDayItems } from './day-items'
+import { statsWidgetViews } from './stats-widget'
+import { trimStatsSnapshot, type StatsWidgetSnapshot } from './stats-widget-rules'
+import { latestTicks, slotIds, snapshotFromItems, widgetPath, type WidgetSnapshot, type WidgetTick } from './widget-rules'
+import { useApp } from './store'
 
-/** The Android home-screen widget (android/…/widget). The app keeps it
- *  current by writing a snapshot of today and tomorrow whenever the tasks or
- *  habits behind it change; ticks made on the widget queue up on the phone
- *  and are applied here, through the same code as a tick in the app. */
+/** The Android home-screen widgets (android/…/widget): "GetIt · Today" and
+ *  the stats widgets. The app keeps them current by writing snapshots
+ *  whenever the data behind them changes (WID-12); the widgets draw from
+ *  those without starting the app. Ticks made on the Today widget queue up
+ *  on the phone and are applied here, through the same code as a tick in
+ *  the app. */
 
 interface GetItWidget {
   update(options: { snapshot: string }): Promise<void>
@@ -19,52 +26,61 @@ interface GetItWidget {
   clear(): Promise<void>
   /** The app's theme for every widget (WidgetLooks as JSON). */
   setLooks(options: { looks: string }): Promise<void>
+  /** Every saved stats view, worked out (StatsWidgetSnapshot as JSON). */
+  updateStats(options: { snapshot: string }): Promise<void>
   addListener(event: 'tick', listener: () => void): Promise<PluginListenerHandle>
 }
 
 const Widget = registerPlugin<GetItWidget>('GetItWidget')
 const available = () => Capacitor.getPlatform() === 'android'
 
+/** Today and tomorrow, from the same day items Today draws, for the modules
+ *  set to "Show on the widget" (WID-02). Tomorrow is there so the widget
+ *  turns over at midnight without the app. */
 async function snapshotFor(profileId: string): Promise<WidgetSnapshot> {
   const today = localDay(new Date())
   const tomorrow = addDays(today, 1)
-  const tasks = await db.task
-    .where('[profile_id+planned_date]')
-    .between([profileId, today], [profileId, tomorrow], true, true)
-    .toArray()
-  // Habits leave the widget with the module, or with its "appears on every
-  // day" rule switched off in Edit module.
-  const habitsOn = await moduleEnabled(profileId, 'habits') && await builtinRuleOn(profileId, 'habits', 'daily')
-  const habits = habitsOn ? await db.habit.where('profile_id').equals(profileId).toArray() : null
-  // A weekly habit looks back to the Monday of its week, never further.
-  const since = addDays(today, -7)
-  const ids = (habits ?? []).map((h) => h.id)
-  const logs = ids.length
-    ? (await db.habit_log.where('habit_id').anyOf(ids).toArray()).filter((l) => l.log_date >= since)
-    : []
-  return buildSnapshot([today, tomorrow], tasks, habits, logs, new Date())
+  const profile = await db.profile.get(profileId)
+  const items = profile ? await loadDayItems(profileId, profile.household_id, today, tomorrow, 'widget', today) : []
+  return snapshotFromItems([today, tomorrow], items, new Date())
 }
 
 let watching: Subscription | undefined
+let watchingStats: Subscription | undefined
 let lastSent = ''
+let lastStats = ''
 let timer: number | undefined
+let statsTimer: number | undefined
 /** Rises whenever what is being watched changes, so a snapshot worked out
  *  for the previous profile, or just before sign-out, is never sent late. */
 let generation = 0
 
-/** Follow the open profile: every change to its tasks, habits or ticks
- *  rewrites the snapshot, a moment after the changes stop. */
+/** Follow the open profile: every change to what the widgets show rewrites
+ *  their snapshots, a moment after the changes stop. */
 export function watchWidget(profileId: string | null) {
   watching?.unsubscribe()
+  watchingStats?.unsubscribe()
   watching = undefined
+  watchingStats = undefined
   window.clearTimeout(timer)
+  window.clearTimeout(statsTimer)
   lastSent = ''
+  lastStats = ''
   const gen = ++generation
   if (!available() || !profileId) return
   watching = liveQuery(() => snapshotFor(profileId)).subscribe({
     next: (snap) => {
       window.clearTimeout(timer)
       timer = window.setTimeout(() => void send(snap, gen), 400)
+    },
+    error: () => undefined,
+  })
+  // Stats take longer to work out and change in bursts during a sync, so
+  // they wait a little longer for the changes to settle.
+  watchingStats = liveQuery(() => statsWidgetViews(profileId)).subscribe({
+    next: (views) => {
+      window.clearTimeout(statsTimer)
+      statsTimer = window.setTimeout(() => void sendStats({ v: 1, written_at: new Date().toISOString(), views }, gen), 700)
     },
     error: () => undefined,
   })
@@ -80,6 +96,19 @@ async function send(snap: WidgetSnapshot, gen: number) {
     await Widget.update({ snapshot: JSON.stringify(snap) })
   } catch {
     lastSent = ''
+  }
+}
+
+async function sendStats(snap: StatsWidgetSnapshot, gen: number) {
+  if (gen !== generation) return
+  const trimmed = trimStatsSnapshot(snap)
+  const shown = JSON.stringify(trimmed.views)
+  if (shown === lastStats) return
+  lastStats = shown
+  try {
+    await Widget.updateStats({ snapshot: JSON.stringify(trimmed) })
+  } catch {
+    lastStats = ''
   }
 }
 
@@ -101,35 +130,65 @@ export async function applyWidgetTicks(): Promise<number> {
       if (!task || task.deleted_at || (task.status === 'done') === t.done) continue
       await setTaskDone(task, t.done)
       applied++
-    } else {
+    } else if (t.kind === 'habit') {
       const habit = await db.habit.get(t.id)
       if (!habit || habit.deleted_at) continue
       const log = pickLog(await db.habit_log.where('[habit_id+log_date]').equals([t.id, t.day]).toArray())
       if ((log?.done ?? false) === t.done) continue
       await toggleHabit(t.id, t.day)
       applied++
+    } else if (t.kind === 'chore') {
+      const chore = await db.chore.get(t.id)
+      if (!chore || chore.deleted_at) continue
+      const logs = await db.chore_log.where('[chore_id+done_on]').equals([t.id, t.day]).toArray()
+      const log = pickLog(logs)
+      if ((!!log && !log.deleted_at) === t.done) continue
+      await toggleChore(t.id, t.day, useApp.getState().session?.user.id ?? null)
+      applied++
+    } else if (t.kind === 'supplements') {
+      // A slot ticks each of its supplements to the same state.
+      for (const id of slotIds(t.id)) {
+        const supplement = await db.supplement.get(id)
+        if (!supplement || supplement.deleted_at) continue
+        const log = pickLog(await db.supplement_log.where('[supplement_id+log_date]').equals([id, t.day]).toArray())
+        if ((log?.done ?? false) === t.done) continue
+        await toggleSupplement(id, t.day)
+        applied++
+      }
     }
   }
   return applied
 }
 
-/** Ticks made while the app is open are applied at once. */
+/** Ticks made while the app is open are applied at once, and a tap on a
+ *  stats widget opens the view it shows. */
 export function listenForWidgetTicks() {
   if (!available()) return
   void Widget.addListener('tick', () => { void applyWidgetTicks() })
+  void NativeApp.addListener('appUrlOpen', ({ url }) => openWidgetLink(url))
+  void NativeApp.getLaunchUrl().then((r) => { if (r?.url) openWidgetLink(r.url) }).catch(() => undefined)
 }
 
-// Signing out, or another account signing in, forgets the widget's copy and
-// any ticks still waiting, together with the rest of the device's data.
-onResetLocal(async () => {
-  watchWidget(null)
-  if (!available()) return
-  // An update already on its way to the phone lands first, then this clears it.
-  await Widget.clear()
-})
+function openWidgetLink(url: string) {
+  const path = widgetPath(url)
+  if (!path) return
+  const base = import.meta.env.BASE_URL.replace(/\/$/, '')
+  window.history.pushState({}, '', base + path)
+  // The router follows the address on popstate, as on Back.
+  window.dispatchEvent(new PopStateEvent('popstate'))
+}
 
 /** The theme's colours for the widgets (LOOK-09): they redraw at once. */
 export async function sendWidgetLooks(json: string) {
   if (!available()) return
   try { await Widget.setLooks({ looks: json }) } catch { /* an older app build without it */ }
 }
+
+// Signing out, or another account signing in, forgets the widgets' copies
+// and any ticks still waiting, together with the rest of the device's data.
+onResetLocal(async () => {
+  watchWidget(null)
+  if (!available()) return
+  // An update already on its way to the phone lands first, then this clears it.
+  await Widget.clear()
+})

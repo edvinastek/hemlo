@@ -8,12 +8,32 @@
  *  on the widget come back as a queue the app applies the next time it runs. */
 
 import { doneDays, doneThisWeek, isScheduled, type HabitSchedule } from './tracking-rules.ts'
+import type { DayItem } from './day-items-rules.ts'
 
 export interface WidgetTask { id: string; title: string; time: string | null; done: boolean }
 export interface WidgetHabit { id: string; name: string; done: boolean }
-export interface WidgetDay { tasks: WidgetTask[]; habits: WidgetHabit[] }
+/** The rest of the day from other modules (WID-02): chores and supplement
+ *  slots, which can be ticked, and events and dated records, which are only
+ *  shown. Added beside tasks and habits, so a widget built before them still
+ *  reads the snapshot. */
+export type WidgetItemKind = 'chore' | 'supplements' | 'event' | 'record'
+export interface WidgetItem {
+  kind: WidgetItemKind
+  /** A chore's id; for a supplement slot, the ids of its supplements joined
+   *  with commas, so a tick says exactly which ones the person saw. */
+  id: string
+  title: string
+  time: string | null
+  done: boolean
+  /** Has a tick box on the widget. */
+  tick: boolean
+  /** A chore that has waited past its day. */
+  late?: boolean
+}
+export interface WidgetDay { tasks: WidgetTask[]; habits: WidgetHabit[]; items?: WidgetItem[] }
 export interface WidgetSnapshot { v: 1; updated_at: string; days: Record<string, WidgetDay> }
-export interface WidgetTick { kind: 'task' | 'habit'; id: string; day: string; done: boolean; at: string }
+export type WidgetTickKind = 'task' | 'habit' | 'chore' | 'supplements'
+export interface WidgetTick { kind: WidgetTickKind; id: string; day: string; done: boolean; at: string }
 
 interface TaskRow {
   id: string; title: string; planned_date: string | null; planned_time: string | null
@@ -25,6 +45,7 @@ interface HabitLogRow { habit_id: string; log_date: string; done: boolean; updat
 /** More than a home screen can show; the widget draws as many as fit. */
 export const MAX_TASKS = 30
 export const MAX_HABITS = 12
+export const MAX_ITEMS = 20
 const MAX_TITLE = 80
 
 const clip = (s: string) => {
@@ -70,12 +91,62 @@ export function buildSnapshot(
   return out
 }
 
+/** One day of the widget from the day's items (day-items-rules.ts, read for
+ *  the widget, so only modules set to "Show on the widget" are in it). The
+ *  same list Today and Plan draw, so the three never disagree. */
+export function dayFromItems(dayItems: DayItem[], day: string): WidgetDay {
+  const own = dayItems.filter((i) => i.day === day)
+  const byTime = <T extends { time: string | null; title?: string; name?: string }>(a: T, b: T) =>
+    (a.time ?? '99:99').localeCompare(b.time ?? '99:99') || (a.title ?? a.name ?? '').localeCompare(b.title ?? b.name ?? '')
+
+  const tasks = own
+    .filter((i) => i.kind === 'task' && i.task && i.task.status !== 'dropped' && (i.task.horizon ?? 'day') === 'day')
+    .map((i): WidgetTask => ({ id: i.ref.id, title: clip(i.title ?? '') || 'Untitled', time: i.time, done: i.done }))
+    .sort(byTime)
+    .slice(0, MAX_TASKS)
+
+  const habits = own
+    .filter((i) => i.kind === 'habit')
+    .slice(0, MAX_HABITS)
+    .map((i): WidgetHabit => ({ id: i.ref.id, name: clip(i.title), done: i.done }))
+
+  const items: WidgetItem[] = []
+  for (const i of own) {
+    if (i.kind === 'chore') {
+      items.push({ kind: 'chore', id: i.ref.id, title: clip(i.title) || 'Chore', time: i.time, done: i.done, tick: true, late: i.state === 'overdue' })
+    } else if (i.kind === 'supplements' && i.parts?.length) {
+      items.push({ kind: 'supplements', id: i.parts.map((p) => p.id).join(','), title: clip(i.title), time: i.time, done: i.done, tick: true })
+    } else if (i.kind === 'event' || i.kind === 'record') {
+      items.push({ kind: i.kind, id: i.ref.id, title: clip(i.title) || 'Untitled', time: i.time, done: false, tick: false })
+    }
+  }
+  return { tasks, habits, items: items.sort(byTime).slice(0, MAX_ITEMS) }
+}
+
+export function snapshotFromItems(days: string[], dayItems: DayItem[], now: Date): WidgetSnapshot {
+  const out: WidgetSnapshot = { v: 1, updated_at: now.toISOString(), days: {} }
+  for (const d of days) out.days[d] = dayFromItems(dayItems, d)
+  return out
+}
+
+/** The supplements a slot's tick names. */
+export const slotIds = (id: string) => id.split(',').filter((x) => /^[0-9a-f-]{8,40}$/i.test(x))
+
 /** Ticks as the app should apply them: one per row and day, the last one made.
  *  A tick and an untick in a row on the widget cancel out to the second. */
 export function latestTicks(ticks: WidgetTick[]): WidgetTick[] {
   const last = new Map<string, WidgetTick>()
   for (const t of [...ticks].sort((a, b) => a.at.localeCompare(b.at))) last.set(`${t.kind}:${t.id}:${t.day}`, t)
   return [...last.values()]
+}
+
+/** A stats widget's tap: app.getit.planner://open/stats?view=… becomes
+ *  /stats?view=…, a path inside the app. Anything else is not ours. */
+export function widgetPath(url: string): string | null {
+  const prefix = 'app.getit.planner://open'
+  if (!url.startsWith(prefix)) return null
+  const path = url.slice(prefix.length) || '/'
+  return path.startsWith('/') && !path.startsWith('//') ? path : null
 }
 
 /* ---------- the widgets' colours (LOOK-09, WID-13) ------------------------- */
