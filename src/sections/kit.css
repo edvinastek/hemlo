@@ -86,3 +86,9 @@ button.kit-open { width: 100%; }
 /* Four figures read as two rows of two on a phone, one row on a wide screen. */
 .kit-figures.is-four { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 @media (min-width: 640px) { .kit-figures.is-four { grid-template-columns: repeat(4, minmax(0, 1fr)); } }
+/* What the person wrote is set in the serif, as everywhere in the app. */
+.kit-row .row-name { font-family: var(--font-serif); }
+.kit-open .kit-bar { justify-self: stretch; width: 100%; }
+/* Three figures that need room (amounts, lengths of time): two a row. */
+.kit-figures.is-two { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+@media (min-width: 640px) { .kit-figures.is-two { grid-template-columns: repeat(3, minmax(0, 1fr)); } }

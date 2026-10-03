@@ -136,6 +136,11 @@ Types, then every check that needs nothing but Node. CI runs the same command.
   adding and dropping categories, planned payments (due days, one-offs, paused, the entry marking one paid makes), and
   their place on the day list: "Rent due" on its day, ticked once paid without its entry shown twice, nowhere while
   Finance is off or not shown there.
+- `learning` — Learning and reading: the task a dated study block keeps on its day (at its start, as long as the block;
+  none without a day or with the rule off; a done one left as it happened), the reading list read safely (statuses,
+  pages, a rating of 1 to 5), progress and pages in words, what starting and finishing a book set, the list's order,
+  books finished in a year, a reading task that asks for the "Reading reflection" once done, and minutes studied per
+  day and per subject.
 ## Browser checks
 
 They need the app built and served (`npm run build`, then

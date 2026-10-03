@@ -179,15 +179,33 @@ export const MODULES: ModuleDef[] = [
       { name: 'study', label: 'Block', fields: [
         { name: 'subject', label: 'Subject', type: 'text', required: true, width: 200 },
         { name: 'block_date', label: 'Day', type: 'date', width: 120 },
+        // When the block starts, for its task on the day (LRN-02).
+        { name: 'start', label: 'Start', type: 'time', width: 80 },
         { name: 'minutes', label: 'Length', type: 'duration', unit: 'min', width: 90, stats: 'sum' },
         { name: 'source', label: 'Book or course', type: 'text', width: 220 },
       ]},
+      // The reading list (LRN-03).
+      { name: 'book', label: 'Book', fields: [
+        { name: 'title', label: 'Title', type: 'text', required: true, width: 220 },
+        { name: 'author', label: 'Author', type: 'text', width: 160 },
+        { name: 'status', label: 'Status', type: 'select', options: ['to read', 'reading', 'finished', 'stopped'], width: 110 },
+        { name: 'pages', label: 'Pages', type: 'integer', width: 80 },
+        { name: 'page_now', label: 'Read to page', type: 'integer', width: 90 },
+        { name: 'rating', label: 'Rating', type: 'integer', unit: '/5', width: 80, stats: 'average' },
+        { name: 'started_on', label: 'Started', type: 'date', width: 120 },
+        { name: 'finished_on', label: 'Finished', type: 'date', width: 120 },
+      ]},
     ],
     views: [
-      { key: 'blocks', name: 'Blocks', type: 'table', entity: 'study', columns: ['subject','block_date','minutes','source'] },
+      { key: 'blocks', name: 'Blocks', type: 'table', entity: 'study', columns: ['subject','block_date','start','minutes','source'] },
       { key: 'month', name: 'Month', type: 'calendar', entity: 'study', dateField: 'block_date' },
+      { key: 'books', name: 'Books table', type: 'table', entity: 'book', columns: ['title','author','status','pages','rating','finished_on'] },
     ],
-    rules: [{ name: 'soft', sentence: 'Learning moves when the day is full, unless it is locked.', when: 'day.full', then: 'task.move' }],
+    rules: [
+      { name: 'soft', sentence: 'Learning moves when the day is full, unless it is locked.', when: 'day.full', then: 'task.move' },
+      // Carried out by lib/learning.ts (LRN-02).
+      { name: 'study_task', sentence: 'A study block with a day becomes a task on that day, at its start time.', when: 'study.saved', then: 'task.upsert' },
+    ],
     skills: ['read progress', 'log a block'],
   },
   {
