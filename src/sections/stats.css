@@ -185,3 +185,4 @@
 .tc-grip { color: var(--e-ink-soft); font-size: 18px; cursor: grab; }
 .tc-edit-name { flex: 1; min-width: 0; display: grid; font-family: var(--font-sans); font-size: 15px; color: var(--e-ink); overflow-wrap: anywhere; }
 .tc-add { flex: 1 1 200px; }
+.sb-search, .sb-field input[inputmode], .sb-filter input { font-family: var(--font-sans); }

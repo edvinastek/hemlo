@@ -1,13 +1,11 @@
 # NOTES-E (stats engineer) — running log
 
 ## Done
-- stats-view-rules.ts extended additively (summaries best_streak/change, target_mode, chart.hidden/colours/table, compare label/colour, pinned.stats, groupings person/tag, 10 measures).
-- pivot-rules.ts + pivot.check.mjs: facts, measures, cells, pivot, drill, with/without, heat grid, export rows.
-- statsviews.check.mjs (reading views, catalogue, ranges, view ops, templates, cards, chart rules, widget shape).
-- stats-builder-rules.ts (catalogue for every module, groupings, summaries, ranges, views, templates, Today card ops), chart-rules.ts (axis, colours readable, series, describe, widget view).
+- stats-view-rules.ts extended additively; pivot-rules.ts (facts, every summary, honest unknown days incl. `since`, pivot, drill, with/without, heat grid, export rows); stats-builder-rules.ts (catalogue for every module, groupings, summaries, ranges, view ops, templates, card figures, patterns, Today card text); chart-rules.ts (axis, readable colours, validated split palette, series, panels instead of dual axes, describe, widget view).
+- stats.ts: facts for tasks, projects, habits, supplements, nutrition (eaten + planned, targets), health, sleep, training (exercise + muscle group), agenda, household chores, shopping, every record/built module; first-day per module; views; Today card data.
+- UI: ui/charts (XYChart, Figures: number/ring/heat, PivotTable + drill sheet, MoreMenu), sections/StatsView, StatsBuilder, Stats page rework, TodayCards, settings/TodayCardsSettings (+1 line in More), /stats route (+2 lines in App).
+- stats-widget.ts filled. Checks: pivot, statsviews, stats extended. e2e stats updated.
+- Screenshots in scratchpad/shots/e.
 
 ## Left
-- stats.ts fact loaders for every module
-- ui/charts/*, StatsView, StatsBuilder, Stats page rework
-- TodayCards (+ settings sheet), stats-widget.ts, /stats route
-- screenshots, e2e
+- nothing planned; final verification and report.
