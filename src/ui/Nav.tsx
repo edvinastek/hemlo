@@ -240,7 +240,7 @@ function RailBar({ navRef, bar, current }: { navRef: RefObject<HTMLElement>; bar
       <Scroller className="nav-rail-scroll" current={current} axis="y">
         {rest.map((p) => <PageLink key={p.key} page={p} />)}
       </Scroller>
-      {foot.map((p) => <PageLink key={p.key} page={p} />)}
+      {foot.map((p) => <PageLink key={p.key} page={p} bar={bar} />)}
     </nav>
   )
 }

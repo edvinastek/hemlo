@@ -139,8 +139,8 @@ export const MOVED_SINCE = '2026-10-03'
 
 /** Every function version 17 moved, and where it is now (CALM-18). */
 export const WHAT_MOVED: { was: string; now: string }[] = [
-  { was: 'A page bar that scrolled', now: 'Up to five places that never scroll. With more than five pages, the bar is Today, Plan, up to two pinned pages and Modules, which holds the rest. Your own style choice stays.' },
-  { was: 'More', now: 'Settings, everywhere: on the bar, on the Modules page, and as the page’s title.' },
+  { was: 'A page bar that scrolled', now: 'Five places at most, never scrolling. With more than five pages: Today, Plan, up to two pins and Modules, which holds the rest. A style you chose stays.' },
+  { was: 'More', now: 'Called Settings everywhere. With the hub bar it is at the top of the Modules page.' },
   { was: 'Tabs in Settings (Modules, Profile, Looks, Reminders, Data)', now: 'One list of pages: Profile, Looks, Page bar, Modules, Planning, Food and body, Shopping and household, Calendars, Reminders and tips, Data and account, About. The search still finds every setting.' },
   { was: 'Work hours, hold times, Today’s cards, note templates', now: 'Settings → Planning, with the evening review (it was under Reminders).' },
   { was: 'Body and goal, food and meals', now: 'Settings → Food and body.' },
