@@ -6,6 +6,7 @@ import { useApp } from '../lib/store'
 import { isModuleOn } from '../lib/day'
 import { search } from '../lib/search-rules'
 import { EmptyState } from '../ui/EmptyState'
+import { Tip } from '../ui/Tip'
 import { ModuleEditor } from '../ui/ModuleEditor'
 import { Habits } from '../sections/Habits'
 import { Supplements } from '../sections/Supplements'
@@ -205,6 +206,7 @@ function Generic({ def, profileId, onEdit }: { def: ModuleDef; profileId: string
         </EmptyState>
       ) : (
         <>
+          {searchable && <Tip id="records-search" />}
           {searchable && (
             <div className="mp-search">
               <input type="search" value={query} onChange={(e) => setQuery(e.target.value)}

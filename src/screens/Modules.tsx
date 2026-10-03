@@ -15,6 +15,7 @@ import { ModuleBuilder } from '../modules/ModuleBuilder'
 import { ModuleEditor } from '../ui/ModuleEditor'
 import { EmptyState } from '../ui/EmptyState'
 import { offerUndo } from '../ui/Undo'
+import { Tip } from '../ui/Tip'
 import './modules-hub.css'
 
 /** The Modules page (NAV-20 to NAV-22): every module that is on, as a grid,
@@ -86,6 +87,9 @@ export function Modules() {
                 Today and Plan are always here. Switch on a module for anything else you keep: food, habits, the household, a reading list.
               </EmptyState>
             ) : (
+              <>
+              <Tip id="make-yours" />
+              <Tip id="hub-hold" />
               <ul className="hub-grid" aria-label="Modules that are on">
                 {modulePages.map((p) => (
                   <Tile key={p.key} page={p} entry={byModule.get(p.module!)}
@@ -94,6 +98,7 @@ export function Modules() {
                     onMenu={() => setMenu(p)} />
                 ))}
               </ul>
+              </>
             )}
 
             <p className="section-title" id="hub-off">Add a module</p>

@@ -14,6 +14,7 @@ import { saveSettings } from '../lib/write'
 import { db } from '../lib/db'
 import { FieldForm, LOOKUP_OPTIONS, STATS_OPTIONS, describeField } from './FieldForm'
 import { Dropdown } from '../ui/Dropdown'
+import { readDesignFile } from './design-file-rules'
 import './modules.css'
 
 /** More → Modules: the modules the person built, and the button that builds
@@ -47,6 +48,7 @@ export function BuiltModules({ onEdit }: { onEdit: (key: string) => void }) {
       ))}
       <div className="mb-built">
         <button className="btn btn-primary" onClick={() => setBuilding(true)}>Build a module</button>
+        <ImportDesign />
       </div>
       {building && <ModuleBuilder onClose={() => setBuilding(false)} />}
     </>
@@ -369,6 +371,36 @@ export function ModuleBuilder({ onClose }: { onClose: () => void }) {
             : <button type="button" className="btn btn-primary grow" disabled={busy || !!problem} onClick={() => void create()}>Create</button>}
         </div>
       </div>
+    </>
+  )
+}
+
+/** Build a module from a design file someone shared (MOD-16): its fields,
+ *  views and rules, with no records. It opens as a new module of one's own. */
+export function ImportDesign() {
+  const { profile, session } = useApp()
+  const navigate = useNavigate()
+  const [note, setNote] = useState<string | null>(null)
+  async function read(file: File) {
+    setNote(null)
+    const res = readDesignFile(await file.text())
+    if (!res.ok) { setNote(res.problem); return }
+    if (!profile || !session) { setNote('Sign in again to build a module.'); return }
+    try {
+      const key = await createBuiltModule(session.user.id, profile.id, res.def)
+      navigate(`/m/${key}`)
+    } catch (e) {
+      setNote(e instanceof Error ? e.message : 'The design could not be built.')
+    }
+  }
+  return (
+    <>
+      <label className="btn mb-import">
+        Import a design
+        <input type="file" accept=".json,application/json" hidden
+          onChange={(e) => { const f = e.target.files?.[0]; e.target.value = ''; if (f) void read(f) }} />
+      </label>
+      {note && <p className="mf-error" role="alert">{note}</p>}
     </>
   )
 }

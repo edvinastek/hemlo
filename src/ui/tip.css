@@ -8,3 +8,5 @@
 .tip-actions { display: flex; flex-wrap: wrap; gap: var(--space-3); justify-content: flex-end; align-items: center; }
 .tip-ok, .tip-go { min-height: 36px; padding: 0 4px; font-size: 13px; color: var(--e-accent); text-decoration: none; display: inline-flex; align-items: center; }
 .tip-ok { font-weight: 600; }
+/* Inside a sheet the sheet's own padding is the margin. */
+.bottom-sheet .tip { margin: 0; }

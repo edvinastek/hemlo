@@ -2,11 +2,23 @@
 
 Running log. The lead deletes this file at merge.
 
-## Done
-- (start) read brief, requirements, code.
+## Done (committed)
+- GEN-01 one rule `modulesOn` (module-view-rules.ts) used by enabledModules (day.ts), pages-rules, moduleDefs; isModuleOn / useModulesOn
+- GEN-02/ONB-10 templates set module_views + today_cards (templateLayout); applyTemplate and onboarding write them
+- GEN-03 Edit module → Show tab (ModuleShow.tsx)
+- MOD-06 'later' rules hidden; supplements.slot_task, household.shared now 'always' with true sentences
+- ONB-11 Skip; MOD-07 module keyword suggestions in onboarding
+- GEN-10..13 SearchPick uses search-rules, best 20 + Show all; record search on module pages; More module filter; hub search
+- GEN-67/ONB-14 EmptyState (src/ui/EmptyState.tsx) on module pages and hub
+- MOD-10 combinePresets; MOD-11 multi; MOD-12 rating, percent, money, checklist, note, timespan, link to built module records (photo: not done)
+- MOD-13 ten presets; MOD-14 recurring records via series (record-repeat.ts, repeat-rules.ts)
+- NOT-16 NoteEditor for note fields and text fields named note/notes in RecordSheet
+- NAV-20..22 Modules hub /modules, Hub bar style, pins, use order, search
+- NAV-26 WhatMoved (once) + replay; ONB-12 make-yours tip; ONB-13 Tip component
+- SET-01 Looks tab + settings search; SET-02 Profiles; SET-04 SignOut; SET-07 conflictLine; SET-08 extension limit; HLT-06 height
+- GEN-69 time zone (core instance settings.timezone, keepZone in Nav)
+- REM-02/03/04 notify.ts rewrite
+- SYNC-02 light pull; SYNC-03 settings 3-way merge + checks; SET-06/DATA-06 restore-rules
 
 ## Left
-- everything below in order of value:
-  GEN-01 one rule · GEN-03/ONB-10 switches + templates · GEN-10..13 search · GEN-67/ONB-14 empty states ·
-  MOD-06/07/10/11/12/13/14 · NAV-20..22 hub · ONB-11..13 · SET-01/02/04/06/07/08 · HLT-06 · GEN-69 ·
-  REM-02..04 · SYNC-02/03 · DATA-06 · NAV-25/26
+- screenshots; e2e notes; AGN-03 (report); final verification; report

@@ -14,6 +14,7 @@ import { MODULES } from '../modules/registry.ts'
 import { PRESETS, combinePresets } from '../modules/presets.ts'
 import { coerce, spanMinutes, checklistCount, hasOptions, NUMERIC_TYPES } from '../modules/def-rules.ts'
 import { repeatPlan, sameRepeat, REPEAT_KEY } from '../modules/repeat-rules.ts'
+import { designFile, designFileName, readDesignFile } from '../modules/design-file-rules.ts'
 
 let fail = 0
 const is = (label, got, want) => {
@@ -347,6 +348,22 @@ is('repeat: the same plan changes nothing', sameRepeat(series, rplan), true)
 is('repeat: a new name is a new series', sameRepeat({ ...series, title: 'Palm' }, rplan), false)
 is('repeat: kept under a name no field can have', /^[a-z]/.test(REPEAT_KEY), false)
 is('repeat: its key is not kept as a value', 'x' in cleanValues(plantFields, { plant: 'x', [REPEAT_KEY]: 'abc' }).data, false)
+
+// ---------- a design as a file (MOD-16) ----------------------------------------------
+const designDef = readBuiltDefinition({ key: 'u_plants01', name: 'Plants', definition: {
+  glyph: '✿', summary: 'Care', entities: [{ name: 'item', label: 'Care', fields: [...PRESETS.find((p) => p.key === 'plants').fields,
+    { name: 'pot', label: 'Pot', type: 'lookup', lookup: 'record', module: 'u_pots0001' }] }],
+  views: [{ key: 'list', name: 'Plants', type: 'list', entity: 'item' }], rules: [{ name: RULE_DAY_TASK, off: false }] } })
+const file = designFile(designDef)
+is('a design: fields, views and rules, no records', [file.format, file.name, Object.keys(file.definition).sort().join(',')], ['getit.module', 'Plants', 'entities,glyph,keywords,name,rules,summary,views'])
+is('a link to another module’s records stays behind', file.definition.entities[0].fields.some((f) => f.lookup === 'record'), false)
+const back = readDesignFile(JSON.stringify(file))
+is('read back, it is the same design', back.ok && [back.def.name, back.def.glyph, back.def.entities[0].fields.length, ruleOn(back.def, RULE_DAY_TASK)], ['Plants', '✿', 5, true])
+is('not a design', readDesignFile('{"format":"other"}'), { ok: false, problem: 'That file is not a module design.' })
+is('not even JSON', readDesignFile('hello').ok, false)
+is('a newer one', readDesignFile(JSON.stringify({ ...file, version: 2 })).problem, 'That design comes from a newer GetIt. Update the app, then import it again.')
+is('a design with no fields', readDesignFile(JSON.stringify({ ...file, definition: { ...file.definition, entities: [] } })).ok, false)
+is('a file name from the module’s name', designFileName('Plant care: indoor!'), 'plant-care-indoor.getit-module.json')
 
 console.log(fail ? `\n${fail} failed` : '\nall checks passed')
 process.exit(fail ? 1 : 0)

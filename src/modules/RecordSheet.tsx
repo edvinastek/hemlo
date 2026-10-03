@@ -5,6 +5,7 @@ import { SearchPick } from '../ui/SearchPick'
 import { NoteEditor } from '../ui/NoteEditor'
 import { RepeatPicker, NO_REPEAT, type RepeatValue } from '../ui/RepeatPicker'
 import { offerUndo } from '../ui/Undo'
+import { Tip } from '../ui/Tip'
 import type { ModuleRecord } from '../lib/types'
 import type { EntityDef, FieldDef, ModuleDef } from './types'
 import { RATING_MAX, checklistCount, computeFormulas, firstDateField, isDateLike, spanMinutes } from './def-rules'
@@ -300,6 +301,7 @@ export function RecordSheet({ def, entity, profileId, rec, day, lookups, onClose
               onChange={(name, v) => { setValues((s) => ({ ...s, [name]: v })); setErrors((x) => { const { [name]: _n, _: _all, ...rest } = x; return rest }) }} />}
         {canRepeat && fields.length > 0 && (
           <div className="mf-repeat">
+            {!rec && <Tip id="record-repeat" />}
             <RepeatPicker value={repeat} onChange={setRepeat} start={start} today={today}
               kinds={[...RECORD_REPEAT_KINDS]} noneLabel="Does not repeat" />
             {repeat.rule && (

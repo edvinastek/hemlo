@@ -9,6 +9,7 @@ import { edit } from '../lib/write'
 import { MODULES } from '../modules/registry'
 import { setModuleEnabled } from '../modules/defs'
 import { Privacy } from './Privacy'
+import { readSettings } from '../lib/settings'
 import { ModuleEditor } from '../ui/ModuleEditor'
 import { BuiltModules } from '../modules/ModuleBuilder'
 import { Dropdown } from '../ui/Dropdown'
@@ -51,6 +52,8 @@ export function More() {
   const [section, setSection] = useState(() => asked ?? 'Modules')
   useEffect(() => { if (asked) setSection(asked) }, [asked])
   const [editing, setEditing] = useState<string | null>(null)
+  // In the hub style the page is reached from the Modules page as Settings (NAV-23).
+  const hubStyle = useApp((s) => readSettings(s.profile).nav.style === 'hub')
   const [query, setQuery] = useState('')
   const [jump, setJump] = useState<SettingEntry | null>(null)
   const found = findSettings(query)
@@ -71,7 +74,7 @@ export function More() {
     <div className="page">
       <div className="page-inner">
         <header className="page-head">
-          <h1 className="page-date">More</h1>
+          <h1 className="page-date">{hubStyle ? 'Settings' : 'More'}</h1>
           <p className="page-sub">What the app is made of, and what it knows about you.</p>
           <div className="more-search">
             <input type="search" value={query} onChange={(e) => setQuery(e.target.value)}

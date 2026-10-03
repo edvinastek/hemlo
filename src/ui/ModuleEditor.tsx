@@ -13,6 +13,8 @@ import { FieldForm, STATS_OPTIONS, describeField } from '../modules/FieldForm'
 import { VIEW_TYPE_NAME, VIEW_TYPE_OPTIONS, ViewSettings } from '../modules/ViewSettings'
 import { Dropdown } from './Dropdown'
 import { ModuleShow } from '../modules/ModuleShow'
+import { designFile, designFileName } from '../modules/design-file-rules'
+import { saveFile } from '../lib/native'
 import '../modules/modules.css'
 
 /** A module as what it is — fields, views, rules and its name — and every
@@ -503,6 +505,15 @@ function SettingsTab({ draft, base, change, setDraft, onDelete }: {
             Go back to the app’s version
           </button>
           <p className="mf-hint" style={{ marginTop: 6 }}>Undoes every change to this module once saved. Records are not touched.</p>
+        </div>
+      )}
+
+      {draft.built && (
+        <div className="me-block">
+          <button type="button" className="btn" onClick={() => void saveFile(designFileName(draft.name), new Blob([JSON.stringify(designFile(draft), null, 1)], { type: 'application/json' }))}>
+            Save the design as a file
+          </button>
+          <p className="mf-hint" style={{ marginTop: 6 }}>Its fields, views and rules, not its records: someone else can build it with Import a design.</p>
         </div>
       )}
 
