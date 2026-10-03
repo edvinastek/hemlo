@@ -1,4 +1,5 @@
 import { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from 'react'
+import { db } from '../lib/db'
 import { edit } from '../lib/write'
 import {
   clampTarget, moveWarnings, planMove, previewOrder, stepTarget,
@@ -7,45 +8,71 @@ import {
 import type { Task } from '../lib/types'
 import { useLongPress } from './useLongPress'
 import { MoveSheet } from './MoveSheet'
+import { offerUndo } from './Undo'
 import './move.css'
 
+/** One line of the rail: an item (a task or anything else on the day), a
+ *  group heading ("Any time"), or the "now" line. */
+export type RailEntry =
+  | { type: 'item'; key: string; task?: Task; label: string; static?: boolean; expandable?: boolean }
+  | { type: 'heading'; key: string; label: string }
+  | { type: 'now'; key: string; label: string }
+
+/** One action in a row's ⋮ menu. */
+export interface MenuAction {
+  label: string
+  run: () => void
+  disabled?: boolean
+  /** Shown last and in the warning colour (Delete). */
+  danger?: boolean
+}
+
 interface Props {
-  /** The tasks shown, in the order shown. */
-  tasks: Task[]
+  /** The lines, in the order shown. */
+  entries: RailEntry[]
   /** Every task on the day, for the clash check (a tab shows only some). */
   day: Task[]
   /** 'yyyy-MM-dd', for the work hours. */
   date: string
   work: WorkWindow
-  /** Draws one task; `more` is its ⋮ button, for the row to place. */
-  renderRow: (task: Task, more: ReactNode) => ReactNode
+  /** Draws one item; `more` is its ⋮ button, for the row to place. */
+  renderItem: (entry: Extract<RailEntry, { type: 'item' }>, more: ReactNode) => ReactNode
+  /** The row's own actions for its ⋮ menu (Move up and Move down are added). */
+  actionsFor?: (entry: Extract<RailEntry, { type: 'item' }>) => MenuAction[]
+  /** The key of the row open in place, if any. */
+  expanded?: string | null
+  /** The long hold: open the row in place, or close it again. */
+  onExpand?: (key: string) => void
 }
 
 /** A drag in progress. Measured once when the task is picked up; the list
  *  does not change underneath while it is held. */
 interface Drag {
+  /** The dragged task's place among the tasks. */
   from: number
+  /** The tasks, in order, as shown. */
   ids: string[]
-  /** Each row's top, its height, and the room it takes (height and gap). */
   tops: number[]
   heights: number[]
-  room: number[]
-  /** Where the finger was, against the list, when the hold was up. */
+  /** Where the finger was, against the list, when the drag began. */
   startY: number
   /** The finger now, against the screen, and where it was picked up. */
   y: number
   y0: number
   to: number
-  /** Where each row sits for that drop. */
+  /** Where each task sits for that drop, against the list. */
   at: number[]
   frame: number
   scroller: HTMLElement | null
 }
 
-/** Today's rows, each of which can be held and dragged up or down (see
- *  lib/reorder-rules.ts for what a drop does). The ⋮ on each row has Move up
- *  and Move down, for anyone who cannot or would rather not drag. */
-export function DragList({ tasks, day, date, work, renderRow }: Props) {
+/** A day's rail, where every task can be held and dragged among the other
+ *  tasks (lib/reorder-rules.ts says what a drop does), and every row can be
+ *  held still to open it in place. Things that are not tasks (habits,
+ *  events, chores) stay where the clock puts them; a dragged task passes
+ *  over them. The ⋮ on each row holds all of its actions, Move up and Move
+ *  down too, for anyone who cannot or would rather not drag (GEN-52, P9). */
+export function DragList({ entries, day, date, work, renderItem, actionsFor, expanded, onExpand }: Props) {
   const listRef = useRef<HTMLDivElement>(null)
   const slotRef = useRef<HTMLDivElement>(null)
   const rows = useRef(new Map<string, HTMLDivElement>())
@@ -56,8 +83,9 @@ export function DragList({ tasks, day, date, work, renderRow }: Props) {
   const [ask, setAsk] = useState<{ moved: Task; changes: Change[]; warnings: Warning[] } | null>(null)
   const [menu, setMenu] = useState<string | null>(null)
   const [said, say] = useState('')
-  const latest = useRef({ tasks, day })
-  latest.current = { tasks, day }
+  const tasks = entries.flatMap((e) => (e.type === 'item' && e.task ? [e.task] : []))
+  const latest = useRef({ tasks, day, entries })
+  latest.current = { tasks, day, entries }
 
   function reset() {
     expecting.current = null
@@ -73,27 +101,36 @@ export function DragList({ tasks, day, date, work, renderRow }: Props) {
 
   useLayoutEffect(() => {
     if (expecting.current && tasks.map((t) => t.id).join('|') === expecting.current) reset()
-  }, [tasks])
+  }, [tasks.map((t) => t.id).join('|')])
 
-  /** Where each row goes for a drop at `to`, as pixels to move it by. */
+  /** Where each task goes for a drop at `to`, as pixels to move it by. Only
+   *  tasks move; a task takes the place (and the height) of the task it
+   *  changes places with, and the rows between keep theirs. */
   function layout() {
     const d = drag.current
     const list = listRef.current
     if (!d || !list) return
     const dy = d.y - list.getBoundingClientRect().top - d.startY
     const centre = d.tops[d.from] + d.heights[d.from] / 2 + dy
-    // It lands on the row whose place the middle of the held row is over
-    // (past either end, the first or last row), so dropping one row onto
-    // another's middle always means that row.
-    const last = d.tops.length - 1
-    let raw = centre < d.tops[0] ? 0 : centre >= d.tops[last] + d.room[last] ? last : d.from
-    d.tops.forEach((top, j) => { if (centre >= top && centre < top + d.room[j]) raw = j })
-    d.to = clampTarget(latest.current.tasks, d.from, raw)
+    // It lands on the task whose middle is nearest the middle of the held row.
+    let raw = d.from
+    let best = Infinity
+    d.tops.forEach((top, j) => {
+      const dist = Math.abs(centre - (top + d.heights[j] / 2))
+      if (dist < best) { best = dist; raw = j }
+    })
+    const list_ = latest.current.tasks
+    d.to = clampTarget(list_, d.from, raw)
 
-    const order = previewOrder(latest.current.tasks, d.from, d.to)
+    const order = previewOrder(list_, d.from, d.to)
+    // Each place keeps its top, shifted by how much taller or shorter the
+    // tasks above it in the run have become.
     const at: number[] = []
-    let top = d.tops[0]
-    for (const i of order) { at[i] = top; top += d.room[i] }
+    let shift = 0
+    order.forEach((i, k) => {
+      at[i] = d.tops[k] + shift
+      shift += d.heights[i] - d.heights[k]
+    })
     d.at = at
     d.ids.forEach((id, i) => {
       const el = rows.current.get(id)
@@ -125,11 +162,23 @@ export function DragList({ tasks, day, date, work, renderRow }: Props) {
     d.frame = requestAnimationFrame(autoScroll)
   }
 
+  const entryOf = (key: string) => latest.current.entries.find((e) => e.key === key)
+
   const hold = useLongPress<string>({
-    onStart: (id, at) => {
+    canDrag: (key) => {
+      const e = entryOf(key)
+      return !!(e && e.type === 'item' && e.task && !e.static && key !== expanded)
+    },
+    onArm: (_key, el, ready) => { el.classList.toggle('is-armed', ready) },
+    onExpand: (key) => {
+      const e = entryOf(key)
+      if (e && e.type === 'item' && e.expandable !== false) { setMenu(null); onExpand?.(key) }
+    },
+    onStart: (key, at) => {
       const list = listRef.current
+      const e = entryOf(key)
       const now = latest.current.tasks
-      const from = now.findIndex((t) => t.id === id)
+      const from = e && e.type === 'item' && e.task ? now.findIndex((t) => t.id === e.task!.id) : -1
       if (!list || from < 0 || ask || expecting.current) return false
       const ids = now.map((t) => t.id)
       const els = ids.map((i) => rows.current.get(i))
@@ -137,10 +186,9 @@ export function DragList({ tasks, day, date, work, renderRow }: Props) {
       setMenu(null)
       const tops = els.map((el) => el!.offsetTop)
       const heights = els.map((el) => el!.offsetHeight)
-      const room = tops.map((t, i) => (i < tops.length - 1 ? tops[i + 1] - t : heights[i]))
       const y = at.y - list.getBoundingClientRect().top
       drag.current = {
-        from, ids, tops, heights, room, startY: y, y: at.y, y0: at.y, to: from, at: tops, frame: 0,
+        from, ids, tops, heights, startY: y, y: at.y, y0: at.y, to: from, at: tops, frame: 0,
         scroller: list.closest<HTMLElement>('.page') ?? (document.scrollingElement as HTMLElement | null),
       }
       list.classList.add('is-dragging')
@@ -186,16 +234,26 @@ export function DragList({ tasks, day, date, work, renderRow }: Props) {
   // Stop the auto-scroll if the list goes away mid-drag.
   useEffect(() => () => { if (drag.current) cancelAnimationFrame(drag.current.frame) }, [])
 
-  /** Through edit(), one task at a time, so each change syncs. */
+  /** Through edit(), one task at a time, so each change syncs; then the
+   *  Undo bar puts every changed field back. */
   async function apply(changes: Change[], moved: Task) {
+    const before: { row: Task; fields: Partial<Task> }[] = []
     for (const c of changes) {
       const row = latest.current.day.find((t) => t.id === c.id)
       if (!row) continue
       const { id: _id, ...fields } = c
+      before.push({ row, fields: Object.fromEntries(Object.keys(fields).map((k) => [k, row[k as keyof Task]])) as Partial<Task> })
       await edit('task', row, fields as Partial<Task>)
     }
     const time = changes.find((c) => c.id === moved.id)?.planned_time
-    say(time ? `${moved.title} moved to ${time.slice(0, 5)}` : `${moved.title} moved`)
+    const text = time ? `${moved.title || 'Task'} moved to ${time.slice(0, 5)}` : `${moved.title || 'Task'} moved`
+    say(text)
+    offerUndo(text, async () => {
+      for (const b of before) {
+        const now = (await db.task.get(b.row.id)) ?? b.row
+        await edit('task', now, b.fields)
+      }
+    })
   }
 
   /** Move up or Move down, from the ⋮ menu. */
@@ -212,36 +270,50 @@ export function DragList({ tasks, day, date, work, renderRow }: Props) {
     focusMore(task.id)
   }
 
-  function focusMore(id: string) {
-    requestAnimationFrame(() => rows.current.get(id)?.querySelector<HTMLButtonElement>('.row-more')?.focus())
+  function focusMore(key: string) {
+    requestAnimationFrame(() => rows.current.get(key)?.querySelector<HTMLButtonElement>('.row-more')?.focus())
   }
+
+  // Rows are found by their task id while dragging (the reorder works on
+  // tasks) and by their key otherwise.
+  const rowKey = (e: Extract<RailEntry, { type: 'item' }>) => e.task?.id ?? e.key
 
   return (
     <div className="drag-list" ref={listRef}>
       <div className="drag-slot" ref={slotRef} aria-hidden="true" />
-      {tasks.map((t, i) => {
-        const open = menu === t.id
+      {entries.map((e) => {
+        if (e.type === 'heading') return <h3 key={e.key} className="rail-group">{e.label}</h3>
+        if (e.type === 'now') {
+          return <div key={e.key} className="rail-now" role="separator" aria-label={e.label}><span>{e.label}</span></div>
+        }
+        const open = menu === e.key
+        const actions = actionsFor?.(e) ?? []
+        const i = e.task ? tasks.findIndex((t) => t.id === e.task!.id) : -1
+        const canStep = !!e.task && !e.static
         const more = (
-          <button type="button" className="row-more" aria-label={`Move ${t.title || 'task'}`}
+          <button type="button" className="row-more" aria-label={`Actions for ${e.label || 'item'}`}
             aria-haspopup="menu" aria-expanded={open}
-            onClick={() => setMenu(open ? null : t.id)}>
+            onClick={() => setMenu(open ? null : e.key)}>
             <svg width="4" height="14" viewBox="0 0 4 14" aria-hidden="true">
               <circle cx="2" cy="2" r="1.5" fill="currentColor" /><circle cx="2" cy="7" r="1.5" fill="currentColor" />
               <circle cx="2" cy="12" r="1.5" fill="currentColor" />
             </svg>
           </button>
         )
+        const k = rowKey(e)
         return (
-          <div key={t.id} className="drag-item" data-task={t.id}
-            ref={(el) => { if (el) rows.current.set(t.id, el); else rows.current.delete(t.id) }}
-            {...hold.bind(t.id)}>
-            {renderRow(t, more)}
+          <div key={e.key} className={`drag-item${expanded === e.key ? ' is-expanded' : ''}`} data-task={e.task?.id} data-key={e.key}
+            ref={(el) => { if (el) rows.current.set(k, el); else rows.current.delete(k) }}
+            {...hold.bind(e.key)}>
+            {renderItem(e, more)}
             {open && (
-              <MoveMenu
-                up={stepTarget(tasks, i, -1) !== null}
-                down={stepTarget(tasks, i, 1) !== null}
-                onStep={(dir) => step(t, dir)}
-                onClose={() => { setMenu(null); focusMore(t.id) }}
+              <RowMenu
+                actions={actions}
+                up={canStep && i >= 0 && stepTarget(tasks, i, -1) !== null}
+                down={canStep && i >= 0 && stepTarget(tasks, i, 1) !== null}
+                steps={canStep}
+                onStep={(dir) => e.task && step(e.task, dir)}
+                onClose={() => { setMenu(null); focusMore(k) }}
               />
             )}
           </div>
@@ -270,9 +342,10 @@ function newTimes(changes: Change[], day: Task[]): string[] {
   })
 }
 
-/** The ⋮ menu: Move up, Move down, and a word on dragging. */
-function MoveMenu({ up, down, onStep, onClose }: {
-  up: boolean; down: boolean; onStep: (dir: -1 | 1) => void; onClose: () => void
+/** The ⋮ menu: the row's actions, Move up and Move down for tasks, and a
+ *  word on the hold. Works with the keyboard: arrows move, Escape closes. */
+function RowMenu({ actions, up, down, steps, onStep, onClose }: {
+  actions: MenuAction[]; up: boolean; down: boolean; steps: boolean; onStep: (dir: -1 | 1) => void; onClose: () => void
 }) {
   const box = useRef<HTMLDivElement>(null)
   const [above, setAbove] = useState(false)
@@ -305,12 +378,25 @@ function MoveMenu({ up, down, onStep, onClose }: {
     return () => { document.removeEventListener('pointerdown', away); document.removeEventListener('keydown', key) }
   }, [onClose])
 
+  const plain = actions.filter((a) => !a.danger)
+  const danger = actions.filter((a) => a.danger)
+  const run = (a: MenuAction) => { onClose(); a.run() }
   return (
-    <div ref={box} className={`move-menu${above ? ' is-above' : ''}`} role="menu" data-no-swipe
+    <div ref={box} className={`move-menu${above ? ' is-above' : ''}`} role="menu" data-no-swipe data-no-hold
       onPointerDown={(e) => e.stopPropagation()}>
-      <button type="button" role="menuitem" disabled={!up} onClick={() => onStep(-1)}>Move up</button>
-      <button type="button" role="menuitem" disabled={!down} onClick={() => onStep(1)}>Move down</button>
-      <p className="move-menu-hint">Or hold a task and drag it.</p>
+      {plain.map((a) => (
+        <button key={a.label} type="button" role="menuitem" disabled={a.disabled} onClick={() => run(a)}>{a.label}</button>
+      ))}
+      {steps && (
+        <>
+          <button type="button" role="menuitem" disabled={!up} onClick={() => onStep(-1)}>Move up</button>
+          <button type="button" role="menuitem" disabled={!down} onClick={() => onStep(1)}>Move down</button>
+        </>
+      )}
+      {danger.map((a) => (
+        <button key={a.label} type="button" role="menuitem" className="is-danger" disabled={a.disabled} onClick={() => run(a)}>{a.label}</button>
+      ))}
+      <p className="move-menu-hint">{steps ? 'Or hold a task a moment and drag it; hold it longer to open it here.' : 'Or hold it to open it here.'}</p>
     </div>
   )
 }

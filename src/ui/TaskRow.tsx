@@ -1,87 +1,52 @@
-import type { CSSProperties, ReactNode } from 'react'
 import type { Task } from '../lib/types'
-import { checklistProgress, hasNote } from '../lib/notes'
-import './colours.css'
 
-interface Props {
-  task: Task
-  onTick: (t: Task) => void
-  onPush: (t: Task, minutes: number) => void
-  onEdit: (t: Task) => void
-  /** The task's module colour when colours are on, else nothing. */
-  colour?: string | null
-  /** The module's name, shown in the meta line when the task has no section,
-   *  so the colour is never the only thing that says what it is. */
-  moduleName?: string | null
-  /** A ⋮ button for moving the task, drawn last on the right, when the list
-   *  can be reordered (Today). */
-  more?: ReactNode
-}
+/** The controls on the right of a task's row on the rail (ui/ItemRow.tsx
+ *  draws the rest): push 15 / 30 / 60, or the lock on a locked task, and the
+ *  tick. A locked task shows the lock and no push: nothing may move it. */
 
-const PUSH_STEPS = [15, 30, 60]
+export const PUSH_STEPS = [15, 30, 60]
 
-/** Left to right: time in the margin, rail dot, name, meta, state, push.
- *  A locked item shows the lock and no push control — nothing may move it. */
-export function TaskRow({ task, onTick, onPush, onEdit, colour, moduleName, more }: Props) {
-  const done = task.status === 'done'
-  const slipped = task.status === 'stuck' || task.needs_review
-
-  const meta = [
-    task.duration_min ? `${task.duration_min} min` : null,
-    task.category ?? (colour ? moduleName : null),
-    !slipped && task.push_count > 0 ? `pushed ${task.push_count}×` : null,
-  ].filter(Boolean).join(' · ')
-
-  // A checklist in the note shows how far along it is; any other note just
-  // shows that there is one. The mark joins the small line under the name
-  // when there is one, else the name's own line, so it never adds a line.
-  const list = checklistProgress(task.notes)
-  const mark = list.total > 0 ? (
-    <span className={`row-chip${list.done === list.total ? ' is-complete' : ''}`}
-      aria-label={`${list.done} of ${list.total} checklist items done`}>{list.done}/{list.total}</span>
-  ) : hasNote(task.notes) ? (
-    <span className="row-notemark" role="img" aria-label="Has a note">
-      <svg width="10" height="11" viewBox="0 0 10 11" fill="none" aria-hidden="true">
-        <path d="M1.5 0.5h5l2 2v8h-7z" stroke="currentColor" />
-        <path d="M3 5h4M3 7.5h3" stroke="currentColor" />
+export function LockMark() {
+  return (
+    <span className="lock" title="Locked — nothing may move this" aria-label="Locked" role="img">
+      <svg width="11" height="13" viewBox="0 0 11 13" fill="none" aria-hidden="true">
+        <rect x="0.5" y="5.5" width="10" height="7" rx="1.5" stroke="currentColor" />
+        <path d="M2.75 5.5V3.75a2.75 2.75 0 0 1 5.5 0V5.5" stroke="currentColor" />
       </svg>
     </span>
-  ) : null
+  )
+}
 
+export function TaskControls({ task, onPush, onTick, more }: {
+  task: Task
+  onPush: (minutes: number) => void
+  onTick: () => void
+  more: React.ReactNode
+}) {
+  const done = task.status === 'done'
+  const skipped = task.status === 'dropped'
   return (
-    <article className={`row${done ? ' is-done' : ''}${slipped ? ' is-slipped' : ''}${colour ? ' has-mod' : ''}`}
-      style={colour ? ({ '--row-mod': colour } as CSSProperties) : undefined}>
-      <span className="row-time">{task.planned_time?.slice(0, 5) ?? ''}</span>
-      <span className="row-dot" aria-hidden="true" />
+    <div className="row-right">
+      {task.locked ? <LockMark /> : !done && !skipped && (
+        <div className="push">
+          {PUSH_STEPS.map((m) => (
+            <button key={m} type="button" onClick={() => onPush(m)} title={`Push ${m} minutes`}
+              aria-label={`Push ${task.title || 'task'} ${m} minutes`}>{m}</button>
+          ))}
+        </div>
+      )}
+      <TickButton done={done} label={task.title} onTick={onTick} />
+      {more}
+    </div>
+  )
+}
 
-      <div>
-        <div className="row-name"><button onClick={() => onEdit(task)}>{task.title}</button>{!meta && mark}</div>
-        {meta && <div className="row-meta">{meta}{mark}</div>}
-        {slipped && <div className="row-note">pushed {task.push_count}×, needs a new time</div>}
-      </div>
-
-      <div className="row-right">
-        {task.locked ? (
-          <span className="lock" title="Locked — nothing may move this" aria-label="Locked">
-            <svg width="11" height="13" viewBox="0 0 11 13" fill="none" aria-hidden="true">
-              <rect x="0.5" y="5.5" width="10" height="7" rx="1.5" stroke="currentColor" />
-              <path d="M2.75 5.5V3.75a2.75 2.75 0 0 1 5.5 0V5.5" stroke="currentColor" />
-            </svg>
-          </span>
-        ) : (
-          <div className="push">
-            {PUSH_STEPS.map((m) => (
-              <button key={m} onClick={() => onPush(task, m)} title={`Push ${m} minutes`}>
-                {m}
-              </button>
-            ))}
-          </div>
-        )}
-        <button className="tick" onClick={() => onTick(task)} aria-pressed={done} title={done ? 'Untick' : 'Tick'}>
-          {done ? '✓' : ''}
-        </button>
-        {more}
-      </div>
-    </article>
+/** The round tick: small to look at, a full finger to press. */
+export function TickButton({ done, label, onTick, partly }: { done: boolean; label: string; onTick: () => void; partly?: boolean }) {
+  return (
+    <button type="button" className={`tick${partly ? ' is-partly' : ''}`} onClick={onTick} aria-pressed={done}
+      title={done ? 'Untick' : 'Tick'} aria-label={`${done ? 'Untick' : 'Tick'} ${label || 'item'}`}>
+      {done ? '✓' : ''}
+    </button>
   )
 }

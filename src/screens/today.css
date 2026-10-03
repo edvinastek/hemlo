@@ -14,3 +14,75 @@
 }
 .today-page .tabs::-webkit-scrollbar { display: none; }
 .today-page .tabs button { flex: none; white-space: nowrap; max-width: 16ch; overflow: hidden; text-overflow: ellipsis; }
+
+/* ---------- Today's own header (TOD-01) ---------------------------------- */
+.today-head .page-date { margin: 0; }
+.today-figure { margin-top: var(--space-2); max-width: 320px; }
+/* Tomorrow, Inbox, Other days: three plain links under the date. */
+.today-links { display: flex; flex-wrap: wrap; gap: var(--space-2); margin-top: var(--space-3); }
+.today-link {
+  display: inline-flex; align-items: center; gap: 6px; min-height: 36px; padding: 6px 12px;
+  border: 1px solid var(--e-rule); border-radius: var(--radius-pill);
+  font-family: var(--font-sans); font-size: 13px; color: var(--e-ink); text-decoration: none;
+}
+.today-link:hover, .today-link:focus-visible { background: var(--e-tint); }
+.today-count {
+  min-width: 18px; padding: 0 5px; border-radius: var(--radius-pill); background: var(--e-accent);
+  color: var(--e-paper); font-size: 11px; line-height: 18px; text-align: center;
+}
+
+/* ---------- carry-over: one row that opens (TOD-03) ---------------------- */
+.carry { margin: var(--space-3) var(--space-4) 0; border: 1px solid var(--e-rule); border-radius: var(--radius-md); }
+.carry-head {
+  display: flex; align-items: center; gap: var(--space-2); width: 100%; min-height: 48px;
+  padding: var(--space-2) var(--space-3); text-align: left; font-family: var(--font-sans); font-size: 14px; color: var(--e-ink);
+}
+.carry-count {
+  min-width: 22px; height: 22px; padding: 0 6px; border-radius: var(--radius-pill); background: var(--e-tint);
+  color: var(--e-warn); font-weight: 600; font-size: 12px; display: grid; place-items: center;
+}
+.carry-title { flex: 1; min-width: 0; }
+.carry-toggle { color: var(--e-accent); font-size: 12px; white-space: nowrap; }
+.carry-all {
+  display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2);
+  padding: 0 var(--space-3) var(--space-2); font-family: var(--font-sans); font-size: 12px; color: var(--e-ink-soft);
+}
+.carry-all .chip, .carry .review-actions .chip { min-height: 32px; padding: 4px 11px; }
+.carry .review-list { margin-top: 0; border-top: 1px solid var(--e-rule); }
+.carry .review-item:last-child { border-bottom: 0; }
+.carry .review-item { padding-left: var(--space-3); padding-right: var(--space-3); }
+
+/* ---------- the Tomorrow peek -------------------------------------------- */
+.peek-empty { margin: 0; font-family: var(--font-sans); font-size: 14px; color: var(--e-ink-soft); }
+.peek-list { list-style: none; margin: 0; padding: 0; }
+.peek-row {
+  display: grid; grid-template-columns: 52px 7px minmax(0, 1fr); gap: var(--space-2); align-items: baseline;
+  width: 100%; min-height: 44px; padding: 8px 0; text-align: left; border-bottom: 1px solid var(--e-rule);
+}
+button.peek-row:hover, button.peek-row:focus-visible { background: var(--e-tint); }
+.peek-time { font-family: var(--font-sans); font-size: 12px; color: var(--e-ink-soft); text-align: right; }
+.peek-dot { width: 7px; height: 7px; border-radius: var(--radius-pill); background: var(--mod, var(--e-rail)); }
+.peek-main { display: grid; min-width: 0; }
+.peek-name { font-family: var(--font-serif); font-size: 15px; color: var(--e-ink); overflow-wrap: anywhere; }
+.peek-meta { font-family: var(--font-sans); font-size: 12px; color: var(--e-ink-soft); }
+.peek .sheet-actions .btn { text-decoration: none; color: var(--e-ink); }
+.peek .sheet-actions .btn-primary { color: var(--e-paper); }
+
+/* Sheets the rail opens. */
+.rail-sheet-why { margin: 0 0 var(--space-3); font-family: var(--font-sans); font-size: 13px; color: var(--e-ink-soft); }
+.rail-choice { border: 0; margin: 0; padding: 0; display: grid; gap: var(--space-2); font-family: var(--font-sans); font-size: 14px; color: var(--e-ink); }
+.rail-choice legend { font-size: 13px; color: var(--e-ink-soft); margin-bottom: 4px; padding: 0; }
+.rail-choice label { display: flex; align-items: center; gap: var(--space-2); min-height: 36px; color: var(--e-ink); }
+.rail-sheet .move-warnings { margin-top: var(--space-3); }
+
+/* A phone on its side or a wide screen (landscape.css makes the page a
+   container): the rail on the left, the tab's own section on the right,
+   when the right has something real (not only the carry-over row or the
+   review line, which stay above the rail as upright). */
+@container (min-width: 720px) {
+  .today-body:has(> .today-main > .day-rail):has(> .today-side > :not(.metrics, .review-compact, .carry)) {
+    display: grid; grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr); column-gap: var(--space-2); align-items: start;
+  }
+  .today-body > .today-main { grid-column: 1; grid-row: 1; min-width: 0; }
+  .today-body > .today-side { grid-column: 2; grid-row: 1; min-width: 0; }
+}
