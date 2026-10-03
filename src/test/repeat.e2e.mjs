@@ -1,4 +1,4 @@
-import { need, sql, checks, open, signIn, profileOf, drained, today } from './e2e.mjs'
+import { need, sql, checks, open, signIn, profileOf, drained, today, addTask } from './e2e.mjs'
 
 // Repeating on days picked by hand, and the scrolling month calendar: a task
 // set to repeat on three picked days (one of them months ahead, past the eight
@@ -65,7 +65,7 @@ async function findDay(scroller, day) {
 }
 
 // 1. Days picked by hand: today starts picked; two more are tapped, one far ahead.
-await p.click('.fab')
+await addTask(p)
 await p.fill('.bottom-sheet input[placeholder="Mobility"]', 'Repeat picked days')
 await p.fill('.bottom-sheet input[type=time]', '08:00')
 await p.click('.bottom-sheet button[aria-label="Repeat"]')
@@ -101,7 +101,7 @@ r = await one(`select string_agg(planned_date::text, ',' order by planned_date) 
 is('tasks for the days within eight weeks, none for the far one', r.days, `${DAY},${SOON}`)
 
 // 2. Every few days.
-await p.click('.fab')
+await addTask(p)
 await p.fill('.bottom-sheet input[placeholder="Mobility"]', 'Repeat every few')
 await p.click('.bottom-sheet button[aria-label="Repeat"]')
 await p.click('.bottom-sheet [role=option]:has-text("Every few days")')
