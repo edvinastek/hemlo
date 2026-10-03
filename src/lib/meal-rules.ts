@@ -514,14 +514,15 @@ export type PlateItem =
  *  was counted in, while the food still has it); else one "medium" or one of
  *  its first unit (UNIT-12); else one serving or pack when scanned; else
  *  100 g. */
-export function startAmount(units: FoodUnit[], last: Pick<Item, 'grams' | 'unit' | 'unit_qty'> | null, fallback?: { grams: number } | null): { text: string; choice: string } {
+export function startAmount(units: FoodUnit[], last: Pick<Item, 'grams' | 'unit' | 'unit_qty'> | null, fallback?: { grams: number; pack?: boolean } | null): { text: string; choice: string } {
   if (last && last.unit && last.unit_qty != null && findUnit(units, last.unit)) {
     return { text: formatQty(Number(last.unit_qty)), choice: unitKey(findUnit(units, last.unit)!.name) }
   }
   if (last && num(last.grams ?? null) != null) return { text: formatQty(num(last.grams ?? null)!), choice: 'g' }
   const medium = units.find((u) => u.name.toLowerCase() === 'medium') ?? units[0]
   if (medium) return { text: '1', choice: unitKey(medium.name) }
-  if (fallback && fallback.grams > 0) return { text: formatQty(fallback.grams), choice: 'g' }
+  // A scanned pack: one pack, when the food knows its pack size.
+  if (fallback && fallback.grams > 0) return fallback.pack ? { text: '1', choice: 'packs' } : { text: formatQty(fallback.grams), choice: 'g' }
   return { text: '100', choice: 'g' }
 }
 

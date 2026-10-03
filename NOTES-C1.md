@@ -19,7 +19,9 @@
 - CSS — committed
 - C2 confirmed (via lead): 027 adds role 'ready' and clears meal_slots default.
 
+- screenshots taken (scratchpad/shots/c1), interactions run in a throwaway harness: add, tick, task->meal both
+  ways, remove+undo, skip, copy, edit, move all work; fixes made (unknown macros, sticky Add, one pack on scan)
+- e2e food/features/products updated for the new flow
+
 ## Left
-- screenshots (harness, then delete), fix what they show
-- e2e food.e2e.mjs / features.e2e.mjs updated to the new flow
-- final verify + report
+- report

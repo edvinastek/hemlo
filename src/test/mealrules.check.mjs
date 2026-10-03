@@ -185,6 +185,7 @@ is('a unit the food no longer has: grams', startAmount([], { grams: 100, unit: '
 is('never had: one medium (UNIT-12)', startAmount([{ name: 'small', g: 57 }, { name: 'medium', g: 95 }], null), { text: '1', choice: 'u:medium' })
 is('else one of the first unit', startAmount(eggUnits, null), { text: '1', choice: 'u:egg' })
 is('no units: the scanned pack', startAmount([], null, { grams: 400 }), { text: '400', choice: 'g' })
+is('a scanned pack of a known size: one pack', startAmount([], null, { grams: 400, pack: true }), { text: '1', choice: 'packs' })
 is('else 100 g', startAmount([], null), { text: '100', choice: 'g' })
 is('a food on the plate in a unit', plateFields({ kind: 'food', food_id: 'egg', text: '2', choice: 'u:egg' }, eggUnits),
   { fields: { food_id: 'egg', recipe_id: null, portion_multiplier: 1, grams: 100, unit: 'egg', unit_qty: 2 } })

@@ -145,8 +145,10 @@ to the test accounts, because they run against the live project.
 - `onboarding` — the first-run wizard as a planner: where you are, work and commute, a template
   suggested from typed words, no body targets; then work hours changed and turned off in More.
 - `features` — a tester's first ten minutes: tasks, meals, shopping, reminders, the policy.
-- `food` — meals without preset times, a time added on the day, a meal as plain numbers reaching
-  food_log, the figure chosen for Today (and none), all at 360 px.
+- `food` — food logging with no fixed meals: the add-food sheet's two steps, a recipe planned under a meal named
+  on the spot, a time given on the day, plain numbers eaten under another meal reaching food_log, unticking and
+  ticking again, the meal's task on Today ticking the meal eaten (GEN-31), one's own meals as cards from a starting
+  set, the figure chosen for Today (and none), all at 360 px. Needs migrations up to 027.
 - `offline` — works with the network cut, survives a reload offline, catches up after.
 - `privacy` — the first-run wizard, sign-out leaves nothing on the device, account deletion.
 - `tracking` — weigh-in, habits and supplements, the same tick from two offline phones,

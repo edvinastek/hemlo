@@ -363,7 +363,7 @@ export function AddFoodSheet({ day, meal: startMeal, time: startTime, onClose }:
 
 /** A scanned product's own amount: one serving when it states one (it is
  *  then one of the food's units), else the whole pack. */
-const servingOf = (p: Product | null | undefined) => (p?.serving ? null : p?.pack ? { grams: p.pack } : null)
+const servingOf = (p: Product | null | undefined) => (p?.serving ? null : p?.pack ? { grams: p.pack, pack: true } : null)
 
 /** The sheet itself: a heading, the content, and actions kept at its foot. */
 function Frame({ titleId, title, sub, onClose, actions, children }: {
