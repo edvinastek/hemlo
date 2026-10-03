@@ -549,12 +549,14 @@ export function plannedLines(
     }
     const packs = pack ? Math.ceil(buy / pack - 1e-9) : null
     const count = !pack && unit && unitG ? wholeToBuy(buy / unitG) : null
+    // A drink is in millilitres and litres, which count the same as grams.
+    const weight = (g: number) => (food?.per_ml ? gramsLabel(g).replace(/ kg$/, ' l').replace(/ g$/, ' ml') : gramsLabel(g))
     const amount = packs !== null
-      ? `${packs} ${packs === 1 ? 'pack' : 'packs'} (${gramsLabel(packs * pack!)})`
-      : count !== null && unit ? formatCount(count, unit) : gramsLabel(buy)
+      ? `${packs} ${packs === 1 ? 'pack' : 'packs'} (${weight(packs * pack!)})`
+      : count !== null && unit ? formatCount(count, unit) : weight(buy)
     const why = [
       n ? `for ${n.meals} ${n.meals === 1 ? 'meal' : 'meals'}` : '',
-      min !== null ? `keeps ${unit && unitG ? formatCount(Math.round((min / unitG) * 10) / 10, unit) : gramsLabel(min)} in` : '',
+      min !== null ? `keeps ${unit && unitG ? formatCount(Math.round((min / unitG) * 10) / 10, unit) : weight(min)} in` : '',
     ].filter(Boolean).join(' · ')
     out.push({
       food_id: id,
@@ -784,6 +786,7 @@ export function priceLabel(p: PriceLike, currency = 'EUR', perMl = false): strin
   const k = perKilo(p)
   const each = formatMoney(Number(p.price), currency)
   if (k === null) return `${each} each`
+  if (Number(p.amount_g) === 1000) return `${each} a ${perMl ? 'litre' : 'kg'}`
   return `${each} for ${gramsLabel(Number(p.amount_g)).replace(' g', perMl ? ' ml' : ' g').replace(' kg', perMl ? ' l' : ' kg')} · ${formatMoney(k, currency)} a ${perMl ? 'litre' : 'kg'}`
 }
 

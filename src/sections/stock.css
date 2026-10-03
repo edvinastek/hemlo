@@ -130,3 +130,8 @@
 }
 .stock-date { font-family: var(--font-sans); font-size: 13px; color: var(--e-ink-soft); }
 .stock-ideas .stock-row { grid-template-columns: minmax(0, 1fr) 44px; }
+/* A row is a button now (tap to change), and buttons speak in the sans: the
+   food's name stays in the serif, the app's words about it in the sans. */
+.stock-what .stock-name, .stock-soon-row .stock-name, .stock-ideas .stock-name { font-family: var(--font-serif); }
+.stock-what .stock-note, .stock-soon-row .stock-note, .stock-ideas .stock-note { font-family: var(--font-sans); }
+.stock-by { justify-self: start; }

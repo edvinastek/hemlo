@@ -314,7 +314,9 @@ function StockEdit({ item, householdId, places, day, onDone }: { item: Item; hou
   const [place, setPlace] = useState<string | null>(item.place)
   const [date, setDate] = useState(item.best_before ?? '')
   const [min, setMin] = useState(minStart)
-  const [minUnit, setMinUnit] = useState(item.min_grams ? start : (item.unit ? unitKey(item.unit.name) : 'g'))
+  // The minimum opens in the unit it reads best in, as the amount does.
+  const minStartUnit = item.unit ? unitKey(item.unit.name) : item.min_grams ? unitFor(item.min_grams) : 'g'
+  const [minUnit, setMinUnit] = useState(minStartUnit)
   const choice = choices.find((c) => c.key === unit) ?? choices[0]
   const minChoice = choices.find((c) => c.key === minUnit) ?? choices[0]
   const read = readAmount(amount, choice)
@@ -334,7 +336,7 @@ function StockEdit({ item, householdId, places, day, onDone }: { item: Item; hou
     const row = await setStock(householdId, item.food_id, grams, note, item.known ? read.unit : read.unit ?? undefined)
     await setStockDetails(row, {
       place, best_before: best,
-      min_grams: minRead && min.trim() === minStart && minUnit === start ? item.min_grams : minRead?.grams ?? null,
+      min_grams: minRead && min.trim() === minStart && minUnit === minStartUnit ? item.min_grams : minRead?.grams ?? null,
     })
     offerUndo(`${item.name} changed`, () => restoreStock(before))
     onDone()

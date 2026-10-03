@@ -8,10 +8,11 @@ import {
 } from '../lib/shopping'
 import {
   amountText, cleanLabel, currencyFor, forShop, formatMoney, groupList, guessAisle, itemKey, LIST_MAX, NOTE_MAX, NAME_MAX,
-  onList, parseAmount, parseItem, pickPrice, priceLabel, readPrice, reorderWithin, resolveAisle, sameShop, shopAisles,
+  itemCost, onList, parseAmount, parseItem, pickPrice, priceLabel, readPrice, reorderWithin, resolveAisle, sameShop, shopAisles,
   tripTotal, windowText, type ListItem,
 } from '../lib/shopping-rules'
 import { search } from '../lib/search-rules'
+import { gramsLabel } from '../lib/units-rules'
 import { foodByBarcode, addProduct, productByBarcode, whereFor, ProductProblem } from '../lib/products'
 import { displayName } from '../lib/products-rules'
 import { offerUndo } from '../ui/Undo'
@@ -125,7 +126,10 @@ export function ShopList({ profile, addRef }: { profile: Profile; addRef: React.
   const row = (item: ListItem, group: ListItem[] | null) => {
     const price = priceOf(item)
     const where = item.shop ? `at ${item.shop}` : item.sold_at.length ? `sold at ${item.sold_at.slice(0, 2).join(', ')}` : ''
-    const meta = [item.why, where, item.note, price ? formatMoney(Number(price.price), currency) + (price.amount_g ? '' : ' each') : '']
+    // What it will cost when that can be worked out, else the price as noted.
+    const cost = price ? itemCost(item, price) : null
+    const meta = [item.why, where, item.note,
+      price ? (cost !== null ? formatMoney(cost, currency) : `${formatMoney(Number(price.price), currency)}${price.amount_g ? '' : ' each'}`) : '']
       .filter(Boolean).join(' · ')
     return (
       <li key={item.key} className={`shop-row${item.checked ? ' is-ticked' : ''}`}>
@@ -359,7 +363,7 @@ function ItemSheet({ profile, view, item, shop, onClose }: {
         {manual ? (
           <>
             <label>Item
-              <input value={name} onChange={(ev) => setName(ev.target.value)} maxLength={NAME_MAX} data-autofocus />
+              <input value={name} onChange={(ev) => setName(ev.target.value)} maxLength={NAME_MAX} data-autofocus className="shop-serif" />
             </label>
             <label>How much
               <input value={amount} onChange={(ev) => setAmount(ev.target.value)} placeholder="2 kg, 6, 2 packs, or leave empty" inputMode="text" />
@@ -420,7 +424,7 @@ function PriceBlock({ profile, view, item, startShop, perMl }: {
   const rows = view.prices.filter((p) => p.item_key === key)
   const [shop, setShop] = useState(startShop && view.shops.some((s) => sameShop(s.name, startShop)) ? view.shops.find((s) => sameShop(s.name, startShop))!.name : view.shops[0].name)
   const [price, setPrice] = useState('')
-  const [per, setPer] = useState(item.line?.pack_size_g ? `${item.line.pack_size_g} g` : '')
+  const [per, setPer] = useState(item.line?.pack_size_g ? gramsLabel(item.line.pack_size_g) : '')
   const currency = currencyFor(profile.country)
   const p = readPrice(price)
   const amt = parseAmount(per)
@@ -450,8 +454,12 @@ function PriceBlock({ profile, view, item, startShop, perMl }: {
       </ul>
       <form className="shop-price-form" onSubmit={save}>
         <Dropdown<string> label="Shop for the price" value={shop} onChange={setShop} options={view.shops.map((s) => ({ value: s.name, label: s.name }))} />
-        <input value={price} onChange={(e) => setPrice(e.target.value)} inputMode="decimal" placeholder={formatMoney(1.99, currency)} aria-label="Price" />
-        <input value={per} onChange={(e) => setPer(e.target.value)} placeholder="for 1 kg, or empty for each" aria-label="What the price is for" />
+        <label className="shop-field"><span className="shop-label">Price</span>
+          <input value={price} onChange={(e) => setPrice(e.target.value)} inputMode="decimal" placeholder={formatMoney(1.99, currency)} />
+        </label>
+        <label className="shop-field"><span className="shop-label">For</span>
+          <input value={per} onChange={(e) => setPer(e.target.value)} placeholder="1 kg, or empty: each" />
+        </label>
         <button type="submit" className="btn" disabled={p === null || !ok}>Note price</button>
       </form>
       {price.trim() !== '' && p === null && <p className="stock-hint is-warn">That is not a price.</p>}

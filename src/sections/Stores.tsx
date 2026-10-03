@@ -31,7 +31,9 @@ export function Stores({ profile, addRef }: { profile: Profile; addRef: React.Re
   const [renaming, setRenaming] = useState<Shop | null>(null)
   const currency = currencyFor(profile.country)
   const suggestions = suggestShops(profile.country, shops.map((s) => s.name), query)
-  const home = profile.country ? countryName(profile.country) : null
+  const name = profile.country ? countryName(profile.country) : null
+  // "the Netherlands", "the United Kingdom", but "Germany".
+  const home = name && /^(Netherlands|United |Czech Republic|Philippines|Dominican Republic|Bahamas|Gambia)/.test(name) ? `the ${name}` : name
 
   async function saveShops(next: Shop[], undoLabel?: string) {
     const before = shops
