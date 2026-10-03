@@ -120,6 +120,7 @@ export function cleanQuery(text: string): string {
 export const PRODUCT_FIELDS = [
   'code', 'product_name', 'brands', 'quantity', 'product_quantity', 'product_quantity_unit', 'nutriments',
   'stores', 'stores_tags', 'countries_tags', 'image_front_small_url', 'categories_tags', 'serving_size', 'serving_quantity',
+  'nutrition_data_per', 'nutriscore_grade', 'nutrition_grades',
 ]
 export const fieldsFor = (lang: string) =>
   [...PRODUCT_FIELDS, 'product_name_nl', ...(lang !== 'nl' && lang !== 'en' ? [`product_name_${lang}`] : []), 'product_name_en'].join(',')
@@ -129,6 +130,11 @@ export const OFF = 'https://world.openfoodfacts.org'
 export const SEARCH = 'https://search.openfoodfacts.org'
 export const PRICES = 'https://prices.openfoodfacts.org'
 export const PAGE_SIZE = 20
+
+/** How the Android app names itself to Open Food Facts (PROD-04), as they
+ *  ask: the app and its version, and how to reach whoever runs it. A browser
+ *  may not set this header; there the app_name in the address says it. */
+export const USER_AGENT = 'GetIt/16 (contact via app)'
 
 /** Every request says which app is asking, as Open Food Facts asks. */
 const who = (version: string) => `app_name=GetIt&app_version=${encodeURIComponent(version)}`
@@ -150,8 +156,18 @@ export function searchUrl(engine: Engine, query: string, country: string, lang: 
     + `&page_size=${PAGE_SIZE}&fields=${fields}&tagtype_0=countries&tag_contains_0=contains&tag_0=${tag}&${who(version)}`
 }
 
+/** One product by its barcode, on the current product API (v3; v2 is
+ *  deprecated). A missing product answers 404 with status "failure". */
 export const productUrl = (code: string, lang: string, version: string) =>
-  `${OFF}/api/v2/product/${code}.json?fields=${encodeURIComponent(fieldsFor(lang))}&${who(version)}`
+  `${OFF}/api/v3/product/${code}?fields=${encodeURIComponent(fieldsFor(lang))}&${who(version)}`
+
+/** Whether a v3 (or v2) lookup answer holds a product. */
+export function lookupFound(json: unknown): boolean {
+  if (!json || typeof json !== 'object') return false
+  const j = json as Raw
+  if (j.status === 0 || j.status === 'failure') return false
+  return !!j.product && typeof j.product === 'object'
+}
 export const pricesUrl = (code: string) => `${PRICES}/api/v1/prices?product_code=${code}&order_by=-date&size=20`
 /** Where the attribution links go: the product's own pages. */
 export const productPage = (code: string) => `${OFF}/product/${code}`
@@ -179,6 +195,12 @@ export interface Product {
   /** The serving the pack states, as a unit of the food: "1 bar (30 g)" is a
    *  bar of 30 g, "30 g" a portion. Only when the pack says one. */
   serving?: FoodUnit
+  /** The rest of the EU label (PROD-03). */
+  eu?: EuFields
+  /** The figures are per 100 ml (a drink). */
+  perMl?: boolean
+  /** Nutri-Score, when there is one (PROD-06). */
+  nutriScore?: NutriScore | null
 }
 
 type Raw = Record<string, unknown>
@@ -212,8 +234,7 @@ export function kcalOf(n: Raw): number | null {
   return kj === null ? null : fig(kj / 4.184, 950, 0)
 }
 
-/** Only the five figures GetIt tracks. Salt, sugar and the rest are left:
- *  there is nowhere to keep them, and a half-filled column misleads. */
+/** The five figures GetIt counts with. The rest of the label is in euOf. */
 export function per100Of(nutriments: unknown): Per100 {
   const n = (nutriments && typeof nutriments === 'object' ? nutriments : {}) as Raw
   return {
@@ -224,6 +245,87 @@ export function per100Of(nutriments: unknown): Per100 {
     // Open Food Facts spells it "fiber"; older entries have other spellings.
     fiber_g: fig(n.fiber_100g ?? n.fibre_100g ?? n.fibers_100g, 100, 1),
   }
+}
+
+/** The rest of the EU label (Regulation 1169/2011, Annex XV), per 100 g or
+ *  100 ml, as food rows keep it (026). Unknown stays null, never 0. */
+export interface EuFields {
+  kj: number | null
+  sat_fat_g: number | null
+  mufa_g: number | null
+  pufa_g: number | null
+  sugars_g: number | null
+  polyols_g: number | null
+  starch_g: number | null
+  salt_g: number | null
+  alcohol_g: number | null
+}
+
+/** Alcohol is given as % by volume on a drink; the label's grams are the
+ *  volume times ethanol's density (0.789 g/ml). */
+const ETHANOL = 0.789
+
+/** Every other figure of the EU label a product has (PROD-03). kJ when
+ *  given, else worked out from kcal (4.184 kJ to the kcal); salt when given,
+ *  else sodium × 2.5. */
+export function euOf(nutriments: unknown): EuFields {
+  const n = (nutriments && typeof nutriments === 'object' ? nutriments : {}) as Raw
+  const kjGiven = num(n['energy-kj_100g']) ?? num(n['energy_100g'])
+  const kcal = num(n['energy-kcal_100g'])
+  const kj = kjGiven !== null ? fig(kjGiven, 4000, 0) : kcal !== null ? fig(kcal * 4.184, 4000, 0) : null
+  const sodium = num(n.sodium_100g)
+  const salt = n.salt_100g !== undefined && n.salt_100g !== '' ? fig(n.salt_100g, 100, 2) : sodium !== null ? fig(sodium * 2.5, 100, 2) : null
+  const alcoholRaw = num(n.alcohol_100g)
+  const alcoholUnit = str(n.alcohol_unit)?.toLowerCase() ?? '% vol'
+  const alcohol = alcoholRaw === null ? null : fig(alcoholUnit === 'g' ? alcoholRaw : alcoholRaw * ETHANOL, 100, 1)
+  return {
+    kj,
+    sat_fat_g: fig(n['saturated-fat_100g'], 100, 1),
+    mufa_g: fig(n['monounsaturated-fat_100g'], 100, 1),
+    pufa_g: fig(n['polyunsaturated-fat_100g'], 100, 1),
+    sugars_g: fig(n.sugars_100g, 100, 1),
+    polyols_g: fig(n.polyols_100g, 100, 1),
+    starch_g: fig(n.starch_100g, 100, 1),
+    salt_g: salt,
+    alcohol_g: alcohol,
+  }
+}
+
+export type NutriScore = 'a' | 'b' | 'c' | 'd' | 'e'
+/** Nutri-Score (PROD-06), when Open Food Facts has worked it out. */
+export function nutriScoreOf(p: Raw): NutriScore | null {
+  const g = (str(p.nutriscore_grade) ?? str(p.nutrition_grades))?.toLowerCase()
+  return g && /^[a-e]$/.test(g) ? (g as NutriScore) : null
+}
+
+/** One line of the nutrition table as an EU label sets it out. */
+export interface LabelRow { key: string; label: string; value: string; sub: boolean }
+
+/** The product's nutrition table in the order of the EU label (Annex XV):
+ *  energy, fat, of which saturates (mono-, polyunsaturates), carbohydrate,
+ *  of which sugars (polyols, starch), fibre, protein, salt (alcohol). The
+ *  seven a label must have always show, a dash when unknown; the optional
+ *  ones only when the pack gives them. */
+export function labelRows(p: Pick<Product, 'per100' | 'eu'>): LabelRow[] {
+  const eu = p.eu ?? euOf(undefined)
+  const g = (v: number | null) => (v === null ? '–' : `${v} g`)
+  const energy = [eu.kj !== null ? `${eu.kj} kJ` : null, p.per100.kcal !== null ? `${p.per100.kcal} kcal` : null].filter(Boolean).join(' / ') || '–'
+  const rows: (LabelRow | null)[] = [
+    { key: 'energy', label: 'Energy', value: energy, sub: false },
+    { key: 'fat', label: 'Fat', value: g(p.per100.fat_g), sub: false },
+    { key: 'sat', label: 'of which saturates', value: g(eu.sat_fat_g), sub: true },
+    eu.mufa_g !== null ? { key: 'mufa', label: 'mono-unsaturates', value: g(eu.mufa_g), sub: true } : null,
+    eu.pufa_g !== null ? { key: 'pufa', label: 'polyunsaturates', value: g(eu.pufa_g), sub: true } : null,
+    { key: 'carbs', label: 'Carbohydrate', value: g(p.per100.carbs_g), sub: false },
+    { key: 'sugars', label: 'of which sugars', value: g(eu.sugars_g), sub: true },
+    eu.polyols_g !== null ? { key: 'polyols', label: 'polyols', value: g(eu.polyols_g), sub: true } : null,
+    eu.starch_g !== null ? { key: 'starch', label: 'starch', value: g(eu.starch_g), sub: true } : null,
+    { key: 'fibre', label: 'Fibre', value: g(p.per100.fiber_g), sub: false },
+    { key: 'protein', label: 'Protein', value: g(p.per100.protein_g), sub: false },
+    { key: 'salt', label: 'Salt', value: g(eu.salt_g), sub: false },
+    eu.alcohol_g !== null ? { key: 'alcohol', label: 'Alcohol', value: g(eu.alcohol_g), sub: false } : null,
+  ]
+  return rows.filter((r): r is LabelRow => !!r)
 }
 
 const UNITS: Record<string, { by: number; unit: 'g' | 'ml' }> = {
@@ -331,6 +433,9 @@ export function readProduct(raw: unknown, lang = 'nl'): Product | null {
   const name = str(p[`product_name_${lang}`]) ?? str(p.product_name) ?? str(p.product_name_nl) ?? str(p.product_name_en)
   const pack = packOf(p)
   const serving = parseServing(p.serving_size, p.serving_quantity)
+  const per = str(p.nutrition_data_per)?.toLowerCase()
+  const perMl = per === '100ml' || (per !== '100g' && pack?.unit === 'ml')
+  const nutriScore = nutriScoreOf(p)
   return {
     code,
     name: name ? name.slice(0, NAME_MAX).trim() : null,
@@ -343,6 +448,9 @@ export function readProduct(raw: unknown, lang = 'nl'): Product | null {
     image: safeImage(p.image_front_small_url),
     categories: list(p.categories_tags).map((c) => c.toLowerCase()).slice(0, 40),
     ...(serving ? { serving } : {}),
+    eu: euOf(p.nutriments),
+    perMl,
+    nutriScore,
   }
 }
 
@@ -400,6 +508,11 @@ export function foodFields(p: Product, ownerId: string): Partial<Food> {
     name: displayName(p),
     brand: p.brand,
     ...p.per100,
+    // The rest of the EU label, only the figures the pack has: unknown is
+    // left out rather than sent as nothing (FOOD-02).
+    ...Object.fromEntries(Object.entries(p.eu ?? {}).filter(([, v]) => v !== null)),
+    per_ml: !!p.perMl,
+    carb_basis: 'eu',
     state: stateOf(p.categories),
     cook_yield: null,
     pack_size_g: p.pack,
@@ -441,11 +554,16 @@ export function productFromFood(f: Food): Product | null {
   const n = (v: number | string | null | undefined) => (v === null || v === undefined || v === '' ? null : Number(v))
   return {
     code, name: f.name, brand: f.brand ?? null, quantity: null,
-    pack: n(f.pack_size_g), packUnit: f.pack_size_g ? 'g' : null,
+    pack: n(f.pack_size_g), packUnit: f.pack_size_g ? (f.per_ml ? 'ml' : 'g') : null,
     stores: f.stores ?? [],
     per100: { kcal: n(f.kcal), protein_g: n(f.protein_g), carbs_g: n(f.carbs_g), fat_g: n(f.fat_g), fiber_g: n(f.fiber_g) },
     image: safeImage(f.image_url), categories: [],
     ...(readUnits(f.units).length ? { serving: readUnits(f.units)[0] } : {}),
+    eu: {
+      kj: n(f.kj), sat_fat_g: n(f.sat_fat_g), mufa_g: n(f.mufa_g), pufa_g: n(f.pufa_g), sugars_g: n(f.sugars_g),
+      polyols_g: n(f.polyols_g), starch_g: n(f.starch_g), salt_g: n(f.salt_g), alcohol_g: n(f.alcohol_g),
+    },
+    perMl: !!f.per_ml,
   }
 }
 

@@ -109,7 +109,9 @@ Types, then every check that needs nothing but Node. CI runs the same command.
   (online, nothing waiting to be sent; the phone's unlock with a screen lock and a saved token, the password otherwise).
 - `products` — supermarket products from Open Food Facts: barcodes (EAN-13, EAN-8, UPC-A and UPC-E, the check digit,
   one spelling per product), a product from a lookup or either search read into a food's figures per 100 g (kcal
-  worked out from kJ when that is all there is, fibre's other spellings, unknown left unknown, never salt or sugar),
+  worked out from kJ when that is all there is, fibre's other spellings, unknown left unknown), the rest of the EU
+  label (kJ, saturates, mono- and polyunsaturates, sugars, polyols, starch, salt or sodium × 2.5, alcohol from % vol),
+  the table in the label's order, per 100 ml for drinks, Nutri-Score, the v3 lookup and the app's User-Agent,
   the pack size from grams, millilitres or "6 x 50 g", shop names tidied ("Ah" is Albert Heijn), the food row it
   becomes and finding one already kept (or deleted) with that barcode, packs into grams for stock, shared prices
   (the latest per shop, per kilo, the day, offers), and the limiter and cache that keep under Open Food Facts' limits.
@@ -193,6 +195,16 @@ Types, then every check that needs nothing but Node. CI runs the same command.
   bed and wake times from each other, late and early the short way round the clock, each night against the target,
   sleep debt over seven days (nights not logged are unknown, never zero), how regular bed and wake times are (around
   midnight too), and the bedtime block: when it starts, how long, locked or not, and none when it is off.
+- `mealrules` — meals with no fixed slots: the person's meal names (and the old four), a typed name finding its meal,
+  keys for new meals, default and own times, what each item is (a food, a recipe or ready meal, numbers) and comes to
+  (unknown never 0), a day grouped into meals (cards for the person's meals, by time, "Any time" last, skipped and
+  eaten meals), the meal's task title, id and status, copying meals to other days, the add sheet's first step (which
+  meal, when, eaten already), recent foods, go-tos at this hour and the last amount, the plate's amounts in a unit or
+  grams, and sizing the main meal.
+- `savedmeals` — saved meals read strictly from the Nutrition module's settings, made from a meal, logged back as
+  items, added, renamed (no two with one name), removed and sorted.
+- `readymeal` — ready meals: a portion as the whole pack or the stated serving, the recipe of one line it is kept as,
+  and the one already made for the same food found again.
 
 - `trend` — trend weight: a moving average that weighs each weigh-in by the days since the last (10% a day), deleted
   and empty weigh-ins left out; the weekly rate from a straight line through the trend (none with too few weigh-ins or
@@ -234,8 +246,10 @@ to the test accounts, because they run against the live project.
 - `onboarding` — the first-run wizard as a planner: where you are, work and commute, a template
   suggested from typed words, no body targets; then work hours changed and turned off in More.
 - `features` — a tester's first ten minutes: tasks, meals, shopping, reminders, the policy.
-- `food` — meals without preset times, a time added on the day, a meal as plain numbers reaching
-  food_log, the figure chosen for Today (and none), all at 360 px.
+- `food` — food logging with no fixed meals: the add-food sheet's two steps, a recipe planned under a meal named
+  on the spot, a time given on the day, plain numbers eaten under another meal reaching food_log, unticking and
+  ticking again, the meal's task on Today ticking the meal eaten (GEN-31), one's own meals as cards from a starting
+  set, the figure chosen for Today (and none), all at 360 px. Needs migrations up to 027.
 - `offline` — works with the network cut, survives a reload offline, catches up after.
 - `privacy` — the first-run wizard, sign-out leaves nothing on the device, account deletion.
 - `tracking` — weigh-in, habits and supplements, the same tick from two offline phones,

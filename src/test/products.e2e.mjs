@@ -86,7 +86,8 @@ if (answered) {
 // 2. The product page, then added to the account's foods.
 await p.locator('.pf-page').waitFor({ timeout: 30000 })
 await p.locator('.pf-prices ul, .pf-prices p.row-meta:not([role=status])').first().waitFor({ timeout: 30000 })
-is('the page shows the figures per 100 g (or ml)', (await p.locator('.pf-facts caption').textContent())?.startsWith('Per 100'), true)
+is('the page shows the figures per 100 g (or ml)', (await p.locator('.pf-facts caption').textContent())?.startsWith('Nutrition per 100'), true)
+is('as the EU label sets them out (PROD-03)', (await p.locator('.pf-facts th').allTextContents()).filter((t) => ['Energy', 'Fat', 'of which saturates', 'Carbohydrate', 'of which sugars', 'Fibre', 'Protein', 'Salt'].includes(t)).length, 8)
 is('the product data is credited', (await p.locator('.pf-page .pf-credit').textContent())?.includes('Product data: Open Food Facts (ODbL)'), true)
 is('the prices are credited', (await p.locator('.pf-page .pf-credit').textContent())?.includes('Prices: Open Prices (ODbL)'), true)
 is('the credit links to the product on openfoodfacts.org', await p.locator('.pf-credit a', { hasText: 'Open Food Facts' }).getAttribute('href'), `https://world.openfoodfacts.org/product/${code}`)

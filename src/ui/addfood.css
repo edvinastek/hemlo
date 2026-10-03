@@ -1,0 +1,140 @@
+/* The add-food sheet (AddFoodSheet.tsx). Sized for a 360 px phone: chips and
+   tabs wrap or scroll sideways inside themselves, text shrinks, numbers and
+   buttons never do. Tokens only, so light and dark both follow; no shadows. */
+
+.af-sheet { display: grid; gap: var(--space-3); align-content: start; }
+.af-head { display: flex; align-items: center; justify-content: space-between; gap: var(--space-2); }
+.af-head h2 { margin: 0; display: flex; align-items: baseline; flex-wrap: wrap; gap: 0 var(--space-2); }
+.af-sub { font-family: var(--font-sans); font-size: 14px; font-weight: 400; color: var(--e-ink-soft); }
+.af-close { min-height: 44px; padding: 0 var(--space-2); }
+
+.af-field { border: 0; margin: 0; padding: 0; display: grid; gap: var(--space-2); min-width: 0; }
+.af-field legend { padding: 0; margin-bottom: var(--space-2); font-family: var(--font-sans); font-size: 13px; font-weight: 600; color: var(--e-ink-soft); }
+.af-hint { margin: 0; font-size: 12px; }
+
+.af-chips { display: flex; flex-wrap: wrap; gap: var(--space-2); min-width: 0; }
+.af-chip {
+  display: inline-flex; align-items: center; gap: 6px; min-height: 44px; padding: 0 var(--space-3);
+  border: 1px solid var(--e-rule); border-radius: var(--radius-pill);
+  font-family: var(--font-sans); font-size: 14px; color: var(--e-ink);
+}
+.af-chip small { font-size: 12px; color: var(--e-ink-soft); }
+.af-chip[aria-pressed="true"] { background: var(--e-tint); border-color: var(--e-accent); font-weight: 600; }
+.af-chip[aria-pressed="true"] small { color: var(--e-ink); }
+.af-chip:focus-visible, .af-row:focus-visible, .af-tabs button:focus-visible { outline: 2px solid var(--e-accent); outline-offset: 1px; }
+.af-other, .af-time, .af-date, .af-search {
+  min-width: 0; min-height: 44px; padding: 6px 10px; box-sizing: border-box; font-size: 16px;
+}
+.af-other { width: 100%; font-family: var(--font-serif); }
+.af-time { justify-self: start; font-family: var(--font-sans); }
+.af-date { font-family: var(--font-sans); font-size: 14px; }
+.af-search { width: 100%; font-family: var(--font-sans); }
+
+.af-eaten { display: flex; align-items: center; gap: var(--space-3); min-height: 48px; font-family: var(--font-sans); font-size: 15px; color: var(--e-ink); }
+.af-eaten input { width: 22px; height: 22px; flex: none; }
+.af-eaten small { display: block; font-size: 12px; color: var(--e-ink-soft); }
+
+/* Step 2: where the food goes, the tabs, the list, the plate. */
+.af-where {
+  display: flex; align-items: center; justify-content: space-between; gap: var(--space-2);
+  padding: var(--space-2) var(--space-3); border-radius: var(--radius-md); background: var(--e-tint);
+  font-family: var(--font-sans); font-size: 14px; color: var(--e-ink);
+}
+.af-where span { min-width: 0; overflow-wrap: anywhere; }
+.af-change { min-height: 40px; padding: 0 var(--space-2); flex: none; }
+
+.af-tabs {
+  display: flex; gap: var(--space-4); overflow-x: auto; scrollbar-width: none; overscroll-behavior-x: contain;
+  border-bottom: 1px solid var(--e-rule); margin: 0 calc(-1 * var(--space-4)); padding: 0 var(--space-4);
+}
+.af-tabs::-webkit-scrollbar { display: none; }
+.af-tabs button {
+  flex: none; min-height: 44px; padding: 0 0 2px; white-space: nowrap;
+  font-family: var(--font-sans); font-size: 14px; color: var(--e-ink-soft);
+  border-bottom: 2px solid transparent; margin-bottom: -1px;
+}
+.af-tabs button[aria-selected="true"] { color: var(--e-ink); border-bottom-color: var(--e-accent); font-weight: 600; }
+
+.af-panel { display: grid; gap: var(--space-2); min-width: 0; min-height: 120px; align-content: start; }
+.af-note { margin: 0; font-family: var(--font-sans); font-size: 13px; color: var(--e-done); }
+.af-empty { margin: var(--space-2) 0; font-family: var(--font-sans); font-size: 14px; color: var(--e-ink-soft); }
+.af-h { margin: var(--space-2) 0 0; font-family: var(--font-sans); font-size: 12px; font-weight: 600; letter-spacing: 0.04em; text-transform: uppercase; color: var(--e-ink-soft); }
+
+.af-list { list-style: none; margin: 0; padding: 0; display: grid; }
+.af-list > li + li { border-top: 1px solid var(--e-rule); }
+.af-row {
+  display: grid; grid-template-columns: minmax(0, 1fr) auto auto; gap: var(--space-2); align-items: center;
+  width: 100%; min-height: 52px; padding: var(--space-2) var(--space-1); text-align: left; color: var(--e-ink);
+  border-radius: var(--radius-md);
+}
+.af-row:hover { background: var(--e-tint); }
+.af-row-text { display: grid; min-width: 0; }
+.af-row-name { font-family: var(--font-serif); font-size: 16px; overflow-wrap: anywhere; }
+.af-row-meta { font-family: var(--font-sans); font-size: 12px; color: var(--e-ink-soft); overflow-wrap: anywhere; }
+.af-row-add {
+  display: grid; place-items: center; width: 32px; height: 32px; border-radius: var(--radius-pill);
+  border: 1px solid var(--e-rule); font-family: var(--font-sans); font-size: 18px; color: var(--e-accent);
+}
+.af-more { justify-self: start; min-height: 44px; }
+.af-also { display: flex; flex-wrap: wrap; gap: var(--space-2); margin-top: var(--space-2); }
+.af-also .btn, .af-again, .af-whole { min-height: 44px; }
+.af-whole { justify-self: start; text-align: left; }
+.af-find { display: grid; gap: var(--space-2); }
+.af-find > .slot-link { justify-self: start; min-height: 40px; }
+
+.af-saved-row { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--space-2); padding: var(--space-2) 0; }
+.af-saved-tools { display: flex; flex-wrap: wrap; gap: var(--space-2); align-items: center; }
+.af-saved-tools .btn { min-height: 44px; }
+.af-dots, .af-remove {
+  min-width: 44px; min-height: 44px; font-family: var(--font-sans); font-size: 20px; color: var(--e-ink-soft);
+  border-radius: var(--radius-md);
+}
+.af-dots:hover, .af-remove:hover { background: var(--e-tint); }
+.af-menu { display: flex; flex-wrap: wrap; gap: var(--space-2); }
+.af-menu .btn { min-height: 44px; }
+.af-rename { display: grid; grid-template-columns: minmax(0, 1fr) auto auto; gap: var(--space-2); }
+.af-rename input { min-width: 0; min-height: 44px; padding: 6px 10px; font-family: var(--font-serif); font-size: 16px; }
+.af-rename .btn { min-height: 44px; }
+
+.af-scan, .af-copy { display: grid; gap: var(--space-3); }
+.af-scanned { display: grid; gap: var(--space-2); padding: var(--space-3); border: 1px solid var(--e-rule); border-radius: var(--radius-md); }
+.af-scanned p { margin: 0; font-family: var(--font-sans); font-size: 14px; }
+.af-scanned b { font-family: var(--font-serif); font-weight: 600; }
+.af-scanned .btn { justify-self: start; min-height: 44px; }
+.af-again { justify-self: start; }
+.af-copy-meal { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: var(--space-2); align-items: center; padding: var(--space-2) 0; }
+.af-copy-meal .btn { min-height: 44px; }
+
+/* The plate. */
+.af-plate { display: grid; gap: var(--space-2); padding-top: var(--space-3); border-top: 1px solid var(--e-rule); }
+.af-plate-list { list-style: none; margin: 0; padding: 0; display: grid; gap: var(--space-2); }
+.af-plate-item {
+  display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: var(--space-1) var(--space-2); align-items: center;
+  padding-bottom: var(--space-2); border-bottom: 1px solid var(--e-rule);
+}
+.af-plate-name { font-family: var(--font-serif); font-size: 16px; overflow-wrap: anywhere; }
+.af-plate-item .af-remove { grid-column: 2; grid-row: 1; }
+.af-plate-amount { grid-column: 1 / -1; display: flex; align-items: stretch; gap: var(--space-2); min-width: 0; }
+.af-plate-amount .amt-input { flex: 1 1 64px; width: auto; min-width: 56px; min-height: 44px; padding: 6px 10px; font-size: 16px; }
+.af-plate-amount .amt-units { min-height: 44px; overflow-x: auto; }
+.af-plate-amount .amt-dd { flex: 1 1 120px; }
+.af-portions { max-width: 96px; }
+.af-plate-kcal { grid-column: 1 / -1; font-family: var(--font-sans); font-size: 12px; color: var(--e-ink-soft); }
+.af-plate-kcal.is-bad { color: var(--e-warn); }
+.af-save { justify-self: start; min-height: 44px; }
+
+.af-actions { align-items: center; flex-wrap: wrap; }
+.af-actions .btn { min-height: 48px; }
+.af-total { font-family: var(--font-sans); font-size: 13px; color: var(--e-ink-soft); }
+
+/* Add stays in reach however long the list or the plate: the actions stick
+   to the sheet's foot, on a phone held upright too. */
+.af-sheet > .af-actions {
+  position: sticky; z-index: 1;
+  bottom: calc(-1 * (var(--space-4) + var(--safe-area-inset-bottom, env(safe-area-inset-bottom, 0px))));
+  margin: var(--space-2) calc(-1 * var(--space-4)) calc(-1 * (var(--space-4) + var(--safe-area-inset-bottom, env(safe-area-inset-bottom, 0px))));
+  padding: var(--space-3) var(--space-4) calc(var(--space-3) + var(--safe-area-inset-bottom, env(safe-area-inset-bottom, 0px)));
+  background: var(--e-paper); border-top: 1px solid var(--e-rule);
+}
+.af-total { min-height: 44px; padding: 0 var(--space-1); text-decoration: underline; text-underline-offset: 3px; }
+.af-hint-foot { text-decoration: none; display: inline-flex; align-items: center; }

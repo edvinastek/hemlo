@@ -6,7 +6,7 @@ import {
   checkDigit, normaliseBarcode, expandUpcE, maybeShopLabel, offCountry, offLang, cleanQuery, searchUrl, productUrl, pricesUrl,
   kcalOf, per100Of, readQuantity, packOf, storeName, storesOf, safeImage, readProduct, readSearch, displayName, sectionOf, stateOf,
   foodFields, productFromFood, foodWithBarcode, deletedWith, stockGrams, formatDay, formatPrice, perUnitLabel, readPrices,
-  RateLimiter, TtlCache, searchKey, LIMITS, TTL,
+  RateLimiter, TtlCache, searchKey, LIMITS, TTL, euOf, nutriScoreOf, labelRows, lookupFound, USER_AGENT,
 } from '../lib/products-rules.ts'
 
 let fail = 0
@@ -59,6 +59,13 @@ const older = searchUrl('legacy', 'halfvolle melk', 'en:netherlands', 'nl', '0.2
 is('the older search is full text, one page of 20', older.startsWith('https://world.openfoodfacts.org/cgi/search.pl?search_terms=halfvolle%20melk&search_simple=1&action=process&json=1&page_size=20'), true)
 is('and filters on the country by name', older.includes('tagtype_0=countries&tag_contains_0=contains&tag_0=netherlands'), true)
 is('a lookup asks only for what is shown', productUrl('8710496979125', 'nl', '0.2.0').includes('fields=code%2Cproduct_name%2Cbrands'), true)
+is('a lookup uses the current product API (v3)', productUrl('8710496979125', 'nl', '0.2.0').startsWith('https://world.openfoodfacts.org/api/v3/product/8710496979125?'), true)
+is('and asks for the Nutri-Score and the table basis', ['nutriscore_grade', 'nutrition_data_per'].every((f) => decodeURIComponent(productUrl('8710496979125', 'nl', '0.2.0')).includes(f)), true)
+is('the app names itself as Open Food Facts asks', USER_AGENT, 'GetIt/16 (contact via app)')
+is('a v3 answer with a product is found', lookupFound({ code: '8710496979125', status: 'success', product: { code: '8710496979125' } }), true)
+is('a v3 failure is not found', lookupFound({ status: 'failure', result: { id: 'product_not_found' } }), false)
+is('a v2 "status 0" is not found', lookupFound({ status: 0, status_verbose: 'product not found' }), false)
+is('nothing is not found', [lookupFound(null), lookupFound('x')], [false, false])
 is('prices newest first', pricesUrl('8710496979125'), 'https://prices.openfoodfacts.org/api/v1/prices?product_code=8710496979125&order_by=-date&size=20')
 
 // Nutrition per 100 g.
@@ -76,6 +83,28 @@ is('missing values stay unknown', per100Of({ proteins_100g: 2.5 }), { kcal: null
 is('no nutrition at all', per100Of(undefined), { kcal: null, protein_g: null, carbs_g: null, fat_g: null, fiber_g: null })
 is('per serving only is not per 100 g', per100Of({ 'energy-kcal_serving': 87, proteins_serving: 1 }).kcal, null)
 is('below zero is a typo', per100Of({ fat_100g: -1 }).fat_g, null)
+
+// The rest of the EU label (PROD-03).
+is('every EU field the pack has', euOf({
+  'energy-kcal_100g': 428, 'energy-kj_100g': 1779, 'saturated-fat_100g': 9.1, 'monounsaturated-fat_100g': 4.2, 'polyunsaturated-fat_100g': 0.55,
+  sugars_100g: 64, polyols_100g: 0, starch_100g: 2.04, salt_100g: 0.02,
+}), { kj: 1779, sat_fat_g: 9.1, mufa_g: 4.2, pufa_g: 0.6, sugars_g: 64, polyols_g: 0, starch_g: 2, salt_g: 0.02, alcohol_g: null })
+is('kJ worked out from kcal when only kcal is given', euOf({ 'energy-kcal_100g': 100 }).kj, 418)
+is('plain energy is kJ', euOf({ energy_100g: 1500 }).kj, 1500)
+is('salt from sodium (× 2.5) when salt is missing', euOf({ sodium_100g: 0.4 }).salt_g, 1)
+is('salt as given wins over sodium', euOf({ salt_100g: 0.3, sodium_100g: 0.4 }).salt_g, 0.3)
+is('alcohol in % vol becomes grams (× 0.789)', euOf({ alcohol_100g: 5, alcohol_unit: '% vol' }).alcohol_g, 3.9)
+is('alcohol already in grams stays', euOf({ alcohol_100g: 4, alcohol_unit: 'g' }).alcohol_g, 4)
+is('nothing known is all unknown, never 0', euOf(undefined), { kj: null, sat_fat_g: null, mufa_g: null, pufa_g: null, sugars_g: null, polyols_g: null, starch_g: null, salt_g: null, alcohol_g: null })
+is('a saturates figure past 100 g is a typo', euOf({ 'saturated-fat_100g': 140 }).sat_fat_g, null)
+is('Nutri-Score when there is one', [nutriScoreOf({ nutriscore_grade: 'B' }), nutriScoreOf({ nutrition_grades: 'e' })], ['b', 'e'])
+is('no Nutri-Score for "unknown" or "not-applicable"', [nutriScoreOf({ nutriscore_grade: 'unknown' }), nutriScoreOf({ nutriscore_grade: 'not-applicable' }), nutriScoreOf({})], [null, null, null])
+const rows = labelRows({ per100: { kcal: 428, protein_g: 5, carbs_g: 67, fat_g: 15, fiber_g: null }, eu: euOf({ 'energy-kj_100g': 1779, 'saturated-fat_100g': 9, sugars_100g: 64, salt_100g: 0.02 }) })
+is('the table in the order of the EU label', rows.map((r) => r.label), ['Energy', 'Fat', 'of which saturates', 'Carbohydrate', 'of which sugars', 'Fibre', 'Protein', 'Salt'])
+is('energy in kJ and kcal', rows[0].value, '1779 kJ / 428 kcal')
+is('a required figure that is unknown shows a dash', rows.find((r) => r.key === 'fibre').value, '–')
+is('the "of which" lines are indented', rows.filter((r) => r.sub).map((r) => r.key), ['sat', 'sugars'])
+is('optional figures appear when given', labelRows({ per100: { kcal: 40, protein_g: 0, carbs_g: 3, fat_g: 0, fiber_g: 0 }, eu: euOf({ alcohol_100g: 5 }) }).map((r) => r.key).includes('alcohol'), true)
 
 // Pack sizes.
 is('"390 gram"', readQuantity('390 gram'), { amount: 390, unit: 'g' })
@@ -119,7 +148,12 @@ is('a looked-up product', hagel, {
   code: '8710496979125', name: 'Chocoladehagel puur', brand: 'De Ruijter', quantity: '390 gram', pack: 390, packUnit: 'g',
   stores: ['Albert Heijn'], per100: { kcal: 428, protein_g: 5, carbs_g: 67, fat_g: 15, fiber_g: null },
   image: lookup.image_front_small_url, categories: ['en:spreads', 'en:bread-coverings', 'en:chocolate-sprinkles'],
+  eu: { kj: 1779, sat_fat_g: null, mufa_g: null, pufa_g: null, sugars_g: 64, polyols_g: null, starch_g: null, salt_g: 0.02, alcohol_g: null },
+  perMl: false, nutriScore: null,
 })
+is('a drink sold in ml has its figures per 100 ml', readProduct({ code: '8710496979125', product_quantity: 1000, product_quantity_unit: 'ml' }).perMl, true)
+is('unless the table says per 100 g', readProduct({ code: '8710496979125', product_quantity: 1000, product_quantity_unit: 'ml', nutrition_data_per: '100g' }).perMl, false)
+is('a Nutri-Score is read with the product', readProduct({ ...lookup, nutriscore_grade: 'e' }).nutriScore, 'e')
 is('the name in the country’s language first', readProduct({ code: '8710496979125', product_name: 'Chocolate sprinkles', product_name_nl: 'Hagelslag' }, 'nl').name, 'Hagelslag')
 is('else the product’s own name', readProduct({ code: '8710496979125', product_name: 'Vermicelles', product_name_nl: '' }, 'nl').name, 'Vermicelles')
 is('the first of several brands', readProduct({ code: '8710496979125', brands: 'boni, colruyt' }).brand, 'boni')
@@ -149,6 +183,7 @@ is('aisle from the categories', [sectionOf(['en:spreads']), sectionOf(['en:froze
 is('state from the categories', [stateOf(['en:frozen-foods']), stateOf(['en:canned-foods']), stateOf([])], ['frozen', 'canned', 'raw'])
 is('the food row a product becomes', foodFields(hagel, 'user-a'), {
   owner_id: 'user-a', name: 'Chocoladehagel puur', brand: 'De Ruijter', kcal: 428, protein_g: 5, carbs_g: 67, fat_g: 15, fiber_g: null,
+  kj: 1779, sugars_g: 64, salt_g: 0.02, per_ml: false, carb_basis: 'eu',
   state: 'raw', cook_yield: null, pack_size_g: 390, store_section: 'Spreads', stores: ['Albert Heijn'],
   barcode: '8710496979125', source: 'off', source_ref: '8710496979125', image_url: lookup.image_front_small_url, deleted_at: null,
 })
@@ -157,7 +192,11 @@ const mine = { id: 'f1', owner_id: 'user-a', name: 'Chocoladehagel puur', barcod
 is('a kept food shown as a product (numbers from Postgres as text)', productFromFood(mine), {
   code: '8710496979125', name: 'Chocoladehagel puur', brand: 'De Ruijter', quantity: null, pack: 390, packUnit: 'g', stores: ['Albert Heijn'],
   per100: { kcal: 428, protein_g: 5, carbs_g: 67, fat_g: 15, fiber_g: null }, image: null, categories: [],
+  eu: { kj: null, sat_fat_g: null, mufa_g: null, pufa_g: null, sugars_g: null, polyols_g: null, starch_g: null, salt_g: null, alcohol_g: null },
+  perMl: false,
 })
+is('a kept food’s EU figures come back with it', productFromFood({ ...mine, salt_g: '0.02', sugars_g: 64, per_ml: true }).eu.salt_g, 0.02)
+is('and a drink stays per ml', productFromFood({ ...mine, per_ml: true }).packUnit, 'ml')
 is('a food without a barcode is not a product', productFromFood({ ...mine, barcode: null }), null)
 
 // The pack's serving as the food's unit (022).

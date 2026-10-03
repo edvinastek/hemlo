@@ -1,0 +1,27 @@
+# C1 running log (food logging)
+
+## Plan
+1. Pure rules: meal-rules.ts (groups, names, item figures, task titles, copy, defaults, recent, go-tos),
+   saved-meals-rules.ts, ready-meal-rules.ts, products-rules (EU fields, v3, Nutri-Score). Checks.
+2. meals.ts rewritten around items (food / recipe / quick) grouped into meals; tasks per meal group;
+   copyMeals; skip; GEN-31 hook in tasks.ts.
+3. AddFoodSheet (two steps, sources, plate, scan, copy). Saved meals store (nutrition module_instance).
+4. FoodDay: groups, items, edit, undo, menus. FoodSettings: Meals editor.
+5. ProductSearch: EU table, Nutri-Score, ready meal, reusable ScanFoodSheet.
+6. Screenshots, e2e updates, README, verify.
+
+## Done
+- 1 rules + checks (mealrules, savedmeals, readymeal, products extended) — committed
+- 2 meals.ts rewrite, tasks.ts GEN-31 hook — committed
+- 3 AddFoodSheet, saved meals store, ready meals store — committed
+- 4 FoodDay, FoodSettings meals editor — committed
+- 5 ProductSearch: EU table, Nutri-Score, pick purpose, ReadyMealForm, ScanFoodSheet — committed
+- CSS — committed
+- C2 confirmed (via lead): 027 adds role 'ready' and clears meal_slots default.
+
+- screenshots taken (scratchpad/shots/c1), interactions run in a throwaway harness: add, tick, task->meal both
+  ways, remove+undo, skip, copy, edit, move all work; fixes made (unknown macros, sticky Add, one pack on scan)
+- e2e food/features/products updated for the new flow
+
+## Left
+- report
