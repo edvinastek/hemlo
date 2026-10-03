@@ -86,6 +86,15 @@ export function RepeatPicker({
     set({ ...cfg, n: v })
   }
 
+  // A number typed that is already a good one counts at once, so the
+  // sentence under it and a Save tapped straight after agree with the
+  // field; anything else waits for the field to be left, then is put right.
+  function typeN(text: string, min: number, max: number) {
+    setNText(text)
+    const v = Number(text)
+    if (Number.isInteger(v) && v >= min && v <= max) set({ ...cfg, n: v })
+  }
+
   function togglePicked(day: string) {
     const next = picked.has(day) ? dates.filter((d) => d !== day) : dates.length >= MAX_PICKED_DATES ? dates : [...dates, day].sort()
     set({ ...cfg, dates: next })
@@ -119,7 +128,7 @@ export function RepeatPicker({
             min={choice === 'monthly' ? 1 : 2} max={choice === 'every_n_days' ? 365 : choice === 'every_n_weeks' ? 52 : 24}
             value={nText}
             aria-label={choice === 'every_n_days' ? 'Number of days between' : choice === 'every_n_weeks' ? 'Number of weeks between' : 'Number of months between'}
-            onChange={(e) => setNText(e.target.value)}
+            onChange={(e) => typeN(e.target.value, choice === 'monthly' ? 1 : 2, choice === 'every_n_days' ? 365 : choice === 'every_n_weeks' ? 52 : 24)}
             onBlur={(e) => commitN(e.target.value, choice === 'monthly' ? 1 : 2, choice === 'every_n_days' ? 365 : choice === 'every_n_weeks' ? 52 : 24)} />
           <span>{choice === 'every_n_days' ? 'days' : choice === 'every_n_weeks' ? 'weeks' : 'months'}</span>
         </label>
@@ -128,7 +137,11 @@ export function RepeatPicker({
       {choice === 'times_per_week' && (
         <label className="ts-every">
           <input type="number" inputMode="numeric" min={1} max={7} step={1} value={timesText} aria-label="Times a week"
-            onChange={(e) => setTimesText(e.target.value)}
+            onChange={(e) => {
+              setTimesText(e.target.value)
+              const v = Number(e.target.value)
+              if (Number.isInteger(v) && v >= 1 && v <= 7) set({ ...cfg, times: v })
+            }}
             onBlur={(e) => {
               const v = Math.min(7, Math.max(1, Math.floor(Number(e.target.value)) || 1))
               setTimesText(String(v))
