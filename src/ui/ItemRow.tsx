@@ -3,6 +3,7 @@ import type { DayItem } from '../lib/day-items-rules'
 import { checklistProgress, hasNote, parseNote, type Span } from '../lib/notes'
 import { pendingAfterDone, removeMarkers } from '../lib/after-done-rules'
 import { TaskControls, TickButton } from './TaskRow'
+import { Tip } from './Tip'
 import './colours.css'
 import './itemrow.css'
 
@@ -195,6 +196,8 @@ function NoteView({ note, checks, onCheck, label }: {
   let index = -1
   return (
     <div className="ir-note">
+      {/* The first checklist met: how ticking works (ONB-13), once. */}
+      {blocks.some((b) => b.kind === 'list' && b.items.some((it) => it.kind === 'check')) && <Tip id="first-checklist" />}
       {blocks.map((b) => {
         if (b.kind === 'heading') return <p key={b.line} className={`ir-h ir-h${b.level}`}><Words spans={b.spans} /></p>
         if (b.kind === 'text') {

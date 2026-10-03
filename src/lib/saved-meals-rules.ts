@@ -1,6 +1,7 @@
 import { num, LIMITS } from './quick-food.ts'
 import { cleanUnitName, QTY_MAX } from './units-rules.ts'
-import type { Item } from './meal-rules.ts'
+import { groupKey, type Item, type PlateItem } from './meal-rules.ts'
+import { fold } from './search-rules.ts'
 
 /** Saved meals (MEAL-08): a named group of foods, recipes and plain numbers,
  *  logged in one tap and "exploded" back into its items when one needs
@@ -136,3 +137,47 @@ export const removeSaved = (list: SavedMeal[], id: string) => list.filter((m) =>
 
 /** Saved meals A to Z, as the Saved tab lists them. */
 export const sortSaved = (list: SavedMeal[]) => [...list].sort((a, b) => a.name.localeCompare(b.name))
+
+/* ---------- "Save it as a meal?" (ONB-13) ------------------------------------- */
+
+/** What a meal item is, as one key: the same recipe, the same food, or the
+ *  same numbers typed under the same name, whatever the amount. */
+export function itemKey(i: Pick<Item, 'recipe_id' | 'food_id' | 'label'>): string | null {
+  if (i.recipe_id) return `recipe:${i.recipe_id}`
+  if (i.food_id) return `food:${i.food_id}`
+  const label = fold(i.label ?? '').trim()
+  return label ? `quick:${label}` : null
+}
+
+/** The plate's things as the same keys. */
+export function plateKeys(plate: PlateItem[]): string[] {
+  return [...new Set(plate.map((p) => (p.kind === 'recipe' ? `recipe:${p.recipe_id}` : p.kind === 'food' ? `food:${p.food_id}`
+    : itemKey({ recipe_id: null, food_id: null, label: p.entry.label ?? null }))).filter((k): k is string => !!k))].sort()
+}
+
+const sameSet = (a: string[], b: string[]) => a.length === b.length && a.every((x, i) => x === b[i])
+
+/** How many meals already logged (one meal on one day) were made of exactly
+ *  these things. Two before means this is the third time by hand: the
+ *  moment to offer "Save it as a meal" (ONB-13). Meals of one thing only
+ *  are not counted: one thing is already one tap from Recent. */
+export function timesLogged(keys: string[], history: Item[]): number {
+  if (keys.length < 2) return 0
+  const meals = new Map<string, Set<string>>()
+  for (const i of history) {
+    if (i.deleted_at || i.status === 'skipped') continue
+    const k = itemKey(i)
+    if (!k) continue
+    const g = `${i.slot_date}|${groupKey(i)}`
+    meals.set(g, (meals.get(g) ?? new Set()).add(k))
+  }
+  let n = 0
+  for (const set of meals.values()) if (sameSet([...set].sort(), keys)) n++
+  return n
+}
+
+/** Whether a saved meal already holds exactly these things. */
+export function isSaved(keys: string[], saved: SavedMeal[]): boolean {
+  return saved.some((m) => sameSet([...new Set(m.items.map((i) => itemKey(i.kind === 'recipe' ? { recipe_id: i.recipe_id, food_id: null, label: null }
+    : i.kind === 'food' ? { recipe_id: null, food_id: i.food_id, label: null } : { recipe_id: null, food_id: null, label: i.label })).filter((k): k is string => !!k))].sort(), keys))
+}

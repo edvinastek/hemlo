@@ -13,7 +13,7 @@ import {
   startAmount, sumItems, whenTime, addMacros, ZERO, type Item, type Lookup, type MealGroup, type PlateItem, type When,
 } from '../lib/meal-rules'
 import { addItems, copyMeals, itemHistory, makeLookup, mealsCtx, removeItems, slotsFor } from '../lib/meals'
-import { addSaved, itemFields, removeSaved, renameSaved, savedFromItems, sortSaved, type SavedMeal } from '../lib/saved-meals-rules'
+import { addSaved, isSaved, itemFields, plateKeys, removeSaved, renameSaved, savedFromItems, sortSaved, timesLogged, type SavedMeal } from '../lib/saved-meals-rules'
 import { useSavedMeals, writeSavedMeals } from '../lib/saved-meals'
 import { isReadyMeal } from '../lib/ready-meal-rules'
 import { addProduct, lookUpBarcode, whereFor, ProductProblem } from '../lib/products'
@@ -27,6 +27,7 @@ import { offerUndo } from './Undo'
 import type { Food, MealPlanSlot, Recipe, RecipeLine } from '../lib/types'
 import './products.css'
 import './addfood.css'
+import { Tip } from './Tip'
 
 /** THE add-food sheet (MEAL-10 to MEAL-14, GEN-51): opened from Food → Day's
  *  "+ Add food", a meal's own +, and Today's + menu. Two steps at most, and
@@ -353,7 +354,7 @@ export function AddFoodSheet({ day, meal: startMeal, time: startTime, onClose }:
       </div>
 
       {plate.length > 0 && (
-        <Plate plate={plate} unitsOf={unitsOf} packOf={packOf} read={read} look={look} shown={shown} profileId={profile.id}
+        <Plate plate={plate} unitsOf={unitsOf} packOf={packOf} read={read} look={look} shown={shown} profileId={profile.id} history={history ?? []}
           onChange={(key, change) => setPlate((list) => list.map((p) => (p.key === key ? { ...p, ...change } as OnPlate : p)))}
           onRemove={(key) => setPlate((list) => list.filter((p) => p.key !== key))} />
       )}
@@ -719,7 +720,7 @@ function CopySource({ profileId, day, today, look, onPlate, onWholeDay }: {
 
 /** The plate: each thing with its amount (one amount field everywhere,
  *  UNIT-02) and what it comes to, removable; and "Save as a meal". */
-function Plate({ plate, unitsOf, packOf, read, look, shown, profileId, onChange, onRemove }: {
+function Plate({ plate, unitsOf, packOf, read, look, shown, profileId, history, onChange, onRemove }: {
   plate: OnPlate[]
   unitsOf: (id: string) => ReturnType<typeof readUnits>
   packOf: (id: string) => number | null
@@ -727,10 +728,15 @@ function Plate({ plate, unitsOf, packOf, read, look, shown, profileId, onChange,
   look: Lookup
   shown: ReturnType<typeof shownNutrients>
   profileId: string
+  history: Item[]
   onChange: (key: string, change: Partial<OnPlate>) => void
   onRemove: (key: string) => void
 }) {
   const saved = useSavedMeals(profileId)
+  // The third time the same things go on the plate by hand, the tip offers
+  // to save them as a meal (ONB-13); once, and never for a saved one.
+  const keys = useMemo(() => plateKeys(plate), [plate])
+  const third = useMemo(() => timesLogged(keys, history) >= 2 && !isSaved(keys, saved), [keys, history, saved])
   const [saving, setSaving] = useState<string | null>(null)
   const [said, setSaid] = useState<string | null>(null)
   async function save() {
@@ -774,6 +780,7 @@ function Plate({ plate, unitsOf, packOf, read, look, shown, profileId, onChange,
           )
         })}
       </ul>
+      {third && saving === null && <Tip id="save-as-meal" />}
       {saving === null ? (
         <button type="button" className="slot-link af-save" onClick={() => { setSaving(''); setSaid(null) }}>Save as a meal…</button>
       ) : (

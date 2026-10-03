@@ -10,3 +10,6 @@
 .tip-ok { font-weight: 600; }
 /* Inside a sheet the sheet's own padding is the margin. */
 .bottom-sheet .tip { margin: 0; }
+/* Inside an open row or the note page the text's own edge is the margin. */
+.ir-note .tip, .np-body .tip { margin: 0 0 var(--space-2); }
+.af-plate .tip { margin: var(--space-2) 0; }

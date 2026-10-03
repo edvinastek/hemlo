@@ -8,19 +8,15 @@ import { OVERLAY_KEY } from '../modules/def-rules'
 import { readSettings } from './settings'
 import { saveSettings } from './write'
 import type { Profile } from './types'
+import { isModuleOn } from './day'
 
 /** Writes for habits and supplements. Every write goes to the local copy
  *  first and is queued for the server, like the rest of the app. */
 
-/** Whether a module is switched on for a profile. A profile with no row for
- *  the module has never had it turned on, so it counts as off. */
-export async function moduleEnabled(profileId: string, key: string): Promise<boolean> {
-  const row = await db.module_instance
-    .where('profile_id').equals(profileId)
-    .filter((m) => m.module_key === key)
-    .first()
-  return !!row?.enabled
-}
+/** Whether a module is switched on for a profile: the one rule every page
+ *  uses (isModuleOn in day.ts, GEN-01). A profile with no row for a
+ *  built-in module has never had it turned on, so it counts as off. */
+export const moduleEnabled = (profileId: string, key: string): Promise<boolean> => isModuleOn(profileId, key)
 
 /* ---------- habits -------------------------------------------------------- */
 

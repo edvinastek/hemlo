@@ -14,7 +14,7 @@ import { ModuleDay } from '../sections/ModuleDay'
 import { SleepDay } from '../sections/SleepDay'
 import { TodayCards } from '../sections/TodayCards'
 import { activeTab, dayTabs, isEvening, isWork, type DayTab } from '../lib/day-tabs'
-import { loadDayInput } from '../lib/day'
+import { isModuleOn, loadDayInput } from '../lib/day'
 import { dayTotals } from '../lib/nutrition'
 import { readSettings } from '../lib/settings'
 import { metricLine } from '../lib/quick-food'
@@ -54,10 +54,8 @@ export function Today() {
   const metric = readSettings(profile).today_metric
   const figure = useLiveQuery(async () => {
     if (!profile || metric === 'none') return null
-    const nutrition = await db.module_instance.where('profile_id').equals(profile.id)
-      .filter((m) => m.module_key === 'nutrition').first()
-    // A module is on only when its switch says so.
-    if (!nutrition?.enabled) return null
+    // A module is on only when its switch says so (the one rule, GEN-01).
+    if (!(await isModuleOn(profile.id, 'nutrition'))) return null
     // The targets in force today: the newest one that has started by then.
     const rows = (await db.target.where('profile_id').equals(profile.id).sortBy('from_date'))
       .filter((t) => !t.deleted_at && t.from_date <= day)

@@ -3,6 +3,7 @@
 // and removed.
 import {
   readSavedMeals, savedFromItems, itemFields, addSaved, renameSaved, removeSaved, sortSaved, SAVED_MAX,
+  plateKeys, timesLogged, isSaved,
 } from '../lib/saved-meals-rules.ts'
 
 let fail = 0
@@ -59,6 +60,23 @@ is('rename to another’s name is refused', renameSaved([...list, { id: B, name:
 is('rename to nothing is refused', renameSaved(list, A, ''), { error: 'Give the meal a name.' })
 is('remove', removeSaved(list, A), [])
 is('sorted A to Z', sortSaved([{ id: A, name: 'b', items: [] }, { id: B, name: 'a', items: [] }]).map((m) => m.name), ['a', 'b'])
+
+// "Save it as a meal?" on the third time the same things are logged by hand.
+const plate = [{ key: '1', kind: 'food', food_id: F, text: '2', choice: 'egg' }, { key: '2', kind: 'recipe', recipe_id: R, text: '1' },
+  { key: '3', kind: 'quick', entry: { label: 'Coffee', kcal: 5 } }]
+const keys = plateKeys(plate)
+is('a plate as keys, in order', keys, [`food:${F}`, 'quick:coffee', `recipe:${R}`])
+const meal = (day, slot, extra = {}) => [
+  { slot_date: day, slot, food_id: F, recipe_id: null, grams: 100, status: 'eaten', ...extra },
+  { slot_date: day, slot, food_id: null, recipe_id: R, status: 'eaten' },
+  { slot_date: day, slot, food_id: null, recipe_id: null, label: 'coffee ', kcal: 5, status: 'eaten' },
+]
+is('the same meal on two days: twice before', timesLogged(keys, [...meal('2026-10-01', 'breakfast'), ...meal('2026-10-02', 'breakfast', { grams: 150 })]), 2)
+is('another meal with one thing more does not count', timesLogged(keys, [...meal('2026-10-01', 'lunch'), { slot_date: '2026-10-01', slot: 'lunch', food_id: B, status: 'eaten' }]), 0)
+is('a skipped meal does not count', timesLogged(keys, meal('2026-10-01', 'breakfast').map((i) => ({ ...i, status: 'skipped' }))), 0)
+is('one thing alone is never offered', timesLogged([`food:${F}`], [{ slot_date: '2026-10-01', slot: 'breakfast', food_id: F, status: 'eaten' }]), 0)
+is('already saved', isSaved(keys, [{ id: A, name: 'Usual', items: [{ kind: 'recipe', recipe_id: R, portions: 1 }, { kind: 'food', food_id: F, grams: 100 }, { kind: 'quick', label: 'Coffee', kcal: 5, grams: null, protein_g: null, carbs_g: null, fat_g: null, fiber_g: null }] }]), true)
+is('not saved', isSaved(keys, []), false)
 
 if (fail) { console.log(`\n${fail} saved meal check(s) failed`); process.exit(1) }
 console.log('\nall saved meal checks passed')

@@ -15,6 +15,7 @@ import { edit } from '../lib/write'
 import { ensureInstance } from '../modules/defs'
 import type { FillContext } from '../lib/template-rules'
 import { offerUndo } from './Undo'
+import { Tip } from './Tip'
 import './notes.css'
 
 function Words({ spans }: { spans: Span[] }) {
@@ -202,6 +203,8 @@ export function NotesPage({ title, notes, onKeep, onClose, context, afterDone = 
           <p className="np-empty">Nothing written yet. Edit to add steps, a checklist or an explanation.</p>
         ) : (
           <div className="np-body">
+            {/* The first checklist met: how ticking works (ONB-13), once. */}
+            {total > 0 && <Tip id="first-checklist" />}
             {blocks.map((b) => {
               if (b.kind === 'heading') {
                 const H = b.level === 1 ? 'h2' : b.level === 2 ? 'h3' : 'h4'

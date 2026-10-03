@@ -24,6 +24,7 @@ import { CopySheet } from './CopySheet'
 import { NotesPage } from './NotesPage'
 import { PlannedDay } from './PlannedDay'
 import { offerUndo } from './Undo'
+import { FirstTip } from './Tip'
 import { AfterDoneSheet, AskDoneSheet, MoveToSheet, OpenRecord, PushTimeSheet, dayWords } from './RailSheets'
 import './itemrow.css'
 
@@ -297,6 +298,9 @@ export function DayRail({ day, where, filter, emptyText }: {
           </div>
         </div>
       )}
+      {/* Tips, one at a time (ONB-12, ONB-13): holding, the first time
+          there is a task to hold; on Today, a few days in, Make GetIt yours. */}
+      <FirstTip ids={[...(entries.some((e) => e.type === 'item' && e.task && !e.static) ? ['first-hold'] : []), ...(where === 'today' ? ['make-yours'] : [])]} />
       <div className={`rail${colours.on ? ' is-coloured' : ''}`}>
         {empty && <p className="empty rail-empty">{emptyText ?? 'Nothing planned for this day yet. Add something with the + button.'}</p>}
         <DragList
