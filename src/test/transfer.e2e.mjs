@@ -19,12 +19,14 @@ const note = `e2e-transfer-${Date.now()}`
 
 // 1. A Finance entry, made on its page.
 await p.goto(new URL('m/finance', APP).href, { waitUntil: 'domcontentloaded' })
+// The fast entry (v16): the amount, a note, then a tap on the category
+// saves it. The note carries a comma, so the CSV has to quote it.
+const memo = `${note}, weekly`
 await p.locator('.fab').click()
 const sheet = p.locator('.bottom-sheet')
-await sheet.locator('label', { hasText: 'Category' }).locator('input').fill('Groceries, weekly')
-await sheet.locator('label', { hasText: 'Amount' }).locator('input').fill('12.5')
-await sheet.locator('label', { hasText: 'Note' }).locator('input, textarea').first().fill(note)
-await sheet.getByRole('button', { name: 'Save' }).click()
+await sheet.getByRole('textbox', { name: 'Amount' }).fill('12.5')
+await sheet.locator('label', { hasText: 'Note' }).locator('input').fill(memo)
+await sheet.locator('.fin-grid button', { hasText: /^Groceries$/ }).click()
 await p.waitForTimeout(800)
 
 // 2. Export… is in the page's ⋮ (v17: no Export links on pages).
@@ -36,12 +38,12 @@ const csvPath = join(dir, download.suggestedFilename())
 await download.saveAs(csvPath)
 const csv = readFileSync(csvPath, 'utf8')
 is('CSV starts with the byte-order mark', csv.charCodeAt(0), 0xfeff)
-is('CSV has the entry, comma quoted', csv.includes('"Groceries, weekly"') && csv.includes(note), true)
+is('CSV has the entry, comma quoted', csv.includes(`"${memo}"`) && csv.includes('Groceries'), true)
 await p.getByRole('button', { name: 'Close' }).click()
 
 // 3. The file, with its note changed so it is a new row, read back in through Settings.
-const again = `${note}-back`
-writeFileSync(csvPath, csv.replace(note, again))
+const again = `${memo}-back`
+writeFileSync(csvPath, csv.replace(memo, again))
 await p.goto(new URL('more?page=data', APP).href, { waitUntil: 'domcontentloaded' })
 await p.locator('.dd-button').first().click()
 await p.getByRole('option', { name: /^Finance/ }).click()
@@ -57,10 +59,10 @@ const back = await p.evaluate(async (text) => {
   const rows = await new Promise((r) => { const q = db.transaction('module_record').objectStore('module_record').getAll(); q.onsuccess = () => r(q.result) })
   return rows.filter((x) => x.data?.note === text && !x.deleted_at).map((x) => [x.data.category, x.data.amount])
 }, again)
-is('the imported entry is there, as exported', JSON.stringify(back), JSON.stringify([['Groceries, weekly', 12.5]]))
+is('the imported entry is there, as exported', JSON.stringify(back), JSON.stringify([['Groceries', 12.5]]))
 is('the import reached the server', await drained(p), true)
 const server = await sql(`select data->>'category' as c from public.module_record where profile_id = ${profileOf(email)} and data->>'note' = '${again}' and deleted_at is null`)
-is('Postgres has the imported entry', server?.[0]?.c, 'Groceries, weekly')
+is('Postgres has the imported entry', server?.[0]?.c, 'Groceries')
 
 // 4. The same file again: every row is already here.
 await p.locator('.tx input[type=file]').setInputFiles(csvPath)
