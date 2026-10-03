@@ -97,11 +97,13 @@ const server = await sql(`select count(*)::int n from public.calendar_subscripti
 is('the address reached the server, to follow the account to other devices', server?.[0]?.n, 1)
 
 await p.goto(APP, { waitUntil: 'domcontentloaded' })
-const event = p.locator('.fe-row', { hasText: theirs })
+// A followed event is a read-only row on Today's rail (the day rail, v16).
+const event = p.locator('.row.ir-event', { hasText: theirs })
 await event.waitFor({ timeout: 15000 })
-is('the followed event is on Today at its time', (await event.locator('.fe-time').textContent()).trim(), '13:00')
-is('it says which calendar it is from', (await event.locator('.fe-meta').textContent()).includes('Other'), true)
-await event.click()
+is('the followed event is on Today at its time', (await event.locator('.row-time').textContent()).trim(), '13:00')
+is('it says which calendar it is from', (await event.locator('.row-meta').textContent()).includes('Other'), true)
+is('and is read-only there', await event.evaluate((el) => el.classList.contains('is-readonly')), true)
+await event.locator('.row-name button').click()
 const sheet = p.locator('.fe-sheet')
 await sheet.waitFor()
 is('it opens read-only: no Save, no Delete', await sheet.getByRole('button', { name: /Save|Delete/ }).count(), 0)
