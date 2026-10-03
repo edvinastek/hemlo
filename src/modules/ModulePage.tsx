@@ -11,8 +11,13 @@ import { ModuleEditor } from '../ui/ModuleEditor'
 import { Habits } from '../sections/Habits'
 import { Supplements } from '../sections/Supplements'
 import { Chores } from '../sections/Chores'
-import { WeighIn } from '../sections/WeighIn'
 import { Stats } from '../sections/Stats'
+import { Training } from '../sections/Training'
+import { Sleep } from '../sections/Sleep'
+import { Projects } from '../sections/Projects'
+import { Finance } from '../sections/Finance'
+import { Learning } from '../sections/Learning'
+import { Health } from '../sections/Health'
 import type { ModuleDef, ViewDef } from './types'
 import { PAGE_VIEW_TYPES } from './def-rules'
 import { setModuleEnabled, useModuleDef } from './defs'
@@ -37,8 +42,13 @@ const SECTION_PAGES: Record<string, (p: { profileId: string; day: string }) => J
   habits: Habits,
   supplements: Supplements,
   household: Chores,
-  health: WeighIn,
+  health: Health,
   stats: Stats,
+  training: Training,
+  sleep: Sleep,
+  projects: Projects,
+  finance: Finance,
+  learning: Learning,
 }
 /** Modules with screens of their own, outside the module pages. */
 const OWN_SCREENS: Record<string, { to: string; label: string }> = {

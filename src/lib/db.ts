@@ -6,6 +6,8 @@ import type {
   ModuleRow, ModuleRecord, CalendarEvent, CalendarSubscription, Goal, SleepLog, WorkoutLog,
   ShoppingEntry, Chore, ChoreLog,
 } from './types'
+import type { Exercise, Routine, RoutineLine } from './training-types'
+import type { Milestone } from './projects-types'
 
 /** The local copy. Every device holds the whole account, so the app works
  *  with no connection at all and merges when one comes back. */
@@ -37,6 +39,10 @@ class GetItDB extends Dexie {
   shopping_entry!: Table<ShoppingEntry, string>
   chore!: Table<Chore, string>
   chore_log!: Table<ChoreLog, string>
+  exercise!: Table<Exercise, string>
+  routine!: Table<Routine, string>
+  routine_line!: Table<RoutineLine, string>
+  milestone!: Table<Milestone, string>
   pending!: Table<PendingChange, number>
   conflicts!: Table<ConflictEntry, number>
   meta!: Table<{ key: string; value: unknown }, string>
@@ -108,6 +114,16 @@ class GetItDB extends Dexie {
       shopping_entry: 'id, household_id, plan_key, food_id',
       chore: 'id, household_id',
       chore_log: 'id, chore_id, done_on, [chore_id+done_on]',
+    })
+    // Version 10 (029): exercises (the catalogue and the person's own),
+    // training routines and their lines, milestones; logged sets found by
+    // the routine whose session they were.
+    this.version(10).stores({
+      exercise: 'id, owner_id, name',
+      routine: 'id, profile_id, series_id',
+      routine_line: 'id, routine_id',
+      milestone: 'id, profile_id, goal_id, project_id',
+      workout_log: 'id, profile_id, log_date, routine_id',
     })
   }
 }

@@ -11,6 +11,7 @@ import type { ModuleRecord } from './types'
 import { supplementSlots } from './tracking'
 import { cachedMembers, chorePrefs } from './household'
 import { memberName } from './chore-rules'
+import { financeDaySources } from './finance'
 
 /** Reads everything the day-items rules need for a range of days from the
  *  local copy, and lays the days out (day-items-rules.ts). One reader for
@@ -47,7 +48,10 @@ export async function loadDayItems(profileId: string, householdId: string, from:
   const me = profile?.user_id ?? null
   const days: string[] = []
   for (let d = from; d <= to; d = addDays(d, 1)) days.push(d)
+  // Finance's planned payments and the days already paid (engineer H).
+  const finance = await financeDaySources(profileId, from, to)
   return dayItems(days, where, {
+    ...finance,
     today, enabled, views: settings.module_views,
     tasks, habits, habitLogs, chores, choreLogs, supplements, supplementLogs,
     events: events.filter((e) => !e.subscription_id || subs.has(e.subscription_id)).map((e) => {

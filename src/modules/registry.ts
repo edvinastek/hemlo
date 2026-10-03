@@ -179,15 +179,33 @@ export const MODULES: ModuleDef[] = [
       { name: 'study', label: 'Block', fields: [
         { name: 'subject', label: 'Subject', type: 'text', required: true, width: 200 },
         { name: 'block_date', label: 'Day', type: 'date', width: 120 },
+        // When the block starts, for its task on the day (LRN-02).
+        { name: 'start', label: 'Start', type: 'time', width: 80 },
         { name: 'minutes', label: 'Length', type: 'duration', unit: 'min', width: 90, stats: 'sum' },
         { name: 'source', label: 'Book or course', type: 'text', width: 220 },
       ]},
+      // The reading list (LRN-03).
+      { name: 'book', label: 'Book', fields: [
+        { name: 'title', label: 'Title', type: 'text', required: true, width: 220 },
+        { name: 'author', label: 'Author', type: 'text', width: 160 },
+        { name: 'status', label: 'Status', type: 'select', options: ['to read', 'reading', 'finished', 'stopped'], width: 110 },
+        { name: 'pages', label: 'Pages', type: 'integer', width: 80 },
+        { name: 'page_now', label: 'Read to page', type: 'integer', width: 90 },
+        { name: 'rating', label: 'Rating', type: 'integer', unit: '/5', width: 80, stats: 'average' },
+        { name: 'started_on', label: 'Started', type: 'date', width: 120 },
+        { name: 'finished_on', label: 'Finished', type: 'date', width: 120 },
+      ]},
     ],
     views: [
-      { key: 'blocks', name: 'Blocks', type: 'table', entity: 'study', columns: ['subject','block_date','minutes','source'] },
+      { key: 'blocks', name: 'Blocks', type: 'table', entity: 'study', columns: ['subject','block_date','start','minutes','source'] },
       { key: 'month', name: 'Month', type: 'calendar', entity: 'study', dateField: 'block_date' },
+      { key: 'books', name: 'Books table', type: 'table', entity: 'book', columns: ['title','author','status','pages','rating','finished_on'] },
     ],
-    rules: [{ name: 'soft', sentence: 'Learning moves when the day is full, unless it is locked.', when: 'day.full', then: 'task.move' }],
+    rules: [
+      { name: 'soft', sentence: 'Learning moves when the day is full, unless it is locked.', when: 'day.full', then: 'task.move' },
+      // Carried out by lib/learning.ts (LRN-02).
+      { name: 'study_task', sentence: 'A study block with a day becomes a task on that day, at its start time.', when: 'study.saved', then: 'task.upsert' },
+    ],
     skills: ['read progress', 'log a block'],
   },
   {
@@ -237,19 +255,23 @@ export const MODULES: ModuleDef[] = [
   {
     key: 'projects',
     name: 'Projects',
-    keywords: ['projects', 'project', 'milestones', 'deadlines', 'clients'],
-    summary: 'Projects, tasks and milestones.',
+    summary: 'Projects with their tasks and milestones, and the goals they work towards.',
+    keywords: ['projects', 'project', 'milestones', 'deadlines', 'clients', 'goals', 'goal'],
     depth: 'light',
     entities: [
       { name: 'project', label: 'Project', fields: [
         { name: 'name', label: 'Project', type: 'text', required: true, width: 240 },
         { name: 'status', label: 'Status', type: 'select', options: ['active','paused','done'], width: 110 },
         { name: 'due_date', label: 'Due', type: 'date', width: 120 },
+        // The goal the project works towards (GEN-36, 029).
+        { name: 'goal_id', label: 'Goal', type: 'lookup', lookup: 'goal', width: 180 },
       ]},
     ],
     views: [
-      { key: 'list', name: 'Projects', type: 'table', entity: 'project', columns: ['name','status','due_date'] },
+      { key: 'list', name: 'Table', type: 'table', entity: 'project', columns: ['name','status','due_date'] },
       { key: 'cards', name: 'Cards', type: 'list', entity: 'project' },
+      // A board by status, ready to use (PRJ-04): a card moves by dragging or from its menu.
+      { key: 'board', name: 'Board', type: 'board', entity: 'project', groupBy: 'status' },
     ],
     rules: [{ name: 'to_goal', sentence: 'A project with a date becomes a goal on the year view.', when: 'project.created', then: 'goal.create' }],
   },
@@ -257,19 +279,23 @@ export const MODULES: ModuleDef[] = [
     key: 'finance',
     name: 'Finance',
     keywords: ['money', 'budget', 'spending', 'expenses', 'finance', 'bills', 'savings'],
-    summary: 'A budget and what was spent against it.',
+    summary: 'Money in and out by category, budgets per month, and payments planned ahead.',
     depth: 'light',
     entities: [
       { name: 'entry', label: 'Entry', fields: [
         { name: 'entry_date', label: 'Date', type: 'date', width: 120 },
+        // One of the categories on the Finance page (a name, so a category
+        // deleted from the list keeps its entries).
         { name: 'category', label: 'Category', type: 'text', width: 160 },
         { name: 'amount', label: 'Amount', type: 'number', width: 110, stats: 'sum' },
+        // Money out or in (FIN-02); entries from before it count by their sign.
+        { name: 'kind', label: 'Type', type: 'select', options: ['expense', 'income'], width: 100 },
         { name: 'note', label: 'Note', type: 'text', width: 240 },
       ]},
     ],
     views: [
-      { key: 'list', name: 'Entries', type: 'table', entity: 'entry', columns: ['entry_date','category','amount','note'] },
-      { key: 'month', name: 'Month', type: 'calendar', entity: 'entry', dateField: 'entry_date' },
+      { key: 'list', name: 'Entries', type: 'table', entity: 'entry', columns: ['entry_date','kind','category','amount','note'] },
+      { key: 'month', name: 'Calendar', type: 'calendar', entity: 'entry', dateField: 'entry_date' },
     ],
     rules: [],
   },

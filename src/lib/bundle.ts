@@ -16,6 +16,8 @@ const TABLES = [
   'profile', 'task', 'target', 'body_log', 'food_log', 'meal_plan_slot', 'module_instance',
   'series', 'habit', 'supplement',
   'module_record', 'calendar_event', 'goal', 'sleep_log', 'workout_log', 'calendar_subscription',
+  // 029: training routines, milestones.
+  'routine', 'milestone',
 ] as const
 
 /** Rows that belong to the profile through a parent row rather than directly. */
@@ -23,6 +25,7 @@ const CHILDREN = [
   { table: 'series_exception', parent: 'series', key: 'series_id' },
   { table: 'habit_log', parent: 'habit', key: 'habit_id' },
   { table: 'supplement_log', parent: 'supplement', key: 'supplement_id' },
+  { table: 'routine_line', parent: 'routine', key: 'routine_id' },
 ] as const
 
 export interface Bundle {
@@ -56,6 +59,8 @@ export async function exportBundle(profileId: string): Promise<Blob> {
   const me = useApp.getState().session?.user.id ?? (await db.profile.get(profileId))?.user_id ?? null
   const own = (r: { owner_id: string | null }) => !!r.owner_id && (!me || r.owner_id === me)
   records.food = (await db.food.toArray()).filter(own)
+  // Exercises a person added travel like their foods (029).
+  records.exercise = (await db.exercise.toArray()).filter(own)
   const recipes = (await db.recipe.toArray()).filter(own)
   records.recipe = recipes
   records.recipe_line = (await db.recipe_line.toArray())
@@ -196,6 +201,7 @@ export async function importBundle(file: File, profileId: string, userId: string
   // a recipe read back in keeps its place, or starts private if it is new.
   for (const r of rows('recipe')) await put('recipe', withoutReview(r), { owner_id: userId })
   for (const r of rows('recipe_line')) await put('recipe_line', r, {})
+  for (const r of rows('exercise')) await put('exercise', r, { owner_id: userId })
   // Stock joins this household's cupboard. A food already in it is updated
   // rather than doubled (NATURAL_KEYS.stock), so reading the same file twice
   // leaves the same amounts. Rows removed before the export are left out: on
@@ -205,8 +211,8 @@ export async function importBundle(file: File, profileId: string, userId: string
   }
   // Built modules before their switches and records point at them.
   for (const r of rows('module')) await put('module', r, { created_by: userId, builtin: false })
-  const order = ['series', 'habit', 'supplement', 'module_instance', 'goal', 'calendar_subscription', 'calendar_event', 'sleep_log', 'workout_log',
-    'module_record', 'target', 'body_log', 'task', 'food_log', 'meal_plan_slot']
+  const order = ['series', 'habit', 'supplement', 'module_instance', 'goal', 'routine', 'calendar_subscription', 'calendar_event', 'sleep_log', 'workout_log',
+    'module_record', 'milestone', 'target', 'body_log', 'task', 'food_log', 'meal_plan_slot']
   for (const name of order) {
     for (const r of rows(name)) await put(name, r, { profile_id: profileId })
   }

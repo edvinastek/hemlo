@@ -167,7 +167,36 @@ Types, then every check that needs nothing but Node. CI runs the same command.
   sections and rooms, a holiday pause with dates, light days and a daily cap for flexible chores, members' names,
   the starter packs, old chore records brought over; and the day's items carrying the person's supplement slots and
   chore limits.
+- `training` — Training: a first guess at an exercise's muscle group from its name (whole words where it matters, the
+  person's choice winning), own exercise names (none twice, accents aside), a routine line's targets and limits, last
+  time's sets for the Previous column and what a session's sets start from, the rest timer (worked out from when it
+  started), the figures Stats reads (sessions, sets, reps, volume, best set as an estimated one-rep max, heaviest load,
+  per exercise and muscle group), past sessions by day and routine, and a routine's planned sessions as a task series:
+  when to make, update, replace (new days) or end it, and which routine a session task opens.
+- `sleep` — Sleep: the stored target read safely (the server's 8 hours and 22:00 by default), hours across midnight,
+  bed and wake times from each other, late and early the short way round the clock, each night against the target,
+  sleep debt over seven days (nights not logged are unknown, never zero), how regular bed and wake times are (around
+  midnight too), and the bedtime block: when it starts, how long, locked or not, and none when it is off.
 
+- `trend` — trend weight: a moving average that weighs each weigh-in by the days since the last (10% a day), deleted
+  and empty weigh-ins left out; the weekly rate from a straight line through the trend (none with too few weigh-ins or
+  less than a week of them); the estimated date to reach a goal weight, and why there is none; the chart's scaling.
+- `projects` — Projects and goals: a project's progress (dropped and deleted tasks left out), its next task, the order of
+  its tasks and milestones; a goal's progress from a number kept by hand, from the tasks, projects and milestones linked
+  to it, or from the body weight (losing or gaining); days left; what a goal may not be; and what the Year view lists
+  (goals touching the year, open ones, dated projects while Projects is on).
+- `finance` — Finance: the stored list read strictly (one level of categories, unique names, euros unless chosen),
+  amounts as people type them (12,50 · 1.234,56 · 1,234.56), money written the British way, income and expense (old
+  entries by their sign), a month's totals per category and per top-level one, budgets (a month's own winning, a
+  top-level one counting what is under it, over marked), the fast entry's categories (most recent first), renaming,
+  adding and dropping categories, planned payments (due days, one-offs, paused, the entry marking one paid makes), and
+  their place on the day list: "Rent due" on its day, ticked once paid without its entry shown twice, nowhere while
+  Finance is off or not shown there.
+- `learning` — Learning and reading: the task a dated study block keeps on its day (at its start, as long as the block;
+  none without a day or with the rule off; a done one left as it happened), the reading list read safely (statuses,
+  pages, a rating of 1 to 5), progress and pages in words, what starting and finishing a book set, the list's order,
+  books finished in a year, a reading task that asks for the "Reading reflection" once done, and minutes studied per
+  day and per subject.
 ## Browser checks
 
 They need the app built and served (`npm run build`, then

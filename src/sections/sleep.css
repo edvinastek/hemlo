@@ -1,0 +1,9 @@
+/* Sleep: the target row, nights against it. */
+@import './day.css';
+
+.slp-target { border-top: 1px solid var(--e-rule); }
+.slp-hours { display: grid; justify-items: end; gap: 2px; font-family: var(--font-sans); }
+.slp-hours .kit-num { font-size: 16px; color: var(--e-ink); }
+.slp-vs { font-size: 12px; color: var(--e-ink-soft); white-space: nowrap; }
+.form-grid .sleep-quality > span { font-family: var(--font-sans); font-size: 13px; color: var(--e-ink-soft); }
+.form-grid .sleep-quality button { min-width: 44px; min-height: 44px; }
