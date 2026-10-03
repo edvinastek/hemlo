@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useState, type CSSProperties } from 'react'
+import { useCallback, useMemo, useState, type CSSProperties, type ReactNode } from 'react'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { format, parseISO } from 'date-fns'
@@ -7,7 +7,8 @@ import { useApp } from '../lib/store'
 import { PageHead } from '../ui/PageHead'
 import { MonthScroller, type DayHeat } from '../ui/MonthScroller'
 import { useDayRange } from '../ui/useDayRange'
-import { ExportLink } from '../ui/ExportLink'
+import { useExport } from '../ui/ExportLink'
+import { PageMenu } from '../ui/PageMenu'
 import { rangeFor } from '../lib/transfer-rules'
 import { useModuleColours, type ModuleColours } from '../lib/colours'
 import { modulesByWeight } from '../lib/colours-rules'
@@ -25,7 +26,7 @@ import { inbox as inboxOf, tapRoute, type DayItem } from '../lib/day-items-rules
 import { addDays } from '../lib/schedule-rules'
 import { dayLabel, mondayOf } from '../lib/copy-rules'
 import {
-  busyness, cleanWeekDays, dayCapacity, heatStep, MAX_WEEK_DAYS, plannedMinutes, readPlanAddress, spanLabel, stepSpan,
+  busyness, cleanWeekDays, dayCapacity, heatStep, plannedMinutes, readPlanAddress, spanLabel, stepSpan,
   toggleHidden, VIEW_NAMES, weekColumns, weekSpan, type PlanView,
 } from '../lib/plan-view-rules'
 import { savePlanPrefs, usePlanPrefs } from '../lib/plan-prefs'
@@ -38,15 +39,15 @@ import { milestoneLink, milestonesByDay, milestoneWords, yearDateWords } from '.
 import { instanceFor } from '../modules/defs'
 import { TaskSheet } from '../ui/TaskSheet'
 import { CopySheet, type CopyWhat } from '../ui/CopySheet'
-import { DayRail } from '../ui/DayRail'
+import { DayRail, useRailMenu } from '../ui/DayRail'
 import { AddFab } from '../ui/AddMenu'
-import { MoreMenu } from '../ui/MoreMenu'
-import { Dropdown } from '../ui/Dropdown'
+import { MoreMenu, type MenuItem } from '../ui/MoreMenu'
 import { DayPickSheet } from '../ui/DayPickSheet'
 import { SelectBar } from '../ui/SelectBar'
 import { offerUndo } from '../ui/Undo'
 import { Inbox } from './plan/Inbox'
 import { DropTemplateSheet, SaveTemplateSheet } from './plan/TemplateSheets'
+import { DaysShownSheet } from './plan/DaysShown'
 import '../ui/colours.css'
 import './plan.css'
 
@@ -69,7 +70,12 @@ const NO_ITEMS: DayItem[] = []
  *
  *  Every view reaches three years back and five ahead. A repeating task is
  *  a real task only eight weeks ahead; past that, the days its series will
- *  land on are shown as "planned repeats", worked out from the series. */
+ *  land on are shown as "planned repeats", worked out from the series.
+ *
+ *  Calm (v17): each view shows its content and its one way to step through
+ *  time; everything set once or used now and then (days shown, Select, copy
+ *  and templates, followed calendars, the layout, Export) is in the one ⋮
+ *  on the title line, and the colour keys wait behind one "Key". */
 export function Plan() {
   const profile = useApp((s) => s.profile)
   const navigate = useNavigate()
@@ -96,6 +102,8 @@ export function Plan() {
   const [moving, setMoving] = useState<Task[] | null>(null)
   const [openEvent, setOpenEvent] = useState<CalendarEvent | null>(null)
   const [selecting, setSelecting] = useState(false)
+  const [inboxSelecting, setInboxSelecting] = useState(false)
+  const [daysOpen, setDaysOpen] = useState(false)
   const [chosen, setChosen] = useState<Set<string>>(new Set())
   const [sure, setSure] = useState(false)
   // Year: only the months being drawn are worked out.
@@ -213,51 +221,74 @@ export function Plan() {
 
   const showStrip = view === 'day' || view === 'week'
   const inboxCount = inboxTasks.length
+  const railMenu = useRailMenu()
+
+  // The page's one ⋮ (CALM-03), per view.
+  const exportSource = useMemo(() => (view === 'inbox' ? null : {
+    dataset: 'calendar',
+    range: view === 'week' ? rangeFor('custom', date, { from: span[0], to: span[span.length - 1] })
+      : view === 'day' ? rangeFor('day', date) : rangeFor(view, date),
+  }), [view, date, span])
+  const exp = useExport(exportSource, true)
+  // Followed calendars: shown or hidden on Plan (AGN-06), once chips on the page.
+  const calendarItems: MenuItem[] = view === 'inbox' ? [] : subs.map((c) => {
+    const on = !hidden.includes(c.id)
+    return {
+      label: on ? `Hide ${c.name} on Plan` : `Show ${c.name} on Plan`,
+      onSelect: () => { if (profile) void savePlanPrefs(profile.id, { hidden_calendars: toggleHidden(hidden, c.id) }) },
+    }
+  })
+  const pageItems: (MenuItem | null | false)[] = view === 'day' ? [
+    date !== today && { label: 'Go to today', onSelect: () => go(today) },
+    { label: 'Copy this day…', onSelect: () => setCopying({ kind: 'day', day: date }) },
+    { label: 'Save day as template…', onSelect: () => setSaving({ kind: 'day', first: date }) },
+    { label: 'Add a template to this day…', onSelect: () => setDropping(date) },
+    { label: 'See its week', onSelect: () => go(date, 'week', true) },
+    ...railMenu,
+  ] : view === 'week' ? [
+    { label: selecting ? 'Stop selecting' : 'Select tasks', onSelect: () => (selecting ? endSelect() : setSelecting(true)) },
+    { label: `Days shown: ${weekDays}…`, onSelect: () => setDaysOpen(true) },
+    { label: 'Copy this week…', onSelect: () => setCopying({ kind: 'week', monday: mondayOf(date) }) },
+    { label: 'Save week as template…', onSelect: () => setSaving({ kind: 'week', first: mondayOf(date) }) },
+    { label: 'Add a template…', onSelect: () => setDropping(date) },
+  ] : view === 'year' ? [
+    // Year has no +, so its cells stay clear: the add is here.
+    { label: `Add a task on ${dayLabel(date)}…`, onSelect: () => addOn(date) },
+  ] : view === 'inbox' ? [
+    inboxCount > 0 && { label: inboxSelecting ? 'Stop selecting' : 'Select tasks', onSelect: () => setInboxSelecting((x) => !x) },
+  ] : []
+  const monthSteps = view === 'month' && (
+    <>
+      <button type="button" className="ph-step" aria-label="Previous month"
+        disabled={`${date.slice(0, 7)}-01` <= range.first} onClick={() => go(addMonth(date, -1))}>‹</button>
+      <button type="button" className="ph-step" aria-label="Next month"
+        disabled={monthEnd(date) >= range.last} onClick={() => go(addMonth(date, 1))}>›</button>
+    </>
+  )
+  const menu = (
+    <>
+      {monthSteps}
+      <PageMenu label={`More for ${VIEW_NAMES[view]}`} items={[...pageItems, ...calendarItems, exp.item]} sheets={exp.sheet} />
+    </>
+  )
 
   return (
     <div className="page">
       <div className="page-inner">
         <PageHead date={parseISO(date)} onPick={(d) => go(key(d))} sections={SECTIONS} active={VIEW_NAMES[view]}
-          onSection={(s) => { endSelect(); go(date, viewOf(s), true) }}
+          onSection={(s) => { endSelect(); setInboxSelecting(false); go(date, viewOf(s), true) }}
           heading={view === 'inbox' ? 'Inbox' : undefined}
-          sub={view === 'inbox' ? 'Tasks without a day, waiting to be planned.' : undefined}
+          title={view === 'month' ? format(parseISO(date), 'MMMM yyyy') : undefined}
+          menu={menu}
           strip={showStrip}
           note={view === 'day' ? <HolidayChips marks={holidayMarks(holidays, parseISO(date))} /> : undefined}
           tabLabel={(s) => (s === 'Inbox' && inboxCount > 0
             ? <>Inbox <span className="plan-count" aria-label={`, ${inboxCount} waiting`}>{inboxCount}</span></> : s)} />
 
-        {view !== 'inbox' && subs.length > 0 && (
-          <div className="plan-cals" role="group" aria-label="Calendars you follow: show or hide them on Plan">
-            {subs.map((s) => {
-              const on = !hidden.includes(s.id)
-              return (
-                <button key={s.id} type="button" className="plan-cal" aria-pressed={on}
-                  title={on ? `Hide ${s.name} on Plan (it stays followed)` : `Show ${s.name} on Plan`}
-                  onClick={() => profile && void savePlanPrefs(profile.id, { hidden_calendars: toggleHidden(hidden, s.id) })}>
-                  <i style={{ '--fe': s.colour } as CSSProperties} aria-hidden="true" />{s.name}
-                </button>
-              )
-            })}
-          </div>
-        )}
-
+        {/* Day: the strip and the date's calendar move between days (and a
+            swipe); the pager bar of v16 is gone (CALM-02). */}
         {view === 'day' && (
           <>
-            <div className="plan-bar">
-              <button type="button" className="btn plan-step" aria-label="Previous day" disabled={date <= range.first}
-                onClick={() => go(addDays(date, -1))}>‹</button>
-              <span className="plan-bar-label">{date === today ? 'Today' : dayLabel(date)}</span>
-              <button type="button" className="btn plan-step" aria-label="Next day" disabled={date >= range.last}
-                onClick={() => go(addDays(date, 1))}>›</button>
-              {date !== today && <button type="button" className="btn plan-today" onClick={() => go(today)}>Today</button>}
-              <MoreMenu className="plan-bar-more" label={`More for ${dayLabel(date)}`} items={[
-                { label: 'Add a task here', onSelect: () => addOn(date) },
-                { label: 'Copy this day…', onSelect: () => setCopying({ kind: 'day', day: date }) },
-                { label: 'Save day as template…', onSelect: () => setSaving({ kind: 'day', first: date }) },
-                { label: 'Add a template to this day…', onSelect: () => setDropping(date) },
-                { label: 'See its week', onSelect: () => go(date, 'week', true) },
-              ]} />
-            </div>
             <MilestoneLines list={milestonesOn(date)} onOpen={(m) => navigate(milestoneLink(m))} />
             {/* The one merged rail of the day (it lists the repeats to come
                 past the eight weeks too, so Plan adds nothing under it). */}
@@ -267,27 +298,16 @@ export function Plan() {
 
         {view === 'week' && (
           <>
+            {/* ‹ the days shown ›; how many, Select, copying and templates
+                are in the ⋮ on the title line. */}
             <div className="plan-bar">
               <button type="button" className="btn plan-step" aria-label={`Previous ${weekDays === 1 ? 'day' : `${weekDays} days`}`}
                 disabled={span[0] <= range.first} onClick={() => go(stepSpan(date, weekDays, -1))}>‹</button>
               <span className="plan-bar-label">{spanLabel(span)}</span>
               <button type="button" className="btn plan-step" aria-label={`Next ${weekDays === 1 ? 'day' : `${weekDays} days`}`}
                 disabled={span[span.length - 1] >= range.last} onClick={() => go(stepSpan(date, weekDays, 1))}>›</button>
-              <div className="plan-days">
-                <Dropdown label="Days shown" value={String(weekDays)}
-                  options={Array.from({ length: MAX_WEEK_DAYS }, (_, i) => ({ value: String(i + 1), label: i === 0 ? '1 day' : `${i + 1} days` }))}
-                  onChange={(v) => profile && void savePlanPrefs(profile.id, { week_days: cleanWeekDays(v) })} />
-              </div>
-              <button type="button" className="btn plan-select" aria-pressed={selecting}
-                onClick={() => (selecting ? endSelect() : setSelecting(true))}>{selecting ? 'Done' : 'Select'}</button>
-              <MoreMenu className="plan-bar-more" label="More for these days" items={[
-                { label: 'Copy this week…', onSelect: () => setCopying({ kind: 'week', monday: mondayOf(date) }) },
-                { label: 'Save week as template…', onSelect: () => setSaving({ kind: 'week', first: mondayOf(date) }) },
-                { label: 'Add a template…', onSelect: () => setDropping(date) },
-              ]} />
             </div>
             {!selecting && swap.ui}
-            {selecting && <p className="week-hint">Tap tasks to select them.</p>}
             <div className={`week-grid pw-grid${swap.gridClass}`} style={{ '--pw-cols': weekColumns(weekDays) } as CSSProperties}>
               {span.map((day) => {
                 const list = itemsOn(day)
@@ -304,7 +324,7 @@ export function Plan() {
                         onClick={() => { if (!swap.holding && !selecting) go(day, 'day', true) }}>
                         {format(parseISO(day), 'EEE d')}<HolidayMark marks={hol} variant="bar" />
                       </h3>
-                      {!selecting && <MoreMenu label={`More for ${dayLabel(day)}`} items={dayMenu(day)} />}
+                      {!selecting && <MoreMenu label={`More for ${dayLabel(day)}`} items={dayMenu(day)}>Or hold a day to swap it, or a task to move it.</MoreMenu>}
                     </div>
                     <div className={`pw-busy${busy.over ? ' is-over' : ''}`} title={busy.words}>
                       <span className="pw-busy-fill" style={{ width: `${Math.round(busy.share * 100)}%` }} aria-hidden="true" />
@@ -352,15 +372,26 @@ export function Plan() {
                 )
               })}
             </div>
-            {span.some((d) => plannedOn(d).length > 0) && (
-              <p className="planned-note">
-                <span className="planned-mark" aria-hidden="true">↻</span> Planned repeat: worked out from its
-                series, it becomes a task you can tick eight weeks before the day.
-              </p>
-            )}
-            <ModuleLegend colours={colours} keys={modulesByWeight(span.flatMap(modulesOnDay))} />
-            <HolidayLegend countries={holidayLegend(span)} />
-            <FollowedLegend calendars={calendarsIn(span.map(followedOn))} />
+            {(() => {
+              // The colours and marks in one "Key" (CALM-11): ↻ is explained there too.
+              const mods = colours.on ? modulesByWeight(span.flatMap(modulesOnDay)) : []
+              const hols = holidayLegend(span)
+              const cals = calendarsIn(span.map(followedOn))
+              const repeats = span.some((d) => plannedOn(d).length > 0)
+              if (!mods.length && !hols.length && !cals.length && !repeats) return null
+              return (
+                <Key>
+                  {repeats && (
+                    <p className="planned-note">
+                      <span className="planned-mark" aria-hidden="true">↻</span> Planned repeat: it becomes a task eight weeks before the day.
+                    </p>
+                  )}
+                  <ModuleLegend colours={colours} keys={mods} />
+                  <HolidayLegend countries={hols} />
+                  <FollowedLegend calendars={cals} />
+                </Key>
+              )
+            })()}
             {selecting && (
               <SelectBar count={picked.length} noun="tasks" allShown={shownTasks.length > 0 && shownTasks.every((t) => chosen.has(t.id))}
                 anyShown={shownTasks.length > 0}
@@ -382,17 +413,10 @@ export function Plan() {
           </>
         )}
 
+        {/* Month: the month is the heading, with ‹ › beside it. */}
         {view === 'month' && (
           <>
-            <div className="plan-monthnav">
-              <button type="button" className="btn" aria-label="Previous month"
-                disabled={`${date.slice(0, 7)}-01` <= range.first} onClick={() => go(addMonth(date, -1))}>‹</button>
-              <span>{format(parseISO(date), 'MMMM yyyy')}</span>
-              <button type="button" className="btn" aria-label="Next month"
-                disabled={monthEnd(date) >= range.last} onClick={() => go(addMonth(date, 1))}>›</button>
-            </div>
-            <HeatLegend note="Tap a day for its week" />
-            <div className="month-grid">
+            <div className="month-grid plan-month">
               {monthGrid.map((d) => {
                 const inMonth = d.slice(0, 7) === date.slice(0, 7)
                 const marks = holidayMarks(holidays, parseISO(d))
@@ -421,15 +445,17 @@ export function Plan() {
                 )
               })}
             </div>
-            <ModuleLegend colours={colours} keys={modulesByWeight(monthGrid.filter((d) => d.slice(0, 7) === date.slice(0, 7)).flatMap(modulesOnDay))} />
-            <HolidayLegend countries={holidayLegend(monthGrid)} />
-            <FollowedLegend calendars={calendarsIn(monthGrid.map(followedOn))} />
+            <Key>
+              <HeatLegend />
+              <ModuleLegend colours={colours} keys={modulesByWeight(monthGrid.filter((d) => d.slice(0, 7) === date.slice(0, 7)).flatMap(modulesOnDay))} />
+              <HolidayLegend countries={holidayLegend(monthGrid)} />
+              <FollowedLegend calendars={calendarsIn(monthGrid.map(followedOn))} />
+            </Key>
           </>
         )}
 
         {view === 'year' && (
           <>
-            <HeatLegend note="Tap a day for its week" />
             {/* Months stacked, scrolling from three years back to five ahead;
                 it opens on the month being looked at. Only the months drawn
                 are worked out. */}
@@ -451,31 +477,27 @@ export function Plan() {
                 onDayClick={(day) => go(day, 'week', true)}
               />
             </div>
-            <ModuleLegend colours={colours} keys={modulesByWeight([...itemsByDay.keys()].flatMap(modulesOnDay))} />
-            <HolidayLegend countries={countriesIn([...holidays.values()], settings.holidays.countries)} />
-            <FollowedLegend calendars={calendarsIn([...followedAll.values()].map((l) => l.filter((f) => !hidden.includes(f.sub.id))))} />
+            <Key>
+              <HeatLegend />
+              <ModuleLegend colours={colours} keys={modulesByWeight([...itemsByDay.keys()].flatMap(modulesOnDay))} />
+              <HolidayLegend countries={countriesIn([...holidays.values()], settings.holidays.countries)} />
+              <FollowedLegend calendars={calendarsIn([...followedAll.values()].map((l) => l.filter((f) => !hidden.includes(f.sub.id))))} />
+            </Key>
             {profile && <YearGoals profileId={profile.id} year={Number(date.slice(0, 4))} onOpen={(link) => navigate(link)} />}
           </>
         )}
 
         {view === 'inbox' && profile && (
-          <Inbox profileId={profile.id} tasks={inboxTasks} onOpen={(t) => setEditing({ task: t, isNew: false })} />
-        )}
-
-        {view !== 'inbox' && view !== 'day' && (
-          <ExportLink calendar source={{
-            dataset: 'calendar',
-            range: view === 'week' ? rangeFor('custom', date, { from: span[0], to: span[span.length - 1] }) : rangeFor(view, date),
-          }} />
+          <Inbox profileId={profile.id} tasks={inboxTasks} onOpen={(t) => setEditing({ task: t, isNew: false })}
+            selecting={inboxSelecting} onSelecting={setInboxSelecting} />
         )}
       </div>
 
       {/* The same + as Today (GEN-50): a task on the day in view, a task to
-          the Inbox, food, an event, or any module's add. On the Inbox the
-          day is today, and the capture line at the top still adds straight
-          to the Inbox. */}
-      {!selecting && <AddFab day={view === 'inbox' ? today : date}
-        label={view === 'inbox' ? 'Add: a task to the Inbox or something else' : `Add something on ${dayLabel(date)}`} />}
+          the Inbox, food, an event, or any module's add. Not on the Inbox,
+          whose capture line is its one add (CALM-01), nor on Year, where it
+          would sit over the days (its add is in the ⋮). */}
+      {!selecting && view !== 'inbox' && view !== 'year' && <AddFab day={date} label={`Add something on ${dayLabel(date)}`} />}
       {editing && <TaskSheet key={editing.task.id} task={editing.task} isNew={editing.isNew} onClose={() => setEditing(null)} />}
       {copying && <CopySheet what={copying} onClose={() => setCopying(null)} onDone={() => setChosen(new Set())} />}
       {saving && <SaveTemplateSheet kind={saving.kind} first={saving.first} onClose={() => setSaving(null)} />}
@@ -485,6 +507,10 @@ export function Plan() {
           onPick={(d) => { const list = moving; setMoving(null); void moveTo(list, d) }} onClose={() => setMoving(null)} />
       )}
       {openEvent && <FollowedSheet event={openEvent} onClose={() => setOpenEvent(null)} />}
+      {daysOpen && (
+        <DaysShownSheet value={weekDays} onClose={() => setDaysOpen(false)}
+          onPick={(n) => profile && void savePlanPrefs(profile.id, { week_days: cleanWeekDays(n) })} />
+      )}
     </div>
   )
 }
@@ -536,14 +562,28 @@ function dayWords(minutes: number, top: string | undefined, planned: number, col
 const HEAT_WORDS = ['none', 'under 1 h', 'to 3 h', 'to 6 h', 'more']
 
 /** The heat ramp with a name for every step. It wraps on a phone. */
-function HeatLegend({ note }: { note?: string }) {
+function HeatLegend() {
   return (
     <div className="legend">
       <span>Load</span>
       {HEAT_WORDS.map((words, step) => (
         <span key={words}><i style={{ background: `var(--e-heat-${step})` }} /> {words}</span>
       ))}
-      {note && <span className="legend-note">{note}</span>}
+    </div>
+  )
+}
+
+/** "Key": the view's colours and marks (load, modules, holidays, followed
+ *  calendars), closed until asked for (CALM-11). A colour never has to be
+ *  guessed; it just does not take the screen while it is known. */
+function Key({ children }: { children: ReactNode }) {
+  const [open, setOpen] = useState(false)
+  return (
+    <div className="plan-key">
+      <button type="button" className="plan-key-toggle" aria-expanded={open} onClick={() => setOpen((o) => !o)}>
+        Key <span aria-hidden="true">{open ? '▴' : '▾'}</span>
+      </button>
+      {open && <div className="plan-key-body">{children}</div>}
     </div>
   )
 }
@@ -607,7 +647,7 @@ function YearGoals({ profileId, year, onOpen }: { profileId: string; year: numbe
     <section className="plan-goals" aria-labelledby="plan-goals-title">
       <p className="section-title" id="plan-goals-title">Goals and phases, {year}</p>
       {data.length === 0 ? (
-        <p className="empty">No goals or projects due in {year}. A goal gives the year something to measure against; add one under Projects, Goals.</p>
+        <p className="empty">No goals or projects due in {year}.</p>
       ) : (
         <ul className="plan-goal-list">
           {data.map((g) => {

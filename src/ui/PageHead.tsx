@@ -3,6 +3,7 @@ import { addDays, format, isSameDay, parseISO, startOfWeek } from 'date-fns'
 import { inRange, moveWeek } from '../lib/calendar-rules'
 import { MonthScroller } from './MonthScroller'
 import { useDayRange } from './useDayRange'
+import './pagehead.css'
 
 interface Props {
   date: Date
@@ -19,6 +20,12 @@ interface Props {
   strip?: boolean
   /** What a tab says, when more than its name ("Inbox 3"). */
   tabLabel?: (section: string) => ReactNode
+  /** At the right of the title line: the page's one ⋮ (PageMenu, CALM-03),
+   *  and anything that belongs with the title (Month's ‹ ›). */
+  menu?: ReactNode
+  /** What the date button says instead of the day ("October 2026" on Plan's
+   *  Month); it still opens the calendar. */
+  title?: string
 }
 
 /** Serif date, week strip, section tabs. The header owns about a third of the
@@ -27,7 +34,7 @@ interface Props {
  *  Tapping the date opens a calendar to jump to any day. Every way of moving
  *  (the calendar, the strip, a swipe) stops three years back and five years
  *  ahead of today. */
-export function PageHead({ date, onPick, sections, active, onSection, sub, note, heading: own, strip: showStrip = true, tabLabel }: Props) {
+export function PageHead({ date, onPick, sections, active, onSection, sub, note, heading: own, strip: showStrip = true, tabLabel, menu, title }: Props) {
   const weekStart = startOfWeek(date, { weekStartsOn: 1 })
   const today = new Date()
   const { range, clamp, today: todayKey } = useDayRange()
@@ -44,12 +51,15 @@ export function PageHead({ date, onPick, sections, active, onSection, sub, note,
 
   return (
     <header className="page-head">
-      <h1 className="page-date">
-        {own ?? (
-          <button type="button" className="page-date-pick" aria-haspopup="dialog" aria-expanded={picking}
-            title="Go to a day" onClick={() => setPicking(true)}>{heading}</button>
-        )}
-      </h1>
+      <div className="ph-title">
+        <h1 className="page-date">
+          {own ?? (
+            <button type="button" className="page-date-pick" aria-haspopup="dialog" aria-expanded={picking}
+              title="Go to a day" onClick={() => setPicking(true)}>{title ?? heading}</button>
+          )}
+        </h1>
+        {menu}
+      </div>
       {sub && <p className="page-sub">{sub}</p>}
       {note}
 

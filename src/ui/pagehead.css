@@ -1,0 +1,14 @@
+/* The page header's title line (PageHead.tsx): the date (or Month's month)
+   on the left, the page's one ⋮ and anything that belongs with the title on
+   the right, level with it (CALM-03). */
+.ph-title { display: flex; align-items: center; gap: var(--space-1); min-width: 0; }
+.ph-title .page-date { flex: 1 1 auto; min-width: 0; margin: 0; }
+.ph-title .page-menu { margin-left: 0; }
+/* Month's ‹ ›: quiet, a finger wide. */
+.ph-step {
+  min-width: 40px; min-height: 40px; padding: 0; display: grid; place-items: center;
+  font-family: var(--font-sans); font-size: 20px; line-height: 1; color: var(--e-ink);
+  border-radius: var(--radius-md);
+}
+.ph-step:disabled { opacity: 0.35; }
+.ph-step:focus-visible { outline: 2px solid var(--e-accent); outline-offset: 1px; }
