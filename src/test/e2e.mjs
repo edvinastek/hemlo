@@ -190,3 +190,32 @@ export async function addTask(p) {
   await p.click('.fab')
   await p.locator('.add-pick', { has: p.locator('.add-label', { hasText: /^Task$/ }) }).click()
 }
+
+/** Shows one part of Today (v17, CALM-05): its tab while there are three
+ *  or fewer, else the one "Show" choice, where Today is called All. */
+export async function todayPart(p, label, timeout = 30000) {
+  const tab = p.getByRole('tab', { name: label, exact: true })
+  const show = p.getByRole('button', { name: 'Show part of today' })
+  await tab.or(show).first().waitFor({ timeout })
+  if (await tab.count()) return tab.first().click()
+  await show.click()
+  await p.getByRole('option', { name: label === 'Today' ? 'All' : label, exact: true }).click({ timeout })
+}
+
+/** Waits until this device's copy has a module switched on (after modulesOn
+ *  mid-run): its page's address leads to Today until the switch has come
+ *  down, as it would for a person who switched it on on another phone. */
+export async function moduleHere(p, key, timeout = 30000) {
+  const until = Date.now() + timeout
+  while (Date.now() < until) {
+    const here = await p.evaluate(async (k) => {
+      const open = indexedDB.open('getit')
+      const db = await new Promise((r) => { open.onsuccess = () => r(open.result) })
+      const rows = await new Promise((r) => { const q = db.transaction('module_instance').objectStore('module_instance').getAll(); q.onsuccess = () => r(q.result) })
+      return rows.some((m) => m.module_key === k && m.enabled && !m.deleted_at)
+    }, key).catch(() => false)
+    if (here) return true
+    await p.waitForTimeout(500)
+  }
+  throw new Error(`module ${key} did not come down`)
+}

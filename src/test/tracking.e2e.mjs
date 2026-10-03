@@ -2,7 +2,7 @@ import * as XLSX from 'xlsx'
 import { writeFileSync, mkdtempSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { need, sql, checks, open, signIn, profileOf, today, localCount, drained, modulesOn, APP, openSettings } from './e2e.mjs'
+import { need, sql, checks, open, signIn, profileOf, today, localCount, drained, modulesOn, APP, openSettings, todayPart, moduleHere, addTask } from './e2e.mjs'
 
 // The features added for the closed test, clicked through as a tester would:
 // a weigh-in, habits and supplements, the same habit ticked offline on two
@@ -27,7 +27,7 @@ const p = A.p
 await signIn(p, email, undefined, { template: 'Fitness & nutrition', targets: true })
 
 // 1. Weigh-in: the wizard logged today's; updating it changes the same row.
-await p.click('.tabs button:has-text("Body")')
+await todayPart(p, 'Body')
 await p.locator('.weighin-form button:has-text("Update")').waitFor()
 await p.locator('.weighin-form input').first().fill('81.2')
 await p.click('.weighin-form button[type=submit]')
@@ -35,6 +35,7 @@ await settle(p)
 let r = await one(`select count(*) n, max(weight_kg)::text w from public.body_log where ${mine} and log_date = '${day}' and deleted_at is null`)
 is('the weigh-in updates today’s row rather than adding one', r.n, 1)
 is('with the new weight', Number(r.w), 81.2)
+await p.locator('.weighin-list li.is-day').waitFor({ timeout: 5000 }).catch(() => {})
 is('it shows in the list', await p.locator('.weighin-list li.is-day').count(), 1)
 
 // 2. A habit and a supplement, added on their module pages (Today only shows
@@ -64,7 +65,7 @@ await p.click('.track-sheet button[type=submit]')
 await p.click('button[aria-label="Vitamin D, not taken"]')
 await settle(p)
 await goPage('')
-await p.click('.tabs button:has-text("Body")')
+await todayPart(p, 'Body')
 await p.waitForTimeout(600)
 is('the habit shows ticked', await p.locator('button[aria-label="Stretch, done"]').getAttribute('aria-pressed'), 'true')
 r = await one(`select
@@ -106,11 +107,15 @@ await p.click('.track-sheet [role=option]:has-text("Weekends")')
 await p.click('.track-sheet button[type=submit]')
 await settle(p)
 is('the schedule can be changed later', (await one(`select rule from public.habit where ${mine} and name = 'Mobility'`)).rule, 'weekends')
-await p.click('button[aria-label="More for Mobility"]').catch(() => {})
+// The row may still be open from Edit (on a weekend day it is now due and
+// in sight); open it only if it is not.
+if (!(await p.locator('.track-open button:has-text("Archive")').count())) await p.click('button[aria-label="More for Mobility"]')
 await p.click('.track-open button:has-text("Archive")')
 await settle(p)
 
 await modulesOn(email, ['household'])
+await goPage('')
+await moduleHere(p, 'household')
 await goPage('m/household')
 await p.click('.chore-pack:has-text("Studio flat")')
 await p.click('button:has-text("Add 9 chores")')
@@ -123,9 +128,12 @@ r = await one(`select count(*) n from public.chore_log l join public.chore c on 
 is('ticking a chore records who did it', Number(r.n), 1)
 
 // 3. Two phones, both offline, both tick Water. One tick survives, nothing refused.
+await goPage('')
+await todayPart(p, 'Body')
+await p.locator('button[aria-label="Water, not done"]').waitFor({ timeout: 15000 })
 const B = await open()
 await signIn(B.p, email)
-await B.p.click('.tabs button:has-text("Body")')
+await todayPart(B.p, 'Body')
 await B.p.locator('button[aria-label="Water, not done"]').waitFor({ timeout: 15000 })
 await A.ctx.setOffline(true)
 await B.ctx.setOffline(true)
@@ -153,8 +161,8 @@ is('the second phone still shows it ticked', await B.p.locator('button[aria-labe
 await B.b.close()
 
 // 4. A repeating task: make it, change one day, stop it.
-await p.click('.tabs button:has-text("Today")')
-await p.click('.fab')
+await todayPart(p, 'Today')
+await addTask(p)
 await p.fill('.bottom-sheet input[placeholder="Mobility"]', 'Standup')
 await p.fill('.bottom-sheet input[type=time]', '09:00')
 await p.click('.bottom-sheet button[aria-label="Repeat"]')
@@ -194,7 +202,7 @@ await sql(`insert into public.task (profile_id, title, planned_date, planned_tim
 await p.reload({ waitUntil: 'domcontentloaded' })
 await p.locator('.bottom-nav').waitFor()
 await settle(p)
-await p.click('.tabs button:has-text("Evening")')
+await todayPart(p, 'Evening')
 const item = (t) => p.locator('.review-full .review-item', { hasText: t })
 await item('Old errand').waitFor({ timeout: 15000 })
 is('the review lists what was left yesterday', await p.locator('.review-full .review-item').count() >= 2, true)
@@ -227,7 +235,7 @@ await p.setInputFiles('input[type=file]', xlsx)
 await p.locator('text=Preview · mine.xlsx').waitFor({ timeout: 15000 })
 is('the preview counts what is new', (await p.locator('.setting-row .row-name', { hasText: 'new foods' }).textContent())?.trim(), '1 new foods · 1 new recipes')
 is('and the duplicate row it skipped', await p.locator('text=1 duplicate rows skipped').count(), 1)
-r = await one(`select count(*) n from public.food where name = 'E2E test oats'`)
+r = await one(`select count(*) n from public.food f join auth.users u on u.id = f.owner_id where f.name = 'E2E test oats' and u.email = '${email}'`)
 is('nothing is saved before Import is tapped', r.n, 0)
 await p.click('button.btn-primary:has-text("Import")')
 await p.locator('text=Imported · mine.xlsx').waitFor({ timeout: 20000 })
@@ -249,6 +257,12 @@ await p.locator('input[type=email]').waitFor({ timeout: 15000 })
 await signIn(p, other)
 const theirs = `profile_id = ${profileOf(other)}`
 const modulesBefore = (await one(`select count(*) n from public.module_instance where ${theirs}`)).n
+// This account may hold these habits from an earlier run: what the import
+// adds is counted on top of what was there.
+const before = await one(`select
+  (select count(*) from public.habit where ${theirs} and name in ('Stretch','Water')) habits,
+  (select count(*) from public.habit_log l join public.habit h on h.id = l.habit_id where h.${theirs} and l.done) ticks,
+  (select count(*) from public.recipe rc join auth.users u on u.id = rc.owner_id where rc.name = 'E2E porridge' and u.email = '${other}') recipes`)
 await openSettings(p, 'data')
 await p.setInputFiles('input[type=file]', exported)
 await p.locator('text=/records from export.getit.json added/').waitFor({ timeout: 15000 })
@@ -260,13 +274,14 @@ r = await one(`select
   (select max(weight_kg)::text from public.body_log where ${theirs} and log_date = '${day}') weight,
   (select count(*) from public.module_instance where ${theirs}) modules,
   (select count(*) from public.recipe rc join auth.users u on u.id = rc.owner_id where rc.name = 'E2E porridge' and u.email = '${other}') recipes`)
-is('the habits came across', r.habits, 2)
-is('with their ticks', r.ticks, 2)
+is('the habits came across', r.habits - before.habits, 2)
+is('with their ticks', r.ticks - before.ticks, 2)
 is('today’s weigh-in replaced this account’s own, not doubled it', r.weighins, 1)
 is('with the exported weight', Number(r.weight), 81.2)
 is('the modules merged by name, not duplicated', r.modules, modulesBefore)
-is('the recipe now belongs to this account', r.recipes, 1)
-is('everything was sent', await localCount(p, 'pending'), 0)
+is('the recipe now belongs to this account', r.recipes - before.recipes, 1)
+// Sent in the end: the queue empties (a write may still be on its way).
+is('everything was sent', await drained(p), true)
 
 console.log(A.errors.length ? 'PAGE ERRORS: ' + A.errors.join(' | ') : 'no page errors')
 console.log(failed() ? `\n${failed()} check(s) failed` : '\nall checks passed')
