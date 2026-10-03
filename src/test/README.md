@@ -88,7 +88,7 @@ Types, then every check that needs nothing but Node. CI runs the same command.
   the pack size from grams, millilitres or "6 x 50 g", shop names tidied ("Ah" is Albert Heijn), the food row it
   becomes and finding one already kept (or deleted) with that barcode, packs into grams for stock, shared prices
   (the latest per shop, per kilo, the day, offers), and the limiter and cache that keep under Open Food Facts' limits.
-- `sync` — name-based ids (UUID version 5) against the standard's own examples; a scanned product's fixed id (the same
+- `sync` — (also: settings merged key by key between devices, what 026 added synced like the rest, the light pull) — name-based ids (UUID version 5) against the standard's own examples; a scanned product's fixed id (the same
   person and barcode give the same id on every phone, however the barcode was typed); natural keys (a food's barcode
   counts only while the food is live); a food folded into its twin taking its stock, ingredients, food log, records,
   books and waiting edits along; fetching page by page in updated_at and key order, so rows sharing one time are never
@@ -118,6 +118,9 @@ Types, then every check that needs nothing but Node. CI runs the same command.
   signing out with changes waiting, the merges list in words (refused, never "[object Object]"), the time zone
   following the phone or a chosen one, height emptied as not known, tips shown once and "Make GetIt yours" after
   three days, what moved where (once, only to people from before), and the Modules page's search.
+- `restore` — a backup brings the profile back whole: body fields, country and city, and the settings (note
+  templates, stats views, looks, Today's cards, where each module shows), with a built module's settings following
+  it to its new key; a restore never sends the person back through setup.
 
 ## Browser checks
 

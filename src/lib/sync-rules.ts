@@ -225,3 +225,37 @@ export function conflictLine(c: { table: string; field: string; kept: string; lo
   }
   return { head: what, text: `Kept this device’s ${shownValue(c.local_value)} over ${shownValue(c.remote_value)} from another device.` }
 }
+
+// ---- settings merged key by key (SYNC-03) -------------------------------------------
+
+const plain = (v: unknown): v is Row => !!v && typeof v === 'object' && !Array.isArray(v)
+const sameValue = (a: unknown, b: unknown) => JSON.stringify(a ?? null) === JSON.stringify(b ?? null)
+
+/** A profile's settings hold many separate things (note templates, stats
+ *  views, looks, where each module shows, the page bar…). Two devices that
+ *  change different ones must both keep their change, as two devices that
+ *  change different fields of a row do. So settings merge three ways: for
+ *  each setting, the one this device changed (it differs from `base`, the
+ *  server's copy this device last saw) is this device's; every other is the
+ *  server's. Objects such as the page bar or module_views merge one level
+ *  deeper (one device's bar style, the other's page order); lists are whole.
+ *  Without a base, this device's settings win, as before. */
+export function mergeSettings3(base: unknown, mine: unknown, theirs: unknown): Row {
+  if (!plain(mine)) return plain(theirs) ? { ...theirs } : {}
+  if (!plain(theirs) || !plain(base)) return { ...mine }
+  const out: Row = {}
+  for (const k of new Set([...Object.keys(theirs), ...Object.keys(mine)])) {
+    const m = mine[k]; const t = theirs[k]; const b = base[k]
+    if (sameValue(m, b)) { if (k in theirs) out[k] = t; continue }
+    if (plain(m) && plain(t) && plain(b)) {
+      const inner: Row = {}
+      for (const j of new Set([...Object.keys(t), ...Object.keys(m)])) {
+        if (sameValue(m[j], b[j])) { if (j in t) inner[j] = t[j] } else if (j in m) inner[j] = m[j]
+      }
+      out[k] = inner
+      continue
+    }
+    if (k in mine) out[k] = m
+  }
+  return out
+}
