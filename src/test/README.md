@@ -111,6 +111,16 @@ Types, then every check that needs nothing but Node. CI runs the same command.
 - `afterdone` — "ask after done" templates: the marker line in a note, what Fill in, Skip and Later leave behind.
 - `repeat` — the one repeat control's choices: the rule each stands for from a first day (the 2nd or last Wednesday,
   the 14th, 14 October), numbers kept and capped, picked days, and every choice reading back as itself.
+- `training` — Training: a first guess at an exercise's muscle group from its name (whole words where it matters, the
+  person's choice winning), own exercise names (none twice, accents aside), a routine line's targets and limits, last
+  time's sets for the Previous column and what a session's sets start from, the rest timer (worked out from when it
+  started), the figures Stats reads (sessions, sets, reps, volume, best set as an estimated one-rep max, heaviest load,
+  per exercise and muscle group), past sessions by day and routine, and a routine's planned sessions as a task series:
+  when to make, update, replace (new days) or end it, and which routine a session task opens.
+- `sleep` — Sleep: the stored target read safely (the server's 8 hours and 22:00 by default), hours across midnight,
+  bed and wake times from each other, late and early the short way round the clock, each night against the target,
+  sleep debt over seven days (nights not logged are unknown, never zero), how regular bed and wake times are (around
+  midnight too), and the bedtime block: when it starts, how long, locked or not, and none when it is off.
 
 ## Browser checks
 
