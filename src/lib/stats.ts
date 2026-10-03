@@ -51,6 +51,8 @@ export async function statsModules(profileId: string, settings: ProfileSettings,
 export async function loadCatalogue(profileId: string, settings: ProfileSettings, showDisabled: boolean, span?: Range, everyOn = false): Promise<{ catalogue: Measure[]; modules: StatsModule[]; hiddenOff: number }> {
   const { shown, hiddenOff } = await statsModules(profileId, settings, showDisabled, everyOn)
   const catalogue = measureCatalogue(shown, settings.nutrients)
+  const first = await firstDays(profileId, shown)
+  for (const m of catalogue) if (first[m.module]) m.since = first[m.module]
   if (span && shown.some((m) => m.key === 'nutrition')) {
     const targets = await nutrientTargets(profileId, span)
     for (const m of catalogue) {
@@ -59,6 +61,46 @@ export async function loadCatalogue(profileId: string, settings: ProfileSettings
     }
   }
   return { catalogue, modules: shown, hiddenOff }
+}
+
+/** The first day each module has anything, so the days before the person
+ *  used it count as unknown rather than as days of nothing (P8). */
+async function firstDays(profileId: string, modules: StatsModule[]): Promise<Record<string, string>> {
+  const profile = await db.profile.get(profileId)
+  const out: Record<string, string> = {}
+  const keep = (k: string, d: string | null | undefined) => { if (d && (!out[k] || d < out[k])) out[k] = d.slice(0, 10) }
+  const firstTask = await db.task.where('[profile_id+planned_date]').between([profileId, '0000'], [profileId, '9999'], true, true).first()
+  keep('tasks', firstTask?.planned_date)
+  keep('projects', firstTask?.planned_date)
+  const keys = new Set(modules.map((m) => m.key))
+  if (keys.has('habits')) {
+    const ids = new Set((await db.habit.where('profile_id').equals(profileId).toArray()).map((h) => h.id))
+    if (ids.size) keep('habits', (await db.habit_log.orderBy('log_date').filter((l) => ids.has(l.habit_id)).first())?.log_date)
+  }
+  if (keys.has('supplements')) {
+    const ids = new Set((await db.supplement.where('profile_id').equals(profileId).toArray()).map((h) => h.id))
+    if (ids.size) keep('supplements', (await db.supplement_log.orderBy('log_date').filter((l) => ids.has(l.supplement_id)).first())?.log_date)
+  }
+  if (keys.has('nutrition')) {
+    keep('nutrition', (await db.food_log.orderBy('log_date').filter((l) => l.profile_id === profileId && !l.deleted_at).first())?.log_date)
+    keep('nutrition', (await db.meal_plan_slot.orderBy('slot_date').filter((l) => l.profile_id === profileId && !l.deleted_at).first())?.slot_date)
+  }
+  if (keys.has('health')) keep('health', (await db.body_log.orderBy('log_date').filter((l) => l.profile_id === profileId && !l.deleted_at).first())?.log_date)
+  if (keys.has('sleep')) keep('sleep', (await db.sleep_log.where('[profile_id+log_date]').between([profileId, '0000'], [profileId, '9999'], true, true).first())?.log_date)
+  if (keys.has('training')) keep('training', (await db.workout_log.orderBy('log_date').filter((l) => l.profile_id === profileId && !l.deleted_at).first())?.log_date)
+  if (keys.has('agenda')) keep('agenda', localDay((await db.calendar_event.orderBy('starts_at').filter((e) => e.profile_id === profileId && !e.subscription_id && !e.deleted_at).first())?.starts_at))
+  if (keys.has('household') && profile) {
+    const ids = new Set((await db.chore.where('household_id').equals(profile.household_id).toArray()).map((c) => c.id))
+    if (ids.size) keep('household', (await db.chore_log.orderBy('done_on').filter((l) => ids.has(l.chore_id)).first())?.done_on)
+  }
+  if (keys.has('shopping') && profile) {
+    for (const r of await db.shopping_entry.where('household_id').equals(profile.household_id).toArray()) keep('shopping', localDay(r.created_at ?? r.checked_at))
+  }
+  for (const m of modules) {
+    if (!(m.entities ?? []).length) continue
+    for (const r of await db.module_record.where('[profile_id+module_key]').equals([profileId, m.key]).toArray()) keep(m.key, r.record_date ?? localDay(r.created_at))
+  }
+  return out
 }
 
 /** The person's nutrient targets for each day: the latest set on or before it. */

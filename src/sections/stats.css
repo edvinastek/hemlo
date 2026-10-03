@@ -86,7 +86,8 @@
 .sv-body { display: grid; gap: var(--space-2); min-width: 0; }
 .sv-summary { margin: 0; font-family: var(--font-sans); font-size: 12px; color: var(--e-ink-soft); }
 .sv-toggle { justify-self: start; min-height: 40px; font-family: var(--font-sans); font-size: 13px; font-weight: 600; text-decoration: underline; color: var(--e-ink); }
-.sv-body .xl-row { margin: 0; }
+.sv-foot { display: flex; align-items: center; justify-content: space-between; gap: var(--space-2); min-height: 44px; }
+.sv-foot .xl-row { padding: 0; margin-left: auto; }
 
 /* ---------- module cards: every measure --------------------------------------- */
 .st-more { margin-top: var(--space-2); min-height: 40px; font-family: var(--font-sans); font-size: 13px; color: var(--e-ink-soft); text-decoration: underline; text-align: left; }

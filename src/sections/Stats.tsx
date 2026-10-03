@@ -245,7 +245,7 @@ function ModuleCard({ moduleKey, name, off, period, cur, prev, today, facts, cat
           <dl className="st-figures">
             {figures.map((x) => <Figure key={x.key} x={x} period={period} />)}
           </dl>
-          {chart && <XYChart data={chart} type="bar" labels={false} height={72} summary={`${first!.label} for each ${period === 'year' ? 'month' : 'day'}`} />}
+          {chart && <XYChart data={chart} type="bar" labels={false} height={72} hint={false} summary={`${first!.label} for each ${period === 'year' ? 'month' : 'day'}`} />}
         </>
       )}
       <button type="button" className="st-more" aria-expanded={open} onClick={() => setOpen((o) => !o)}>

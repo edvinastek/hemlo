@@ -237,6 +237,9 @@ export function groupingsFor(measures: Measure[]): { key: string; label: string 
  *  summary, an average a day where it adds up, and the change on the
  *  period before (per day for a total, so a half-over week is compared
  *  fairly; in points for a share). */
+/** Measures that count days themselves: their average a day is meaningless. */
+export const DAY_COUNTS = new Set(['nutrition:days', 'sleep:nights', 'training:sessions', 'health:weigh_ins', 'shopping:trips'])
+
 export interface CardFigure {
   key: string
   label: string
@@ -255,7 +258,8 @@ export function cardFigure(m: Measure, facts: Fact[], cur: Span, prev: Span, tod
   const cd = spanDays(cur); const pd = spanDays(prev)
   const s = m.summary
   const value = cellValue(m, { measure: m.key, summary: s }, facts, cd, today)
-  const adds = !m.ratio && m.combine === 'sum' && s === 'sum'
+  // Days counted (days logged, nights, sessions) make no sense "a day".
+  const adds = !m.ratio && m.combine === 'sum' && s === 'sum' && !DAY_COUNTS.has(m.key)
   const perDay = adds && cd.length > 1 ? cellValue(m, { measure: m.key, summary: 'avg' }, facts, cd, today) : null
   const compareBy = adds ? 'avg' : s
   const a = cellValue(m, { measure: m.key, summary: compareBy }, facts, cd, today)
@@ -526,7 +530,7 @@ export const TEMPLATES: Template[] = [
     measures: [{ source: 'household:chores_done', summary: 'sum' }], rows: 'person', chart: chart('bar', { sort: 'value_desc' }),
   }),
   tpl('sleep_training', 'Sleep vs training days', 'Hours slept each night, with the days you trained shaded behind.', ['sleep', 'training'], {
-    measures: [{ source: 'sleep:hours', summary: 'avg' }], compare: { source: 'training:sessions', summary: 'sum', shade: true, label: 'Training days' }, chart: chart('line'),
+    measures: [{ source: 'sleep:hours', summary: 'avg' }], compare: { source: 'training:sessions', summary: 'sum', shade: true, label: 'Training' }, chart: chart('line'),
   }),
   tpl('habit_kept', 'Habit kept % by habit', 'How often each habit was done when it was due, over the last 30 days.', ['habits'], {
     measures: [{ source: 'habits:kept', summary: 'avg' }], rows: 'item', chart: chart('bar', { sort: 'value_desc', y_min: 0, y_max: 100 }),

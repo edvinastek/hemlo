@@ -47,7 +47,7 @@ export function PivotTable({ result, rows, columns, rowsName, colsName, caption,
             <tr>
               <th scope="col" className="pt-corner">{rowsName}{split ? ` · ${colsName}` : ''}</th>
               {split
-                ? result.columns.flatMap((c) => result.values.map((_, k) => <th key={`${c.key}${k}`} scope="col" className="num">{c.label}{many ? <span className="pt-sub">{result.values[k].spec.label ?? result.values[k].info.label}</span> : null}</th>))
+                ? result.columns.flatMap((c) => result.values.map((_, k) => <th key={`${c.key}${k}`} scope="col" className="num" title={c.label}>{c.days && columns !== 'day' ? c.short : c.label}{many ? <span className="pt-sub">{result.values[k].spec.label ?? result.values[k].info.label}</span> : null}</th>))
                 : result.values.map((_, k) => <th key={k} scope="col" className="num">{result.values[k].spec.label ?? result.values[k].info.label}<span className="pt-sub">{summaryName(result.values[k].spec.summary, result.values[k].info)}</span></th>)}
               {showRowTotal && result.values.map((_, k) => <th key={`t${k}`} scope="col" className="num">Total{many ? <span className="pt-sub">{result.values[k].spec.label ?? result.values[k].info.label}</span> : null}</th>)}
             </tr>

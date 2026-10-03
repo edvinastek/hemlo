@@ -10,6 +10,7 @@
   font-family: var(--font-sans); font-size: 13px; color: var(--e-ink);
 }
 .ch-readout b { font-weight: 600; }
+.ch-readout.is-quiet { min-height: 0; margin: 0; }
 .ch-hint { color: var(--e-ink-soft); font-size: 12px; }
 .ch-read-item { display: inline-flex; align-items: center; gap: 6px; font-variant-numeric: tabular-nums; }
 .ch-plot { outline: none; border-radius: var(--radius-sm); touch-action: pan-y; }

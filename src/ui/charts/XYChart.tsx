@@ -18,6 +18,8 @@ interface Props {
   height?: number
   /** Name of what is shaded, for the legend. */
   shadeName?: string | null
+  /** Say "Tap the chart to read a value" while nothing is picked. */
+  hint?: boolean
   /** A row picked by tap, pointer or arrow keys. */
   onPick?: (row: number | null) => void
 }
@@ -29,7 +31,7 @@ const PAD = { top: 10, right: 10, bottom: 20, left: 38 }
  *  sharing the days, rather than on a second scale over the same marks.
  *  Tap, point or use the arrow keys to read a day's values out; unknown
  *  days are gaps, never zero. */
-export function XYChart({ data, type, yMin, yMax, labels = true, summary, height = 150, shadeName, onPick }: Props) {
+export function XYChart({ data, type, yMin, yMax, labels = true, summary, height = 150, shadeName, hint = true, onPick }: Props) {
   const box = useRef<HTMLDivElement>(null)
   const width = useWidth(box)
   const [picked, setPicked] = useState<number | null>(null)
@@ -73,8 +75,8 @@ export function XYChart({ data, type, yMin, yMax, labels = true, summary, height
 
   return (
     <div className="ch" ref={box}>
-      <p className="ch-readout" aria-live="polite" id={`${id}-read`}>
-        {readout ?? <span className="ch-hint">Tap the chart to read a value.</span>}
+      <p className={`ch-readout${!hint && !readout ? ' is-quiet' : ''}`} aria-live="polite" id={`${id}-read`}>
+        {readout ?? (hint ? <span className="ch-hint">Tap the chart to read a value.</span> : null)}
       </p>
       <div className="ch-plot" tabIndex={0} role="img" aria-label={summary} aria-describedby={`${id}-read`} onKeyDown={onKey}>
         {width > 0 && panels.map((series, p) => (
@@ -94,7 +96,7 @@ export function XYChart({ data, type, yMin, yMax, labels = true, summary, height
             <li key={s.key}><i className={`ch-key${type === 'line' || type === 'area' ? ' is-line' : ''}`} style={{ background: s.colour }} aria-hidden />{s.label}{s.axis === 1 ? ' (lower panel)' : ''}</li>
           ))}
           {(data.target != null || data.targets) && <li><i className="ch-key is-target" aria-hidden />Target</li>}
-          {data.shaded && <li><i className="ch-key is-shade" aria-hidden />{shadeName ?? 'Shaded days'}</li>}
+          {data.shaded && <li><i className="ch-key is-shade" aria-hidden />{shadeName ? `Days with ${shadeName.toLowerCase()}` : 'Shaded days'}</li>}
         </ul>
       )}
     </div>
@@ -141,7 +143,8 @@ function Panel({ series, data, type, width, height, last, x, slot, step, picked,
     return out
   }, [series, n, stacked, target, targets])
   // Times of day and weights read best near their values, not from zero.
-  const fromZero = !(unit === 'time' || unit === 'kg' || unit === 'cm' || type === 'line' || type === 'dots')
+  // Bars always grow from zero; a line of weights or times reads best near its values.
+  const fromZero = type === 'bar' || type === 'stacked' || type === 'area' || !['time', 'kg', 'cm', 'h'].includes(unit)
   const scale = niceScale(values, { min: yMin, max: yMax, zero: fromZero ? true : values.length === 0 })
   const y = (v: number) => PAD.top + (height - PAD.top) * (1 - (Math.min(scale.max, Math.max(scale.min, v)) - scale.min) / (scale.max - scale.min || 1))
   const base = y(Math.max(scale.min, Math.min(scale.max, 0)))

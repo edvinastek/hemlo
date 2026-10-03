@@ -66,6 +66,10 @@ export interface MeasureInfo {
    *  sets none (protein from the nutrition targets). */
   targets?: Record<string, number>
   target_mode?: TargetMode
+  /** The first day the module has anything at all. Before it, even a
+   *  counted day is unknown: the person was not using it yet, which is not
+   *  the same as doing none of it. */
+  since?: string | null
 }
 
 export interface ValueSpec {
@@ -237,7 +241,7 @@ export function dailyValues(info: MeasureInfo, facts: Fact[], days: string[], to
       // (tasks) only up to today, so a half-over week is never pulled down.
       if (info.known === 'all' && d > today) continue
       out.push([d, combine(info.combine, vs)])
-    } else if (info.known === 'all' && info.combine === 'sum' && d <= today) out.push([d, 0])
+    } else if (info.known === 'all' && info.combine === 'sum' && d <= today && !(info.since && d < info.since)) out.push([d, 0])
   }
   return out
 }
@@ -253,7 +257,8 @@ export function cellValue(info: MeasureInfo, vs: ValueSpec, facts: Fact[], days:
     : facts.filter((f) => f.measure === info.key && finite(f.value))
   const series = dailyValues(info, own, days, today)
   const daySet = new Set(days)
-  const anyPast = days.some((d) => d <= today)
+  // A day that has happened, and since the module was in use.
+  const anyPast = days.some((d) => d <= today && !(info.since && d < info.since))
   const target = (d: string) => (vs.target != null ? vs.target : info.targets?.[d] ?? null)
   const mode = vs.target_mode ?? info.target_mode
   const values = series.map(([, v]) => v)
@@ -303,7 +308,7 @@ export function cellValue(info: MeasureInfo, vs: ValueSpec, facts: Fact[], days:
       const hit = new Map(series.map(([d, v]) => [d, isHit(v, target(d), mode)]))
       // A share skips the days there was nothing to do (a weekday habit's
       // weekend); anything else needs every calendar day.
-      const line = info.ratio ? series.map(([d]) => d) : days.filter((d) => d <= today)
+      const line = info.ratio ? series.map(([d]) => d) : days.filter((d) => d <= today && !(info.since && d < info.since))
       if (vs.summary === 'best_streak') {
         let best = 0; let run = 0
         for (const d of line) { if (hit.get(d)) { run++; best = Math.max(best, run) } else run = 0 }

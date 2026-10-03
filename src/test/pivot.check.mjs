@@ -72,6 +72,8 @@ is('a share with nothing to do is unknown', cellValue(rate, { measure: 'tasks:co
 is('a week still to come has no total, not zero', cellValue(done, { measure: 'tasks:done', summary: 'sum' }, [], spanDays({ start: '2026-10-05', end: '2026-10-11' }), today), null)
 is('a week that happened with nothing done is 0', cellValue(done, { measure: 'tasks:done', summary: 'sum' }, [], spanDays({ start: '2026-09-14', end: '2026-09-20' }), today), 0)
 
+is('days before the module was in use are unknown, not 0', dailyValues({ ...done, since: '2026-09-23' }, tasks.filter((f) => f.day >= '2026-09-23'), days, today), [['2026-09-23', 2], ['2026-09-24', 0]])
+is('a week before the module was in use has no total', cellValue({ ...done, since: '2026-09-23' }, { measure: 'tasks:done', summary: 'sum' }, [], spanDays({ start: '2026-09-14', end: '2026-09-20' }), today), null)
 const nights = [fact('sleep:hours', '2026-09-21', 7), fact('sleep:hours', '2026-09-22', 8), fact('sleep:hours', '2026-09-22', 6), fact('sleep:hours', '2026-09-24', 6.5)]
 is('a logged measure: unlogged days are unknown, two naps a day averaged', dailyValues(sleep, nights, days, today), [['2026-09-21', 7], ['2026-09-22', 7], ['2026-09-24', 6.5]])
 near('the average night over logged nights only', cellValue(sleep, { measure: 'sleep:hours', summary: 'avg' }, nights, days, today), 6.833)

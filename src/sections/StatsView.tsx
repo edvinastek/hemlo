@@ -142,21 +142,23 @@ export function ViewBody({ view, outcome, compact = false, showTable }: { view: 
       {!compact && <p className="sv-summary">{summary}</p>}
       {compareLine && <p className="sv-summary">{compareLine}</p>}
       {outcome.modulesOff.length > 0 && <p className="st-note">Part of this view comes from a module that is switched off, so it shows as missing.</p>}
-      {!compact && type !== 'table' && (
-        <button type="button" className="sv-toggle" aria-pressed={table} onClick={() => setTable((t) => !t)}>
-          {table ? 'Hide the table' : 'Show as a table'}
-        </button>
-      )}
       {!compact && (table || type === 'table') && (
         <PivotTable result={result} rows={view.rows} columns={view.columns} rowsName={rowsName} colsName={colsName} caption={view.name}
           measures={new Map(catalogue.map((m) => [m.key, { label: m.label, unit: m.unit, decimals: m.decimals }]))} />
       )}
       {!compact && (
-        <ExportLink source={{
-          rows: pivotRows(result, rowsName, colsName),
-          fields: EXPORT_COLUMNS(rowsName, colsName, view.columns !== 'none'),
-          label: `${view.name}, ${spanName(span)}`,
-        }} />
+        <div className="sv-foot">
+          {type !== 'table' && (
+            <button type="button" className="sv-toggle" aria-pressed={table} onClick={() => setTable((t) => !t)}>
+              {table ? 'Hide the table' : 'Show as a table'}
+            </button>
+          )}
+          <ExportLink source={{
+            rows: pivotRows(result, rowsName, colsName),
+            fields: EXPORT_COLUMNS(rowsName, colsName, view.columns !== 'none'),
+            label: `${view.name}, ${spanName(span)}`,
+          }} />
+        </div>
       )}
     </div>
   )
