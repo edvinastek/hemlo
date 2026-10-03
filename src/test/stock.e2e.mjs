@@ -30,7 +30,7 @@ const used = await sql(`select f.id, f.name, l.grams_per_portion::float g, l.sta
 const food = { id: used[0].id, name: used[0].name }
 const needG = used.filter((l) => l.id === food.id)
   .reduce((sum, l) => sum + (l.state === 'cooked' && l.y > 0 ? l.g / l.y : l.g), 0)
-const other = await one(`select name from public.food where owner_id is null and id <> '${food.id}'
+const other = await one(`select name from public.food where owner_id is null and deleted_at is null and id <> '${food.id}'
   and id not in (select food_id from public.recipe_line where recipe_id = '${recipe.id}' and food_id is not null)
   order by length(name), name limit 1`)
 console.log(`using ${recipe.name}: ${food.name}, ${needG.toFixed(1)} g a portion; ${other.name} to remove`)
@@ -61,7 +61,9 @@ const openStock = async () => {
 }
 async function add(name, amount, unit) {
   await p.fill('input[aria-label="Add to stock"]', name)
-  await p.locator('.sp-list li', { has: p.locator('.sp-name', { hasText: name }) }).first().click()
+  // The food of exactly that name: "Fig" must not pick "Figs fresh".
+  const exact = new RegExp(`^\\s*${name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\s*$`)
+  await p.locator('.sp-list li', { has: p.locator('.sp-name', { hasText: exact }) }).first().click()
   await p.fill('.stock-add input[aria-label="Amount"]', amount)
   await p.locator('.stock-add .stock-units').getByRole('button', { name: unit, exact: true }).click()
   await p.click('.stock-add button[type=submit]')
@@ -69,7 +71,8 @@ async function add(name, amount, unit) {
 }
 async function setAmount(name, amount, unit) {
   await stockRow(name).locator('.stock-qty').click()
-  await p.locator('.stock-edit .stock-units').getByRole('button', { name: unit, exact: true }).click()
+  // The amount's own units (the first group; "Keep at least" has its own).
+  await p.locator('.stock-edit .stock-units').first().getByRole('button', { name: unit, exact: true }).click()
   await p.fill('.stock-edit input[aria-label^="Amount of"]', amount)
   await p.click('.stock-edit button:has-text("Save")')
   await settle(p)
@@ -114,10 +117,20 @@ r = await one(`select count(*) n from public.stock s join public.food f on f.id 
 is('and is removed on the server (softly)', r.n, 1)
 
 // 3. The list takes stock off (Shop → List, version 16).
+// A lunch planned (not eaten) with the round + on Food: the add-food sheet,
+// its meal named "Lunch", any time, the recipe found by search.
 await toPage(p, '/food')
 await p.waitForTimeout(1200)
-await p.fill('input[aria-label="Lunch recipe"]', recipe.name)
-await p.locator('.sp-list li[role=option]', { hasText: recipe.name }).first().click()
+await p.click('.fab[aria-label="Add food"]')
+await p.click('.af-change')
+await p.click('.af-chip:has-text("Name it")')
+await p.fill('input[aria-label="Meal’s name"]', 'Lunch')
+await p.click('.af-chip:has-text("Any time")')
+await p.uncheck('.af-eaten input')
+await p.click('.af-actions button:has-text("Done")')
+await p.fill('.af-search', recipe.name)
+await p.locator('.af-row', { hasText: recipe.name }).first().click()
+await p.click('.af-actions .btn-primary')
 await settle(p, 900)
 await toPage(p, '/shop')
 await p.click('.tabs button:has-text("List")')
