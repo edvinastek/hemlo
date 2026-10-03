@@ -99,8 +99,9 @@ export function useLongPress<K>(options: LongPressOptions<K>) {
   const begin = useCallback((key: K, e: ReactPointerEvent<HTMLElement>) => {
     if (press.current || !e.isPrimary || (e.pointerType === 'mouse' && e.button !== 0)) return
     // A press on a field being typed in is the field's own, and a part that
-    // says so (an open row's note, a menu) is never held.
-    if ((e.target as Element | null)?.closest?.('input, textarea, select, [contenteditable="true"], [data-no-hold]')) return
+    // says so (an open row's note, a menu) is never held. A read-only field
+    // (a recipe's worked-out kcal in a table) is just a figure on the row.
+    if ((e.target as Element | null)?.closest?.('input:not([readonly]), textarea:not([readonly]), select, [contenteditable="true"], [data-no-hold]')) return
     const el = e.currentTarget
     const twoStage = !!opts.current.onExpand
     const canDrag = twoStage ? (opts.current.canDrag?.(key) ?? true) : true
