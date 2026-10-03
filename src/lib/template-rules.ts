@@ -21,6 +21,9 @@ export interface TaskTemplate {
   /** The note to start with: a note template's id, or the text itself. */
   note_template_id: string | null
   note: string | null
+  /** How it repeats, in the one repeat engine's shape (TSK-26), or none.
+   *  The days are worked out again from the day the task is made for. */
+  repeat?: { rule: string; rule_config: Record<string, unknown>; count: number | null } | null
 }
 
 export const MAX_TEMPLATES = 100
@@ -95,10 +98,26 @@ export function readTaskTemplates(v: unknown): TaskTemplate[] {
       locked: r.locked === true,
       note_template_id: typeof r.note_template_id === 'string' && ID.test(r.note_template_id) ? r.note_template_id : null,
       note: typeof r.note === 'string' ? r.note.slice(0, MAX_TEMPLATE_BODY) : null,
+      // Only a template that repeats carries the key.
+      ...(readRepeat(r.repeat) ? { repeat: readRepeat(r.repeat) } : {}),
     })
     if (out.length >= MAX_TEMPLATES) break
   }
   return out
+}
+
+const REPEAT_KINDS = ['daily', 'weekdays', 'weekends', 'weekly', 'every_n_weeks', 'monthly', 'monthly_nth', 'yearly', 'dates', 'times_per_week']
+
+/** A task template's repeat: a known kind with a settings object, and a
+ *  count of 1 to 999 or none. Anything else is no repeat. (The settings are
+ *  cleaned again by the repeat engine when the task is made.) */
+function readRepeat(v: unknown): TaskTemplate['repeat'] {
+  if (!v || typeof v !== 'object') return null
+  const r = v as Record<string, unknown>
+  if (typeof r.rule !== 'string' || !REPEAT_KINDS.includes(r.rule)) return null
+  const cfg = r.rule_config && typeof r.rule_config === 'object' && !Array.isArray(r.rule_config) ? (r.rule_config as Record<string, unknown>) : {}
+  const n = Number(r.count)
+  return { rule: r.rule, rule_config: cfg, count: r.count != null && Number.isInteger(n) && n >= 1 && n <= 999 ? n : null }
 }
 
 const WEEKDAYS = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday']

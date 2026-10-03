@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState, type KeyboardEvent, type ReactNode } from 'react'
 import { format, parseISO } from 'date-fns'
-import { moveToDays } from '../lib/series'
+import { moveWithUndo } from '../lib/series'
+import { offerUndo } from './Undo'
 import {
   count, planDaySwap, singleMoveWarnings, type DaySwap, type Warning, type WorkWindow,
 } from '../lib/reorder-rules'
@@ -18,6 +19,12 @@ type Ask =
 
 /** "Mon 28 Sep" */
 const label = (day: string) => format(parseISO(day), 'EEE d MMM')
+
+/** Move, then offer to put it all back for 8 seconds (GEN-54). */
+async function moveAndOffer(moves: { task: Task; to: string }[], words: string) {
+  const undo = await moveWithUndo(moves)
+  offerUndo(words, undo)
+}
 
 /** Swapping days and moving tasks on Plan's week.
  *
@@ -64,7 +71,7 @@ export function useWeekSwap({ byDay, work }: { byDay: Map<string, Task[]>; work:
     const warnings = singleMoveWarnings(p.task, from, day, tasksOn(day), work)
     if (warnings.length) { setAsk({ kind: 'task', task: p.task, to: day, warnings }); return }
     pick(null)
-    void moveToDays([{ task: p.task, to: day }])
+    void moveAndOffer([{ task: p.task, to: day }], `Moved “${p.task.title || 'task'}” to ${label(day)}`)
   }
 
   const hold = useLongPress<string>({
@@ -132,7 +139,7 @@ export function useWeekSwap({ byDay, work }: { byDay: Map<string, Task[]>; work:
           lines={[ask.task.planned_time ? `It keeps its time, ${ask.task.planned_time.slice(0, 5)}.` : 'It has no time, and keeps none.']}
           warnings={ask.warnings}
           action="Move"
-          onConfirm={() => moveToDays([{ task: ask.task, to: ask.to }])}
+          onConfirm={() => moveAndOffer([{ task: ask.task, to: ask.to }], `Moved “${ask.task.title || 'task'}” to ${label(ask.to)}`)}
           onClose={() => { setAsk(null); pick(null) }}
         />
       )}
@@ -159,6 +166,10 @@ export function useWeekSwap({ byDay, work }: { byDay: Map<string, Task[]>; work:
     itemProps: (task: Task) => hold.bind(`task:${task.id}`),
     itemClass: (task: Task) => (pickedTask === task.id ? ' is-picked' : ''),
     ui,
+    /** Pick a day up from a menu, as holding its header does. */
+    startSwap: (day: string) => pick({ kind: 'day', day }),
+    /** Something is held. */
+    holding: !!picked,
   }
 }
 
@@ -184,10 +195,10 @@ function SwapSheet({ ask, onClose }: { ask: Extract<Ask, { kind: 'swap' }>; onCl
       warnings={nothing ? [] : plan.warnings}
       action="Swap"
       nothing={nothing}
-      onConfirm={() => moveToDays([
+      onConfirm={() => moveAndOffer([
         ...plan.there.map((task) => ({ task, to: b })),
         ...plan.back.map((task) => ({ task, to: a })),
-      ])}
+      ], `Swapped ${label(a)} and ${label(b)}`)}
       onClose={onClose}
     />
   )

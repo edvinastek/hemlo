@@ -1,0 +1,43 @@
+/* The copy dialog (ui/CopySheet.tsx) and the day picker (ui/DayPickSheet.tsx). */
+.cs-sheet, .dp-sheet { font-family: var(--font-sans); --ms-height: min(300px, 38vh); }
+.cs-part { display: grid; gap: var(--space-1); padding: var(--space-3) 0; border-top: 1px solid var(--e-rule); min-width: 0; }
+.cs-part:first-of-type { border-top: 0; padding-top: 0; }
+.cs-head { font-family: var(--font-sans); font-size: 12px; letter-spacing: 0.04em; text-transform: uppercase; color: var(--e-ink-soft); font-weight: 500; margin: 0 0 var(--space-1); }
+
+/* Quick choices: chips that read as on or off, with the tint and weight,
+   never the colour alone. */
+.cs-quick, .dp-quick { display: flex; flex-wrap: wrap; gap: var(--space-2); margin-bottom: var(--space-2); }
+.cs-chip {
+  min-height: 40px; padding: 6px 12px;
+  border: 1px solid var(--e-rule); border-radius: var(--radius-pill);
+  font-family: var(--font-sans); font-size: 13px; color: var(--e-ink);
+}
+.cs-chip[aria-pressed="true"], .dp-quick .btn[aria-pressed="true"] { background: var(--e-tint); border-color: var(--e-ink-soft); font-weight: 600; }
+.cs-chip:disabled { opacity: 0.45; }
+.dp-quick .btn { min-height: 40px; }
+
+.cs-count { display: flex; align-items: center; justify-content: space-between; gap: var(--space-2); font-size: 13px; color: var(--e-ink); margin-bottom: var(--space-1); }
+.cs-clear { padding: 4px 12px; font-size: 13px; }
+.cs-clear:disabled { opacity: 0.5; }
+
+/* One choice per row, the whole row tappable, 44 px or more. */
+.cs-choice {
+  display: grid; grid-template-columns: 24px minmax(0, 1fr); align-items: center; gap: var(--space-2);
+  min-height: 44px; padding: 2px 0; cursor: pointer; font-size: 14px; color: var(--e-ink);
+}
+.cs-choice input { width: 18px; height: 18px; margin: 0; accent-color: var(--e-accent); }
+.cs-choice-name { display: block; }
+.cs-choice-sub { display: block; font-size: 12px; color: var(--e-ink-soft); }
+.cs-choice.is-off { color: var(--e-ink-soft); cursor: default; }
+.cs-row { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2) var(--space-3); }
+.cs-row .cs-choice { flex: 1 1 140px; }
+.cs-time, .cs-sheet .cs-template .dd-button {
+  padding: 8px 10px; border: 1px solid var(--e-field-line); border-radius: var(--radius-md);
+  background: var(--e-field); color: var(--e-ink); font: inherit; font-size: 15px;
+}
+.cs-template { display: grid; gap: 4px; font-size: 13px; color: var(--e-ink-soft); padding-left: 32px; min-width: 0; }
+.cs-keep { display: flex; flex-wrap: wrap; gap: 0 var(--space-4); }
+.cs-keep .cs-choice { flex: 0 0 auto; }
+.cs-note, .dp-note { margin: var(--space-2) 0 0; font-size: 12px; color: var(--e-ink-soft); }
+/* Save stays in reach: the actions stick to the bottom of the sheet. */
+.cs-actions { position: sticky; bottom: calc(-1 * var(--space-4)); background: var(--e-paper); padding: var(--space-3) 0 var(--space-1); margin-top: var(--space-2); }

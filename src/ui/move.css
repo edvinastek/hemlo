@@ -81,7 +81,10 @@ html.is-holding, html.is-holding * { cursor: grabbing; }
 .week-col.is-target { background: var(--e-tint); box-shadow: inset 0 0 0 2px var(--e-rail); }
 .week-item.is-picked { background: var(--e-tint); box-shadow: inset 3px 0 0 var(--e-accent); padding-left: 6px; }
 
-.week-pick-slot { position: sticky; top: var(--space-2); z-index: 4; }
+/* Only while something is held does the slot stick, so the banner stays in
+   view; otherwise the hint scrolls away with the page instead of lying over it. */
+.week-pick-slot { position: relative; z-index: 4; }
+.week-pick-slot:has(.week-pick) { position: sticky; top: var(--space-2); }
 .week-pick {
   position: absolute; top: 0; left: 0; right: 0;
   box-shadow: 0 2px 8px rgb(0 0 0 / 0.12);
