@@ -10,4 +10,6 @@ Running log; newest last.
   A page that renders no ModuleMenu gets the plain one (Export, Edit module, About). ViewBar over a power view; QuietAdd lines.
 - Done: Sleep, Health, Training (+session), Finance, Learning (renamed), Projects/Goals, Habits, Chores, Supplements, Stats,
   Stats builder, StatsView export into card ⋮, Generic module page (views into ⋮ → Views).
-- Left: e2e selectors, checks, final shots, report.
+- e2e updated (stats, tracking, modules, views, transfer). Health lists weigh-ins once; empty generic page has one add.
+- Verified: npx tsc -b, npm run check (all passed), npx vite build. Shots and counts in scratchpad/shots17/k4.
+- Harness deleted. Done; report sent.

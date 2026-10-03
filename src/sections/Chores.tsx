@@ -381,7 +381,7 @@ function HolidayFold({ profileId, chores, prefs, today }: { profileId: string; c
   return (
     <div className="chore-fold">
       <p className="tp-title">Holiday</p>
-      <p className="tp-empty">Pauses every chore for everyone in the household. What falls due while away is let go, and flexible chores do not grow more due.</p>
+      <p className="tp-empty">Pauses every chore for everyone in the household; what falls due meanwhile is let go.</p>
       <div className="supp-slot-row">
         <label className="chore-date">From <input type="date" value={from} onChange={(e) => setFrom(e.target.value)} /></label>
         <label className="chore-date">Until <input type="date" value={until} min={from} onChange={(e) => setUntil(e.target.value)} /></label>
