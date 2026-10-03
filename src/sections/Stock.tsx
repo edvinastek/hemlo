@@ -227,7 +227,9 @@ function StockAdd({ householdId, foods, items, places }: {
   const inStock = useMemo(() => new Map(items.map((i) => [i.food_id, i])), [items])
   // A housemate's scanned food is here too (it is in the shared cupboard),
   // but it is theirs, not "mine".
-  const pick: PickItem[] = useMemo(() => foods.map((f) => ({
+  // A deleted food (one a newer catalogue replaced) is not offered: picking
+  // it would add its replacement under another name.
+  const pick: PickItem[] = useMemo(() => foods.filter((f) => !f.deleted_at).map((f) => ({
     id: f.id,
     name: f.name,
     meta: [f.store_section, f.pack_size_g ? `${formatGrams(f.pack_size_g)} pack` : null].filter(Boolean).join(' · ') || undefined,
