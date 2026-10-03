@@ -1,0 +1,81 @@
+/* Shared by the richer module pages (Training, Sleep, Projects, Finance,
+   Learning, Health). Tokens only, no shadows; usable at 360 px. */
+
+.kit-tabs { padding: 0 var(--space-4); overflow-x: auto; scrollbar-width: none; }
+.kit-tabs::-webkit-scrollbar { display: none; }
+.kit-tabs button { white-space: nowrap; min-height: 44px; }
+
+.kit-sheet.is-wide { max-width: 640px; margin: 0 auto; }
+@media (min-width: 700px) {
+  .kit-sheet { left: 50%; right: auto; width: min(560px, 100vw); transform: translateX(-50%); }
+  .kit-sheet.is-wide { width: min(680px, 100vw); }
+}
+.kit-actions { flex-wrap: wrap; position: sticky; bottom: calc(-1 * var(--space-4)); background: var(--e-paper);
+  padding-top: var(--space-2); padding-bottom: var(--space-2); }
+.kit-danger { color: var(--e-warn); border-color: var(--e-warn); }
+
+/* A plain list of rows: name and meta on the left, a value or buttons on the right. */
+.kit-list { list-style: none; margin: 0; padding: 0; }
+.kit-row { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: var(--space-2) var(--space-3); align-items: center;
+  padding: var(--space-3) var(--space-4); border-bottom: 1px solid var(--e-rule); min-height: 48px; }
+.kit-row > button.kit-open { text-align: left; display: grid; gap: 2px; min-width: 0; padding: 0; min-height: 40px; color: inherit; }
+.kit-row .row-name { overflow-wrap: anywhere; }
+.kit-right { display: flex; align-items: center; gap: var(--space-2); font-family: var(--font-sans); font-size: 13px; }
+.kit-num { font-family: var(--font-sans); font-variant-numeric: tabular-nums; }
+.kit-soft { color: var(--e-ink-soft); }
+.kit-warn { color: var(--e-warn); }
+.kit-good { color: var(--e-done); }
+
+/* Figures at the top of a page: the headline number and a few beside it. */
+.kit-figures { display: grid; grid-template-columns: repeat(auto-fit, minmax(132px, 1fr)); gap: var(--space-2);
+  padding: var(--space-3) var(--space-4); }
+.kit-figure { background: var(--e-tint); border-radius: var(--radius-md); padding: var(--space-3); min-width: 0; }
+.kit-figure .k { display: block; font-family: var(--font-sans); font-size: 12px; color: var(--e-ink-soft); }
+.kit-figure .v { display: block; font-family: var(--font-sans); font-size: 22px; font-weight: 600; font-variant-numeric: tabular-nums;
+  color: var(--e-ink); margin-top: 2px; }
+.kit-figure .s { display: block; font-family: var(--font-sans); font-size: 12px; color: var(--e-ink-soft); margin-top: 2px; }
+.kit-figure.is-head { grid-column: 1 / -1; }
+.kit-figure.is-head .v { font-size: 30px; }
+
+/* A progress bar with its words beside it; never colour alone. */
+.kit-bar { height: 6px; background: var(--e-rule); border-radius: var(--radius-pill); overflow: hidden; }
+.kit-bar > span { display: block; height: 100%; background: var(--e-accent); border-radius: var(--radius-pill); }
+.kit-bar.is-over > span { background: var(--e-warn); }
+.kit-bar.is-done > span { background: var(--e-done); }
+
+.kit-toolbar { display: flex; flex-wrap: wrap; gap: var(--space-2); align-items: center; padding: var(--space-3) var(--space-4) 0; }
+.kit-toolbar .grow { flex: 1 1 160px; min-width: 0; }
+.kit-search { width: 100%; box-sizing: border-box; padding: 9px 10px; border: 1px solid var(--e-field-line); border-radius: var(--radius-md);
+  background: var(--e-field); color: var(--e-ink); font: inherit; font-family: var(--font-sans); font-size: 15px; min-height: 44px; }
+.kit-chips { display: flex; flex-wrap: wrap; gap: var(--space-2); }
+.kit-chip { font-family: var(--font-sans); font-size: 13px; padding: 6px 12px; min-height: 36px; border-radius: var(--radius-pill);
+  border: 1px solid var(--e-rule); color: var(--e-ink-soft); }
+.kit-chip[aria-pressed="true"] { background: var(--e-ink); color: var(--e-paper); border-color: var(--e-ink); }
+
+.kit-step { display: inline-flex; align-items: center; gap: var(--space-1); }
+.kit-step button { min-width: 40px; min-height: 40px; border: 1px solid var(--e-rule); border-radius: var(--radius-md);
+  font-family: var(--font-sans); font-size: 16px; }
+
+.kit-note { margin: 0; padding: var(--space-2) var(--space-4); font-family: var(--font-sans); font-size: 13px; color: var(--e-ink-soft); }
+.kit-note.is-warn { color: var(--e-warn); }
+.kit-error { margin: 0; font-family: var(--font-sans); font-size: 13px; color: var(--e-warn); }
+.kit-hint { margin: 0; font-family: var(--font-sans); font-size: 12px; color: var(--e-ink-soft); }
+.kit-pad { padding: 0 var(--space-4); }
+.kit-gap { height: calc(var(--space-6) * 3); }
+
+/* A row of choices drawn as buttons (expense or income, a rating). */
+.kit-seg { display: inline-flex; border: 1px solid var(--e-rule); border-radius: var(--radius-md); overflow: hidden; }
+.kit-seg button { padding: 8px 14px; min-height: 40px; font-family: var(--font-sans); font-size: 14px; color: var(--e-ink-soft); }
+.kit-seg button + button { border-left: 1px solid var(--e-rule); }
+.kit-seg button[aria-pressed="true"] { background: var(--e-ink); color: var(--e-paper); }
+
+/* A label with a checkbox drawn as a switch row inside a form. */
+.kit-check { display: flex !important; align-items: center; gap: var(--space-2); grid-template-columns: none; color: var(--e-ink) !important;
+  font-size: 14px !important; min-height: 40px; }
+.kit-check input { width: 20px !important; height: 20px; flex: none; }
+
+.kit-more { position: relative; }
+.kit-menu { position: absolute; right: 0; top: calc(100% + 4px); z-index: 30; list-style: none; margin: 0; padding: 4px 0;
+  background: var(--e-field); border: 1px solid var(--e-field-line); border-radius: var(--radius-md); min-width: 180px; }
+.kit-menu button { display: block; width: 100%; text-align: left; padding: 10px 14px; min-height: 44px; font-family: var(--font-sans); font-size: 14px; }
+.kit-dots { min-width: 40px; min-height: 40px; font-size: 18px; color: var(--e-ink-soft); border-radius: var(--radius-md); }

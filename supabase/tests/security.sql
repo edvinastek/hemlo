@@ -823,6 +823,21 @@ begin
     insert into _r (check_name, expected, actual) values ('B cannot log a set under M''s routine', 'denied', 'denied');
   end;
 
+  -- A parent made offline may arrive after its child: that must be the
+  -- foreign key's error, which the app retries, not a policy refusal, which
+  -- it would drop.
+  begin
+    insert into routine_line (routine_id, sets) values (gen_random_uuid(), 3);
+    insert into _r (check_name, expected, actual) values ('A line whose routine has not arrived yet waits for it', '23503', 'allowed');
+  exception when others then
+    insert into _r (check_name, expected, actual) values ('A line whose routine has not arrived yet waits for it', '23503', sqlstate);
+  end;
+  begin
+    insert into milestone (profile_id, project_id, title) values ((select pb from _ids), gen_random_uuid(), 'Waiting for its project');
+    insert into _r (check_name, expected, actual) values ('A milestone whose project has not arrived yet waits for it', '23503', 'allowed');
+  exception when others then
+    insert into _r (check_name, expected, actual) values ('A milestone whose project has not arrived yet waits for it', '23503', sqlstate);
+  end;
   insert into routine (profile_id, name) values ((select pb from _ids), 'B''s own routine') returning id into v_rb;
   update _h set rb = v_rb;
   begin

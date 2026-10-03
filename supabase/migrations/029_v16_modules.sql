@@ -17,6 +17,25 @@
 --
 -- Safe to run more than once.
 
+-- 0: "is there such a row at all?" -------------------------------------------
+-- A link to a parent row (a routine's goal, a line's routine) is allowed when
+-- the parent is the writer's own, and refused when it belongs to someone
+-- else. A parent that does not exist yet is left to the foreign key: a phone
+-- that made both offline may send the child first, and a missing parent is
+-- an error the app retries (23503), where a policy refusal (42501) would be
+-- final and the child lost. These look past row-level security, and say
+-- only whether an id exists, never what is in the row.
+create or replace function private.row_exists(tbl text, rid uuid)
+returns boolean language plpgsql stable security definer set search_path = '' as $$
+declare found boolean;
+begin
+  if tbl not in ('routine','series','goal','exercise','module_record') then return true; end if;
+  execute format('select exists (select 1 from public.%I where id = $1)', tbl) into found using rid;
+  return found;
+end $$;
+revoke all on function private.row_exists(text, uuid) from public, anon;
+grant execute on function private.row_exists(text, uuid) to authenticated;
+
 -- 1: own exercises -------------------------------------------------------------
 alter table public.exercise
   add column if not exists muscle text,
@@ -91,20 +110,20 @@ drop policy if exists routine_mine on public.routine;
 create policy routine_mine on public.routine for all to authenticated
   using (profile_id in (select private.my_profiles()))
   with check (profile_id in (select private.my_profiles())
-              and (series_id is null or series_id in (select id from public.series))
-              and (goal_id is null or goal_id in (select id from public.goal)));
+              and (series_id is null or series_id in (select id from public.series) or not private.row_exists('series', series_id))
+              and (goal_id is null or goal_id in (select id from public.goal) or not private.row_exists('goal', goal_id)));
 -- A line is reachable exactly when its routine is, and may only name an
 -- exercise its writer can see (the catalogue's or their own).
 drop policy if exists routine_line_mine on public.routine_line;
 create policy routine_line_mine on public.routine_line for all to authenticated
   using (routine_id in (select id from public.routine))
-  with check (routine_id in (select id from public.routine)
-              and (exercise_id is null or exercise_id in (select id from public.exercise)));
+  with check ((routine_id in (select id from public.routine) or not private.row_exists('routine', routine_id))
+              and (exercise_id is null or exercise_id in (select id from public.exercise) or not private.row_exists('exercise', exercise_id)));
 -- A logged set may only point at a routine of the same person.
 drop policy if exists workout_log_routine on public.workout_log;
 create policy workout_log_routine on public.workout_log as restrictive for all to authenticated
   using (true)
-  with check (routine_id is null or routine_id in (select id from public.routine));
+  with check (routine_id is null or routine_id in (select id from public.routine) or not private.row_exists('routine', routine_id));
 
 revoke all on public.routine, public.routine_line from anon;
 grant select, insert, update, delete on public.routine, public.routine_line to authenticated;
@@ -141,8 +160,9 @@ drop policy if exists milestone_own on public.milestone;
 create policy milestone_mine on public.milestone for all to authenticated
   using (profile_id in (select private.my_profiles()))
   with check (profile_id in (select private.my_profiles())
-              and (goal_id is null or goal_id in (select id from public.goal))
-              and (project_id is null or project_id in (select id from public.module_record where module_key = 'projects')));
+              and (goal_id is null or goal_id in (select id from public.goal) or not private.row_exists('goal', goal_id))
+              and (project_id is null or project_id in (select id from public.module_record where module_key = 'projects')
+                   or not private.row_exists('module_record', project_id)));
 revoke all on public.milestone from anon;
 grant select, insert, update, delete on public.milestone to authenticated;
 drop trigger if exists milestone_touch on public.milestone;
@@ -171,4 +191,4 @@ alter table public.habit add column if not exists goal_id uuid references public
 drop policy if exists habit_goal on public.habit;
 create policy habit_goal on public.habit as restrictive for all to authenticated
   using (true)
-  with check (goal_id is null or goal_id in (select id from public.goal));
+  with check (goal_id is null or goal_id in (select id from public.goal) or not private.row_exists('goal', goal_id));
