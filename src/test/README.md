@@ -111,6 +111,12 @@ Types, then every check that needs nothing but Node. CI runs the same command.
 - `afterdone` — "ask after done" templates: the marker line in a note, what Fill in, Skip and Later leave behind.
 - `repeat` — the one repeat control's choices: the rule each stands for from a first day (the 2nd or last Wednesday,
   the 14th, 14 October), numbers kept and capped, picked days, and every choice reading back as itself.
+- `looks` — themes, modes, own colour, text size and app icons (theme-rules.ts): all eleven themes pass every
+  contrast pair (text 4.5:1 on the page, on tints and in fields; goal lines 3:1) in light, dark and black with no
+  colour moved, and every module swatch keeps 3:1 on each page; the default looks as before; 120 own colours in every
+  shade come out readable and say "Adjusted for readability" only when the chosen colour moved; system mode follows
+  the phone and never picks black; text zoom on top of the phone's font size; nine icons with every mark inside the
+  adaptive icon's safe zone.
 
 ## Browser checks
 
