@@ -64,3 +64,106 @@
 .np-empty { font-family: var(--font-sans); font-size: 14px; color: var(--e-ink-soft); margin: 0; }
 
 .np-editor textarea { min-height: 55vh; font-size: 16px; }
+
+/* ---------- version 16: tools on their own row, Insert, codes in words ---- */
+.ne-head { flex-wrap: wrap; }
+.ne-head .ne-open { margin-left: auto; }
+.ne-tools { flex-wrap: wrap; }
+/* At least 36 px wide and 32 high: a row that fits a 360 px phone. */
+.ne-tool { min-width: 36px; height: 32px; }
+.ne-insert { padding: 0 10px; font-size: 13px; color: var(--e-ink); }
+.ne-insert[aria-expanded="true"] { background: var(--e-tint); }
+
+.ne-menu {
+  display: grid; border: 1px solid var(--e-rule); border-radius: var(--radius-md); overflow: hidden;
+}
+.ne-menu button, .np-menu button {
+  text-align: left; padding: 12px var(--space-3); min-height: 44px;
+  font-family: var(--font-sans); font-size: 14px; color: var(--e-ink);
+  border-bottom: 1px solid var(--e-rule);
+}
+.ne-menu button:last-child, .np-menu button:last-child { border-bottom: 0; }
+.ne-menu button:disabled, .np-menu button:disabled { color: var(--e-ink-soft); opacity: 0.6; }
+
+/* A pill to switch something on or off: tint and weight when on, not the
+   accent, which is kept for the main button. */
+.ne-pill {
+  font-family: var(--font-sans); font-size: 13px; min-height: 32px; padding: 5px 10px;
+  border: 1px solid var(--e-rule); border-radius: var(--radius-pill); color: var(--e-ink-soft);
+}
+.ne-pill[aria-pressed="true"] { background: var(--e-tint); color: var(--e-ink); border-color: var(--e-ink-soft); font-weight: 600; }
+.ne-fills { display: flex; flex-wrap: wrap; gap: var(--space-1); align-items: center; }
+.ne-fills-label { font-family: var(--font-sans); font-size: 12px; color: var(--e-ink-soft); margin-right: 2px; }
+.ne-note { margin: 0; font-family: var(--font-sans); font-size: 13px; color: var(--e-ink-soft); }
+
+/* A code shown in words: "Asks for Reading reflection when done · Remove". */
+.ne-coded {
+  display: flex; flex-wrap: wrap; align-items: center; gap: 2px var(--space-3);
+  padding: 6px var(--space-2); border-left: 2px solid var(--e-rule);
+  font-family: var(--font-sans); font-size: 13px; color: var(--e-ink-soft); list-style: none;
+}
+.ne-coded b { color: var(--e-ink); font-weight: 600; }
+.ne-link { font-family: var(--font-sans); font-size: 13px; color: var(--e-accent); padding: 8px 2px; min-height: 36px; }
+.ne-links { margin: 0; padding: 0; display: grid; gap: 4px; }
+
+/* ---------- the template and recipe panels ---------------------------------- */
+.tp {
+  display: grid; gap: var(--space-2); min-width: 0;
+  padding: var(--space-3); border: 1px solid var(--e-rule); border-radius: var(--radius-md);
+}
+.tp-head { display: flex; align-items: center; gap: var(--space-2); }
+.tp-title { font-family: var(--font-sans); font-size: 14px; font-weight: 600; color: var(--e-ink); margin: 0; }
+.tp-close { margin-left: auto; font-family: var(--font-sans); font-size: 13px; color: var(--e-accent); padding: 8px 2px; }
+.tp > .tp-close { justify-self: start; margin-left: 0; }
+.tp-search { width: 100%; min-width: 0; padding: 9px 10px; font-size: 15px; }
+.tp-list { list-style: none; margin: 0; padding: 0; max-height: 46vh; overflow-y: auto; overscroll-behavior: contain; }
+.tp-item {
+  display: grid; gap: 2px; width: 100%; text-align: left; min-height: 48px;
+  padding: var(--space-2) var(--space-1); border-bottom: 1px solid var(--e-rule);
+}
+.tp-name { font-family: var(--font-serif); font-size: 15px; color: var(--e-ink); overflow-wrap: anywhere; }
+.tp-sum { font-family: var(--font-sans); font-size: 12px; color: var(--e-ink-soft); overflow-wrap: anywhere; }
+.tp-chip { justify-self: start; }
+.tp-empty { margin: 0; font-family: var(--font-sans); font-size: 13px; color: var(--e-ink-soft); }
+.tp-more { justify-self: start; font-family: var(--font-sans); font-size: 13px; color: var(--e-accent); padding: 8px 2px; }
+
+.ri-item { grid-template-columns: 24px minmax(0, 1fr); align-items: center; gap: var(--space-2); }
+.ri-box {
+  width: 20px; height: 20px; border: 1px solid var(--e-ink-soft); border-radius: var(--radius-sm);
+  display: grid; place-items: center; font-family: var(--font-sans); font-size: 13px; color: var(--e-ink);
+}
+.ri-item[aria-pressed="true"] .ri-box { background: var(--e-tint); border-color: var(--e-ink); }
+.ri-chosen { display: grid; gap: var(--space-2); border-top: 1px solid var(--e-rule); padding-top: var(--space-2); }
+.ri-row { display: flex; align-items: center; gap: var(--space-2); flex-wrap: wrap; }
+.ri-name { flex: 1 1 140px; min-width: 0; font-family: var(--font-serif); font-size: 15px; overflow-wrap: anywhere; }
+.ri-step { display: flex; align-items: center; gap: var(--space-1); }
+.ri-btn {
+  width: 40px; height: 40px; border: 1px solid var(--e-rule); border-radius: var(--radius-md);
+  font-family: var(--font-sans); font-size: 18px;
+}
+.ri-btn:disabled { opacity: 0.4; }
+.ri-count { min-width: 84px; text-align: center; font-family: var(--font-sans); font-size: 13px; }
+.ri-parts { display: flex; flex-wrap: wrap; gap: var(--space-1); }
+.ri-go { justify-self: start; }
+
+/* ---------- the note page: moving items, ticked last ------------------------- */
+.np-item { position: relative; align-items: center; }
+.np-item .np-check { flex: 1; }
+.np-handle, .np-more {
+  flex: none; width: 36px; height: 36px; display: grid; place-items: center;
+  font-family: var(--font-sans); font-size: 16px; color: var(--e-ink-soft); border-radius: var(--radius-sm);
+}
+.np-handle { cursor: grab; touch-action: none; }
+.np-item.is-dragged { opacity: 0.5; }
+.np-item.drop-before { border-top: 2px solid var(--e-accent); }
+.np-item.drop-after { border-bottom: 2px solid var(--e-accent); }
+.np-menu {
+  position: absolute; right: 0; top: 100%; z-index: 2; min-width: 170px; display: grid;
+  background: var(--e-paper); border: 1px solid var(--e-rule); border-radius: var(--radius-md); overflow: hidden;
+}
+.np-pref {
+  display: flex; align-items: center; justify-content: space-between; gap: var(--space-3);
+  margin-top: var(--space-4); padding-top: var(--space-3); border-top: 1px solid var(--e-rule);
+  font-family: var(--font-sans); font-size: 13px; color: var(--e-ink-soft);
+}
+.np-body .ne-coded { margin: var(--space-2) 0; }
