@@ -46,7 +46,7 @@ const goPage = async (path) => {
 }
 await goPage('m/habits')
 const addHabit = async (name) => {
-  await p.click('button.track-add:has-text("Add a habit")')
+  await p.click('.fab[aria-label="Add a habit"]')
   await p.fill('.track-sheet input[placeholder="Mobility"]', name)
   await p.click('.track-sheet button[type=submit]')
   await p.locator(`button[aria-label="${name}, not done"]`).waitFor()
@@ -57,7 +57,7 @@ await p.click('button[aria-label="Stretch, not done"]')
 // The next step reloads the page; let the tick reach the server first.
 await settle(p)
 await goPage('m/supplements')
-await p.click('button.track-add:has-text("Add a supplement")')
+await p.click('.fab[aria-label="Add a supplement"]')
 await p.fill('.track-sheet input[placeholder="Vitamin D"]', 'Vitamin D')
 await p.fill('.track-sheet input[placeholder="25 µg"]', '25 µg')
 await p.click('.track-sheet button[type=submit]')
@@ -79,7 +79,7 @@ is('the supplement tick reached the server', r.taken, 1)
 //     HAB-10), edited after it was made (HAB-02); a supplement's schedule
 //     (SUP-03); a household chore from a starter pack, ticked (HSE-03, HSE-10).
 await goPage('m/habits')
-await p.click('button.track-add:has-text("Add a habit")')
+await p.click('.fab[aria-label="Add a habit"]')
 await p.fill('.track-sheet input[placeholder="Mobility"]', 'Mobility')
 await p.click('.track-sheet button[aria-label="Repeat"]')
 await p.click('.track-sheet [role=option]:has-text("Weekly on chosen days")')

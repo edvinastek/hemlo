@@ -27,13 +27,10 @@ await sheet.locator('label', { hasText: 'Note' }).locator('input, textarea').fir
 await sheet.getByRole('button', { name: 'Save' }).click()
 await p.waitForTimeout(800)
 
-// 2. The Export link sits at the foot of the page, not under the add button.
-const link = p.locator('.xl-link')
-is('the page has an Export link', await link.count(), 1)
-await p.evaluate(() => { const pg = document.querySelector('.page'); if (pg) pg.scrollTop = pg.scrollHeight })
-const [l, f] = [await link.boundingBox(), await p.locator('.fab').boundingBox()]
-is('the link is clear of the add button', !(l.x < f.x + f.width && l.x + l.width > f.x && l.y < f.y + f.height && l.y + l.height > f.y), true)
-await link.click()
+// 2. Export… is in the page's ⋮ (v17: no Export links on pages).
+is('the page has no Export link', await p.locator('.xl-link').count(), 0)
+await p.locator('.page-menu .pm-button').click()
+await p.getByRole('menuitem', { name: 'Export…' }).click()
 const [download] = await Promise.all([p.waitForEvent('download'), p.locator('.xl-format', { hasText: 'CSV' }).click()])
 const csvPath = join(dir, download.suggestedFilename())
 await download.saveAs(csvPath)

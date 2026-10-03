@@ -17,6 +17,8 @@ const day = today()
 const settle = async (p, ms = 600) => { await p.waitForTimeout(ms); await drained(p) }
 const one = async (query) => (await sql(query))[0] ?? {}
 const exact = (name) => ({ name, exact: true })
+// v17: Edit module is under the page's ⋮.
+const pageMenu = async (item) => { await p.locator('.page-menu .pm-button').click(); await p.getByRole('menuitem', exact(item)).click() }
 
 const A = await open({ viewport: { width: 360, height: 780 } })
 const p = A.p
@@ -60,7 +62,7 @@ r = await one(`select enabled from public.module_instance where ${mine} and modu
 is('the module is switched on', r.enabled, true)
 
 // 3. Rule (a): the record becomes a task on its day, and shows on Today.
-await p.getByRole('button', exact('Edit module')).click()
+await pageMenu('Edit module')
 await p.getByRole('tab', exact('Rules')).click()
 await p.getByRole('switch', { name: /Put records with a date on the day as a task/ }).click()
 await p.getByRole('button', exact('Save')).click()
@@ -76,7 +78,7 @@ is('the task is on Today', await p.locator('.row', { hasText: 'Rent' }).count(),
 
 // 4. A field added in the editor is on the form, and in the stored definition.
 await p.goto(`${APP}m/${key}`, { waitUntil: 'networkidle' })
-await p.getByRole('button', exact('Edit module')).click()
+await pageMenu('Edit module')
 await p.getByRole('button', exact('Add a field')).click()
 await p.locator('.me-panel').getByLabel('Name').fill('Shop')
 await p.getByRole('button', exact('Add field')).click()
@@ -109,7 +111,7 @@ is('and it shows in the table', await p.locator('.sheet tbody tr').count(), 1)
 // 6. A built-in module's field renamed: saved as a change over the app's
 // version, and shown on its page.
 await p.goto(`${APP}m/agenda`, { waitUntil: 'networkidle' })
-await p.getByRole('button', exact('Edit module')).click()
+await pageMenu('Edit module')
 await p.getByLabel('Name of the Where field').fill('Place')
 await p.getByRole('button', exact('Save')).click()
 await settle(p)
