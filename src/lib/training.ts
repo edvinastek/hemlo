@@ -2,12 +2,11 @@ import { useLiveQuery } from 'dexie-react-hooks'
 import { db, getMeta } from './db'
 import { edit } from './write'
 import { queueChange } from './sync'
-import { materializeSeries } from './series'
-import { saveTask, setTaskDone } from './tasks'
-import { addDays } from './schedule-rules'
-import type { Series, Task, WorkoutLog } from './types'
+import { setTaskDone } from './tasks'
+import { keepSeries } from './training-series'
+import type { Task, WorkoutLog } from './types'
 import type { Exercise, Muscle, Routine, RoutineLine } from './training-types'
-import { readMuscleChoices, routineForTask, sessionChange, sessionSeries } from './training-rules'
+import { readMuscleChoices, routineForTask, sessionSeries } from './training-rules'
 import { builtinRuleOn } from '../modules/rule-switch'
 import { instanceFor } from '../modules/defs'
 
@@ -165,61 +164,18 @@ export async function routineLines(routineId: string): Promise<RoutineLine[]> {
 
 /* ---------- planned sessions: the rule "a planned session becomes a task" ------ */
 
-const hhmm = (t: string | null | undefined) => (t ? t.slice(0, 5) : null)
-
-async function seriesTasksFrom(seriesId: string, profileId: string, from: string): Promise<Task[]> {
-  return db.task.where('profile_id').equals(profileId)
-    .filter((t) => t.series_id === seriesId && !t.deleted_at && t.status !== 'done' && !!t.planned_date && t.planned_date >= from).toArray()
-}
-
-/** End a series before `from`: sessions from then on that are not done go;
- *  ones already done stay where they happened. A series that had not
- *  started yet is deleted outright. */
-async function retireSeries(series: Series, from: string) {
-  if (series.start_date >= from) await edit('series', series, { active: false, deleted_at: now() })
-  else await edit('series', series, { end_date: addDays(from, -1) })
-  for (const t of await seriesTasksFrom(series.id, series.profile_id, from)) await saveTask({ ...t, deleted_at: now() }, ['deleted_at'])
-}
-
-/** Bring a routine's series in line with the routine and the rule. With
- *  `full`, a changed name, time or length is carried to the series and the
- *  sessions to come (after the routine was edited); without it only a
- *  series that is missing or no longer wanted is dealt with, so a change
- *  made to one session on the planner is not undone. */
+/** Bring a routine's series in line with the routine and the rule (see
+ *  keepSeries for what `full` means). */
 export async function planSessions(routine: Routine, today: string, full: boolean): Promise<Routine> {
   const ruleOn = await builtinRuleOn(routine.profile_id, 'training', 'session_task')
   const want = sessionSeries(routine, ruleOn, today)
-  const have = routine.series_id ? (await db.series.get(routine.series_id)) ?? null : null
-  const change = sessionChange(want, have)
-  if (change === 'none' || (change === 'update' && !full)) return routine
-  if (change === 'retire' || change === 'replace') {
-    if (have) {
-      await retireSeries(have, today)
-      await patchTrainingSettings(routine.profile_id, (s) => ({ ...s, retired_series: { ...readTrainingSettings(s).retired, [have.id]: routine.id } }))
-    }
-    if (change === 'retire') return write('routine', routine, { series_id: null })
+  const res = await keepSeries(routine.profile_id, routine.series_id, want ? { ...want, module_key: 'training' } : null, today, full)
+  if (res.retired) {
+    const old = res.retired
+    await patchTrainingSettings(routine.profile_id, (s) => ({ ...s, retired_series: { ...readTrainingSettings(s).retired, [old]: routine.id } }))
   }
-  if (change === 'update' && have && want) {
-    await edit('series', have, { title: want.title, time_of_day: want.time_of_day, task_template: { ...have.task_template, duration_min: want.task_template.duration_min } })
-    for (const t of await seriesTasksFrom(have.id, have.profile_id, today)) {
-      await saveTask({ ...t, title: want.title, planned_time: want.time_of_day, duration_min: want.task_template.duration_min ?? null },
-        ['title', 'planned_time', 'duration_min'])
-    }
-    return routine
-  }
-  // create, or the second half of replace: a new series from today (or the
-  // routine's own first day, if that is later).
-  const w = want!
-  const start = change === 'replace' && w.start_date < today ? today : w.start_date
-  const fields: Omit<Series, 'id' | 'updated_at'> = {
-    profile_id: routine.profile_id, title: w.title, rule: w.rule as Series['rule'], rule_config: w.rule_config as Series['rule_config'],
-    start_date: start, end_date: w.end_date, occurrence_count: null, time_of_day: hhmm(w.time_of_day),
-    task_template: w.task_template as Series['task_template'], module_key: 'training', active: true, deleted_at: null,
-  }
-  const series = await edit<Series>('series', { id: crypto.randomUUID(), updated_at: now() } as Series, fields)
-  const next = await write('routine', routine, { series_id: series.id })
-  await materializeSeries(routine.profile_id)
-  return next
+  if (res.seriesId !== routine.series_id) return write('routine', routine, { series_id: res.seriesId })
+  return routine
 }
 
 /** Carry out the rule for every routine: after the rule is switched on or

@@ -82,3 +82,6 @@
   background: var(--e-field); border: 1px solid var(--e-field-line); border-radius: var(--radius-md); min-width: 180px; }
 .kit-menu button { display: block; width: 100%; text-align: left; padding: 10px 14px; min-height: 44px; font-family: var(--font-sans); font-size: 14px; }
 .kit-dots { min-width: 40px; min-height: 40px; font-size: 18px; color: var(--e-ink-soft); border-radius: var(--radius-md); }
+/* Four figures read as two rows of two on a phone, one row on a wide screen. */
+.kit-figures.is-four { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+@media (min-width: 640px) { .kit-figures.is-four { grid-template-columns: repeat(4, minmax(0, 1fr)); } }

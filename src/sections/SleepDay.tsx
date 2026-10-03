@@ -4,6 +4,8 @@ import { db } from '../lib/db'
 import { edit } from '../lib/write'
 import { hoursBetween } from '../lib/day-tabs'
 import type { SleepLog } from '../lib/types'
+import { useSleepSettings } from '../lib/sleep'
+import { compareNight, describeLate, describeVsTarget } from '../lib/sleep-rules'
 import './day.css'
 
 const QUALITY = [1, 2, 3, 4, 5]
@@ -19,6 +21,8 @@ export function SleepDay({ profileId, day }: { profileId: string; day: string })
   // slot, so it is brought back rather than a second made.
   const row = rows?.find((r) => !r.deleted_at) ?? null
   const held = rows?.[0] ?? null
+  // The night against the target (SLP-02): hours short or over, bed late or early.
+  const target = useSleepSettings(profileId)
 
   const [bed, setBed] = useState('')
   const [woke, setWoke] = useState('')
@@ -60,6 +64,12 @@ export function SleepDay({ profileId, day }: { profileId: string; day: string })
               {[row.hours != null ? `${Number(row.hours).toFixed(1)} h` : null,
                 row.quality != null ? `quality ${row.quality} of 5` : null].filter(Boolean).join(' · ')}
             </div>
+            {target && (() => {
+              const c = compareNight(row, target)
+              const line = [c.vsTarget != null ? `${describeVsTarget(c.vsTarget)} of ${target.target_hours} h` : null, describeLate(c.bedLate, 'bed') || null]
+                .filter(Boolean).join(' · ')
+              return line ? <div className="row-meta">{line}</div> : null
+            })()}
           </div>
           <button className="btn" onClick={() => setEditing(true)}>Change</button>
         </div>
@@ -89,7 +99,9 @@ export function SleepDay({ profileId, day }: { profileId: string; day: string })
           </div>
         </div>
         <div className="sleep-actions">
-          <span className="row-meta">{hours != null ? `${hours.toFixed(1)} h` : 'Both times give the hours.'}</span>
+          <span className="row-meta">{hours != null
+            ? `${hours.toFixed(1)} h${target ? ` · ${describeVsTarget(Math.round((hours - target.target_hours) * 100) / 100)} of ${target.target_hours} h` : ''}`
+            : 'Both times give the hours.'}</span>
           {row && <button type="button" className="btn" onClick={() => setEditing(false)}>Cancel</button>}
           <button type="submit" className="btn btn-primary" disabled={!bed || !woke}>Save</button>
         </div>

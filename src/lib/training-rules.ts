@@ -336,7 +336,8 @@ export function sessionSeries(r: RoutinePlan, ruleOn: boolean, today: string): O
   }
 }
 
-/** How the series on the planner has to change to match the routine:
+/** How a series on the planner has to change to match what is wanted (a
+ *  routine's sessions, the bedtime block, a study block):
  *  - 'none': nothing;
  *  - 'create': a series is wanted and there is none;
  *  - 'retire': there is one and none is wanted;
@@ -344,7 +345,7 @@ export function sessionSeries(r: RoutinePlan, ruleOn: boolean, today: string): O
  *    series and the sessions still to come take the change);
  *  - 'replace': the days changed: the old series ends before today and a
  *    new one starts, so sessions already done stay where they were. */
-export function sessionChange(want: ReturnType<typeof sessionSeries>, have: (Pick<SeriesShape, 'title' | 'rule' | 'rule_config' | 'start_date' | 'end_date' | 'time_of_day' | 'task_template' | 'active' | 'deleted_at'>) | null):
+export function sessionChange(want: Omit<SeriesShape, 'active' | 'deleted_at'> | null, have: (Pick<SeriesShape, 'title' | 'rule' | 'rule_config' | 'start_date' | 'end_date' | 'time_of_day' | 'task_template' | 'active' | 'deleted_at'>) | null):
   'none' | 'create' | 'retire' | 'update' | 'replace' {
   const live = have && !have.deleted_at && have.active ? have : null
   if (!want) return live ? 'retire' : 'none'
@@ -352,7 +353,8 @@ export function sessionChange(want: ReturnType<typeof sessionSeries>, have: (Pic
   if (live.rule !== want.rule || !same(live.rule_config, want.rule_config) || live.start_date !== want.start_date
     || (live.end_date ?? null) !== (want.end_date ?? null)) return 'replace'
   if (live.title !== want.title || hhmm(live.time_of_day) !== want.time_of_day
-    || (live.task_template?.duration_min ?? null) !== (want.task_template.duration_min ?? null)) return 'update'
+    || (live.task_template?.duration_min ?? null) !== (want.task_template.duration_min ?? null)
+    || !!live.task_template?.locked !== !!want.task_template.locked) return 'update'
   return 'none'
 }
 
