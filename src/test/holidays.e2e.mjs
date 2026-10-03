@@ -97,7 +97,10 @@ const cell = p.locator(`.month-cell[title="${label}"]`)
 is(`the ${target.date} cell names the holiday`, await cell.count() >= 1, true)
 const marks = await cell.first().locator('.hol-mark.is-top i').evaluateAll((els) => els.map((el) => el.style.getPropertyValue('--hol')))
 is('with one mark per country, in its colour', marks.join(','), codesOn.map((c) => saved.colours[c]).join(','))
-const legend = await p.locator('.hol-legend').textContent().catch(() => '')
+// The legend is in the view's Key ▾ (v17).
+const key = p.locator('.plan-key-toggle').first()
+if ((await key.count()) && (await key.getAttribute('aria-expanded')) !== 'true') await key.click()
+const legend = await p.locator('.hol-legend').first().textContent().catch(() => '')
 is('the legend names the country', onTarget.every((h) => legend.includes(h.code === 'NL' ? 'Netherlands' : 'Germany')), true)
 is('an ordinary cell has no mark', await p.locator('.month-cell:not([title]) .hol-mark').count(), 0)
 // The mark stands out from the cell at 3:1 or more.
@@ -120,8 +123,8 @@ is('the Week header names the holiday', await head.count(), 1)
 is('and carries the mark', await head.locator('.hol-mark.is-bar i').count(), codesOn.length)
 
 // 5. Today: a chip only on a holiday.
+// v17: Today shows today only (no week strip to step back to it).
 await go('/')
-await p.locator('.week-strip button.today').click()
 await p.waitForTimeout(900)
 is(todays.length ? 'today is a holiday: a chip' : 'today is no holiday: no chip',
   (await p.locator('.page-head .hol-chip').count()) > 0, todays.length > 0)
