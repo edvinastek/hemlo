@@ -122,6 +122,13 @@ Types, then every check that needs nothing but Node. CI runs the same command.
   sleep debt over seven days (nights not logged are unknown, never zero), how regular bed and wake times are (around
   midnight too), and the bedtime block: when it starts, how long, locked or not, and none when it is off.
 
+- `trend` — trend weight: a moving average that weighs each weigh-in by the days since the last (10% a day), deleted
+  and empty weigh-ins left out; the weekly rate from a straight line through the trend (none with too few weigh-ins or
+  less than a week of them); the estimated date to reach a goal weight, and why there is none; the chart's scaling.
+- `projects` — Projects and goals: a project's progress (dropped and deleted tasks left out), its next task, the order of
+  its tasks and milestones; a goal's progress from a number kept by hand, from the tasks, projects and milestones linked
+  to it, or from the body weight (losing or gaining); days left; what a goal may not be; and what the Year view lists
+  (goals touching the year, open ones, dated projects while Projects is on).
 ## Browser checks
 
 They need the app built and served (`npm run build`, then
