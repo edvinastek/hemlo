@@ -289,7 +289,7 @@ export function FoodsTab({ openId, onOpened }: { openId?: string | null; onOpene
         after={() => typed ? (
           <div className="ft-more">
             <button type="button" className="btn" onClick={() => setTool('find')}>Find “{typed}” in stores</button>
-            {userId && <button type="button" className="btn" onClick={() => setAdding(typed)}>Add it as a new food</button>}
+            {userId && <button type="button" className="btn" onClick={() => setAdding(typed)}>Add “{typed}” as a new food</button>}
           </div>
         ) : null}
         menu={[

@@ -43,6 +43,7 @@ await p.fill('input[aria-label="Search foods, in English or Dutch"]', food)
 await p.locator(`button[aria-label="Open ${food}"]`).first().click({ timeout: 20000 })
 const sheet = p.locator('.bottom-sheet')
 is('its page says grams only', (await sheet.locator('.fu-facts', { hasText: 'Counted in grams only' }).count()) > 0, true)
+await sheet.getByRole('button', { name: '+ Add a unit' }).click()
 await sheet.getByRole('textbox', { name: 'Unit', exact: true }).fill('egg')
 await sheet.getByRole('textbox', { name: 'Plural, if odd' }).fill('eggs')
 await sheet.getByRole('textbox', { name: 'One weighs, g' }).fill('50')
@@ -73,26 +74,29 @@ await editor.getByRole('button', { name: 'Save' }).click()
 await p.waitForTimeout(800)
 // A new recipe opens on its own page once saved.
 is('the saved recipe opens on its page', (await p.locator('.bottom-sheet.rcp h2').textContent())?.trim(), recipe)
-await p.locator('.bottom-sheet.rcp .rcp-actions button:has-text("Close")').click()
+await p.locator('.bottom-sheet.rcp .sheet-actions button:has-text("Close")').click()
 is('the recipe reached the server', await drained(p), true)
 const line = await one(`select l.unit, l.unit_qty::float qty, l.grams_per_portion::float g
   from public.recipe_line l join public.recipe r on r.id = l.recipe_id where r.owner_id = ${user} and r.name = '${recipe}'`)
 is('Postgres holds 2 eggs as 100 g', `${line.qty} ${line.unit}, ${line.g} g`, '2 egg, 100 g')
 is('the recipe counts 143 kcal a portion',
-  (await p.locator('.my-recipes .setting-row', { hasText: recipe }).locator('.row-meta').textContent())?.includes('143 kcal a portion'), true)
+  / 143 /.test(` ${(await p.locator('table.sheet tbody tr', { hasText: recipe }).first().innerText()).replace(/\s+/g, ' ')} `), true)
 
-// Opened again, it reads 2 eggs, not 100 g.
-await p.locator(`.my-recipes button[aria-label="Open ${recipe}"]`).click()
-await p.locator('.bottom-sheet.rcp .rcp-actions button:has-text("Edit")').click()
+// Opened again (from the one list), it reads 2 eggs, not 100 g. Edit is in
+// the ⋮ by the recipe's name (v17).
+await p.locator(`button[aria-label="Open ${recipe}"]`).first().click()
+await p.locator('.bottom-sheet.rcp .rcp-more .pm-button').click()
+await p.locator('.bottom-sheet.rcp .pm-menu button:has-text("Edit")').click()
 is('opened again it is 2 eggs', await p.locator(`.bottom-sheet input[aria-label="${food}, eggs per portion"]`).inputValue(), '2')
 is('with its grams', (await p.locator('.bottom-sheet .rl-amount .amt-hint').textContent())?.trim(), '2 eggs (100 g)')
 await p.locator('.bottom-sheet').getByRole('button', { name: 'Cancel' }).click()
 // Back on the recipe's page: its ingredients say eggs too.
 is('the recipe page lists 2 eggs', /2 eggs/.test((await p.locator('.bottom-sheet.rcp').textContent()) ?? ''), true)
-await p.locator('.bottom-sheet.rcp .rcp-actions button:has-text("Close")').click()
+await p.locator('.bottom-sheet.rcp .sheet-actions button:has-text("Close")').click()
 
-// 3. The combined ingredient list says eggs.
-await p.click('.bk-select')
+// 3. The combined ingredient list says eggs (Select is in the page's ⋮).
+await p.click('.food-menu .pm-button')
+await p.click('.pm-menu button:has-text("Select")')
 await p.locator(`input[aria-label="Select ${recipe}"]`).check()
 await p.locator('.sb-bar button:has-text("Copy ingredients")').click()
 await p.waitForTimeout(300)
