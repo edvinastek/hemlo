@@ -56,7 +56,6 @@ export function SaveTemplateSheet({ kind, first, onClose }: { kind: 'day' | 'wee
             <span><span className="cs-choice-name">Repeating tasks</span><span className="cs-choice-sub">As one-offs. Their series already have days of their own.</span></span>
           </label>
         </section>
-        <p className="cs-note">Ticks in notes are cleared: a template is a fresh start. Drop it onto any day from that day’s ⋮ menu.</p>
         <div className="sheet-actions">
           <button type="button" className="btn" onClick={onClose}>Cancel</button>
           <button type="button" className="btn btn-primary grow" disabled={busy} onClick={() => void save()}>Save template</button>
@@ -103,9 +102,7 @@ export function DropTemplateSheet({ day, onClose, onSave }: { day: string; onClo
       <div className="bottom-sheet cs-sheet" role="dialog" aria-modal="true" aria-label={title}>
         <h2>{title}</h2>
         {prefs.plan_templates.length === 0 ? (
-          <p className="cs-note">
-            No day or week templates yet. Plan a day the way you like it, then choose “Save day as template” from its ⋮ menu.
-          </p>
+          <p className="cs-note">No day or week templates yet.</p>
         ) : (
           <>
             {prefs.plan_templates.length > 5 && (
