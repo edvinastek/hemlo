@@ -1,8 +1,10 @@
-import { useEffect, useState } from 'react'
-import { Link } from 'react-router-dom'
+import { useEffect, useMemo, useState } from 'react'
 import { format } from 'date-fns'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { useApp } from '../lib/store'
+import { isModuleOn } from '../lib/day'
+import { search } from '../lib/search-rules'
+import { EmptyState } from '../ui/EmptyState'
 import { ModuleEditor } from '../ui/ModuleEditor'
 import { Habits } from '../sections/Habits'
 import { Supplements } from '../sections/Supplements'
@@ -10,11 +12,12 @@ import { WeighIn } from '../sections/WeighIn'
 import { Stats } from '../sections/Stats'
 import type { ModuleDef, ViewDef } from './types'
 import { PAGE_VIEW_TYPES } from './def-rules'
-import { instanceFor, setModuleEnabled, useModuleDef } from './defs'
-import { useLookups, useRecords, type Rec } from './records'
-import { InlineForm, RecordSheet } from './RecordSheet'
+import { setModuleEnabled, useModuleDef } from './defs'
+import { useLookups, useRecords, type Lookups, type Rec } from './records'
+import { InlineForm, RecordSheet, formatValue } from './RecordSheet'
 import { ExportLink } from '../ui/ExportLink'
-import { CalendarView, ListView, TableView, Totals } from './views'
+import { CalendarView, ListView, TableView, Totals, recordTitle } from './views'
+import type { EntityDef } from './types'
 import { BoardView } from './views/Board'
 import { GridView } from './views/Grid'
 import { ChartView } from './views/Chart'
@@ -22,7 +25,11 @@ import { FollowedSheet } from '../ui/FollowedEvents'
 import type { CalendarEvent } from '../lib/types'
 import './modules.css'
 
-/** Modules whose page is a section the app already has. */
+/** Modules whose page is a section of its own instead of the generic views.
+ *  To give a module its own page, add ONE line here: its key and the
+ *  section component (which gets the profile and today's date). Keep one
+ *  module per line, in any order, so lines added on different branches
+ *  merge without a clash. */
 const SECTION_PAGES: Record<string, (p: { profileId: string; day: string }) => JSX.Element | null> = {
   habits: Habits,
   supplements: Supplements,
@@ -41,7 +48,8 @@ const OWN_SCREENS: Record<string, { to: string; label: string }> = {
 export function ModulePage({ moduleKey }: { moduleKey: string }) {
   const profile = useApp((s) => s.profile)
   const def = useModuleDef(moduleKey)
-  const enabled = useLiveQuery(async () => (profile ? !!(await instanceFor(profile.id, moduleKey))?.enabled : false), [profile?.id, moduleKey])
+  // The one rule for "on" (GEN-01), live.
+  const enabled = useLiveQuery(async () => (profile ? isModuleOn(profile.id, moduleKey) : false), [profile?.id, moduleKey])
   const [editing, setEditing] = useState(false)
 
   // A different module in the same page component starts afresh.
@@ -51,7 +59,9 @@ export function ModulePage({ moduleKey }: { moduleKey: string }) {
   if (def === null) {
     return (
       <div className="page"><div className="page-inner">
-        <p className="empty">There is no module here. It may have been deleted. <Link className="mp-link" to="/more">Modules are in More</Link>.</p>
+        <EmptyState title="There is no module here" action={{ label: 'See your modules', to: '/modules' }}>
+          It may have been deleted on this or another device. What it held is kept.
+        </EmptyState>
       </div></div>
     )
   }
@@ -117,8 +127,9 @@ function Body({ def, profileId, onEdit }: { def: ModuleDef; profileId: string; o
     return (
       <>
         <Head def={def} onEdit={onEdit} />
-        <p className="mp-note">This module has a screen of its own.</p>
-        <div className="mp-actions"><Link className="btn" to={own.to}>{own.label}</Link></div>
+        <EmptyState mark={def.glyph} title="This module has a screen of its own" action={{ label: own.label, to: own.to }}>
+          {def.summary}
+        </EmptyState>
       </>
     )
   }
@@ -126,8 +137,9 @@ function Body({ def, profileId, onEdit }: { def: ModuleDef; profileId: string; o
     return (
       <>
         <Head def={def} onEdit={onEdit} />
-        <p className="empty">Build a module of your own under More, Modules: name it, pick what it tracks, and it gets a page like this one.</p>
-        <div className="mp-actions"><Link className="btn" to="/more">Go to Modules</Link></div>
+        <EmptyState mark="+" title="Build a module of your own" action={{ label: 'Build a module', to: '/modules?build=1' }}>
+          A reading list, the car, plants: name it, pick what it tracks, and it gets a page like this one.
+        </EmptyState>
       </>
     )
   }
@@ -144,12 +156,20 @@ function Generic({ def, profileId, onEdit }: { def: ModuleDef; profileId: string
   const recs = useRecords(profileId, def.key, entity)
   const lookups = useLookups(profileId, entity?.fields ?? [])
   const [sheet, setSheet] = useState<Sheet>(null)
+  const [query, setQuery] = useState('')
+  // The search over a module's records (GEN-13): offered once there are
+  // enough of them to look through.
+  const viewType = view?.type
+  const searchable = !!recs && recs.length >= SEARCH_FROM && (viewType === 'list' || viewType === 'table' || viewType === 'board')
+  const shown = useRecordSearch(entity, recs, lookups, searchable ? query : '')
 
   if (!entity) {
     return (
       <>
         <Head def={def} onEdit={onEdit} />
-        <p className="empty">This module has nothing to keep yet. Open Edit module and add a field: a name, a date, a number.</p>
+        <EmptyState mark={def.glyph ?? Array.from(def.name)[0]?.toUpperCase()} title="Nothing to keep yet" action={{ label: 'Add its first field', onClick: onEdit }}>
+          A module keeps records made of fields: a name, a date, a number. Add the first, and it can hold records.
+        </EmptyState>
       </>
     )
   }
@@ -162,32 +182,41 @@ function Generic({ def, profileId, onEdit }: { def: ModuleDef; profileId: string
   const type: ViewDef['type'] = view && PAGE_VIEW_TYPES.includes(view.type) ? view.type : 'list'
   const noun = entity.label.toLowerCase()
   const sheetEntity = sheet ? def.entities.find((e) => e.name === sheet.entity) ?? entity : entity
+  const empty = recs !== undefined && recs.length === 0
 
   return (
     <>
       <Head def={def} onEdit={onEdit} views={views} active={view?.key} onView={setActive} />
-      {recs === undefined ? null : (
+      {recs === undefined || shown === undefined ? null : empty && type !== 'form' ? (
+        <EmptyState mark={def.glyph ?? Array.from(def.name)[0]?.toUpperCase()} title={`No ${plural(noun)} yet`}
+          action={{ label: `Add the first ${noun}`, onClick: () => add() }}
+          more={[{ label: 'Import from a file', to: '/more?section=Data' }]}>
+          {def.summary ? `${def.summary} ` : ''}Each {noun} you add shows here as soon as it is saved, with or without a connection.
+        </EmptyState>
+      ) : (
         <>
-          {type !== 'form' && <Totals entity={entity} recs={recs} />}
+          {searchable && (
+            <div className="mp-search">
+              <input type="search" value={query} onChange={(e) => setQuery(e.target.value)}
+                placeholder={`Search ${recs.length} ${plural(noun)}`} aria-label={`Search ${plural(noun)}`} />
+            </div>
+          )}
+          {searchable && query.trim() && shown.length === 0 && <p className="mp-note">No {noun} has all of “{query.trim()}”.</p>}
+          {type !== 'form' && <Totals entity={entity} recs={shown} />}
           {type === 'form' && <InlineForm key={entity.name} def={def} entity={entity} profileId={profileId} lookups={lookups} />}
           {type === 'calendar' && view && (
             <CalendarView entity={entity} view={view} recs={recs} lookups={lookups} onOpen={open} onAdd={add} />
           )}
           {type === 'board' && view && (
-            <BoardView key={view.key} def={def} entity={entity} view={view} recs={recs} lookups={lookups} profileId={profileId} onOpen={open} />
+            <BoardView key={view.key} def={def} entity={entity} view={view} recs={shown} lookups={lookups} profileId={profileId} onOpen={open} />
           )}
           {type === 'grid' && view && (
             <GridView key={view.key} def={def} entity={entity} view={view} recs={recs} lookups={lookups} profileId={profileId} onOpen={open} />
           )}
           {type === 'chart' && view && <ChartView key={view.key} entity={entity} view={view} recs={recs} />}
-          {(type === 'list' || type === 'table') && recs.length === 0 && (
-            <div className="empty">
-              <p style={{ margin: 0 }}>No {noun}s yet. Tap the round + button to add the first {noun}; it shows here as soon as it is saved, with or without a connection.</p>
-            </div>
-          )}
-          {type === 'list' && recs.length > 0 && <ListView entity={entity} recs={recs} lookups={lookups} onOpen={open} />}
-          {type === 'table' && view && recs.length > 0 && (
-            <TableView def={def} entity={entity} view={view} recs={recs} lookups={lookups} profileId={profileId} onOpen={open} />
+          {type === 'list' && shown.length > 0 && <ListView entity={entity} recs={shown} lookups={lookups} onOpen={open} />}
+          {type === 'table' && view && shown.length > 0 && (
+            <TableView def={def} entity={entity} view={view} recs={shown} lookups={lookups} profileId={profileId} onOpen={open} />
           )}
         </>
       )}
@@ -204,4 +233,24 @@ function Generic({ def, profileId, onEdit }: { def: ModuleDef; profileId: string
       )}
     </>
   )
+}
+
+/** How many records a module page holds before it offers a search. */
+const SEARCH_FROM = 6
+
+const plural = (noun: string) => (/(s|x|ch|sh)$/.test(noun) ? `${noun}es` : /[^aeiou]y$/.test(noun) ? `${noun.slice(0, -1)}ies` : `${noun}s`)
+
+/** Records that have every word typed, best first, by THE search
+ *  (search-rules.ts): found by their title and by anything else filled in.
+ *  With nothing typed, the records in the page's own order. */
+function useRecordSearch(entity: EntityDef | undefined, recs: Rec[] | undefined, lookups: Lookups, query: string): Rec[] | undefined {
+  return useMemo(() => {
+    if (!recs || !entity || !query.trim()) return recs
+    const items = recs.map((r) => ({
+      rec: r,
+      name: recordTitle(entity, r, lookups),
+      extra: entity.fields.filter((f) => !f.hidden && f.type !== 'formula').map((f) => formatValue(f, r.values[f.name], lookups)).join(' '),
+    }))
+    return search(items, query).map((x) => x.rec)
+  }, [entity, recs, lookups, query])
 }

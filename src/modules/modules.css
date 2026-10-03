@@ -150,3 +150,11 @@
 .form-grid .mf-field .two label { font-size: 12px; }
 /* The repeat control under the fields, set off by a rule. */
 .mf-repeat { display: grid; gap: var(--space-2); margin-top: var(--space-3); padding-top: var(--space-3); border-top: 1px solid var(--e-rule); }
+
+/* ---------- search over a module's records (GEN-13) ------------------------ */
+.mp-search { padding: var(--space-3) var(--space-4) 0; }
+.mp-search input {
+  width: 100%; min-width: 0; min-height: 44px; padding: 8px 12px; box-sizing: border-box;
+  border: 1px solid var(--e-field-line); border-radius: var(--radius-md);
+  background: var(--e-field); color: var(--e-ink); font-family: var(--font-sans); font-size: 15px;
+}
