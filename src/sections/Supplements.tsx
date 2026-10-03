@@ -17,6 +17,7 @@ import { Dropdown } from '../ui/Dropdown'
 import { RepeatPicker, type RepeatValue } from '../ui/RepeatPicker'
 import { offerUndo } from '../ui/Undo'
 import { TrackSheet } from './TrackSheet'
+import { ModuleMenu, PlainSheet } from '../modules/ModuleHead'
 import './tracking.css'
 
 const SUPP_KINDS = ['daily', 'weekdays', 'weekends', 'weekly', 'every_n_weeks', 'monthly', 'monthly_nth', 'yearly', 'dates'] as const
@@ -50,9 +51,10 @@ export function Supplements({ profileId, day }: { profileId: string; day: string
 
   return (
     <section aria-labelledby="supplements-title" className="track">
+      {onPage && <ModuleMenu items={[{ label: 'Time slots…', onSelect: () => setEditSlots(true) }]} />}
       <h2 className="section-title" id="supplements-title">Supplements</h2>
       {live.length === 0 && (
-        <p className="empty">Add a supplement with its dose and when you take it. Each time slot gets one tick for the lot, and each supplement its own.</p>
+        <p className="empty">Add a supplement with its dose and when you take it{onPage ? ': tap the round + button' : ''}.</p>
       )}
       {groups.map((g) => {
         const due = g.rows.filter((s) => supplementDue(s, day))
@@ -120,11 +122,15 @@ export function Supplements({ profileId, day }: { profileId: string; day: string
           </div>
         )
       })}
-      <button className="track-add" onClick={() => setSheet('new')}><PlusGlyph />Add a supplement</button>
+      {/* One add on the page: the round + (CALM-01); Today's Body tab keeps the row. */}
+      {!onPage && <button className="track-add" onClick={() => setSheet('new')}><PlusGlyph />Add a supplement</button>}
       {onPage && (
         <>
-          <button type="button" className="track-fold" aria-expanded={editSlots} onClick={() => setEditSlots(!editSlots)}>Time slots: {slots.map((s) => s.name).join(', ')}</button>
-          {editSlots && <SlotEditor profileId={profileId} slots={slots} supplements={live} />}
+          {editSlots && (
+            <PlainSheet title="Time slots" onClose={() => setEditSlots(false)}>
+              <SlotEditor profileId={profileId} slots={slots} supplements={live} />
+            </PlainSheet>
+          )}
           {archived.length > 0 && (
             <>
               <button type="button" className="track-fold" aria-expanded={showArchived} onClick={() => setShowArchived(!showArchived)}>Archived ({archived.length})</button>

@@ -80,7 +80,7 @@ export function Habits({ profileId, day }: { profileId: string; day: string }) {
         {dueToday.length > 0 && <span className="track-count">{doneCount} of {dueToday.length} done {day === format(new Date(), 'yyyy-MM-dd') ? 'today' : 'that day'}</span>}
       </div>
       {live.length === 0 && (
-        <p className="empty">A habit is something to do again and again: every day, on chosen days, or a few times a week. Add the first and tick it off as you go.</p>
+        <p className="empty">A habit is something to do again and again{onPage ? '. Tap the round + button to add the first' : ''}.</p>
       )}
       {dueToday.map((x) => row(x.h))}
       {live.length > 0 && dueToday.length === 0 && <p className="empty">No habit is due {day === format(new Date(), 'yyyy-MM-dd') ? 'today' : 'that day'}.</p>}
@@ -92,7 +92,8 @@ export function Habits({ profileId, day }: { profileId: string; day: string }) {
           {showOff && notToday.map((x) => row(x.h))}
         </>
       )}
-      <button className="track-add" onClick={() => setSheet('new')}><PlusGlyph />Add a habit</button>
+      {/* One add on the page: the round + (CALM-01); Today's Body tab keeps the row. */}
+      {!onPage && <button className="track-add" onClick={() => setSheet('new')}><PlusGlyph />Add a habit</button>}
       {archived.length > 0 && onPage && (
         <>
           <button type="button" className="track-fold" aria-expanded={showArchived} onClick={() => setShowArchived(!showArchived)}>
@@ -137,13 +138,14 @@ function HabitRow({ habit: h, logs, day, open, onToggle, onEdit, onMove, canUp, 
   const streak = habitStreak(h, days, day)
   const strength = habitStrength(h, days, day)
   const when = habitWhen(h)
+  // The row says when, in plain words (CALM-06); the run and the strength
+  // are in the opened habit.
   const meta = [
     describeSchedule(habitSchedule(h)),
     when.label !== 'Any time' ? when.label : null,
-    state === 'off' ? 'not due' : state === 'met' ? 'done this week' : null,
-    habitStreakText(streak),
-    strength > 0 ? `strength ${strength}%` : null,
+    state === 'met' ? 'done this week' : null,
   ].filter(Boolean).join(' · ')
+  const record = [habitStreakText(streak), strength > 0 ? `strength ${strength}%` : null].filter(Boolean).join(' · ')
   const count = h.target != null
 
   return (
@@ -173,6 +175,7 @@ function HabitRow({ habit: h, logs, day, open, onToggle, onEdit, onMove, canUp, 
       </div>
       {open && (
         <div className="track-open">
+          {record && <p className="hist-kept">{record}</p>}
           <div className="track-actions">
             <button type="button" className="btn" onClick={onEdit}>Edit</button>
             <button type="button" className="btn" disabled={!canUp} onClick={() => onMove(-1)}>Move up</button>
