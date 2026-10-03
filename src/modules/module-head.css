@@ -1,0 +1,32 @@
+/* A module page's head: glyph, name, one ⋮ (ModuleHead.tsx). */
+.mp-menu-slot { display: contents; }
+
+/* The views sheet: one button per view, the one shown marked. */
+.mh-views { display: grid; gap: var(--space-1); }
+.mh-view {
+  display: block; width: 100%; min-height: 44px; text-align: left;
+  padding: 10px var(--space-3); border-radius: var(--radius-sm);
+  font-family: var(--font-sans); font-size: 15px; color: var(--e-ink);
+}
+.mh-view:hover, .mh-view:focus-visible { background: var(--e-tint); outline: none; }
+.mh-view[aria-pressed="true"] { background: var(--e-tint); font-weight: 500; }
+.mh-about { margin: 0; font-family: var(--font-sans); font-size: 15px; color: var(--e-ink); line-height: 1.5; }
+
+/* The line over one of the module's own views. */
+.mh-viewbar {
+  display: flex; align-items: center; gap: var(--space-2);
+  padding: var(--space-2) var(--space-4); border-bottom: 1px solid var(--e-rule);
+  font-family: var(--font-sans); font-size: 14px;
+}
+.mh-viewname { flex: 1; min-width: 0; color: var(--e-ink); font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.mh-viewclose { min-height: 40px; padding: 0 var(--space-2); color: var(--e-accent); font: inherit; }
+.mh-viewclose:focus-visible { outline: 2px solid var(--e-accent); outline-offset: 1px; border-radius: var(--radius-sm); }
+
+/* A quiet "+ Set budgets" line where an empty block would be (CALM-15). */
+.mh-quiet {
+  display: flex; align-items: center; gap: var(--space-2); width: 100%; min-height: 44px;
+  padding: 0 var(--space-4); text-align: left;
+  font-family: var(--font-sans); font-size: 14px; color: var(--e-ink-soft);
+}
+.mh-quiet:hover { color: var(--e-ink); }
+.mh-quiet:focus-visible { outline: 2px solid var(--e-accent); outline-offset: -2px; }

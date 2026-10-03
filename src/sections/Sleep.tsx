@@ -13,6 +13,7 @@ import { addDays } from '../lib/schedule-rules'
 import type { SleepLog } from '../lib/types'
 import { offerUndo } from '../ui/Undo'
 import { DefView, DeleteButton, ModuleTabs, Sheet, defTabs, localToday, useTab } from './ModuleKit'
+import { ModuleMenu } from '../modules/ModuleHead'
 import './sleep.css'
 
 const QUALITY = [1, 2, 3, 4, 5]
@@ -23,7 +24,7 @@ const h1 = (n: number) => `${n.toFixed(1)} h`
  *  against it, sleep debt over the last week and how regular bed and wake
  *  times are, nights added or changed for any day, and an optional bedtime
  *  block on the planner. The module's own views (the table, the month)
- *  stay as tabs. */
+ *  are under the page's ⋮ → Views. */
 export function Sleep({ profileId }: { profileId: string; day: string }) {
   const def = useModuleDef('sleep')
   const today = localToday()
@@ -32,8 +33,13 @@ export function Sleep({ profileId }: { profileId: string; day: string }) {
   const ruleOn = useBuiltinRuleOn(profileId, 'sleep', 'bedtime')
   const [night, setNight] = useState<SleepLog | 'new' | null>(null)
   const [target, setTarget] = useState(false)
-  const tabs = [{ key: 'overview', name: 'Overview' }, ...defTabs(def)]
-  const [tab, setTab] = useTab('sleep', tabs)
+  // The nights table is the Nights tab; the month and any other view of
+  // the module's own are under ⋮ → Views.
+  const all = defTabs(def)
+  const nightsTab = all.find((t) => t.key === 'view:log')
+  const tabs = [{ key: 'overview', name: 'Overview' }, ...(nightsTab ? [{ key: nightsTab.key, name: 'Nights' }] : [])]
+  const views = all.filter((t) => t !== nightsTab)
+  const [tab, setTab] = useTab('sleep', [...tabs, ...views])
 
   useEffect(() => { void carryOutBedtimeRule(profileId, today) }, [profileId, today, ruleOn])
 
@@ -42,6 +48,7 @@ export function Sleep({ profileId }: { profileId: string; day: string }) {
 
   return (
     <>
+      <ModuleMenu views={views} active={tab} onView={setTab} />
       <ModuleTabs tabs={tabs} active={tab} onTab={setTab} />
       {tab === 'overview' && (
         <>
@@ -56,16 +63,22 @@ export function Sleep({ profileId }: { profileId: string; day: string }) {
             </div>
             <button type="button" className="btn" onClick={() => setTarget(true)}>Change</button>
           </div>
-          <h2 className="section-title">Nights</h2>
+          <h2 className="section-title">Last nights</h2>
           {nights.length === 0 ? (
-            <p className="empty">Each night is logged on the morning it ends: when you went to bed, when you woke, and how well you slept.
-              Tap the round + button to add last night, or any night before it.</p>
-          ) : <NightList nights={nights} s={settings} onOpen={setNight} />}
+            <p className="empty">Each night is logged on the morning it ends. Tap the round + button to add last night.</p>
+          ) : (
+            <>
+              <NightList nights={nights.slice(0, 3)} s={settings} onOpen={setNight} brief />
+              {nights.length > 3 && nightsTab && <div className="kit-toolbar"><button type="button" className="btn" onClick={() => setTab(nightsTab.key)}>All nights</button></div>}
+              {!nightsTab && nights.length > 3 && <NightList nights={nights.slice(3)} s={settings} onOpen={setNight} brief />}
+            </>
+          )}
           <div className="kit-gap" />
           <button type="button" className="fab" aria-label="Add a night" onClick={() => setNight('new')}>+</button>
         </>
       )}
-      {tab.startsWith('view:') && def && <DefView def={def} viewKey={tab.slice(5)} profileId={profileId} />}
+      {tab.startsWith('view:') && def && <DefView def={def} viewKey={tab.slice(5)} profileId={profileId}
+        onClose={tab === nightsTab?.key ? undefined : () => setTab('overview')} />}
       {night && (
         <NightSheet key={night === 'new' ? 'new' : night.id} profileId={profileId} night={night === 'new' ? null : night}
           day={night === 'new' ? free : night.log_date} s={settings} today={today} onClose={() => setNight(null)} />
@@ -106,7 +119,9 @@ function Figures({ nights, s, today }: { nights: SleepLog[]; s: SleepSettings; t
   )
 }
 
-function NightList({ nights, s, onOpen }: { nights: SleepLog[]; s: SleepSettings; onOpen: (n: SleepLog) => void }) {
+/** Nights, newest first. `brief` (the overview's last three) leaves out how
+ *  late bed and waking were; the Nights tab and each night's sheet say it. */
+function NightList({ nights, s, onOpen, brief = false }: { nights: SleepLog[]; s: SleepSettings; onOpen: (n: SleepLog) => void; brief?: boolean }) {
   const [shown, setShown] = useState(30)
   return (
     <>
@@ -120,7 +135,7 @@ function NightList({ nights, s, onOpen }: { nights: SleepLog[]; s: SleepSettings
                 <span className="row-name">{dayLabel(n.log_date)}</span>
                 <span className="row-meta">{n.went_to_bed?.slice(0, 5) ?? '—'} to {n.woke_at?.slice(0, 5) ?? '—'}
                   {n.quality != null ? ` · quality ${n.quality} of 5` : ''}</span>
-                <span className="row-meta">{[describeLate(c.bedLate, 'bed'), describeLate(c.wakeLate, 'up')].filter(Boolean).join(' · ')}</span>
+                {!brief && <span className="row-meta">{[describeLate(c.bedLate, 'bed'), describeLate(c.wakeLate, 'up')].filter(Boolean).join(' · ')}</span>}
               </button>
               <div className="slp-hours">
                 <span className="kit-num">{c.hours != null ? h1(c.hours) : '—'}</span>

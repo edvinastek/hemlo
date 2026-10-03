@@ -1,4 +1,4 @@
-import { useEffect, useState, type FormEvent, type ReactNode } from 'react'
+import { useState, type FormEvent, type ReactNode } from 'react'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { useSearchParams } from 'react-router-dom'
 import { db } from '../lib/db'
@@ -13,12 +13,15 @@ import { CalendarView, ListView, TableView, Totals } from '../modules/views'
 import { BoardView } from '../modules/views/Board'
 import { GridView } from '../modules/views/Grid'
 import { ChartView } from '../modules/views/Chart'
+import { ViewBar } from '../modules/ModuleHead'
+import { useBackClose } from '../ui/useBackClose'
 import './kit.css'
 
 /** Pieces the richer module pages (Training, Sleep, Projects, Finance,
  *  Learning, Health) share, so each page keeps the module's own views from
  *  its definition — the table, the month, any view added in Edit module —
- *  next to its own tabs. Nothing the generic page offered is lost. */
+ *  under its ⋮ → Views (v17, CALM-05), beside its own tabs. Nothing the
+ *  generic page offered is lost. */
 
 export interface Tab { key: string; name: string }
 
@@ -49,7 +52,7 @@ export function ModuleTabs({ tabs, active, onTab, label = 'Views' }: { tabs: Tab
 }
 
 /** The module's own views (from its definition, Edit module's changes
- *  included) as tabs, after the page's own ones. */
+ *  included), for the page's ⋮ → Views. */
 export function defTabs(def: ModuleDef | null | undefined, skip: string[] = []): Tab[] {
   if (!def) return []
   return def.views.filter((v) => !v.hidden && !skip.includes(v.key) && def.entities.some((e) => e.name === v.entity))
@@ -57,8 +60,11 @@ export function defTabs(def: ModuleDef | null | undefined, skip: string[] = []):
 }
 
 /** One of the module's own views, drawn as the generic module page draws it,
- *  with its add button and record sheet. */
-export function DefView({ def, viewKey, profileId, fab = true }: { def: ModuleDef; viewKey: string; profileId: string; fab?: boolean }) {
+ *  with its add button and record sheet; `onClose` adds the line over it
+ *  with the way back to the page. */
+export function DefView({ def, viewKey, profileId, fab = true, onClose }: {
+  def: ModuleDef; viewKey: string; profileId: string; fab?: boolean; onClose?: () => void
+}) {
   const view = def.views.find((v) => v.key === viewKey)
   const entity = def.entities.find((e) => e.name === view?.entity) ?? def.entities[0]
   const recs = useRecords(profileId, def.key, entity)
@@ -70,6 +76,7 @@ export function DefView({ def, viewKey, profileId, fab = true }: { def: ModuleDe
   const noun = entity.label.toLowerCase()
   return (
     <>
+      {onClose && <ViewBar name={view.name} onClose={onClose} />}
       {recs === undefined ? null : (
         <>
           {type !== 'form' && <Totals entity={entity} recs={recs} />}
@@ -99,12 +106,8 @@ export function DefView({ def, viewKey, profileId, fab = true }: { def: ModuleDe
 export function Sheet({ title, onClose, onSubmit, children, actions, wide }: {
   title: string; onClose: () => void; onSubmit?: () => void; children: ReactNode; actions?: ReactNode; wide?: boolean
 }) {
-  // Escape closes, as every sheet in the app does.
-  useEffect(() => {
-    const key = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose() }
-    window.addEventListener('keydown', key)
-    return () => window.removeEventListener('keydown', key)
-  }, [onClose])
+  // Back and Escape close it, as every sheet in the app does (CALM-10).
+  useBackClose(onClose)
   const submit = (e: FormEvent) => { e.preventDefault(); onSubmit?.() }
   return (
     <>

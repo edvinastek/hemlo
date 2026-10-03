@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useState, type ReactNode } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { format } from 'date-fns'
 import { useLiveQuery } from 'dexie-react-hooks'
@@ -23,13 +23,13 @@ import { PAGE_VIEW_TYPES } from './def-rules'
 import { setModuleEnabled, useModuleDef } from './defs'
 import { useLookups, useRecords, type Lookups, type Rec } from './records'
 import { InlineForm, RecordSheet, formatValue } from './RecordSheet'
-import { ExportLink } from '../ui/ExportLink'
 import { CalendarView, ListView, TableView, Totals, recordTitle } from './views'
 import type { EntityDef } from './types'
 import { BoardView } from './views/Board'
 import { GridView } from './views/Grid'
 import { ChartView } from './views/Chart'
 import { FollowedSheet } from '../ui/FollowedEvents'
+import { ModuleHeadProvider, ModuleMenu, ViewBar } from './ModuleHead'
 import type { CalendarEvent } from '../lib/types'
 import './modules.css'
 
@@ -93,7 +93,7 @@ export function ModulePage({ moduleKey }: { moduleKey: string }) {
       <div className="page-inner">
         {enabled === false && (
           <div className="mp-actions" style={{ borderBottom: '1px solid var(--e-rule)' }}>
-            <p className="mf-hint" style={{ flex: 1 }}>This module is switched off, so it has no place on the page bar.</p>
+            <p className="mf-hint" style={{ flex: 1 }}>This module is switched off.</p>
             <button type="button" className="btn" onClick={() => void setModuleEnabled(profile.id, moduleKey, true)}>Switch on</button>
           </div>
         )}
@@ -103,71 +103,38 @@ export function ModulePage({ moduleKey }: { moduleKey: string }) {
   )
 }
 
-function Head({ def, onEdit, views, active, onView }: {
-  def: ModuleDef; onEdit: () => void; views?: ViewDef[]; active?: string; onView?: (k: string) => void
-}) {
-  return (
-    <header className="page-head mp-head">
-      <div className="mp-title">
-        <span className="mp-glyph" aria-hidden>{def.glyph ?? Array.from(def.name)[0]?.toUpperCase()}</span>
-        <h1 className="page-date">{def.name}</h1>
-        <button type="button" className="btn mp-edit" onClick={onEdit}>Edit module</button>
-      </div>
-      {def.summary && <p className="page-sub">{def.summary}</p>}
-      {views && views.length > 1 && (
-        <div className="tabs" role="tablist" aria-label="Views">
-          {views.map((v) => (
-            <button key={v.key} role="tab" aria-selected={v.key === active} onClick={() => onView?.(v.key)}>{v.name}</button>
-          ))}
-        </div>
-      )}
-    </header>
-  )
-}
-
 function Body({ def, profileId, onEdit }: { def: ModuleDef; profileId: string; onEdit: () => void }) {
   const Section = SECTION_PAGES[def.key]
-  if (Section) {
-    return (
-      <>
-        <Head def={def} onEdit={onEdit} />
-        <Section profileId={profileId} day={format(new Date(), 'yyyy-MM-dd')} />
-        {def.entities[0] && <ExportLink source={{
-          dataset: `m:${def.key}:${def.entities[0].name}`,
-          // The module's other things to save: its other entities, and the
-          // household's done history beside its chores.
-          more: [...def.entities.slice(1).map((e) => `m:${def.key}:${e.name}`), ...(def.key === 'household' ? [`m:household:chore_log`] : [])],
-        }} />}
-      </>
-    )
-  }
   const own = OWN_SCREENS[def.key]
-  if (own) {
-    return (
-      <>
-        <Head def={def} onEdit={onEdit} />
-        <EmptyState mark={def.glyph} title="This module has a screen of its own" action={{ label: own.label, to: own.to }}>
-          {def.summary}
-        </EmptyState>
-      </>
-    )
-  }
-  if (def.key === 'custom') {
-    return (
-      <>
-        <Head def={def} onEdit={onEdit} />
-        <EmptyState mark="+" title="Build a module of your own" action={{ label: 'Build a module', to: '/modules?build=1' }}>
-          A reading list, the car, plants: name it, pick what it tracks, and it gets a page like this one.
-        </EmptyState>
-      </>
-    )
-  }
-  return <Generic def={def} profileId={profileId} onEdit={onEdit} />
+  return (
+    <ModuleHeadProvider def={def} onEdit={onEdit}>
+      {(head) => Section ? (
+        <>
+          {head}
+          <Section profileId={profileId} day={format(new Date(), 'yyyy-MM-dd')} />
+        </>
+      ) : own ? (
+        <>
+          {head}
+          <EmptyState mark={def.glyph} title="This module has a screen of its own" action={{ label: own.label, to: own.to }}>
+            {def.summary}
+          </EmptyState>
+        </>
+      ) : def.key === 'custom' ? (
+        <>
+          {head}
+          <EmptyState mark="+" title="Build a module of your own" action={{ label: 'Build a module', to: '/modules?build=1' }}>
+            A reading list, the car, plants: name it, pick what it tracks, and it gets a page like this one.
+          </EmptyState>
+        </>
+      ) : <Generic def={def} profileId={profileId} onEdit={onEdit} head={head} />}
+    </ModuleHeadProvider>
+  )
 }
 
 type Sheet = { rec?: Rec; day?: string; entity: string } | null
 
-function Generic({ def, profileId, onEdit }: { def: ModuleDef; profileId: string; onEdit: () => void }) {
+function Generic({ def, profileId, onEdit, head }: { def: ModuleDef; profileId: string; onEdit: () => void; head: ReactNode }) {
   const views = def.views.filter((v) => !v.hidden && def.entities.some((e) => e.name === v.entity))
   const [activeKey, setActive] = useState<string | undefined>(views[0]?.key)
   const view = views.find((v) => v.key === activeKey) ?? views[0]
@@ -194,15 +161,15 @@ function Generic({ def, profileId, onEdit }: { def: ModuleDef; profileId: string
   if (!entity) {
     return (
       <>
-        <Head def={def} onEdit={onEdit} />
+        {head}
         <EmptyState mark={def.glyph ?? Array.from(def.name)[0]?.toUpperCase()} title="Nothing to keep yet" action={{ label: 'Add its first field', onClick: onEdit }}>
-          A module keeps records made of fields: a name, a date, a number. Add the first, and it can hold records.
+          A module keeps records made of fields: a name, a date, a number.
         </EmptyState>
       </>
     )
   }
   if (entity.table && !['calendar_event', 'sleep_log', 'workout_log', 'goal'].includes(entity.table)) {
-    return <><Head def={def} onEdit={onEdit} /><p className="empty">These records are kept on another screen.</p></>
+    return <>{head}<p className="empty">These records are kept on another screen.</p></>
   }
 
   const open = (rec: Rec) => setSheet({ rec, entity: entity.name })
@@ -214,12 +181,16 @@ function Generic({ def, profileId, onEdit }: { def: ModuleDef; profileId: string
 
   return (
     <>
-      <Head def={def} onEdit={onEdit} views={views} active={view?.key} onView={setActive} />
+      {head}
+      {/* The module's views are under the page's ⋮ (CALM-05); the first is the page. */}
+      <ModuleMenu views={views.length > 1 ? views.map((v) => ({ key: v.key, name: v.name })) : undefined} active={view?.key} onView={setActive}
+        exportSource={{ dataset: `m:${def.key}:${entity.name}` }} calendar={type === 'calendar' || entity.table === 'calendar_event'} />
+      {view && views[0] && view.key !== views[0].key && <ViewBar name={view.name} onClose={() => setActive(views[0].key)} />}
       {recs === undefined || shown === undefined ? null : empty && type !== 'form' ? (
         <EmptyState mark={def.glyph ?? Array.from(def.name)[0]?.toUpperCase()} title={`No ${plural(noun)} yet`}
           action={{ label: `Add the first ${noun}`, onClick: () => add() }}
           more={[{ label: 'Import from a file', to: '/more?section=Data' }]}>
-          {def.summary ? `${def.summary} ` : ''}Each {noun} you add shows here as soon as it is saved, with or without a connection.
+          Each {noun} you add shows here as soon as it is saved, with or without a connection.
         </EmptyState>
       ) : (
         <>
@@ -249,7 +220,6 @@ function Generic({ def, profileId, onEdit }: { def: ModuleDef; profileId: string
           )}
         </>
       )}
-      <ExportLink source={{ dataset: `m:${def.key}:${entity.name}` }} calendar={type === 'calendar' || entity.table === 'calendar_event'} />
       {type !== 'form' && (
         <button type="button" className="fab" aria-label={`Add ${noun}`} onClick={() => add()}>+</button>
       )}
