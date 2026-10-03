@@ -13,6 +13,12 @@ interface Props {
   sub?: string
   /** Under the date: the day's public holidays on Today. */
   note?: ReactNode
+  /** In place of the date (Plan's Inbox has no day). */
+  heading?: ReactNode
+  /** The week strip; on unless a view has no day to pick. */
+  strip?: boolean
+  /** What a tab says, when more than its name ("Inbox 3"). */
+  tabLabel?: (section: string) => ReactNode
 }
 
 /** Serif date, week strip, section tabs. The header owns about a third of the
@@ -21,7 +27,7 @@ interface Props {
  *  Tapping the date opens a calendar to jump to any day. Every way of moving
  *  (the calendar, the strip, a swipe) stops three years back and five years
  *  ahead of today. */
-export function PageHead({ date, onPick, sections, active, onSection, sub, note }: Props) {
+export function PageHead({ date, onPick, sections, active, onSection, sub, note, heading: own, strip: showStrip = true, tabLabel }: Props) {
   const weekStart = startOfWeek(date, { weekStartsOn: 1 })
   const today = new Date()
   const { range, clamp, today: todayKey } = useDayRange()
@@ -39,13 +45,15 @@ export function PageHead({ date, onPick, sections, active, onSection, sub, note 
   return (
     <header className="page-head">
       <h1 className="page-date">
-        <button type="button" className="page-date-pick" aria-haspopup="dialog" aria-expanded={picking}
-          title="Go to a day" onClick={() => setPicking(true)}>{heading}</button>
+        {own ?? (
+          <button type="button" className="page-date-pick" aria-haspopup="dialog" aria-expanded={picking}
+            title="Go to a day" onClick={() => setPicking(true)}>{heading}</button>
+        )}
       </h1>
       {sub && <p className="page-sub">{sub}</p>}
       {note}
 
-      <div className={`week-strip${strip.slide ? ` slide-${strip.slide}` : ''}`}
+      {showStrip && <div className={`week-strip${strip.slide ? ` slide-${strip.slide}` : ''}`}
         key={weekStart.toISOString()} {...strip.handlers}>
         {Array.from({ length: 7 }, (_, i) => addDays(weekStart, i)).map((d) => (
           <button
@@ -59,12 +67,12 @@ export function PageHead({ date, onPick, sections, active, onSection, sub, note 
             <span className="disc">{format(d, 'd')}</span>
           </button>
         ))}
-      </div>
+      </div>}
 
       <div className="tabs" role="tablist">
         {sections.map((s) => (
           <button key={s} role="tab" aria-selected={s === active} onClick={() => onSection(s)}>
-            {s}
+            {tabLabel ? tabLabel(s) : s}
           </button>
         ))}
       </div>

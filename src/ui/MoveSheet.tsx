@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react'
 import type { Warning } from '../lib/reorder-rules'
+import { useBackClose } from './useBackClose'
 import './move.css'
 
 interface Props {
@@ -23,11 +24,8 @@ export function MoveSheet({ title, lines = [], warnings, action, nothing, onConf
   const [busy, setBusy] = useState(false)
   const first = useRef<HTMLButtonElement>(null)
   useEffect(() => { first.current?.focus() }, [])
-  useEffect(() => {
-    const esc = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose() }
-    window.addEventListener('keydown', esc)
-    return () => window.removeEventListener('keydown', esc)
-  }, [onClose])
+  // Back and Escape are Cancel.
+  useBackClose(onClose)
 
   async function go() {
     setBusy(true)

@@ -62,6 +62,9 @@ interface Props {
   /** At most this many months side by side, as many as the width allows
    *  (each at least 250 px). One, the default, is the phone's single column. */
   columns?: number
+  /** Told the first and last day of the months being drawn, whenever they
+   *  change, so a page can work out only what is on screen (Plan's Year). */
+  onShown?: (from: string, to: string) => void
 }
 
 /** Months stacked top to bottom, scrolled like a phone's calendar. About two
@@ -71,7 +74,7 @@ interface Props {
  *  advance (a heading and four to six rows), which is what makes that work. */
 export function MonthScroller({
   first, last, openAt, jump, today, label, marks, heat, selected, chosen, disabled, describe, extra, onDayClick, className,
-  columns = 1,
+  columns = 1, onShown,
 }: Props) {
   const root = useRef<HTMLDivElement>(null)
   const scroller = useRef<HTMLDivElement>(null)
@@ -113,6 +116,11 @@ export function MonthScroller({
 
   const from = Math.max(0, shown[0])
   const to = Math.min(months.length - 1, shown[1])
+  const shownFrom = months[from] ? `${months[from].key}-01` : first
+  const shownTo = months[to] ? monthDays(months[to]).at(-1)! : last
+  const told = useRef(onShown)
+  told.current = onShown
+  useEffect(() => { told.current?.(shownFrom, shownTo) }, [shownFrom, shownTo])
   const style = { '--ms-head': `${HEAD_H}px`, '--ms-row': `${ROW_H}px` } as CSSProperties
 
   const letters = WEEKDAYS.map((w) => <span key={w}>{w[0]}</span>)
