@@ -687,6 +687,88 @@ begin
        (select string_agg(distinct carb_basis, ',') from food where owner_id is null));
 end $$;
 
+-- Habits, supplements and chores (030, engineer B): a habit's colour, mark and
+-- part of the day; a supplement's own schedule and slot; a chore's holiday.
+do $$
+declare n int; h uuid; s uuid; c uuid;
+begin
+  perform set_config('role', 'authenticated', true);
+  perform set_config('request.jwt.claims', json_build_object('sub', (select a from _ids), 'role', 'authenticated')::text, true);
+  insert into habit (profile_id, name, colour, mark, day_part) select pa, 'Mobility 030', '#4777d2', 'M', 'morning' from _ids returning id into h;
+  insert into supplement (profile_id, name, time_slot, rule, rule_config, start_date, end_date)
+    select pa, 'Vitamin D 030', 'on-waking', 'weekly', '{"weekdays":[1,4]}'::jsonb, date '2026-10-01', date '2027-03-31' from _ids returning id into s;
+  select id into c from chore where name = 'Hoover the stairs';
+  update chore set paused_from = date '2026-10-10', paused_until = date '2026-10-20' where id = c;
+  get diagnostics n = row_count;
+  insert into _r (check_name, expected, actual) values ('A can pause a household chore between two dates', '1', n::text);
+  begin
+    update habit set colour = 'red' where id = h;
+    insert into _r (check_name, expected, actual) values ('A habit''s colour must be a #rrggbb colour', 'denied', 'allowed');
+  exception when others then
+    insert into _r (check_name, expected, actual) values ('A habit''s colour must be a #rrggbb colour', 'denied', 'denied');
+  end;
+  begin
+    update habit set day_part = 'night' where id = h;
+    insert into _r (check_name, expected, actual) values ('A habit''s part of the day must be one the app knows', 'denied', 'allowed');
+  exception when others then
+    insert into _r (check_name, expected, actual) values ('A habit''s part of the day must be one the app knows', 'denied', 'denied');
+  end;
+  begin
+    update supplement set rule = 'times_per_week' where id = s;
+    insert into _r (check_name, expected, actual) values ('A supplement''s rule must be one with fixed days', 'denied', 'allowed');
+  exception when others then
+    insert into _r (check_name, expected, actual) values ('A supplement''s rule must be one with fixed days', 'denied', 'denied');
+  end;
+  begin
+    update supplement set end_date = date '2026-09-01' where id = s;
+    insert into _r (check_name, expected, actual) values ('A supplement cannot end before it starts', 'denied', 'allowed');
+  exception when others then
+    insert into _r (check_name, expected, actual) values ('A supplement cannot end before it starts', 'denied', 'denied');
+  end;
+  begin
+    update supplement set time_slot = 'Not A Key!' where id = s;
+    insert into _r (check_name, expected, actual) values ('A supplement''s slot is a short key', 'denied', 'allowed');
+  exception when others then
+    insert into _r (check_name, expected, actual) values ('A supplement''s slot is a short key', 'denied', 'denied');
+  end;
+  begin
+    update chore set paused_until = date '2026-10-01' where id = c;
+    insert into _r (check_name, expected, actual) values ('A chore''s pause cannot end before it starts', 'denied', 'allowed');
+  exception when others then
+    insert into _r (check_name, expected, actual) values ('A chore''s pause cannot end before it starts', 'denied', 'denied');
+  end;
+  execute 'reset role';
+  insert into _r (check_name, expected, actual) values
+    ('A habit keeps its colour, mark and part of the day', '#4777d2 M morning',
+       (select colour || ' ' || mark || ' ' || day_part from habit where id = h)),
+    ('A supplement keeps its schedule and slot', 'weekly on-waking 2026-10-01',
+       (select rule || ' ' || time_slot || ' ' || start_date::text from supplement where id = s));
+
+  -- M, a member, sees the household chore's holiday and can end it.
+  perform set_config('role', 'authenticated', true);
+  perform set_config('request.jwt.claims', json_build_object('sub', (select m from _ids), 'role', 'authenticated')::text, true);
+  insert into _r (check_name, expected, actual) values
+    ('A household member sees a chore''s pause', '2026-10-20', (select paused_until::text from chore where id = c));
+  update chore set paused_from = null, paused_until = null where id = c;
+  get diagnostics n = row_count;
+  insert into _r (check_name, expected, actual) values ('A household member can end a chore''s pause', '1', n::text);
+  execute 'reset role';
+
+  -- B, a stranger, sees none of it and changes none of it.
+  perform set_config('role', 'authenticated', true);
+  perform set_config('request.jwt.claims', json_build_object('sub', (select b from _ids), 'role', 'authenticated')::text, true);
+  insert into _r (check_name, expected, actual) values
+    ('B cannot read A''s habit colour', '0', (select count(*) from habit where id = h)::text),
+    ('B cannot read A''s supplement schedule', '0', (select count(*) from supplement where id = s)::text);
+  update supplement set rule = null where id = s;
+  get diagnostics n = row_count;
+  insert into _r (check_name, expected, actual) values ('B cannot change A''s supplement schedule', '0', n::text);
+  update chore set paused = true where id = c;
+  get diagnostics n = row_count;
+  insert into _r (check_name, expected, actual) values ('B cannot pause A''s household chore', '0', n::text);
+  execute 'reset role';
+end $$;
+
 -- A deletes their account while M is still in the household ------------------
 do $$
 begin

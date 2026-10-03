@@ -205,3 +205,205 @@ export function continueList(text: string, start: number, end: number): Edit | n
   const out = text.slice(0, start) + insert + text.slice(end)
   return { text: out, start: start + insert.length, end: start + insert.length }
 }
+
+// ---------- moving and indenting checklist items (NOT-04) --------------------
+
+const LIST_LINE = /^([ \t]*)[-*+] /
+const indentWidth = (indent: string) => indent.replace(/\t/g, '  ').length
+
+/** The list item on a line: how deep it sits, or null for any other line. */
+function itemDepth(line: string | undefined): number | null {
+  if (line === undefined) return null
+  const m = LIST_LINE.exec(bare(line))
+  return m ? depthOf(m[1]) : null
+}
+
+/** The lines an item covers: itself and the deeper items under it. */
+export function itemSpan(note: string, line: number): [number, number] | null {
+  const lines = note.split('\n')
+  const depth = itemDepth(lines[line])
+  if (depth === null) return null
+  let end = line + 1
+  while (end < lines.length) {
+    const d = itemDepth(lines[end])
+    if (d === null || d <= depth) break
+    end++
+  }
+  return [line, end]
+}
+
+/** The item next to this one at the same depth, in the same list, above
+ *  (dir -1) or below (dir 1); null at either end. */
+function sibling(lines: string[], line: number, dir: -1 | 1): number | null {
+  const depth = itemDepth(lines[line])
+  if (depth === null) return null
+  if (dir === 1) {
+    const span = itemSpan(lines.join('\n'), line)!
+    const next = span[1]
+    return itemDepth(lines[next]) === depth ? next : null
+  }
+  for (let i = line - 1; i >= 0; i--) {
+    const d = itemDepth(lines[i])
+    if (d === null || d < depth) return null
+    if (d === depth) return i
+  }
+  return null
+}
+
+/** Moves an item, with the items under it, one place up or down among the
+ *  items at its depth. Returns the note and the item's new line, or null
+ *  when it cannot move that way. */
+export function moveItem(note: string, line: number, dir: -1 | 1): { text: string; line: number } | null {
+  const lines = note.split('\n')
+  const other = sibling(lines, line, dir)
+  if (other === null) return null
+  const [a0, a1] = itemSpan(note, Math.min(line, other))!
+  const [b0, b1] = itemSpan(note, Math.max(line, other))!
+  if (a1 !== b0) return null
+  const first = lines.slice(a0, a1)
+  const second = lines.slice(b0, b1)
+  const out = [...lines.slice(0, a0), ...second, ...first, ...lines.slice(b1)]
+  return { text: out.join('\n'), line: dir === -1 ? a0 : a0 + second.length }
+}
+
+/** Moves an item, with the items under it, to just before another item of
+ *  the same list (or to the end of that list when `before` is null and
+ *  `listEnd` names the list's last line). It takes the depth of the item it
+ *  lands before, so a drag can also take it in or out a step. */
+export function moveItemTo(note: string, from: number, before: number | null, listEnd?: number): { text: string; line: number } | null {
+  const lines = note.split('\n')
+  const span = itemSpan(note, from)
+  if (!span) return null
+  const [s0, s1] = span
+  if (before !== null && before >= s0 && before < s1) return null
+  const target = before ?? (listEnd != null ? listEnd + 1 : null)
+  if (target === null || target === s0 || target === s1) return null
+  const moving = lines.slice(s0, s1)
+  const fromDepth = itemDepth(moving[0])!
+  const toDepth = before !== null ? itemDepth(lines[before]) ?? fromDepth : fromDepth
+  const shifted = shiftLines(moving, toDepth - fromDepth)
+  const rest = [...lines.slice(0, s0), ...lines.slice(s1)]
+  const at = target > s0 ? target - moving.length : target
+  rest.splice(at, 0, ...shifted)
+  return { text: rest.join('\n'), line: at }
+}
+
+/** Every line given in or out by `steps` levels (two spaces each), never
+ *  past the left edge or deeper than three. */
+function shiftLines(lines: string[], steps: number): string[] {
+  if (!steps) return lines
+  return lines.map((l) => {
+    const m = /^([ \t]*)/.exec(l)!
+    const width = indentWidth(m[1])
+    const next = Math.max(0, Math.min(6, width + steps * 2))
+    return ' '.repeat(next) + l.slice(m[1].length)
+  })
+}
+
+/** Takes an item (and the items under it) in a step, or out a step. An item
+ *  can go at most one step deeper than the item above it, so the list keeps
+ *  its shape; the first item of a list stays at the edge. */
+export function indentItem(note: string, line: number, dir: -1 | 1): { text: string; line: number } | null {
+  const lines = note.split('\n')
+  const depth = itemDepth(lines[line])
+  if (depth === null) return null
+  if (dir === -1 && depth === 0) return null
+  if (dir === 1) {
+    const above = itemDepth(lines[line - 1])
+    if (above === null || depth + 1 > Math.min(3, above + 1)) return null
+  }
+  const [s0, s1] = itemSpan(note, line)!
+  const out = [...lines.slice(0, s0), ...shiftLines(lines.slice(s0, s1), dir), ...lines.slice(s1)]
+  return { text: out.join('\n'), line }
+}
+
+/** The toolbar's indent and outdent: every list line touched by the
+ *  selection goes a step in or out. Other lines are left alone. */
+export function indentSelection(text: string, start: number, end: number, dir: -1 | 1): Edit {
+  if (start > end) [start, end] = [end, start]
+  const from = text.lastIndexOf('\n', start - 1) + 1
+  const stop = end > start && text[end - 1] === '\n' ? end - 1 : end
+  const nl = text.indexOf('\n', stop)
+  const to = nl === -1 ? text.length : nl
+  const lines = text.slice(from, to).split('\n')
+  const next = lines.map((l) => (LIST_LINE.test(bare(l)) ? shiftLines([l], dir)[0] : l))
+  const out = text.slice(0, from) + next.join('\n') + text.slice(to)
+  const firstDelta = next[0].length - lines[0].length
+  const clamp = (n: number) => Math.max(from, Math.min(out.length, n))
+  return { text: out, start: clamp(start + firstDelta), end: clamp(end + out.length - text.length) }
+}
+
+/** A list's items in the order to draw them. With "ticked last" on, ticked
+ *  checklist items (with whatever sits under them) go below the rest, as on
+ *  a paper list where the done things are crossed off at the bottom. The
+ *  note's text keeps its own order; only the drawing changes. */
+export function orderItems(items: Item[], tickedLast: boolean): Item[] {
+  if (!tickedLast) return items
+  const groups: Item[][] = []
+  for (const it of items) {
+    if (it.depth === 0 || !groups.length) groups.push([it])
+    else groups[groups.length - 1].push(it)
+  }
+  const isDone = (g: Item[]) => g[0].kind === 'check' && g[0].done
+  return [...groups.filter((g) => !isDone(g)), ...groups.filter(isDone)].flat()
+}
+
+// ---------- codes kept out of sight (NOT-17, NOT-21) ------------------------
+// Two kinds of line carry a short code: the "ask after done" marker
+// ({after-done:reading}) and a recipe's link line ("From recipe: Curry ·
+// 4 portions {recipe:<id>}"). The editor shows the note without them: the
+// marker as a sentence beside the box, the link line without its code.
+// What the person types is put back together with the codes on save.
+
+const MARKER_LINE = /^\{after-done:([a-z0-9-]{1,64})\}$/
+const LINK_LINE = /^(From recipe: .+ · [\d.]+ portions?) \{recipe:([0-9a-f-]{36})\}$/
+
+export interface Hidden {
+  /** The template the note asks for once its task is done. */
+  afterDone: string | null
+  /** Each recipe link line as shown, with the recipe it points to. */
+  links: { text: string; id: string }[]
+}
+
+/** The note as the editor shows it, and what was taken out. */
+export function toEditable(note: string | null | undefined): { text: string; hidden: Hidden } {
+  const hidden: Hidden = { afterDone: null, links: [] }
+  const out: string[] = []
+  for (const raw of (note ?? '').split('\n')) {
+    const l = bare(raw)
+    const marker = MARKER_LINE.exec(l)
+    if (marker) { hidden.afterDone ??= marker[1]; continue }
+    const link = LINK_LINE.exec(l)
+    if (link) { hidden.links.push({ text: link[1], id: link[2] }); out.push(link[1]); continue }
+    out.push(raw)
+  }
+  return { text: out.join('\n'), hidden }
+}
+
+/** The note to keep from what the editor shows: each link line still there
+ *  gets its code back (a link line the person rewrote is just text now),
+ *  and the marker goes back on a line of its own at the end. */
+export function fromEditable(text: string, hidden: Hidden): string {
+  const left = [...hidden.links]
+  const lines = text.split('\n').map((raw) => {
+    const i = left.findIndex((k) => k.text === bare(raw))
+    if (i < 0) return raw
+    const [k] = left.splice(i, 1)
+    return `${k.text} {recipe:${k.id}}`
+  })
+  const body = lines.join('\n')
+  if (!hidden.afterDone) return body
+  const marker = `{after-done:${hidden.afterDone}}`
+  return body === '' ? marker : `${body}\n${marker}`
+}
+
+/** A recipe link line, as the note page reads it ("From recipe: …"), or null. */
+export function linkOnLine(line: string): { name: string; portions: number; id: string } | null {
+  const m = /^From recipe: (.+) · ([\d.]+) portions? \{recipe:([0-9a-f-]{36})\}$/.exec(bare(line))
+  return m ? { name: m[1], portions: Number(m[2]), id: m[3] } : null
+}
+
+/** Is this line the "ask after done" marker? Its template id, or null. */
+export function markerOnLine(line: string): string | null {
+  return MARKER_LINE.exec(bare(line))?.[1] ?? null
+}

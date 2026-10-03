@@ -13,6 +13,10 @@ Types, then every check that needs nothing but Node. CI runs the same command.
   from the one repeat control (every kind a task takes, after N times, picked days' own bounds), whether its rule
   changed, and a rule changed for all days or from one day on (which days keep their task).
 - `tracking` — habit schedules and streaks, supplement slots.
+  "this and following", and the planned repeats shown past the eight weeks the fill turns into tasks.
+- `tracking` — habit schedules and streaks, supplement slots; with version 16 any schedule's streak (days, weeks or
+  times), the forgiving strength %, the month and year history grids, a pinned checklist ticked per day, count words,
+  time of day, the person's own supplement slots and a schedule per supplement.
 - `review` — which tasks the evening review offers, and what each action does.
 - `import` — reading the Excel workbook, ingredient lines, matching foods.
 - `allowlist` — the invite-list script.
@@ -20,7 +24,8 @@ Types, then every check that needs nothing but Node. CI runs the same command.
 - `work` — work hours and the commute as repeating series, night shifts included; which series are kept, stopped or started.
 - `settings` — personal settings always come out whole and sane.
 - `timeframe` — a task's length as minutes or as an end time, across midnight.
-- `notes` — the note's checklists, bullets, headings and bold; ticking; the toolbar.
+- `notes` — the note's checklists, bullets, headings and bold; ticking; the toolbar; moving items up, down or by
+  drag with the items under them, indenting, ticked items drawn last, and the codes the editor keeps out of sight.
 - `quickfood` — meals as plain numbers (per 100 g and other sizes), and which figures the food pages and Today show.
 - `stock` — typing and showing amounts, the −/+ steps, what an eaten meal takes and gives back, what a trip puts in stock.
 - `pages` — which pages the bar has for which modules, their order, hidden pages, where a swipe lands, which addresses go to Today, and how each bar style shares the pages out.
@@ -154,6 +159,14 @@ Types, then every check that needs nothing but Node. CI runs the same command.
 - `hold` — the two-stage hold: a tap opens, moving before the short hold is a scroll (never a drag), the short hold
   arms the drag and a move then drags, holding still to the long hold expands, letting go in between does nothing,
   rows that cannot be dragged only expand; when the clock next matters; the hold times kept sane.
+- `notetemplates` — note templates: fill-ins ({date}, {weekday}, {time}, {title}, {day count}), the plain-word chips,
+  putting a template in a note or asking for it after the task, keeping the list (add, edit, order, remove and undo);
+  recipes in notes: the block found again, "Update from recipe" only when the recipe changed (ticks kept), several
+  recipes' ingredients added up.
+- `household` — chores as a person reads them: calm words that never say overdue, the due-ness bar, the page's
+  sections and rooms, a holiday pause with dates, light days and a daily cap for flexible chores, members' names,
+  the starter packs, old chore records brought over; and the day's items carrying the person's supplement slots and
+  chore limits.
 
 ## Browser checks
 

@@ -84,5 +84,46 @@ is('Enter on plain text is just Enter', continueList('hello', 5, 5), null)
 is('Enter inside the marker is just Enter', continueList('- [ ] one', 2, 2), null)
 is('Enter over a selection is just Enter', continueList('- one', 2, 5), null)
 
+// ---------- moving and indenting items (NOT-04) -------------------------------
+import { itemSpan, moveItem, moveItemTo, indentItem, indentSelection, orderItems, toEditable, fromEditable, linkOnLine, markerOnLine } from '../lib/notes.ts'
+
+const list = '## Prep\n- [ ] Onions\n  - [x] Chop\n- [ ] Rice\n- [ ] Stock\n\nAfter'
+is('an item covers the items under it', itemSpan(list, 1), [1, 3])
+is('a plain line is not an item', itemSpan(list, 0), null)
+is('move down takes its children along', moveItem(list, 1, 1), { text: '## Prep\n- [ ] Rice\n- [ ] Onions\n  - [x] Chop\n- [ ] Stock\n\nAfter', line: 2 })
+is('move up past an item with children', moveItem(list, 3, -1), { text: '## Prep\n- [ ] Rice\n- [ ] Onions\n  - [x] Chop\n- [ ] Stock\n\nAfter', line: 1 })
+is('the first cannot go up', moveItem(list, 1, -1), null)
+is('the last cannot go down past the list', moveItem(list, 4, 1), null)
+is('a child moves only among its siblings', moveItem(list, 2, 1), null)
+is('drag: Stock before Onions', moveItemTo(list, 4, 1), { text: '## Prep\n- [ ] Stock\n- [ ] Onions\n  - [x] Chop\n- [ ] Rice\n\nAfter', line: 1 })
+is('drag: Onions (with Chop) to the end of the list', moveItemTo(list, 1, null, 4), { text: '## Prep\n- [ ] Rice\n- [ ] Stock\n- [ ] Onions\n  - [x] Chop\n\nAfter', line: 3 })
+is('drag onto itself does nothing', moveItemTo(list, 1, 2), null)
+is('drag takes the depth of where it lands', moveItemTo(list, 4, 2).text, '## Prep\n- [ ] Onions\n  - [ ] Stock\n  - [x] Chop\n- [ ] Rice\n\nAfter')
+is('indent under the item above', indentItem(list, 3, 1).text, '## Prep\n- [ ] Onions\n  - [x] Chop\n  - [ ] Rice\n- [ ] Stock\n\nAfter')
+is('the first item cannot be indented', indentItem(list, 1, 1), null)
+is('not two steps deeper than the item above', indentItem('- a\n  - b\n  - c', 2, 1).text, '- a\n  - b\n    - c')
+is('…but not three', indentItem('- a\n  - b\n    - c', 2, 1), null)
+is('outdent takes children too', indentItem('- a\n  - b\n    - c', 1, -1).text, '- a\n- b\n  - c')
+is('outdent at the edge does nothing', indentItem(list, 1, -1), null)
+is('toolbar indent: list lines only', indentSelection('- a\nplain\n- b', 0, 13, 1), { text: '  - a\nplain\n  - b', start: 2, end: 17 })
+is('toolbar outdent', indentSelection('  - a', 4, 4, -1), { text: '- a', start: 2, end: 2 })
+const tickItems = parseNote('- [x] Done\n  - sub\n- [ ] Open\n- [x] Also done\n- [ ] Last')[0].items
+is('ticked last moves done items (with their children) down', orderItems(tickItems, true).map((i) => i.line), [2, 4, 0, 1, 3])
+is('ticked last off keeps the order', orderItems(tickItems, false).map((i) => i.line), [0, 1, 2, 3, 4])
+
+// ---------- codes kept out of sight (NOT-17, NOT-21) -----------------------------
+const id = '0b6c2a0e-9d7e-4f7e-8a5c-1234567890ab'
+const coded = `## Curry\nFrom recipe: Curry · 4 portions {recipe:${id}}\n- [ ] Rice\n{after-done:reading}`
+const ed = toEditable(coded)
+is('the editor shows no codes', ed.text, '## Curry\nFrom recipe: Curry · 4 portions\n- [ ] Rice')
+is('…and keeps what it took out', ed.hidden, { afterDone: 'reading', links: [{ text: 'From recipe: Curry · 4 portions', id }] })
+is('unchanged text comes back exactly', fromEditable(ed.text, ed.hidden), coded)
+is('typing keeps the codes', fromEditable(ed.text + '\n- [ ] Peas', ed.hidden), `## Curry\nFrom recipe: Curry · 4 portions {recipe:${id}}\n- [ ] Rice\n- [ ] Peas\n{after-done:reading}`)
+is('a trailing new line survives', toEditable(fromEditable('abc\n', { afterDone: 'x', links: [] })).text, 'abc\n')
+is('an empty note with a marker', fromEditable('', { afterDone: 'x', links: [] }), '{after-done:x}')
+is('a rewritten link line is just text', fromEditable('From recipe: Pasta · 4 portions', ed.hidden), 'From recipe: Pasta · 4 portions\n{after-done:reading}')
+is('link line read', linkOnLine(`From recipe: Curry · 1 portion {recipe:${id}}`), { name: 'Curry', portions: 1, id })
+is('marker line read', [markerOnLine('{after-done:reading}'), markerOnLine('{after-done:x} more')], ['reading', null])
+
 console.log(fail ? `\n${fail} check(s) failed` : '\nall checks passed')
 process.exit(fail ? 1 : 0)

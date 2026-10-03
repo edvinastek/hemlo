@@ -8,14 +8,14 @@ import type { Chore, ChoreLog } from './types'
 
 export const CHORE_FIELDS: (keyof Chore & string)[] = [
   'household_id', 'name', 'room', 'mode', 'rule', 'rule_config', 'every_days', 'start_date', 'end_date',
-  'time_of_day', 'minutes', 'assignees', 'rotation', 'note', 'paused', 'sort_order', 'deleted_at',
+  'time_of_day', 'minutes', 'assignees', 'rotation', 'note', 'paused', 'paused_from', 'paused_until', 'sort_order', 'deleted_at',
 ]
 
 export function blankChore(householdId: string, partial: Partial<Chore> = {}): Chore {
   return {
     id: crypto.randomUUID(), household_id: householdId, name: '', room: null, mode: 'fixed',
     rule: 'weekly', rule_config: {}, every_days: null, start_date: null, end_date: null,
-    time_of_day: null, minutes: null, assignees: [], rotation: 'none', note: null, paused: false,
+    time_of_day: null, minutes: null, assignees: [], rotation: 'none', note: null, paused: false, paused_from: null, paused_until: null,
     sort_order: 0, updated_at: new Date().toISOString(), deleted_at: null, ...partial,
   }
 }

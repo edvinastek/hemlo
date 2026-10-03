@@ -37,6 +37,7 @@ import { setMeta } from '../lib/db'
 import { reviewSettings, setReviewTime, DEFAULT_EXTENSION_LIMIT } from '../lib/review'
 import { cleanLimit } from '../lib/review-rules'
 import { heightFrom } from '../lib/profile-fields-rules'
+import { NoteTemplates } from '../settings/NoteTemplates'
 import { exportBundle, importBundle } from '../lib/bundle'
 import { getReminderSettings, setReminderSettings, requestPermission, type ReminderSettings } from '../lib/notify'
 import type { ModuleInstance } from '../lib/types'
@@ -215,6 +216,7 @@ function ProfilePanel() {
       <HoldSettings />
       <HolidaySettings />
       <CalendarLinks />
+      <NoteTemplates />
       <p className="section-title">Body and goal</p>
       <Field label="Height" value={String(profile.height_cm ?? '')} unit="cm" inputMode="decimal"
         hint="Emptied, it is saved as not known, never as 0."

@@ -252,7 +252,9 @@ const allRules = MODULES.flatMap((m) => m.rules.map((r) => `${m.key}.${r.name}`)
 is('every registry rule says what the app does with it', allRules.filter((k) => !BUILTIN_RULES[k]), [])
 is('and nothing is listed that is not in the registry', Object.keys(BUILTIN_RULES).filter((k) => !allRules.includes(k)), [])
 is('the rules acted on have switches', allRules.filter((k) => ruleSwitchable(...k.split('.'))).sort(),
-  ['habits.daily', 'health.retarget', 'nutrition.meal_tasks', 'nutrition.size_main'])
+  ['health.retarget', 'nutrition.meal_tasks', 'nutrition.size_main'])
+// HAB-23: where habits show is now the module's Show on switches, not this rule.
+is('the daily habit rule is always on, even if once stored off', isBuiltinRuleOn('habits', 'daily', { rulesOff: ['daily'] }), true)
 is('the trip from the plan is always on', ruleSupport('shopping', 'from_plan'), 'always')
 is('a built module’s rules all have switches', [ruleSwitchable('u_abcdef123456', RULE_DAY_TASK), ruleSwitchable('u_abcdef123456', RULE_REMIND)], [true, true])
 is('a rule is on with no changes', isBuiltinRuleOn('nutrition', 'meal_tasks', undefined), true)

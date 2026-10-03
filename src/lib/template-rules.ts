@@ -1,6 +1,7 @@
 /** Templates a person keeps: note templates (a note to start from) and task
  *  templates (a whole task to start from). Kept in profile.settings, so they
  *  follow the person to every device. Pure. */
+import { withAfterDone } from './after-done-rules.ts'
 
 export interface NoteTemplate {
   id: string
@@ -125,8 +126,10 @@ const MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 
 
 /** A template's text with its fill-ins filled for a task on a day:
  *  {date} → "2 October 2026", {weekday} → "Friday", {title} → the task's
- *  title, {time} → its time or nothing. Unknown braces stay as typed. */
-export function fillTemplate(body: string, ctx: { day: string; title?: string; time?: string | null }): string {
+ *  title, {time} → its time or nothing, {day count} → which day it is since
+ *  `start` (the first day of a repeat or a challenge: "12"), or nothing
+ *  when there is no start. Unknown braces stay as typed. */
+export function fillTemplate(body: string, ctx: FillContext): string {
   const [y, m, d] = ctx.day.split('-').map(Number)
   const wd = new Date(Date.UTC(y, m - 1, d)).getUTCDay()
   const values: Record<string, string> = {
@@ -134,8 +137,116 @@ export function fillTemplate(body: string, ctx: { day: string; title?: string; t
     weekday: WEEKDAYS[wd],
     title: ctx.title ?? '',
     time: ctx.time ? ctx.time.slice(0, 5) : '',
+    'day count': dayCount(ctx.start, ctx.day),
   }
-  return body.replace(/\{(date|weekday|title|time)\}/g, (_, k: string) => values[k])
+  return body.replace(FILL, (_, k: string) => values[fillName(k)])
+}
+
+export interface FillContext {
+  /** The day the note is for, 'yyyy-MM-dd'. */
+  day: string
+  title?: string
+  time?: string | null
+  /** The first day, for {day count}. */
+  start?: string | null
+}
+
+const FILL = /\{(date|weekday|title|time|day ?count)\}/gi
+/** A fill-in's name however it was typed: "{DayCount}" is "day count". */
+const fillName = (k: string) => k.toLowerCase().replace(/^day ?count$/, 'day count')
+
+function dayCount(start: string | null | undefined, day: string): string {
+  if (!start || !/^\d{4}-\d{2}-\d{2}$/.test(start) || start > day) return ''
+  const n = (s: string) => { const [y, m, d] = s.split('-').map(Number); return Date.UTC(y, m - 1, d) / 86_400_000 }
+  return String(Math.round(n(day) - n(start)) + 1)
+}
+
+/** The fill-ins a template can use, in plain words (NOT-17): what is typed,
+ *  what the editor calls it, and an example of what it becomes. */
+export const FILLS: { token: string; label: string; example: string }[] = [
+  { token: '{date}', label: 'date', example: '2 October 2026' },
+  { token: '{weekday}', label: 'weekday', example: 'Friday' },
+  { token: '{time}', label: 'time', example: '18:30' },
+  { token: '{title}', label: 'title', example: 'the task’s title' },
+  { token: '{day count}', label: 'day count', example: 'day 12 of a repeat' },
+]
+
+/** A template's text cut into plain text and fill-ins, so the editor can
+ *  draw each fill-in as a labelled chip instead of a code in braces. */
+export function templateParts(body: string): ({ text: string } | { fill: string })[] {
+  const out: ({ text: string } | { fill: string })[] = []
+  let at = 0
+  for (const m of body.matchAll(FILL)) {
+    if (m.index! > at) out.push({ text: body.slice(at, m.index) })
+    out.push({ fill: fillName(m[1]) })
+    at = m.index! + m[0].length
+  }
+  if (at < body.length) out.push({ text: body.slice(at) })
+  return out
+}
+
+/** One line about what a template holds, for the list: its headings, or
+ *  its first words. */
+export function templateSummary(body: string): string {
+  const heads = body.split('\n').map((l) => /^#{1,6}\s+(.+)$/.exec(l)?.[1]?.trim()).filter((h): h is string => !!h)
+  const plain = (s: string) => templateParts(s).map((p) => ('fill' in p ? p.fill : p.text)).join('')
+  if (heads.length) return heads.map(plain).join(' · ').slice(0, 120)
+  return plain(body.replace(/^[ \t]*[-*+] (\[[ xX]\] )?/gm, '').replace(/\s+/g, ' ').trim()).slice(0, 120)
+}
+
+/** Puts a template into a note (NOT-13): filled, after what is already
+ *  there, with a blank line between. A template meant for after the task
+ *  (NOT-14) and `asPrompt` adds the "ask after done" marker instead, so it
+ *  opens when the task is ticked. */
+export function applyNoteTemplate(note: string | null | undefined, t: NoteTemplate, ctx: FillContext, asPrompt = false): string {
+  if (asPrompt && t.after_done) return withAfterDone(note, t.id)
+  const add = fillTemplate(t.body, ctx)
+  const was = (note ?? '').replace(/\s+$/, '')
+  return was ? `${was}\n\n${add}` : add
+}
+
+/* ---------- keeping the list (NOT-11) --------------------------------------- */
+
+/** A new template at the end of the list; its id is made from its name. */
+export function addTemplate(list: NoteTemplate[], name: string, body: string, after_done = false): { list: NoteTemplate[]; id: string } | null {
+  const clean = name.replace(/\s+/g, ' ').trim().slice(0, 60)
+  if (!clean || list.length >= MAX_TEMPLATES) return null
+  const id = templateId(clean, list.map((t) => t.id))
+  return { list: [...list, { id, name: clean, body: body.slice(0, MAX_TEMPLATE_BODY), after_done }], id }
+}
+
+/** One template changed; the name may not become empty. */
+export function updateTemplate(list: NoteTemplate[], id: string, patch: Partial<Omit<NoteTemplate, 'id'>>): NoteTemplate[] {
+  return list.map((t) => {
+    if (t.id !== id) return t
+    const name = patch.name !== undefined ? patch.name.replace(/\s+/g, ' ').trim().slice(0, 60) || t.name : t.name
+    return { ...t, ...patch, name, body: (patch.body ?? t.body).slice(0, MAX_TEMPLATE_BODY) }
+  })
+}
+
+/** Moves a template one place up or down. */
+export function moveTemplate(list: NoteTemplate[], id: string, dir: -1 | 1): NoteTemplate[] {
+  const i = list.findIndex((t) => t.id === id)
+  const j = i + dir
+  if (i < 0 || j < 0 || j >= list.length) return list
+  const out = [...list]
+  ;[out[i], out[j]] = [out[j], out[i]]
+  return out
+}
+
+/** Takes a template out, saying where it was so Undo can put it back. */
+export function removeTemplate(list: NoteTemplate[], id: string): { list: NoteTemplate[]; removed: NoteTemplate | null; index: number } {
+  const index = list.findIndex((t) => t.id === id)
+  if (index < 0) return { list, removed: null, index: -1 }
+  return { list: list.filter((t) => t.id !== id), removed: list[index], index }
+}
+
+/** Puts a removed template back where it was (Undo). */
+export function restoreTemplate(list: NoteTemplate[], t: NoteTemplate, index: number): NoteTemplate[] {
+  if (list.some((x) => x.id === t.id)) return list
+  const out = [...list]
+  out.splice(Math.max(0, Math.min(index, out.length)), 0, t)
+  return out
 }
 
 /** A note's checklist with every tick cleared, for "same notes, ticks
