@@ -129,3 +129,32 @@
 .pt-name { font-family: var(--font-serif); font-size: 16px; color: var(--e-ink); }
 .pt-what { font-family: var(--font-sans); font-size: 12px; color: var(--e-ink-soft); }
 .pt-delete { flex: none; font-size: 13px; color: var(--e-warn); }
+
+/* ---------- milestones and the year's goals (PLN-12) ------------------------ */
+/* A milestone is a quiet line, not a task: no tick, a small diamond. */
+.pw-ms-mark { flex: none; font-size: 10px; color: var(--e-ink-soft); }
+.pw-ms { color: var(--e-ink-soft); font-family: var(--font-sans); font-size: 12px; }
+.pm-ms { color: var(--e-ink-soft); font-size: 9px; }
+.plan-ms { list-style: none; margin: var(--space-3) var(--space-4) 0; padding: 0; display: grid; gap: 2px; }
+.plan-ms-item {
+  display: flex; align-items: baseline; gap: 8px; width: 100%; min-height: 40px; padding: 6px 0;
+  text-align: left; font-family: var(--font-sans); font-size: 13px; color: var(--e-ink-soft);
+  border-bottom: 1px dashed var(--e-rule); overflow-wrap: anywhere;
+}
+.plan-ms-item.is-done > span:last-child, .pw-ms.is-done > span:last-child { text-decoration: line-through; }
+
+.plan-goals .empty { padding-top: var(--space-2); }
+.plan-goal-list { list-style: none; margin: 0 var(--space-4); padding: 0; border-top: 1px solid var(--e-rule); }
+.plan-goal {
+  display: grid; gap: 6px; width: 100%; min-height: 56px; padding: var(--space-2) 0;
+  text-align: left; border-bottom: 1px solid var(--e-rule); color: var(--e-ink);
+}
+.plan-goal-top { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 2px var(--space-3); min-width: 0; }
+.plan-goal-name { font-family: var(--font-serif); font-size: 16px; overflow-wrap: anywhere; min-width: 0; }
+.plan-goal.is-done .plan-goal-name { color: var(--e-ink-soft); }
+.plan-goal-when, .plan-goal-text { font-family: var(--font-sans); font-size: 12px; color: var(--e-ink-soft); white-space: nowrap; }
+.plan-goal-progress { display: grid; grid-template-columns: minmax(60px, 1fr) auto; align-items: center; gap: var(--space-2); }
+.plan-goal-progress > .plan-goal-text:only-child { grid-column: 1 / -1; }
+.plan-goal-bar { height: 6px; background: var(--e-rule); border-radius: var(--radius-pill); overflow: hidden; }
+.plan-goal-bar > span { display: block; height: 100%; background: var(--e-accent); border-radius: var(--radius-pill); }
+.plan-goal.is-done .plan-goal-bar > span { background: var(--e-done); }

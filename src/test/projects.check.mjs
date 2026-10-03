@@ -4,6 +4,7 @@
 import {
   taskProgress, nextTask, orderTasks, orderMilestones, nextMilestone, milestonesBetween, describeProgress, projectName,
   projectStatus, projectDue, goalProgress, daysLeft, goalProblems, orderGoals, yearGoals,
+  milestoneLink, milestoneWords, milestonesByDay, yearDateWords,
 } from '../lib/projects-rules.ts'
 
 let fail = 0
@@ -90,6 +91,18 @@ const projects = [p('p1', { name: 'Dated', due_date: '2026-09-01' }), p('p2', { 
 eq('the year lists its goals and dated projects, by date',
   yearGoals(goals, projects, 2026, true).map((x) => `${x.kind}:${x.id}`), ['goal:in', 'project:p1', 'goal:span', 'goal:open'])
 eq('dated projects only while Projects and its rule are on', yearGoals(goals, projects, 2026, false).map((x) => x.id), ['in', 'span', 'open'])
+
+// On Plan: a milestone's line and where it opens; a year goal's date.
+eq('a milestone opens its project', milestoneLink({ project_id: 'p1', goal_id: 'g1' }), '/m/projects?project=p1')
+eq('else its goal', milestoneLink({ project_id: null, goal_id: 'g1' }), '/m/projects?goal=g1')
+eq('else Projects', milestoneLink({ project_id: null, goal_id: null }), '/m/projects')
+eq('a milestone in words', milestoneWords({ title: 'Launch', done: false, project_name: 'Website', goal_title: 'Grow' }), 'Milestone: Launch · Website')
+eq('reached, with its goal', milestoneWords({ title: 'Launch', done: true, project_name: null, goal_title: 'Grow' }), 'Milestone: Launch · Grow · reached')
+eq('milestones by day, undated left out', [...milestonesByDay([{ id: 'a', due_date: '2026-10-05' }, { id: 'b', due_date: null }, { id: 'c', due_date: '2026-10-05' }]).entries()]
+  .map(([d, l]) => [d, l.map((m) => m.id)]), [['2026-10-05', ['a', 'c']]])
+eq('a date in the year shown', yearDateWords('2026-12-31', 2026), 'by 31 Dec')
+eq('a date in another year', yearDateWords('2027-03-01', 2026), 'by 1 Mar 2027')
+eq('no date', yearDateWords(null, 2026), 'no end date')
 
 if (fail) { console.log(`\n${fail} failed`); process.exit(1) }
 console.log('\nall projects checks passed')

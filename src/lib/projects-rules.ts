@@ -218,3 +218,41 @@ export function yearGoals<G extends GoalLike, P extends ProjectLike>(goals: G[],
   }
   return out.sort((a, b) => (a.date ?? '9999').localeCompare(b.date ?? '9999') || a.title.localeCompare(b.title))
 }
+
+/* ---------- on Plan (PLN-12) ------------------------------------------------ */
+
+/** Where a milestone opens from Plan: its project, else its goal, else the
+ *  Projects page. */
+export function milestoneLink(m: { project_id: string | null; goal_id: string | null }): string {
+  if (m.project_id) return `/m/projects?project=${m.project_id}`
+  if (m.goal_id) return `/m/projects?goal=${m.goal_id}`
+  return '/m/projects'
+}
+
+/** A milestone's quiet line on Plan: "Milestone: Launch · Website", with
+ *  "reached" once done. */
+export function milestoneWords(m: { title: string; done: boolean; project_name?: string | null; goal_title?: string | null }): string {
+  const of = m.project_name || m.goal_title
+  return `Milestone: ${m.title || 'untitled'}${of ? ` · ${of}` : ''}${m.done ? ' · reached' : ''}`
+}
+
+/** Milestones by their day, for the days Plan shows. */
+export function milestonesByDay<T extends { due_date: string | null }>(ms: T[]): Map<string, T[]> {
+  const out = new Map<string, T[]>()
+  for (const m of ms) {
+    if (!m.due_date) continue
+    const list = out.get(m.due_date) ?? []
+    list.push(m)
+    out.set(m.due_date, list)
+  }
+  return out
+}
+
+/** A goal's or project's date on the Year view: "by 31 Dec", with the year
+ *  only when it is not the year shown; "no end date" without one. */
+export function yearDateWords(date: string | null, year: number): string {
+  if (!date || !/^\d{4}-\d{2}-\d{2}$/.test(date)) return 'no end date'
+  const [y, m, d] = date.split('-').map(Number)
+  const MON = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
+  return `by ${d} ${MON[m - 1]}${y === year ? '' : ` ${y}`}`
+}

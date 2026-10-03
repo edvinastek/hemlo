@@ -33,6 +33,9 @@ import { duplicateTasks } from '../lib/copy'
 import { deleteTasks, moveWithUndo } from '../lib/series'
 import { blankTask } from '../lib/tasks'
 import type { CalendarEvent, Task } from '../lib/types'
+import { loadMilestones, loadYearGoals } from '../lib/projects'
+import { milestoneLink, milestonesByDay, milestoneWords, yearDateWords } from '../lib/projects-rules'
+import { instanceFor } from '../modules/defs'
 import { TaskSheet } from '../ui/TaskSheet'
 import { CopySheet, type CopyWhat } from '../ui/CopySheet'
 import { DayRail } from '../ui/DayRail'
@@ -141,6 +144,13 @@ export function Plan() {
   const followedOn = (day: string): FollowedItem[] => (followedAll.get(day) ?? []).filter((f) => !hidden.includes(f.sub.id))
   const followedColours = (day: string) => [...new Set(followedOn(day).map((f) => f.sub.colour))]
 
+  // Milestones of projects and goals on the days in view (only while
+  // Projects is on): a quiet line that opens the project or goal.
+  const milestones = useLiveQuery(async () => (profile && view !== 'year' && view !== 'inbox'
+    ? milestonesByDay(await loadMilestones(profile.id, from, to)) : new Map<string, PlanMilestone[]>()),
+  [profile?.id, from, to, view], new Map<string, PlanMilestone[]>())
+  const milestonesOn = (day: string): PlanMilestone[] => milestones.get(day) ?? []
+
   const planned = usePlannedRepeats(profile?.id, from, to)
   const plannedOn = (day: string): PlannedRepeat[] => planned.get(day) ?? []
 
@@ -245,6 +255,7 @@ export function Plan() {
                 { label: 'See its week', onSelect: () => go(date, 'week', true) },
               ]} />
             </div>
+            <MilestoneLines list={milestonesOn(date)} onOpen={(m) => navigate(milestoneLink(m))} />
             {/* The one merged rail of the day (it lists the repeats to come
                 past the eight weeks too, so Plan adds nothing under it). */}
             <DayRail day={date} where="plan" />
@@ -297,6 +308,12 @@ export function Plan() {
                       <span className="visually-hidden">{busy.words}</span>
                     </div>
                     <div className="week-items">
+                      {milestonesOn(day).map((m) => (
+                        <button key={m.id} type="button" className={`week-item pw-item pw-ms${m.done ? ' is-done' : ''}`} disabled={selecting}
+                          onClick={(e) => { if (swap.holding) return; e.stopPropagation(); navigate(milestoneLink(m)) }}>
+                          <span className="pw-ms-mark" aria-hidden="true">◆</span><span>{milestoneWords(m)}</span>
+                        </button>
+                      ))}
                       {list.map((it) => {
                         const c = it.module_key && colours.on ? colours.of(it.module_key) : it.task ? colours.ofTask(it.task) : null
                         const isTask = !!it.task
@@ -323,7 +340,7 @@ export function Plan() {
                       })}
                       {later.map((r) => <PlannedItem key={`${r.seriesId}:${r.base}`} repeat={r} colours={colours} />)}
                       {followed.map((f) => <FollowedWeekItem key={`${f.event.id}:${day}`} item={f} onOpen={setOpenEvent} />)}
-                      {list.length === 0 && later.length === 0 && followed.length === 0 && (
+                      {list.length === 0 && later.length === 0 && followed.length === 0 && milestonesOn(day).length === 0 && (
                         <button type="button" className="pw-empty" disabled={selecting} onClick={(e) => { if (swap.holding) return; e.stopPropagation(); addOn(day) }}
                           aria-label={`Add a task on ${dayLabel(day)}`}>—</button>
                       )}
@@ -382,10 +399,10 @@ export function Plan() {
                     onClick={() => go(d, 'week', true)}
                     style={{ opacity: inMonth ? 1 : 0.4, textAlign: 'left' }}
                     aria-label={[format(parseISO(d), 'EEEE d MMMM'), dayWords(loadOn(d), colours.on ? modulesOnDay(d)[0] : undefined, plannedOn(d).length, colours),
-                      followedWords(followedOn(d).length), holidaysText(marks)].filter(Boolean).join(', ')}
+                      followedWords(followedOn(d).length), milestonesOn(d).map(milestoneWords).join(', '), holidaysText(marks)].filter(Boolean).join(', ')}
                     title={[holidaysText(marks), followedWords(followedOn(d).length)].filter(Boolean).join(', ') || undefined}>
                     <HolidayMark marks={marks} variant="top" />
-                    <span className="d">{Number(d.slice(8, 10))}</span>
+                    <span className="d">{Number(d.slice(8, 10))}{milestonesOn(d).length > 0 && <span className="pm-ms" aria-hidden="true"> ◆</span>}</span>
                     <span className="load" style={{ background: `var(--e-heat-${heatStep(loadOn(d))})` }} />
                     {colours.on && (
                       <span className="month-mods" aria-hidden="true">
@@ -434,8 +451,7 @@ export function Plan() {
             <ModuleLegend colours={colours} keys={modulesByWeight([...itemsByDay.keys()].flatMap(modulesOnDay))} />
             <HolidayLegend countries={countriesIn([...holidays.values()], settings.holidays.countries)} />
             <FollowedLegend calendars={calendarsIn([...followedAll.values()].map((l) => l.filter((f) => !hidden.includes(f.sub.id))))} />
-            <p className="section-title">Goals and phases</p>
-            <Goals />
+            {profile && <YearGoals profileId={profile.id} year={Number(date.slice(0, 4))} onOpen={(link) => navigate(link)} />}
           </>
         )}
 
@@ -558,15 +574,60 @@ function ModuleLegend({ colours, keys }: { colours: ModuleColours; keys: string[
   )
 }
 
-function Goals() {
-  const profile = useApp((s) => s.profile)
-  const goals = useLiveQuery(async () => {
-    if (!profile) return []
-    return []
-  }, [profile?.id], [])
+type PlanMilestone = Awaited<ReturnType<typeof loadMilestones>>[number]
 
-  if (goals.length === 0) {
-    return <p className="empty">No goals yet. A goal gives the year something to measure against, and every task can hang off one.</p>
-  }
-  return null
+/** A day's milestones above its rail: one quiet line each. */
+function MilestoneLines({ list, onOpen }: { list: PlanMilestone[]; onOpen: (m: PlanMilestone) => void }) {
+  if (!list.length) return null
+  return (
+    <ul className="plan-ms" aria-label="Milestones on this day">
+      {list.map((m) => (
+        <li key={m.id}>
+          <button type="button" className={`plan-ms-item${m.done ? ' is-done' : ''}`} onClick={() => onOpen(m)}>
+            <span className="pw-ms-mark" aria-hidden="true">◆</span>
+            <span>{milestoneWords(m)}</span>
+          </button>
+        </li>
+      ))}
+    </ul>
+  )
+}
+
+/** Goals and phases (PLN-12, GEN-36): the goals that touch the year shown,
+ *  and projects due in it, each with its progress; a tap opens it. Only
+ *  while Projects, where goals live, is on (P1). */
+function YearGoals({ profileId, year, onOpen }: { profileId: string; year: number; onOpen: (link: string) => void }) {
+  const data = useLiveQuery(async () => ((await instanceFor(profileId, 'projects'))?.enabled
+    ? loadYearGoals(profileId, year) : null), [profileId, year])
+  if (!data) return null
+  return (
+    <section className="plan-goals" aria-labelledby="plan-goals-title">
+      <p className="section-title" id="plan-goals-title">Goals and phases, {year}</p>
+      {data.length === 0 ? (
+        <p className="empty">No goals or projects due in {year}. A goal gives the year something to measure against; add one under Projects, Goals.</p>
+      ) : (
+        <ul className="plan-goal-list">
+          {data.map((g) => {
+            const share = g.progress.share
+            return (
+              <li key={`${g.kind}:${g.id}`}>
+                <button type="button" className={`plan-goal${g.status === 'done' ? ' is-done' : ''}`} onClick={() => onOpen(g.link)}>
+                  <span className="plan-goal-top">
+                    <span className="plan-goal-name">{g.title || 'Untitled'}</span>
+                    <span className="plan-goal-when">{g.kind === 'project' ? 'Project, ' : ''}{yearDateWords(g.date, year)}</span>
+                  </span>
+                  <span className="plan-goal-progress">
+                    {share !== null && (
+                      <span className="plan-goal-bar" aria-hidden="true"><span style={{ width: `${Math.round(share * 100)}%` }} /></span>
+                    )}
+                    <span className="plan-goal-text">{g.progress.text}</span>
+                  </span>
+                </button>
+              </li>
+            )
+          })}
+        </ul>
+      )}
+    </section>
+  )
 }
