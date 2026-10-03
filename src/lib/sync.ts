@@ -21,7 +21,7 @@ const SYNCED = ['task', 'target', 'body_log', 'food_log', 'meal_plan_slot', 'mod
  *  without a profile filter, still incrementally. */
 const CHILDREN = ['habit_log', 'supplement_log', 'series_exception', 'stock', 'module', 'shopping_entry', 'chore', 'chore_log',
   // 029: a routine's lines; exercises (the shared catalogue and the person's own, by RLS).
-  'routine_line', 'exercise'] as const
+  'routine_line', 'exercise', 'shop_price'] as const
 /** Foods include, besides the shared catalogue and the person's own, foods a
  *  housemate scanned into the shared cupboard (025): readable, never theirs
  *  to change. */
@@ -219,7 +219,7 @@ async function sendOne(entry: Entry): Promise<'sent' | 'refused' | 'orphan' | 'w
 }
 
 /** Tables whose rows point at a food by food_id. */
-const FOOD_CHILDREN = new Set(['stock', 'recipe_line', 'food_log', 'shopping_entry', 'meal_plan_slot'])
+const FOOD_CHILDREN = new Set(['stock', 'recipe_line', 'food_log', 'shopping_entry', 'meal_plan_slot', 'shop_price'])
 
 /** A row that waits for its food, when the food's own insert is no longer in
  *  the queue: an older version refused a scanned food as a duplicate of the

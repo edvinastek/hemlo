@@ -8,6 +8,7 @@ import type {
 } from './types'
 import type { Exercise, Routine, RoutineLine } from './training-types'
 import type { Milestone } from './projects-types'
+import type { ShopPrice } from './shopping-types'
 
 /** The local copy. Every device holds the whole account, so the app works
  *  with no connection at all and merges when one comes back. */
@@ -43,6 +44,7 @@ class GetItDB extends Dexie {
   routine!: Table<Routine, string>
   routine_line!: Table<RoutineLine, string>
   milestone!: Table<Milestone, string>
+  shop_price!: Table<ShopPrice, string>
   pending!: Table<PendingChange, number>
   conflicts!: Table<ConflictEntry, number>
   meta!: Table<{ key: string; value: unknown }, string>
@@ -114,6 +116,10 @@ class GetItDB extends Dexie {
       shopping_entry: 'id, household_id, plan_key, food_id',
       chore: 'id, household_id',
       chore_log: 'id, chore_id, done_on, [chore_id+done_on]',
+    })
+    // Version 9 (028): prices the household notes per shop.
+    this.version(9).stores({
+      shop_price: 'id, household_id, item_key',
     })
     // Version 10 (029): exercises (the catalogue and the person's own),
     // training routines and their lines, milestones; logged sets found by

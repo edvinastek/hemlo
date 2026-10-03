@@ -4,42 +4,57 @@ import { db } from '../lib/db'
 import { useApp } from '../lib/store'
 import { readSettings } from '../lib/settings'
 import { saveSettings } from '../lib/write'
-import { addStock, nudgeStock, removeStock, setStock, stockFor } from '../lib/stock'
+import { addStock, nudgeStock, removeStock, restoreStock, setStock, setStockDetails, stockFor } from '../lib/stock'
+import { addRecipesToList, today } from '../lib/shopping'
 import {
-  NOTE_MAX, filterStock, formatGrams, inUnit, sortStock, unitFor,
-  type StockView,
+  NOTE_MAX, belowMin, dateText, daysUntil, expiringSoon, formatGrams, groupKey, inUnit, placesFrom, readDate, sortByPlace,
+  sortStock, stockCover, mealNeeds, unitFor, type StockView,
 } from '../lib/stock-rules'
 import {
   amountChoices, amountHint, countIn, findUnit, formatCount, formatQty, readAmount, readUnits, unitKey, type FoodUnit,
 } from '../lib/units-rules'
+import { matches, words } from '../lib/search-rules'
 import { SearchPick, type PickItem } from '../ui/SearchPick'
 import { ScanToStock } from '../ui/ProductSearch'
 import { AmountInput } from '../ui/AmountInput'
-import type { Food, Profile, Stock } from '../lib/types'
+import { offerUndo } from '../ui/Undo'
+import { ExportLink } from '../ui/ExportLink'
+import { RowMenu, useDeviceChoice } from './shop-ui'
+import type { Food, Profile, Recipe, RecipeLine, Stock } from '../lib/types'
 import './stock.css'
 
 /** A row as the list shows it. `unit` is the food's unit it is kept in, when
  *  it is ("12 eggs"); the grams are the amount either way. `known` is false
  *  for a food not on this device yet (a housemate's scan still on its way). */
-type Item = StockView & { row: Stock; units: FoodUnit[]; unit: FoodUnit | undefined; known: boolean }
+type Item = StockView & {
+  row: Stock; units: FoodUnit[]; unit: FoodUnit | undefined; known: boolean
+  place: string | null; best_before: string | null; min_grams: number | null
+}
 
 /** "12 eggs" for stock kept in a unit, "450 g" or "1.25 kg" otherwise. */
 const amountOf = (item: Pick<Item, 'grams' | 'unit'>) =>
   item.unit ? formatCount(countIn(item.grams, item.unit), item.unit) : formatGrams(item.grams)
+/** A minimum in the row's own unit when it has one: "keeps 6 eggs in". */
+const minOf = (item: Pick<Item, 'min_grams' | 'unit'>) =>
+  item.min_grams ? (item.unit ? formatCount(countIn(item.min_grams, item.unit), item.unit) : formatGrams(item.min_grams)) : ''
 
-/** Shopping's Stock tab: what is in the household's cupboard, typed in by
- *  hand and adjusted whenever someone looks. Every trip is worked out against
- *  it, so the list never says to buy rice that is already there. */
+/** Shopping's Stock tab: what is in the household's cupboard, fridge and
+ *  freezer, typed in by hand and adjusted whenever someone looks. Every list
+ *  is worked out against it, so it never says to buy rice that is already
+ *  there; a minimum puts a food on the list when it runs low; a date puts it
+ *  under "Use soon". */
 export function StockPanel({ profile }: { profile: Profile }) {
   const householdId = profile.household_id
+  const day = today()
   const foods = useLiveQuery(() => db.food.toArray(), [], [] as Food[])
   const rows = useLiveQuery(() => stockFor(householdId), [householdId])
   const [query, setQuery] = useState('')
   const [editing, setEditing] = useState<string | null>(null)
+  const [groupBy, setGroupBy] = useDeviceChoice<'place' | 'aisle' | null>('stock:group', null)
   const auto = readSettings(profile).stock_auto
 
   const foodById = useMemo(() => new Map(foods.map((f) => [f.id, f])), [foods])
-  const items: Item[] = useMemo(() => sortStock((rows ?? []).map((r) => {
+  const items: Item[] = useMemo(() => (rows ?? []).map((r) => {
     const food = foodById.get(r.food_id)
     const units = readUnits(food?.units)
     return {
@@ -48,76 +63,119 @@ export function StockPanel({ profile }: { profile: Profile }) {
       section: food?.store_section?.trim() || 'Other',
       grams: Number(r.grams_on_hand) || 0,
       note: r.note,
+      place: r.place ?? null, best_before: r.best_before ?? null, min_grams: r.min_grams ? Number(r.min_grams) : null,
     }
-  })), [rows, foodById])
-  const shown = filterStock(items, query)
+  }), [rows, foodById])
+  const places = placesFrom(items.map((i) => i.place))
+  const by = groupBy ?? (items.some((i) => i.place) ? 'place' : 'aisle')
+  const sorted = by === 'place' ? sortByPlace(items, places) : sortStock(items)
+  const ws = words(query)
+  const shown = sorted.filter((i) => matches({ name: i.name, extra: `${i.section} ${i.note ?? ''} ${i.place ?? ''}` }, ws))
   const out = items.filter((i) => i.grams <= 0).length
+  const low = items.filter((i) => belowMin(i)).length
+  const soon = expiringSoon(items, day, 3)
 
   return (
     <>
-      <StockAdd householdId={householdId} foods={foods} items={items} />
+      <StockAdd householdId={householdId} foods={foods} items={items} places={places} />
       <ScanToStock householdId={householdId} />
+
+      {soon.length > 0 && (
+        <section className="stock-soon" aria-label="Use soon">
+          <p className="section-title">Use soon</p>
+          <ul>
+            {soon.map((i) => (
+              <li key={i.id}>
+                <button type="button" className="stock-soon-row" onClick={() => setEditing(i.id)} aria-label={`${i.name}: ${dateText(i.best_before!, day)}. Change`}>
+                  <span className="stock-name">{i.name}</span>
+                  <span className={`stock-date${daysUntil(i.best_before!, day) < 0 ? ' is-past' : ''}`}>{dateText(i.best_before!, day)}</span>
+                  {i.place && <span className="stock-note">{i.place}</span>}
+                </button>
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
 
       {items.length > 0 && (
         <>
           <div className="stock-filter">
             <input type="search" value={query} onChange={(e) => setQuery(e.target.value)}
               placeholder="Filter stock" aria-label="Filter stock" autoComplete="off" />
+            <div className="stock-by" role="group" aria-label="Group by">
+              <button type="button" aria-pressed={by === 'place'} onClick={() => setGroupBy('place')}>By place</button>
+              <button type="button" aria-pressed={by === 'aisle'} onClick={() => setGroupBy('aisle')}>By aisle</button>
+            </div>
           </div>
           <div className="totals">
             <span><b>{items.length}</b> {items.length === 1 ? 'item' : 'items'}</span>
             {out > 0 && <span><b>{out}</b> out</span>}
+            {low > 0 && <span><b>{low}</b> running low, on the list</span>}
           </div>
         </>
       )}
 
       {rows && items.length === 0 && (
         <p className="empty">
-          Nothing in stock yet. Add what is in the cupboard and every trip takes it off the list.
+          Nothing in stock yet. Add what is in the cupboard, fridge and freezer, and every list takes it off.
         </p>
       )}
       {items.length > 0 && shown.length === 0 && <p className="empty">Nothing in stock matches that.</p>}
 
       <div className="stock-list">
-        {shown.map((item, i) => (
-          <div key={item.id}>
-            {(i === 0 || shown[i - 1].section !== item.section) && <h3 className="stock-group">{item.section}</h3>}
-            {editing === item.id
-              ? <StockEdit item={item} householdId={householdId} onDone={() => setEditing(null)} />
-              : <StockRow item={item} householdId={householdId} onEdit={() => setEditing(item.id)} />}
-          </div>
-        ))}
+        {shown.map((item, i) => {
+          const g = groupKey(item, by)
+          return (
+            <div key={item.id}>
+              {(i === 0 || groupKey(shown[i - 1], by) !== g) && <h3 className="stock-group">{g}</h3>}
+              {editing === item.id
+                ? <StockEdit item={item} householdId={householdId} places={places} day={day} onDone={() => setEditing(null)} />
+                : <StockRow item={item} householdId={householdId} by={by} day={day} onEdit={() => setEditing(item.id)} />}
+            </div>
+          )
+        })}
       </div>
+
+      {items.length >= 3 && <FromStock profile={profile} have={new Map(items.map((i) => [i.food_id, i.grams]))} />}
 
       <p className="section-title">When meals are eaten</p>
       <div className="setting-row">
         <div>
           <div className="row-name">Take ingredients out of stock when a meal is eaten</div>
           <div className="row-meta">
-            Ticking a planned meal eaten takes its ingredients, times the portions, off what is here;
-            unticking puts them back. Meals typed as plain numbers change nothing. Off unless you want it.
+            Ticking a planned meal eaten takes its ingredients (times the portions), or the food of a one-food meal,
+            off what is here; unticking puts them back. Meals typed as plain numbers change nothing. Off unless you want it.
           </div>
         </div>
         <button className="switch" role="switch" aria-checked={auto}
           aria-label="Take ingredients out of stock when a meal is eaten"
           onClick={() => void saveSettings(profile, { stock_auto: !auto })} />
       </div>
+      <ExportLink source={{ dataset: 'stock' }} />
     </>
   )
 }
 
-function StockRow({ item, householdId, onEdit }: { item: Item; householdId: string; onEdit: () => void }) {
+function StockRow({ item, householdId, by, day, onEdit }: { item: Item; householdId: string; by: 'place' | 'aisle'; day: string; onEdit: () => void }) {
   const isOut = item.grams <= 0
+  const isLow = belowMin(item)
+  const meta = [
+    by === 'aisle' && item.place ? item.place : '',
+    item.best_before ? dateText(item.best_before, day) : '',
+    item.min_grams ? `keeps ${minOf(item)} in${isLow ? ', on the list' : ''}` : '',
+    item.note ?? '',
+  ].filter(Boolean)
+  const past = item.best_before ? daysUntil(item.best_before, day) < 0 : false
   return (
     <div className={`stock-row${isOut ? ' is-out' : ''}`}>
-      <div className="stock-what">
+      <button type="button" className="stock-what" onClick={onEdit} aria-label={`Change ${item.name}`}>
         <div className="stock-name">{item.name}</div>
-        {item.note && <div className="stock-note">{item.note}</div>}
-      </div>
+        {meta.length > 0 && <div className={`stock-note${past ? ' is-past' : ''}`}>{meta.join(' · ')}</div>}
+      </button>
       <div className="stock-amount">
         <button type="button" className="stock-step" aria-label={`Less ${item.name}`} disabled={isOut}
           onClick={() => void nudgeStock(householdId, item.food_id, -1)}>−</button>
-        <button type="button" className="stock-qty"
+        <button type="button" className={`stock-qty${isLow && !isOut ? ' is-low' : ''}`}
           aria-label={`${item.name}, ${isOut ? 'out' : amountOf(item)}${!isOut && item.unit ? ` (${formatGrams(item.grams)})` : ''}. Change`}
           title={item.unit && !isOut ? formatGrams(item.grams) : undefined}
           onClick={onEdit}>{isOut ? 'out' : amountOf(item)}</button>
@@ -128,11 +186,38 @@ function StockRow({ item, householdId, onEdit }: { item: Item; householdId: stri
   )
 }
 
-function StockAdd({ householdId, foods, items }: { householdId: string; foods: Food[]; items: Item[] }) {
+/** Fridge, Freezer, Cupboard and the person's own places, as one-tap
+ *  choices, with a field for a new one. */
+function PlacePick({ value, places, onChange }: { value: string | null; places: string[]; onChange: (v: string | null) => void }) {
+  const [typing, setTyping] = useState(false)
+  const [text, setText] = useState('')
+  return (
+    <div className="stock-places" role="group" aria-label="Where it is kept">
+      {places.map((p) => (
+        <button key={p} type="button" className="shop-chip" aria-pressed={value?.toLowerCase() === p.toLowerCase()}
+          onClick={() => onChange(value?.toLowerCase() === p.toLowerCase() ? null : p)}>{p}</button>
+      ))}
+      {typing ? (
+        <input className="stock-place-input" value={text} autoFocus maxLength={40} placeholder="Cellar, garage"
+          aria-label="Another place" onChange={(e) => setText(e.target.value)}
+          onBlur={() => { if (text.trim()) onChange(text.trim()); setTyping(false); setText('') }}
+          onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); (e.target as HTMLInputElement).blur() } }} />
+      ) : (
+        <button type="button" className="shop-chip" onClick={() => setTyping(true)}>Other…</button>
+      )}
+    </div>
+  )
+}
+
+function StockAdd({ householdId, foods, items, places }: {
+  householdId: string; foods: Food[]; items: Item[]; places: string[]
+}) {
   const [food, setFood] = useState<Food | null>(null)
   const [amount, setAmount] = useState('')
   const [unit, setUnit] = useState('g')
   const [note, setNote] = useState('')
+  const [place, setPlace] = useState<string | null>(null)
+  const [date, setDate] = useState('')
   const [said, setSaid] = useState<string | null>(null)
 
   const userId = useApp((s) => s.session?.user.id ?? null)
@@ -152,12 +237,15 @@ function StockAdd({ householdId, foods, items }: { householdId: string; foods: F
   const read = readAmount(amount, choice)
   const grams = read?.grams ?? null
   const already = food ? inStock.get(food.id) : undefined
+  const best = date ? readDate(date, today()) : null
 
   function choose(item: PickItem) {
     const f = foods.find((x) => x.id === item.id) ?? null
     setFood(f)
     setSaid(null)
     const units = readUnits(f?.units)
+    const had = f ? inStock.get(f.id) : undefined
+    if (had?.place) setPlace(had.place)
     if (f?.pack_size_g && !amount.trim()) {
       // A food sold in packs usually arrives as one: start from that, ready to change.
       const u = unitFor(f.pack_size_g)
@@ -173,12 +261,15 @@ function StockAdd({ householdId, foods, items }: { householdId: string; foods: F
 
   async function submit(e: React.FormEvent) {
     e.preventDefault()
-    if (!food || !read || read.grams <= 0) return
-    await addStock(householdId, food.id, read.grams, note.trim() ? note : undefined, read.unit ?? undefined)
+    if (!food || !read || read.grams <= 0 || (date && !best)) return
+    const row = await addStock(householdId, food.id, read.grams, note.trim() ? note : undefined, read.unit ?? undefined)
+    if (place || best) await setStockDetails(row, { ...(place ? { place } : {}), ...(best ? { best_before: best } : {}) })
     setSaid(`${already ? 'Added' : 'Put'} ${amountHint(amount, choice)} of ${food.name} ${already ? 'to what was there' : 'in stock'}.`)
     setFood(null)
     setAmount('')
     setNote('')
+    setDate('')
+    setPlace(null)
   }
 
   return (
@@ -189,10 +280,19 @@ function StockAdd({ householdId, foods, items }: { householdId: string; foods: F
       <div className="stock-fields">
         <AmountInput text={amount} choice={choice.key} choices={choices} onText={setAmount} onChoice={setUnit}
           label="Amount" groupClass="stock-units" input={{ placeholder: 'Amount' }} />
-        <button type="submit" className="btn btn-primary" disabled={!food || grams === null || grams <= 0}>Add</button>
+        <button type="submit" className="btn btn-primary" disabled={!food || grams === null || grams <= 0 || (!!date && !best)}>Add</button>
       </div>
+      {food && (
+        <>
+          <PlacePick value={place} places={places} onChange={setPlace} />
+          <div className="stock-date-row">
+            <label className="stock-label" htmlFor="stock-add-date">Best before</label>
+            <input id="stock-add-date" type="date" value={best ?? date} onChange={(e) => setDate(e.target.value)} />
+          </div>
+        </>
+      )}
       <input className="stock-note-input" value={note} onChange={(e) => setNote(e.target.value)} maxLength={NOTE_MAX}
-        placeholder="Note, if any: opened, in the freezer" aria-label="Note" />
+        placeholder="Note, if any: opened, the big bag" aria-label="Note" />
       {choice.unit && read && <p className="stock-hint">{amountHint(amount, choice)}</p>}
       {already && <p className="stock-hint">{amountOf(already)} already here; this adds to it.</p>}
       {amount.trim() !== '' && grams === null && <p className="stock-hint is-warn">That is not an amount.</p>}
@@ -201,28 +301,45 @@ function StockAdd({ householdId, foods, items }: { householdId: string; foods: F
   )
 }
 
-function StockEdit({ item, householdId, onDone }: { item: Item; householdId: string; onDone: () => void }) {
+function StockEdit({ item, householdId, places, day, onDone }: { item: Item; householdId: string; places: string[]; day: string; onDone: () => void }) {
   // Opens in what the row shows: eggs for stock kept in eggs, else g or kg.
   const choices = amountChoices(item.units, { kilos: true })
   const start = item.unit ? unitKey(item.unit.name) : unitFor(item.grams)
   const first = item.grams <= 0 ? '0'
     : item.unit ? formatQty(countIn(item.grams, item.unit)) : inUnit(item.grams, unitFor(item.grams))
+  const minStart = item.min_grams ? (item.unit ? formatQty(countIn(item.min_grams, item.unit)) : inUnit(item.min_grams, unitFor(item.min_grams))) : ''
   const [unit, setUnit] = useState(start)
   const [amount, setAmount] = useState(first)
   const [note, setNote] = useState(item.note ?? '')
+  const [place, setPlace] = useState<string | null>(item.place)
+  const [date, setDate] = useState(item.best_before ?? '')
+  const [min, setMin] = useState(minStart)
+  // The minimum opens in the unit it reads best in, as the amount does.
+  const minStartUnit = item.unit ? unitKey(item.unit.name) : item.min_grams ? unitFor(item.min_grams) : 'g'
+  const [minUnit, setMinUnit] = useState(minStartUnit)
   const [confirm, setConfirm] = useState(false)
   const choice = choices.find((c) => c.key === unit) ?? choices[0]
+  const minChoice = choices.find((c) => c.key === minUnit) ?? choices[0]
   const read = readAmount(amount, choice)
+  const minRead = min.trim() ? readAmount(min, minChoice) : null
+  const best = date ? readDate(date, day) : null
   // Left as it opened, the stored grams stand: no drift from rounding.
   const grams = read && unit === start && amount === first ? item.grams : read?.grams ?? null
+  const ok = grams !== null && !!read && (!min.trim() || !!minRead) && (!date || !!best)
 
   async function save(e: React.FormEvent) {
     e.preventDefault()
-    if (grams === null || !read) return
+    if (!ok || grams === null || !read) return
+    const before = item.row
     // Saved in grams or kilos the row goes back to grams; in eggs it shows
     // eggs. A food not on this device yet keeps whatever unit its row has:
     // only grams can be typed here, and that says nothing about eggs.
-    await setStock(householdId, item.food_id, grams, note, item.known ? read.unit : read.unit ?? undefined)
+    const row = await setStock(householdId, item.food_id, grams, note, item.known ? read.unit : read.unit ?? undefined)
+    await setStockDetails(row, {
+      place, best_before: best,
+      min_grams: minRead && min.trim() === minStart && minUnit === minStartUnit ? item.min_grams : minRead?.grams ?? null,
+    })
+    offerUndo(`${item.name} changed`, () => restoreStock(before))
     onDone()
   }
 
@@ -233,17 +350,38 @@ function StockEdit({ item, householdId, onDone }: { item: Item; householdId: str
         <AmountInput text={amount} choice={choice.key} choices={choices} onText={setAmount} onChoice={setUnit}
           label={`Amount of ${item.name}`} groupClass="stock-units"
           input={{ autoFocus: true, onFocus: (e) => e.currentTarget.select() }} />
-        <button type="submit" className="btn btn-primary" disabled={grams === null}>Save</button>
+        <button type="submit" className="btn btn-primary" disabled={!ok}>Save</button>
+      </div>
+      {grams === null && <p className="stock-hint is-warn">That is not an amount.</p>}
+      {grams !== null && choice.unit && <p className="stock-hint">{amountHint(amount, choice)}</p>}
+      <PlacePick value={place} places={places} onChange={setPlace} />
+      <div className="stock-date-row">
+        <label className="stock-label" htmlFor={`best-${item.id}`}>Best before</label>
+        <input id={`best-${item.id}`} type="date" value={best ?? date} onChange={(e) => setDate(e.target.value)} />
+        {date && <button type="button" className="slot-link" onClick={() => setDate('')}>Clear</button>}
+      </div>
+      <div className="stock-min">
+        <span className="stock-label">Keep at least</span>
+        <div className="stock-fields">
+          <AmountInput text={min} choice={minChoice.key} choices={choices} onText={setMin} onChoice={setMinUnit}
+            label={`Least to keep of ${item.name}`} groupClass="stock-units" input={{ placeholder: 'None' }} />
+        </div>
+        <p className={`stock-hint${min.trim() && !minRead ? ' is-warn' : ''}`}>
+          {min.trim() && !minRead ? 'That is not an amount.' : 'Below this, it goes on the shopping list by itself.'}
+        </p>
       </div>
       <input className="stock-note-input" value={note} onChange={(e) => setNote(e.target.value)} maxLength={NOTE_MAX}
         placeholder="Note" aria-label={`Note for ${item.name}`} />
-      {grams === null && <p className="stock-hint is-warn">That is not an amount.</p>}
-      {grams !== null && choice.unit && <p className="stock-hint">{amountHint(amount, choice)}</p>}
       <div className="stock-actions">
         {confirm ? (
           <>
             <span className="stock-hint stock-ask">Take {item.name} off the list?</span>
-            <button type="button" className="btn warn" onClick={async () => { await removeStock(item.row); onDone() }}>Remove</button>
+            <button type="button" className="btn warn" onClick={async () => {
+              const before = item.row
+              await removeStock(item.row)
+              offerUndo(`${item.name} taken out of stock`, () => restoreStock(before))
+              onDone()
+            }}>Remove</button>
             <button type="button" className="btn" onClick={() => setConfirm(false)}>Keep</button>
           </>
         ) : (
@@ -254,5 +392,49 @@ function StockEdit({ item, householdId, onDone }: { item: Item; householdId: str
         )}
       </div>
     </form>
+  )
+}
+
+/** "Cook from what is here" (STK-06): recipes the cupboard covers most of,
+ *  with the rest one tap from the list. */
+function FromStock({ profile, have }: { profile: Profile; have: Map<string, number> }) {
+  const userId = useApp((s) => s.session?.user.id ?? null)
+  const ideas = useLiveQuery(async () => {
+    const recipes = (await db.recipe.toArray()).filter((r: Recipe) => !r.deleted_at && r.role !== 'ready')
+    const lines = await db.recipe_line.toArray()
+    const byRecipe = new Map<string, RecipeLine[]>()
+    for (const l of lines) byRecipe.set(l.recipe_id, [...(byRecipe.get(l.recipe_id) ?? []), l])
+    const ids = [...new Set(lines.map((l) => l.food_id).filter((id): id is string => !!id))]
+    const foods = new Map((await db.food.bulkGet(ids)).filter((f): f is Food => !!f).map((f) => [f.id, f]))
+    return recipes
+      .map((r) => ({ r, ...stockCover(mealNeeds(byRecipe.get(r.id) ?? [], foods, 1), have) }))
+      .filter((x) => x.share >= 0.5)
+      .sort((a, b) => b.share - a.share || (a.r.owner_id === userId ? -1 : 0) || a.r.name.localeCompare(b.r.name))
+      .slice(0, 5)
+  }, [have, userId], [])
+  if (!ideas.length) return null
+  return (
+    <section aria-label="Cook from what is here">
+      <p className="section-title">Cook from what is here</p>
+      <ul className="stock-ideas">
+        {ideas.map(({ r, share, missing }) => (
+          <li key={r.id} className="stock-row">
+            <div className="stock-what">
+              <div className="stock-name">{r.name}</div>
+              <div className="stock-note">{missing.length ? `${Math.round(share * 100)}% of it is here, ${missing.length} missing` : 'Everything is here'}</div>
+            </div>
+            {missing.length > 0 && (
+              <RowMenu label={`More for ${r.name}`} items={[{
+                label: 'Put the rest on the list',
+                onSelect: async () => {
+                  const res = await addRecipesToList(profile, [{ recipe_id: r.id, portions: 1 }])
+                  offerUndo(`${res.added} ${res.added === 1 ? 'item' : 'items'} for ${r.name} on the list`, res.undo)
+                },
+              }]} />
+            )}
+          </li>
+        ))}
+      </ul>
+    </section>
   )
 }

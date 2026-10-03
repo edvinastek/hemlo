@@ -29,7 +29,15 @@ Types, then every check that needs nothing but Node. CI runs the same command.
 - `notes` — the note's checklists, bullets, headings and bold; ticking; the toolbar; moving items up, down or by
   drag with the items under them, indenting, ticked items drawn last, and the codes the editor keeps out of sight.
 - `quickfood` — meals as plain numbers (per 100 g and other sizes), and which figures the food pages and Today show.
-- `stock` — typing and showing amounts, the −/+ steps, what an eaten meal takes and gives back, what a trip puts in stock.
+- `stock` — typing and showing amounts, the −/+ steps, what an eaten meal takes and gives back, what a trip puts in stock;
+  places (fridge, freezer, cupboard, own), best-before dates in words and the "use soon" list, quick dates (1410), the
+  minimum kept, grouping by place, and how much of a recipe the cupboard covers.
+- `shopping` — the list: "2 kg apples", "6 eggs", "toilet paper" and the other ways an amount is typed; matching an item to a
+  food; aisles guessed from names (English and Dutch), renamed, added, removed and ordered per shop; what planned meals
+  (recipes, single foods, ready meals) need less the cupboard, in packs or whole ones, with minimums and items already
+  dealt with; the shop filter, several lists, grouping by aisle and the basket, reordering, merging amounts; the recently
+  bought tiles; prices per kilo, an item's cost and the trip's total; the window of meals; the shopping trip on the plan
+  (made, counted, moved, removed, one per day); the chains offered in Stores, the person's country first.
 - `pages` — which pages the bar has for which modules, their order, hidden pages, where a swipe lands, which addresses go to Today, and how each bar style shares the pages out.
 - `daytabs` — which tabs Today shows for a day (only what is on and has something that day), their order, the fallback to Today.
 - `colours` — module colours: the palette at 3:1 or more on both the light and the dark page, defaults, a task's module, choosing and resetting.

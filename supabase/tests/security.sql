@@ -1012,6 +1012,218 @@ declare
 -- The reviewer row made for this run goes (the rollback would take it anyway).
 delete from app_admin where user_id = (select m from _ids);
 
+-- Shopping and stock (028): lists, places, prices, and joining a household
+-- with a code. Runs after A has left: M now owns A's household, B is still a
+-- stranger, and C is a new person who joins with a code and leaves again.
+insert into private.signup_allowlist (email) values ('sec-c@test.local');
+insert into auth.users (id, instance_id, aud, role, email, encrypted_password, email_confirmed_at, created_at, updated_at,
+                        confirmation_token, recovery_token, email_change, email_change_token_new, raw_app_meta_data, raw_user_meta_data)
+values (gen_random_uuid(), '00000000-0000-0000-0000-000000000000', 'authenticated', 'authenticated', 'sec-c@test.local', '', now(), now(), now(),
+        '', '', '', '', '{"provider":"email"}', '{}');
+create temp table _d (c uuid, hc uuid, code text, code2 text, mfood uuid, bfood uuid);
+grant all on _d to authenticated, anon;
+insert into _d (c, hc) select u.id, h.id from auth.users u join household h on h.owner_id = u.id where u.email = 'sec-c@test.local';
+
+do $$
+declare n int; got text; ok boolean;
+begin
+  -- M, now the owner, uses the new fields.
+  perform set_config('role', 'authenticated', true);
+  perform set_config('request.jwt.claims', json_build_object('sub', (select m from _ids), 'role', 'authenticated')::text, true);
+  insert into shopping_entry (household_id, name, list, done_until) select ha, 'Washing powder', 'Drugstore', current_date + 3 from _ids;
+  insert into shop_price (household_id, shop, item_key, name, price, amount_g) select ha, 'Lidl', 'name:washing powder', 'Washing powder', 7.49, 1500 from _ids;
+  insert into food (owner_id, name, kcal) select m, 'M''s scanned stroopwafels', 460 from _ids;
+  update _d set mfood = (select id from food where name = 'M''s scanned stroopwafels');
+  insert into shopping_entry (household_id, food_id, name) select ha, (select mfood from _d), 'Stroopwafels' from _ids;
+  update stock set place = 'Fridge', best_before = current_date + 2, min_grams = 250 where household_id = (select ha from _ids);
+  get diagnostics n = row_count;
+  insert into _r (check_name, expected, actual) values ('A member can give stock a place, a date and a minimum', '1', n::text);
+  begin
+    update stock set min_grams = -5 where household_id = (select ha from _ids);
+    insert into _r (check_name, expected, actual) values ('A minimum below nothing is refused', 'denied', 'allowed');
+  exception when others then
+    insert into _r (check_name, expected, actual) values ('A minimum below nothing is refused', 'denied', 'denied');
+  end;
+  begin
+    insert into shopping_entry (household_id, name, list) select ha, 'Nameless list', '  ' from _ids;
+    insert into _r (check_name, expected, actual) values ('A list needs a name', 'denied', 'allowed');
+  exception when others then
+    insert into _r (check_name, expected, actual) values ('A list needs a name', 'denied', 'denied');
+  end;
+  begin
+    insert into shop_price (household_id, shop, item_key, price) select ha, 'Lidl', 'name:negative', -1 from _ids;
+    insert into _r (check_name, expected, actual) values ('A price below nothing is refused', 'denied', 'allowed');
+  exception when others then
+    insert into _r (check_name, expected, actual) values ('A price below nothing is refused', 'denied', 'denied');
+  end;
+  begin
+    insert into shop_price (household_id, shop, item_key, name, price) select ha, 'Lidl', 'name:washing powder', 'Twice', 1 from _ids;
+    insert into _r (check_name, expected, actual) values ('One live price per item per shop', 'denied', 'allowed');
+  exception when others then
+    insert into _r (check_name, expected, actual) values ('One live price per item per shop', 'denied', 'denied');
+  end;
+  select x.code into got from public.create_household_invite((select ha from _ids)) x;
+  update _d set code = got;
+  insert into _r (check_name, expected, actual) values
+    ('The owner gets a code of ten letters and digits', 'yes',
+       case when got ~ '^[A-HJ-NP-Z2-9]{5}-[A-HJ-NP-Z2-9]{5}$' then 'yes' else coalesce(got, 'none') end);
+  execute 'reset role';
+
+  insert into _r (check_name, expected, actual) values
+    ('A code is kept only as its hash', '0', (select count(*) from private.household_invite where code_hash = (select code from _d))::text),
+    ('One live code per household', '1',
+       (select count(*) from private.household_invite where household_id = (select ha from _ids) and used_at is null)::text);
+
+  -- B, the stranger, gets nothing and cannot invite themselves in.
+  perform set_config('role', 'authenticated', true);
+  perform set_config('request.jwt.claims', json_build_object('sub', (select b from _ids), 'role', 'authenticated')::text, true);
+  insert into _r (check_name, expected, actual) values
+    ('B cannot read A''s household prices', '0', (select count(*) from shop_price where name = 'Washing powder')::text),
+    ('B cannot read the list''s other lists', '0', (select count(*) from shopping_entry where list = 'Drugstore')::text),
+    ('B cannot read a food on another household''s list', '0', (select count(*) from food where name = 'M''s scanned stroopwafels')::text);
+  begin
+    insert into shop_price (household_id, shop, item_key, price) select ha, 'Lidl', 'name:planted', 1 from _ids;
+    insert into _r (check_name, expected, actual) values ('B cannot write a price into A''s household', 'denied', 'allowed');
+  exception when others then
+    insert into _r (check_name, expected, actual) values ('B cannot write a price into A''s household', 'denied', 'denied');
+  end;
+  begin
+    perform public.create_household_invite((select ha from _ids));
+    insert into _r (check_name, expected, actual) values ('B cannot make a code for someone else''s household', 'denied', 'allowed');
+  exception when others then
+    insert into _r (check_name, expected, actual) values ('B cannot make a code for someone else''s household', 'denied', 'denied');
+  end;
+  begin
+    perform count(*) from private.household_invite;
+    insert into _r (check_name, expected, actual) values ('B cannot read the codes', 'denied', 'allowed');
+  exception when others then
+    insert into _r (check_name, expected, actual) values ('B cannot read the codes', 'denied', 'denied');
+  end;
+  insert into _r (check_name, expected, actual) values ('A made-up code lets nobody in', 'denied',
+    (select case when j.household_id is null and j.problem is not null then 'denied' else 'allowed' end from public.join_household('ABCDE-FGHJK') j));
+  -- B puts B's own food on B's own list: that must not open it to M.
+  insert into food (owner_id, name, kcal) select b, 'B''s secret snack', 500 from _ids;
+  update _d set bfood = (select id from food where name = 'B''s secret snack');
+  execute 'reset role';
+  insert into shopping_entry (household_id, food_id, name)
+    select (select household_id from profile where id = (select pb from _ids)), (select bfood from _d), 'Snack';
+
+  -- C joins with the code.
+  perform set_config('role', 'authenticated', true);
+  perform set_config('request.jwt.claims', json_build_object('sub', (select c from _d), 'role', 'authenticated')::text, true);
+  -- Typed in lower case, with the dash: still the code.
+  insert into _r (check_name, expected, actual) values
+    ('C, joining with the code, lands in M''s household', 'yes',
+       (select case when j.household_id = (select ha from _ids) then 'yes' else coalesce(j.problem, 'no') end
+          from public.join_household(lower((select code from _d))) j));
+  insert into _r (check_name, expected, actual) values
+    ('C now sees the household''s list', '1', (select count(*) from shopping_entry where name = 'Washing powder')::text),
+    ('C now sees the household''s prices', '1', (select count(*) from shop_price where name = 'Washing powder')::text),
+    ('C reads a housemate''s food that is on the list', '1', (select count(*) from food where name = 'M''s scanned stroopwafels')::text),
+    ('C sees only their own profile, not M''s', '1', (select count(*) from profile)::text);
+  execute 'reset role';
+  insert into _r (check_name, expected, actual) values
+    ('C is a member, not an owner', 'member',
+       (select role from household_member where household_id = (select ha from _ids) and user_id = (select c from _d))),
+    ('C''s profile moved to the household', 'yes',
+       case when (select household_id from profile where user_id = (select c from _d)) = (select ha from _ids) then 'yes' else 'no' end),
+    ('C''s own household is kept', '1', (select count(*) from household where id = (select hc from _d))::text);
+
+  -- M cannot read B's snack through B's list either.
+  perform set_config('role', 'authenticated', true);
+  perform set_config('request.jwt.claims', json_build_object('sub', (select m from _ids), 'role', 'authenticated')::text, true);
+  insert into _r (check_name, expected, actual) values
+    ('M cannot read a food on a stranger''s list', '0', (select count(*) from food where name = 'B''s secret snack')::text);
+  begin
+    perform public.leave_household((select ha from _ids));
+    insert into _r (check_name, expected, actual) values ('The owner cannot leave their own household', 'denied', 'allowed');
+  exception when others then
+    insert into _r (check_name, expected, actual) values ('The owner cannot leave their own household', 'denied', 'denied');
+  end;
+  execute 'reset role';
+
+  -- The used code works once.
+  perform set_config('role', 'authenticated', true);
+  perform set_config('request.jwt.claims', json_build_object('sub', (select b from _ids), 'role', 'authenticated')::text, true);
+  insert into _r (check_name, expected, actual) values ('A code works once', 'denied',
+    (select case when j.household_id is null then 'denied' else 'allowed' end from public.join_household((select code from _d)) j));
+  execute 'reset role';
+
+  -- An old code no longer works.
+  insert into private.household_invite (code_hash, household_id, created_by, expires_at)
+    select encode(sha256(convert_to('OLDCODE234', 'UTF8')), 'hex'), ha, m, now() - interval '1 minute' from _ids;
+  perform set_config('role', 'authenticated', true);
+  perform set_config('request.jwt.claims', json_build_object('sub', (select b from _ids), 'role', 'authenticated')::text, true);
+  insert into _r (check_name, expected, actual) values ('A code older than two days lets nobody in', 'denied',
+    (select case when j.household_id is null then 'denied' else 'allowed' end from public.join_household('OLDCO-DE234') j));
+  -- Guessing is cut off after ten tries an hour: B has tried three times.
+  for n in 1..7 loop perform public.join_household('ZZZZZ-ZZZZ' || n); end loop;
+  select case when j.problem like 'Too many tries%' then 'stopped' else coalesce(j.problem, 'allowed') end into got
+    from public.join_household('ZZZZZ-ZZZZZ') j;
+  insert into _r (check_name, expected, actual) values ('The eleventh guess in an hour is stopped', 'stopped', got);
+  execute 'reset role';
+  insert into _r (check_name, expected, actual) values ('Each guess is counted, even one that failed', '10',
+    (select count(*) from private.invite_attempt where user_id = (select b from _ids))::text);
+  perform set_config('role', 'authenticated', true);
+  perform set_config('request.jwt.claims', json_build_object('sub', (select b from _ids), 'role', 'authenticated')::text, true);
+  execute 'reset role';
+  insert into _r (check_name, expected, actual) values
+    ('B is in no other household after all that', '1',
+       (select count(*) from household_member where user_id = (select b from _ids))::text);
+
+  -- C leaves: back home, and the household's list is out of sight.
+  perform set_config('role', 'authenticated', true);
+  perform set_config('request.jwt.claims', json_build_object('sub', (select c from _d), 'role', 'authenticated')::text, true);
+  insert into _r (check_name, expected, actual) values
+    ('Leaving brings C back to their own household', 'yes',
+       case when public.leave_household((select ha from _ids)) = (select hc from _d) then 'yes' else 'no' end);
+  insert into _r (check_name, expected, actual) values
+    ('After leaving, C sees the list no more', '0', (select count(*) from shopping_entry where name = 'Washing powder')::text),
+    ('After leaving, C sees the prices no more', '0', (select count(*) from shop_price where name = 'Washing powder')::text),
+    ('After leaving, C reads the housemate''s food no more', '0', (select count(*) from food where name = 'M''s scanned stroopwafels')::text);
+  execute 'reset role';
+  insert into _r (check_name, expected, actual) values
+    ('C''s profile is back home', 'yes',
+       case when (select household_id from profile where user_id = (select c from _d)) = (select hc from _d) then 'yes' else 'no' end);
+
+  -- M invites C again, then takes C out.
+  perform set_config('role', 'authenticated', true);
+  perform set_config('request.jwt.claims', json_build_object('sub', (select m from _ids), 'role', 'authenticated')::text, true);
+  select x.code into got from public.create_household_invite((select ha from _ids)) x;
+  update _d set code2 = got;
+  execute 'reset role';
+  perform set_config('role', 'authenticated', true);
+  perform set_config('request.jwt.claims', json_build_object('sub', (select c from _d), 'role', 'authenticated')::text, true);
+  perform * from public.join_household((select code2 from _d));
+  begin
+    perform public.remove_household_member((select ha from _ids), (select m from _ids));
+    insert into _r (check_name, expected, actual) values ('A member cannot take the owner out', 'denied', 'allowed');
+  exception when others then
+    insert into _r (check_name, expected, actual) values ('A member cannot take the owner out', 'denied', 'denied');
+  end;
+  execute 'reset role';
+  perform set_config('role', 'authenticated', true);
+  perform set_config('request.jwt.claims', json_build_object('sub', (select m from _ids), 'role', 'authenticated')::text, true);
+  perform public.remove_household_member((select ha from _ids), (select c from _d));
+  execute 'reset role';
+  insert into _r (check_name, expected, actual) values
+    ('The owner can take a member out', '0',
+       (select count(*) from household_member where household_id = (select ha from _ids) and user_id = (select c from _d))::text),
+    ('Taken out, their profile goes back home', 'yes',
+       case when (select household_id from profile where user_id = (select c from _d)) = (select hc from _d) then 'yes' else 'no' end);
+
+  -- Nobody signed out can try a code at all.
+  perform set_config('role', 'anon', true);
+  perform set_config('request.jwt.claims', '{"role":"anon"}', true);
+  begin
+    perform * from public.join_household('ABCDE-FGHJK');
+    insert into _r (check_name, expected, actual) values ('Signed out, no code can be tried', 'denied', 'allowed');
+  exception when others then
+    insert into _r (check_name, expected, actual) values ('Signed out, no code can be tried', 'denied', 'denied');
+  end;
+  execute 'reset role';
+end $$;
+
 select n, check_name, expected, actual, case when expected = actual then 'ok' else 'FAIL' end as result
 from _r order by n;
 

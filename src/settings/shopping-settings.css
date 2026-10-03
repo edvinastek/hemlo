@@ -1,0 +1,26 @@
+/* Settings → Shopping and the household. Rows like every settings row; the
+   pieces inside them wrap on a 360 px phone. */
+.setting-row.ss-block { grid-template-columns: minmax(0, 1fr); }
+.ss-days { display: flex; flex-wrap: wrap; gap: var(--space-2); margin-top: var(--space-2); }
+.ss-days .shop-chip { min-width: 48px; min-height: 40px; }
+.ss-inline { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2); margin-top: var(--space-2); }
+.ss-inline input { min-height: 40px; padding: 6px 10px; font-size: 15px; min-width: 0; }
+.ss-field { display: inline-flex; align-items: center; gap: var(--space-2); font-family: var(--font-sans); font-size: 14px; color: var(--e-ink-soft); margin-top: var(--space-2); }
+.ss-field input { min-height: 40px; padding: 6px 10px; font-size: 15px; width: 7.5em; color: var(--e-ink); }
+.ss-field input[type="time"] { width: auto; }
+.ss-note, .ss-said { font-family: var(--font-sans); font-size: 13px; color: var(--e-ink-soft); margin: var(--space-2) 0 0; }
+.ss-said { padding: 0 var(--space-4) var(--space-3); }
+.ss-said.is-bad { color: var(--e-warn); }
+.ss-members { list-style: none; margin: var(--space-2) 0 0; padding: 0; }
+.ss-members li {
+  display: grid; grid-template-columns: minmax(0, 1fr) auto 44px; align-items: center; gap: var(--space-2);
+  min-height: 44px; border-bottom: 1px solid var(--e-rule);
+}
+.ss-member { font-family: var(--font-serif); font-size: 16px; overflow-wrap: anywhere; }
+.ss-role { font-family: var(--font-sans); font-size: 12px; color: var(--e-ink-soft); }
+.ss-code-box { margin-top: var(--space-2); }
+.ss-code {
+  font-family: var(--font-mono); font-size: 24px; letter-spacing: 0.08em; margin: 0;
+  padding: var(--space-2) var(--space-3); background: var(--e-tint); border-radius: var(--radius-md); display: inline-block;
+}
+.ss-code-input { font-family: var(--font-mono); letter-spacing: 0.06em; width: 11em; }

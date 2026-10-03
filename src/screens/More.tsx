@@ -18,6 +18,7 @@ import { HoldSettings } from '../settings/HoldSettings'
 import { TodayCardsSettings } from '../settings/TodayCardsSettings'
 import { FoodSettings } from '../settings/FoodSettings'
 import { BodySettings } from '../settings/BodySettings'
+import { ShoppingSettings } from '../settings/ShoppingSettings'
 import { NavSettings } from '../settings/NavSettings'
 import { ColourSettings } from '../settings/ColourSettings'
 import { HolidaySettings } from '../settings/HolidaySettings'
@@ -220,6 +221,7 @@ function ProfilePanel() {
       <NoteTemplates />
       <BodySettings />
       <FoodSettings />
+      <ShoppingSettings />
     </>
   )
 }

@@ -113,31 +113,45 @@ r = await one(`select count(*) n from public.stock s join public.food f on f.id 
   where s.household_id = ${household} and f.name = '${other.name.replace(/'/g, "''")}' and s.deleted_at is not null`)
 is('and is removed on the server (softly)', r.n, 1)
 
-// 3. The trip takes stock off.
+// 3. The list takes stock off (Shop → List, version 16).
 await p.click('.bottom-nav a[href="/food"]')
 await p.waitForTimeout(1200)
 await p.fill('input[aria-label="Lunch recipe"]', recipe.name)
 await p.locator('.sp-list li[role=option]', { hasText: recipe.name }).first().click()
 await settle(p, 900)
 await p.click('.bottom-nav a[href="/shop"]')
-await p.click('.tabs button:has-text("Trip")')
+await p.click('.tabs button:has-text("List")')
 await p.waitForTimeout(1200)
 if (needG <= 1800) {
-  is('a food the cupboard covers drops off the trip', await p.locator('.totals', { hasText: 'covered by stock' }).count(), 1)
+  is('a food the cupboard covers drops off the list', await p.locator('.totals', { hasText: 'covered by stock' }).count(), 1)
 }
 const half = Math.max(1, Math.floor(needG / 2))
 await openStock()
 await setAmount(food.name, String(half), 'g')
-await p.click('.tabs button:has-text("Trip")')
+await p.click('.tabs button:has-text("List")')
 await p.waitForTimeout(1200)
-const cells = await p.evaluate(() => {
-  const head = [...document.querySelectorAll('.sheet thead th')].map((th) => th.textContent.trim())
-  return [...document.querySelectorAll('.sheet tbody tr')].map((tr) =>
-    Object.fromEntries([...tr.children].map((td, i) => [head[i], td.querySelector('input')?.value ?? td.textContent.trim()])))
-})
-const line = cells.find((c) => Number(c['From stock g']) === half)
-is('the trip shows what comes from stock', Boolean(line), true)
-is('and needs only the rest', line && parseFloat(line['Needed']), Math.round(needG) - half)
+const planned = await p.locator('.shop-row', { has: p.locator('.shop-meta', { hasText: 'for 1 meal' }) }).evaluateAll((rows) =>
+  rows.map((r) => r.querySelector('.shop-amount')?.textContent?.trim() ?? ''))
+is('the planned lunch puts its ingredients on the list', planned.length > 0, true)
+const grams = planned.filter((a) => / g$/.test(a)).map((a) => parseFloat(a))
+if (grams.length) is('and a food partly in stock needs only the rest', grams.includes(Math.round(needG) - half), true)
+
+// 3b. An item typed by hand, ticked, and put away: shared through the server.
+await p.fill('input[aria-label="Add an item"]', '2 kg apples')
+await p.press('input[aria-label="Add an item"]', 'Enter')
+await settle(p)
+r = await one(`select qty::float q, unit, grams::float g from public.shopping_entry
+  where household_id = ${household} and name = 'Apples' and deleted_at is null`)
+is('"2 kg apples" is read as 2 kg', [r.q, r.unit, r.g], [2, 'kg', 2000])
+await p.locator('.shop-row', { hasText: 'Apples' }).locator('.shop-tick').click()
+await settle(p)
+r = await one(`select checked from public.shopping_entry where household_id = ${household} and name = 'Apples' and deleted_at is null`)
+is('the tick reaches the household', r.checked, true)
+await p.click('button:has-text("Bought, clear the basket")')
+await settle(p)
+r = await one(`select count(*) n from public.shopping_entry where household_id = ${household} and name = 'Apples' and bought_at is not null and deleted_at is not null`)
+is('bought, it leaves the list and is remembered', r.n, 1)
+is('and comes back as a recently bought tile', await p.locator('.shop-tile', { hasText: 'Apples' }).count(), 1)
 
 // 4. Auto-deduct: off by default, on by choice; eating takes, unticking gives back.
 await openStock()
@@ -173,6 +187,7 @@ await sql(`delete from public.stock where household_id = ${household};
   delete from public.meal_plan_slot where profile_id = ${profile};
   delete from public.food_log where profile_id = ${profile};
   delete from public.task where profile_id = ${profile} and source = 'meal';
+  delete from public.shopping_entry where household_id = ${household} and name = 'Apples';
   update public.profile set settings = coalesce(settings, '{}'::jsonb) - 'stock_auto' where id = ${profile};`)
 
 console.log(errors.length ? 'PAGE ERRORS: ' + errors.join(' | ') : 'no page errors')

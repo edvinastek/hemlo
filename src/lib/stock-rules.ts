@@ -184,3 +184,128 @@ export function cleanNote(note: string | null | undefined): string | null {
   const t = (note ?? '').trim()
   return t ? t.slice(0, NOTE_MAX) : null
 }
+
+// ---- where it is kept, and until when (STK-03) -------------------------------------
+
+/** The places offered first; the person can type their own ("Cellar"). */
+export const DEFAULT_PLACES = ['Fridge', 'Freezer', 'Cupboard']
+export const PLACE_MAX = 40
+
+/** A place as stored: spaces tidied, a capital first, cut to fit; empty is none. */
+export function cleanPlace(v: string | null | undefined): string | null {
+  const t = (v ?? '').replace(/\s+/g, ' ').trim().slice(0, PLACE_MAX)
+  return t ? t.charAt(0).toUpperCase() + t.slice(1) : null
+}
+
+/** The places to offer: the three usual ones, then any others already in
+ *  use, A to Z, each once (case aside). */
+export function placesFrom(used: (string | null | undefined)[]): string[] {
+  const seen = new Set(DEFAULT_PLACES.map((p) => p.toLowerCase()))
+  const own: string[] = []
+  for (const u of used) {
+    const p = cleanPlace(u)
+    if (p && !seen.has(p.toLowerCase())) { seen.add(p.toLowerCase()); own.push(p) }
+  }
+  return [...DEFAULT_PLACES, ...own.sort((a, b) => a.localeCompare(b))]
+}
+
+const dayNum = (d: string) => Math.round(Date.UTC(Number(d.slice(0, 4)), Number(d.slice(5, 7)) - 1, Number(d.slice(8, 10))) / 86_400_000)
+/** Days from today to the date: 0 today, negative once it has passed. */
+export const daysUntil = (date: string, today: string) => dayNum(date) - dayNum(today)
+
+/** A best-before date in plain words: "use today", "2 days left",
+ *  "until 14 Oct", "3 days past its date". */
+export function dateText(date: string, today: string): string {
+  const n = daysUntil(date, today)
+  if (n < 0) return `${-n} ${n === -1 ? 'day' : 'days'} past its date`
+  if (n === 0) return 'use today'
+  if (n === 1) return 'use by tomorrow'
+  if (n <= 6) return `${n} days left`
+  const M = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
+  return `until ${Number(date.slice(8, 10))} ${M[Number(date.slice(5, 7)) - 1]}`
+}
+
+/** "Use soon": what has a date within `days` days (or past it), soonest
+ *  first. Items that are out are left out: there is nothing to use. */
+export function expiringSoon<T extends { best_before?: string | null; grams: number; name: string }>(rows: T[], today: string, days = 3): T[] {
+  return rows
+    .filter((r) => r.best_before && r.grams > 0 && daysUntil(r.best_before, today) <= days)
+    .sort((a, b) => a.best_before!.localeCompare(b.best_before!) || a.name.localeCompare(b.name))
+}
+
+/** A date someone typed the quick way, as Grocy allows: "1410" is 14 October
+ *  (this year, or next if that has passed), "141026" or "14102026" a full
+ *  date; a date already in 'yyyy-MM-dd' is kept. Null when it is not a day. */
+export function readDate(text: string, today: string): string | null {
+  const t = String(text ?? '').trim()
+  if (/^\d{4}-\d{2}-\d{2}$/.test(t)) return validDay(t)
+  const digits = t.replace(/[\s./-]/g, '')
+  if (!/^\d+$/.test(digits)) return null
+  const pad = (n: number) => String(n).padStart(2, '0')
+  if (digits.length === 4) {
+    const d = Number(digits.slice(0, 2))
+    const m = Number(digits.slice(2, 4))
+    let y = Number(today.slice(0, 4))
+    let day = validDay(`${y}-${pad(m)}-${pad(d)}`)
+    if (day && day < today) { y++; day = validDay(`${y}-${pad(m)}-${pad(d)}`) }
+    return day
+  }
+  if (digits.length === 6) return validDay(`20${digits.slice(4, 6)}-${digits.slice(2, 4)}-${digits.slice(0, 2)}`)
+  if (digits.length === 8) return validDay(`${digits.slice(4, 8)}-${digits.slice(2, 4)}-${digits.slice(0, 2)}`)
+  return null
+}
+
+function validDay(s: string): string | null {
+  const [y, m, d] = s.split('-').map(Number)
+  const dt = new Date(Date.UTC(y, m - 1, d))
+  return dt.getUTCFullYear() === y && dt.getUTCMonth() === m - 1 && dt.getUTCDate() === d && y >= 2000 && y <= 2100 ? s : null
+}
+
+// ---- the minimum kept (STK-04, SHOP-15) ---------------------------------------------
+
+/** Is the cupboard below what the person wants kept of it? */
+export const belowMin = (r: { grams: number; min_grams?: number | null }) =>
+  !!r.min_grams && r.min_grams > 0 && r.grams < r.min_grams
+
+/** A minimum as stored: grams above nothing and within the cap; empty or
+ *  zero is no minimum. */
+export function cleanMin(g: number | null | undefined): number | null {
+  if (g === null || g === undefined || !Number.isFinite(g) || g <= 0) return null
+  return Math.min(MAX_GRAMS, tidy(g))
+}
+
+/** Stock grouped for the list: by place ("Fridge", "Freezer", then the
+ *  person's own, then "No place set") or by aisle. */
+export function groupKey(r: { place?: string | null; section: string }, by: 'place' | 'aisle'): string {
+  return by === 'place' ? (cleanPlace(r.place) ?? 'No place set') : r.section
+}
+
+/** The order of the groups: places in the offered order, "No place set"
+ *  last; aisles as sortStock has them. */
+export function sortByPlace<T extends { place?: string | null; section: string; name: string }>(rows: T[], places: string[]): T[] {
+  const at = new Map(places.map((p, i) => [p.toLowerCase(), i]))
+  const rank = (r: T) => {
+    const p = cleanPlace(r.place)
+    return p ? at.get(p.toLowerCase()) ?? places.length : places.length + 1
+  }
+  return [...rows].sort((a, b) => rank(a) - rank(b) || (cleanPlace(a.place) ?? '').localeCompare(cleanPlace(b.place) ?? '') || a.name.localeCompare(b.name))
+}
+
+// ---- cooking from what is here (STK-06) ---------------------------------------------
+
+/** How much of a recipe the cupboard covers: the share of its foods (by
+ *  weight needed for one batch) that are in stock in the amount needed.
+ *  Lines with no food (salt typed as text) are not counted. */
+export function stockCover(needs: Map<string, number>, have: Map<string, number>): { share: number; missing: string[] } {
+  let total = 0
+  let covered = 0
+  const missing: string[] = []
+  for (const [id, g] of needs) {
+    if (!(g > 0)) continue
+    total += g
+    const on = have.get(id) ?? 0
+    covered += Math.min(on, g)
+    if (on < g) missing.push(id)
+  }
+  return { share: total > 0 ? Math.round((covered / total) * 100) / 100 : 0, missing }
+}
