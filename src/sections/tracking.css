@@ -67,3 +67,101 @@
   border-bottom: 1px solid var(--e-rule);
 }
 .track-add svg { vertical-align: -1px; margin-right: var(--space-2); }
+
+/* ---------- version 16: habits, supplements and chores pages -------------- */
+.track { padding-bottom: calc(var(--space-6) + 64px); }
+.track-head { display: flex; align-items: baseline; justify-content: space-between; gap: var(--space-2); padding-right: var(--space-4); }
+.track-count { font-family: var(--font-sans); font-size: 12px; color: var(--e-ink-soft); white-space: nowrap; }
+.track-main { display: flex; align-items: center; gap: var(--space-3); min-width: 0; }
+.track-text { min-width: 0; }
+.track-row .row-name button { min-height: 32px; overflow-wrap: anywhere; }
+/* A habit's mark: its colour as a disc, the letter in it. With no colour the
+   disc is the tint, and the words still say everything the colour does. */
+.track-mark {
+  flex: none; width: 28px; height: 28px; border-radius: var(--radius-pill);
+  display: grid; place-items: center; background: var(--e-tint); color: var(--e-ink);
+  font-family: var(--font-sans); font-size: 12px; font-weight: 600;
+}
+.track-more {
+  width: 40px; height: 44px; display: grid; place-items: center;
+  font-family: var(--font-sans); font-size: 18px; color: var(--e-ink-soft); border-radius: var(--radius-sm);
+}
+.track-item.is-open > .track-row { border-bottom-style: dashed; }
+.track-open { display: grid; gap: var(--space-3); padding: var(--space-3) var(--space-4); border-bottom: 1px solid var(--e-rule); }
+.track-actions { display: flex; flex-wrap: wrap; gap: var(--space-2); }
+.track-actions .btn { min-height: 40px; }
+.track-actions .btn:disabled { opacity: 0.4; }
+.track-note { margin: 0; white-space: pre-wrap; font-family: var(--font-serif); font-size: 15px; overflow-wrap: anywhere; }
+.track-checks .np-list { margin: 0; }
+.track-ask {
+  display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2);
+  padding: var(--space-2) var(--space-3); background: var(--e-tint); border-radius: var(--radius-md);
+  font-family: var(--font-sans); font-size: 14px;
+}
+.track-ask span { flex: 1 1 180px; }
+.track-fold {
+  display: block; width: 100%; text-align: left; padding: var(--space-3) var(--space-4); min-height: 44px;
+  font-family: var(--font-sans); font-size: 13px; color: var(--e-ink-soft); border-bottom: 1px solid var(--e-rule);
+}
+.track-fold::before { content: '▸ '; }
+.track-fold[aria-expanded="true"]::before { content: '▾ '; }
+.track-error { margin: 0; color: var(--e-warn); font-family: var(--font-sans); font-size: 13px; }
+
+/* A count habit: − 5 of 8 glasses +. */
+.track-count-ctl { display: flex; align-items: center; gap: 2px; }
+.track-step {
+  width: 36px; height: 40px; border: 1px solid var(--e-rule); border-radius: var(--radius-md);
+  font-family: var(--font-sans); font-size: 17px;
+}
+.track-step:disabled { opacity: 0.35; }
+.track-amount {
+  min-width: 64px; max-width: 120px; padding: 4px 6px; font-family: var(--font-sans); font-size: 13px;
+  text-align: center; line-height: 1.2; color: var(--e-ink);
+}
+.track-count-ctl.is-done .track-amount { color: var(--e-done); font-weight: 600; }
+.track-amount-in { width: 72px; padding: 6px; font-size: 15px; }
+@media (max-width: 400px) {
+  .track-amount { min-width: 52px; max-width: 76px; font-size: 12px; }
+}
+
+/* The history: a month to tap, and the year as small squares. */
+.hist { display: grid; gap: var(--space-2); max-width: 420px; }
+.hist-nav { display: flex; align-items: center; justify-content: space-between; gap: var(--space-2); }
+.hist-nav .btn { min-width: 44px; min-height: 40px; font-size: 17px; }
+.hist-nav .btn:disabled { opacity: 0.35; }
+.hist-title { font-family: var(--font-sans); font-size: 14px; font-weight: 600; }
+.hist-grid { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 4px; }
+.hist-wd { text-align: center; font-family: var(--font-sans); font-size: 11px; color: var(--e-ink-soft); }
+.hist-cell {
+  aspect-ratio: 1; min-height: 36px; border-radius: var(--radius-md);
+  font-family: var(--font-sans); font-size: 12px; border: 1px solid transparent;
+}
+.hist-cell.is-done { background: var(--e-done); border-color: var(--e-done); color: var(--e-paper); font-weight: 600; }
+/* Missed: an outline, never a red mark; the day can still be ticked. */
+.hist-cell.is-missed { border-color: var(--e-ink-soft); border-style: dashed; color: var(--e-ink); }
+.hist-cell.is-open { border-color: var(--e-rule); color: var(--e-ink); }
+.hist-cell.is-off { color: var(--e-ink-soft); opacity: 0.6; }
+.hist-cell.is-future { color: var(--e-ink-soft); opacity: 0.35; cursor: default; }
+.hist-kept { margin: 0; font-family: var(--font-sans); font-size: 12px; color: var(--e-ink-soft); }
+.hist-year { width: 100%; max-width: 420px; height: auto; display: block; }
+.hist-year .yr-done { fill: var(--e-done); }
+.hist-year .yr-missed { fill: var(--e-heat-1); }
+.hist-year .yr-open, .hist-year .yr-off { fill: var(--e-tint); }
+.hist-year .yr-future, .hist-year .yr-blank { fill: transparent; }
+
+/* The sheets. */
+.track-sheet .serif, .track-sheet input.serif { font-family: var(--font-serif); }
+.track-choices { display: flex; flex-wrap: wrap; gap: var(--space-1); }
+.track-choice {
+  font-family: var(--font-sans); font-size: 13px; min-height: 36px; padding: 6px 10px;
+  border: 1px solid var(--e-rule); border-radius: var(--radius-pill); color: var(--e-ink-soft);
+}
+.track-choice[aria-checked="true"] { background: var(--e-tint); color: var(--e-ink); border-color: var(--e-ink-soft); font-weight: 600; }
+.track-switch { display: flex; align-items: center; justify-content: space-between; gap: var(--space-3); }
+.track-switch-name { font-family: var(--font-sans); font-size: 14px; color: var(--e-ink); }
+.track-swatches { display: flex; flex-wrap: wrap; gap: 6px; }
+.track-swatch { width: 32px; height: 32px; border-radius: var(--radius-pill); border: 2px solid transparent; }
+.track-swatch[aria-checked="true"] { border-color: var(--e-ink); outline: 2px solid var(--e-paper); outline-offset: -4px; }
+.track-swatch.is-none { background: var(--e-tint); border-color: var(--e-rule); }
+.track-swatch.is-none[aria-checked="true"] { border-color: var(--e-ink); }
+.form-grid input.track-mark-in { width: 9em; }

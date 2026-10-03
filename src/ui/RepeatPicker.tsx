@@ -22,7 +22,7 @@ import type { RepeatValue } from '../lib/repeat-choice-rules'
  *    times_per_week is offered.
  *  - `noneLabel` is what "does not repeat" is called here. */
 export function RepeatPicker({
-  value, onChange, start, today, kinds, noneLabel = 'Does not repeat', allowEnd = true, allowCount = false,
+  value, onChange, start, today, kinds, noneLabel = 'Does not repeat', allowEnd = true, allowCount = false, allowNone = true,
 }: {
   value: RepeatValue
   onChange: (v: RepeatValue) => void
@@ -33,6 +33,8 @@ export function RepeatPicker({
   allowEnd?: boolean
   /** Offer "after N times" (GEN-21): where the row can store a count (a task's series). */
   allowCount?: boolean
+  /** Offer "does not repeat" (off for habits and supplements, which always have a schedule). */
+  allowNone?: boolean
 }) {
   const { range } = useDayRange()
   const choice = choiceOf(value)
@@ -45,7 +47,7 @@ export function RepeatPicker({
   const [timesText, setTimesText] = useState(String(cfg.times ?? 3))
   const allowed = new Set<RuleKind>(kinds ?? ['daily', 'weekdays', 'weekends', 'weekly', 'every_n_weeks', 'monthly', 'monthly_nth', 'yearly', 'dates'])
   const options: Option<Choice>[] = ([
-    { value: 'never', label: noneLabel },
+    allowNone && { value: 'never', label: noneLabel },
     allowed.has('daily') && { value: 'daily', label: 'Every day' },
     allowed.has('daily') && { value: 'every_n_days', label: 'Every few days' },
     allowed.has('weekdays') && { value: 'weekdays', label: 'Weekdays (Mon to Fri)' },

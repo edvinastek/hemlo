@@ -383,7 +383,7 @@ export const BUILTIN_RULES: Record<string, { support: RuleSupport; note: string 
   'shopping.from_plan': { support: 'always', note: 'This is how the trip is made, so it stays on. Switch Shopping off in More to stop it.' },
   'shopping.trip_days': { support: 'later', note: 'Not acted on yet: shopping days are not put on the planner.' },
   'training.session_task': { support: 'later', note: 'Not acted on yet: sessions are logged, not planned ahead.' },
-  'habits.daily': { support: 'switch', note: 'Off: habits no longer appear on Today or the widget; the Habits page still has them.' },
+  'habits.daily': { support: 'always', note: 'Where habits show is now set by the module’s Show on Today, Show on Plan and Show on the widget switches.' },
   'supplements.slot_task': { support: 'later', note: 'Not acted on yet: supplements are ticked on Today, not made into tasks.' },
   'health.retarget': { support: 'switch', note: 'Off: a weigh-in is saved and the calorie and protein targets are left as they are.' },
   'learning.soft': { support: 'later', note: 'Not acted on yet: the planner does not move tasks by itself.' },
