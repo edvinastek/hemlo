@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { formatValue } from '../../lib/chart-rules'
-import { decimalsFor, drill, unitFor, type Fact, type PivotResult } from '../../lib/pivot-rules'
+import { decimalsFor, drill, timeLabel, unitFor, type Fact, type PivotResult } from '../../lib/pivot-rules'
 import { summaryName } from '../../lib/stats-builder-rules'
 import './charts.css'
 
@@ -96,7 +96,7 @@ function DrillSheet({ title, facts, measures, onClose }: {
     lines.set(key, line)
   }
   const list = [...lines.values()].slice(0, 300)
-  const fmt = (d: string) => new Date(`${d}T12:00:00`).toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' })
+  const fmt = (d: string) => timeLabel('day', d).label
   return (
     <>
       <div className="sheet-scrim" onClick={onClose} />

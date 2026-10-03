@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { formatValue } from '../../lib/chart-rules'
-import type { HeatGrid as Grid } from '../../lib/pivot-rules'
+import { timeLabel, type HeatGrid as Grid } from '../../lib/pivot-rules'
 import './charts.css'
 
 /** One figure, large: "142 g", with a quieter line under it and, when there
@@ -47,7 +47,7 @@ export function Ring({ progress, text, sub, colour, label }: { progress: number 
 export function HeatGrid({ grid, colour, unit, decimals, label }: { grid: Grid; colour: string; unit: string; decimals: number; label: string }) {
   const [picked, setPicked] = useState<string | null>(null)
   const cell = grid.rows.flatMap((r) => r.cells).find((c) => c?.day === picked) ?? null
-  const fmt = (d: string) => new Date(`${d}T12:00:00`).toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' })
+  const fmt = (d: string) => `${timeLabel('day', d).label} ${d.slice(0, 4)}`
   return (
     <div className="ch">
       <p className="ch-readout" aria-live="polite">

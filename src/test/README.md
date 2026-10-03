@@ -40,7 +40,10 @@ Types, then every check that needs nothing but Node. CI runs the same command.
   out, colours picked without clashing, adding and removing countries, several countries on one day, the names.
 - `stats` — the Stats page's arithmetic: day, week, month and year ranges (weeks from Monday, month ends, leap
   years), the arrows' reach, totals and averages that never count days still to come, best day, the bars per day or
-  month, shares done, habit and supplement due days, hours slept, record fields, the export rows.
+  month, shares done, habit and supplement due days, hours slept, record fields, the export rows; and the facts the
+  builder reads: habits due by their own schedules (today not yet missed, times a week owed on the Sunday once it has
+  passed, a habit put away keeping its ticks), chores done by whom and overdue (never a flexible one), bedtimes after
+  midnight.
 - `pivot` — the stats pivot: days, weeks, months and weekdays as buckets (Monday first, year ends), groupings by section,
   item, tag and multi-choice field, filters (case and accents ignored, values, weekdays, days); each summary worked out by
   hand (total, average over days that happened only, lowest, highest, latest, change, streak with today still open, best
@@ -178,7 +181,9 @@ to the test accounts, because they run against the live project.
   Month (colours, names, legend, 3:1 contrast) and Week; a chip on Today only on a holiday; removing one.
 - `stats` — the Stats page at 360 px in light and dark: today's tasks and a habit tick on the Day tab, a chart
   and no overflow on Week, Month and Year, the arrows stopping three years back, and "Show switched-off modules"
-  bringing a switched-off card and reaching profile.settings.
+  bringing a switched-off card and reaching profile.settings; every measure on the Tasks card; the builder at 360 px
+  saving a view of tasks done to profile.settings.stats_views with its card on Today (today_cards); /stats?view=<id>
+  opening it; its table; Delete and Undo.
 - `layout` — opens every screen and tab at 360 px wide and fails if anything runs off the side
   or sits under the floating add button.
 - `landscape` — the same walk through every screen and tab on a phone turned sideways (844 × 390 and 740 × 360)
