@@ -18,3 +18,25 @@ export function useBuiltinRuleOn(profileId: string | null | undefined, moduleKey
   return useLiveQuery(async () => (profileId ? builtinRuleOn(profileId, moduleKey, ruleName) : true),
     [profileId, moduleKey, ruleName], true)
 }
+
+/** Carry out the rules of built-in modules that keep things on the planner,
+ *  after one of them is switched on or off (Edit module), so the planner
+ *  matches at once rather than when the module's page is next opened:
+ *  - training.session_task: a routine's planned sessions as tasks;
+ *  - sleep.bedtime: the nightly bedtime block;
+ *  - learning.study_task: a dated study block's task.
+ *  Each only adds or removes what the rule decides; nothing the person
+ *  changed on one day is undone. Loaded on demand, so the screens that only
+ *  read a switch do not pull in the planners. */
+export async function carryOutRules(profileId: string, moduleKey: string, today: string): Promise<void> {
+  if (moduleKey === 'training') {
+    const { carryOutSessionRule } = await import('../lib/training')
+    await carryOutSessionRule(profileId, today)
+  } else if (moduleKey === 'sleep') {
+    const { carryOutBedtimeRule } = await import('../lib/sleep')
+    await carryOutBedtimeRule(profileId, today)
+  } else if (moduleKey === 'learning') {
+    const { syncStudyTasks } = await import('../lib/learning')
+    await syncStudyTasks(profileId)
+  }
+}
