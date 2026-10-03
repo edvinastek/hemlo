@@ -1,7 +1,7 @@
 import type { Task } from './types'
 import type { WorkHours } from './settings.ts'
 import { span, toMinutes } from './work-rules.ts'
-import { weekdayOf } from './series-rules.ts'
+import { weekdayOf, addDays } from './series-rules.ts'
 
 /** Moving tasks by hand: dragging on Today and swapping days on Plan's week.
  *  Pure: what moves where, and what to warn about first. The writing is in
@@ -320,3 +320,34 @@ function landingWarnings(moving: Item[], from: string, there: Item[], to: string
 
 /** "1 task" or "3 tasks". */
 export const count = (n: number, word = 'task') => `${n} ${word}${n === 1 ? '' : 's'}`
+
+/* ---------- push 15 / 30 / 60 (TOD-15) ------------------------------------ */
+
+/** What a push writes: a later time, past midnight onto the next day (never
+ *  wrapping round on the same date), one more push counted, and the task
+ *  flagged once it has been pushed three times. A task with no time cannot
+ *  be pushed from nothing: null, and the screen asks for a time instead. */
+export function pushTask(
+  t: Pick<Task, 'planned_date' | 'planned_time' | 'push_count'>, minutes: number, day: string,
+): Pick<Task, 'planned_date' | 'planned_time' | 'push_count' | 'status' | 'needs_review'> | null {
+  if (!t.planned_time) return null
+  const total = toMinutes(t.planned_time) + Math.round(minutes)
+  const days = Math.floor(total / DAY)
+  const at = ((total % DAY) + DAY) % DAY
+  const push_count = t.push_count + 1
+  return {
+    planned_date: addDays(t.planned_date ?? day, days),
+    planned_time: `${String(Math.floor(at / 60)).padStart(2, '0')}:${String(at % 60).padStart(2, '0')}`,
+    push_count,
+    status: 'pushed',
+    needs_review: push_count >= 3,
+  }
+}
+
+/** A time to offer when an untimed task is pushed: the clock plus the push,
+ *  rounded up to five minutes, and never past 23:55 on the same day. */
+export function suggestPushTime(now: string, minutes: number): string {
+  const raw = toMinutes(now) + Math.round(minutes)
+  const at = Math.min(DAY - 5, Math.ceil(raw / 5) * 5)
+  return `${String(Math.floor(at / 60)).padStart(2, '0')}:${String(at % 60).padStart(2, '0')}`
+}

@@ -34,7 +34,9 @@ Types, then every check that needs nothing but Node. CI runs the same command.
   side by side on a wide screen).
 - `reorder` — moving tasks by hand: a drag on Today stays among its kind (timed or not), timed tasks swap
   times with the one they land on, untimed ones take new order numbers; the warnings asked first (locked,
-  fixed, locked work hours, a new clash); swapping two days on Plan's week and moving one task to a day.
+  fixed, locked work hours, a new clash); swapping two days on Plan's week and moving one task to a day; push 15/30/60
+  going past midnight onto the next day (never round the clock), flagging on the third push, and an untimed task
+  asking for a time (with one offered: now plus the push, rounded up to five minutes).
 - `holidays` — public holidays: the country list matches date-holidays, only public holidays come through
   (King's Day on 27 April 2026 in NL, Unity Day on 3 October in DE), several-day holidays, the years worked
   out, colours picked without clashing, adding and removing countries, several countries on one day, the names.
@@ -111,6 +113,11 @@ Types, then every check that needs nothing but Node. CI runs the same command.
 - `afterdone` — "ask after done" templates: the marker line in a note, what Fill in, Skip and Later leave behind.
 - `repeat` — the one repeat control's choices: the rule each stands for from a first day (the 2nd or last Wednesday,
   the 14th, 14 October), numbers kept and capped, picked days, and every choice reading back as itself.
+- `dayitems` — one day's items from every module: switched-off modules and the person's "Show on Today" respected,
+  own and followed events in local time (an event at 00:30 on the right day), all-day and long events at the top, a
+  count habit's count and a checklist habit's ticks from the newest log, supplement slots as one item in slot order;
+  the timeline and the morning / afternoon / evening layout (slots in their part); where the "now" line goes; "Mark it
+  done?" only after the last tick; a slot's one tick; carry-over and the Inbox.
 - `hold` — the two-stage hold: a tap opens, moving before the short hold is a scroll (never a drag), the short hold
   arms the drag and a move then drags, holding still to the long hold expands, letting go in between does nothing,
   rows that cannot be dragged only expand; when the clock next matters; the hold times kept sane.

@@ -4,7 +4,7 @@
 // Sunday.
 import {
   zone, clampTarget, stepTarget, previewOrder, planMove, moveWarnings, overlaps, inLockedWork,
-  staysPut, planDaySwap, singleMoveWarnings, count,
+  staysPut, planDaySwap, singleMoveWarnings, count, pushTask, suggestPushTime,
 } from '../lib/reorder-rules.ts'
 
 let fail = 0
@@ -155,6 +155,21 @@ is('into work hours asks, not also about the work block',
 is('work day to work day at the same hour is not news',
   kinds(singleMoveWarnings(task('x', '10:00'), MON, '2026-09-29', [], locked)), [])
 is('counting', [count(1), count(3)], ['1 task', '3 tasks'])
+
+// Push 15 / 30 / 60 (TOD-15).
+const pt = (time, push_count = 0, planned_date = MON) => ({ planned_date, planned_time: time, push_count })
+is('a push moves the time on', pushTask(pt('09:00'), 15, MON),
+  { planned_date: MON, planned_time: '09:15', push_count: 1, status: 'pushed', needs_review: false })
+is('past midnight it goes to the next day, not round the clock', pushTask(pt('23:30'), 60, MON),
+  { planned_date: '2026-09-29', planned_time: '00:30', push_count: 1, status: 'pushed', needs_review: false })
+is('exactly midnight is the next day at 00:00', pushTask(pt('23:45:00'), 15, MON).planned_date + ' ' + pushTask(pt('23:45'), 15, MON).planned_time,
+  '2026-09-29 00:00')
+is('the third push flags it', pushTask(pt('10:00', 2), 30, MON).needs_review, true)
+is('the task\'s own day counts, not the day shown', pushTask(pt('23:50', 0, SUN), 30, MON).planned_date, MON)
+is('no time: the screen must ask, not start from 09:00', pushTask(pt(null), 30, MON), null)
+is('a time to offer: now plus the push, rounded up to five', suggestPushTime('10:02', 30), '10:35')
+is('…never past the end of the day', suggestPushTime('23:50', 60), '23:55')
+is('…on the dot stays on the dot', suggestPushTime('10:00', 15), '10:15')
 
 if (fail) { console.log(`\n${fail} check(s) failed`); process.exit(1) }
 console.log('\nall reorder checks passed')

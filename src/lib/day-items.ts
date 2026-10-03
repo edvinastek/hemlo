@@ -21,8 +21,9 @@ export async function loadDayItems(profileId: string, householdId: string, from:
     db.habit.where('profile_id').equals(profileId).toArray(),
     db.chore.where('household_id').equals(householdId).toArray(),
     db.supplement.where('profile_id').equals(profileId).toArray(),
+    // Stored in UTC: a day either side, and the rules sort out the local days.
     db.calendar_event.where('profile_id').equals(profileId)
-      .filter((e) => !e.deleted_at && e.starts_at.slice(0, 10) <= to && (e.ends_at ?? e.starts_at).slice(0, 10) >= from).toArray(),
+      .filter((e) => !e.deleted_at && e.starts_at.slice(0, 10) <= addDays(to, 1) && (e.ends_at ?? e.starts_at).slice(0, 10) >= addDays(from, -1)).toArray(),
     db.module_record.where('record_date').between(from, to, true, true).filter((r) => r.profile_id === profileId).toArray(),
   ])
   const habitIds = habits.map((h) => h.id)
@@ -35,13 +36,17 @@ export async function loadDayItems(profileId: string, householdId: string, from:
     suppIds.length ? db.supplement_log.where('supplement_id').anyOf(suppIds).filter((l) => l.log_date >= from && l.log_date <= to).toArray() : [],
     db.calendar_subscription.where('profile_id').equals(profileId).toArray(),
   ])
-  const calName = new Map(subscriptions.map((c) => [c.id, c.name]))
+  // A calendar no longer followed takes its events with it.
+  const subs = new Map(subscriptions.filter((c) => !c.deleted_at).map((c) => [c.id, c]))
   const days: string[] = []
   for (let d = from; d <= to; d = addDays(d, 1)) days.push(d)
   return dayItems(days, where, {
     today, enabled, views: settings.module_views,
     tasks, habits, habitLogs, chores, choreLogs, supplements, supplementLogs,
-    events: events.map((e) => ({ ...e, calendar_name: e.subscription_id ? calName.get(e.subscription_id) ?? null : null })),
+    events: events.filter((e) => !e.subscription_id || subs.has(e.subscription_id)).map((e) => {
+      const sub = e.subscription_id ? subs.get(e.subscription_id) : undefined
+      return { ...e, calendar_name: sub?.name ?? null, calendar_colour: sub?.colour ?? null }
+    }),
     records,
     recordTitle: recordTitle,
   })
