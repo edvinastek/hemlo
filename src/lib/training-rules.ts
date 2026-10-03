@@ -297,7 +297,7 @@ export function sessionsOf<T extends SetLog>(logs: T[]): { day: string; routine_
 export interface RoutinePlan {
   name: string
   rule: string | null
-  rule_config: Record<string, unknown>
+  rule_config: object
   start_date: string | null
   end_date: string | null
   time_of_day: string | null
@@ -308,7 +308,7 @@ export interface RoutinePlan {
 export interface SeriesShape {
   title: string
   rule: string
-  rule_config: Record<string, unknown>
+  rule_config: object
   start_date: string
   end_date: string | null
   time_of_day: string | null
