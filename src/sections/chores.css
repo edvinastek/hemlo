@@ -28,3 +28,9 @@
 .chore-date, .chore-name { display: grid; gap: 4px; font-family: var(--font-sans); font-size: 13px; color: var(--e-ink-soft); }
 .chore-name input { padding: 9px 10px; font-size: 15px; font-family: var(--font-serif); }
 .chore-date input { padding: 8px 10px; font-size: 15px; }
+
+/* A fold's content inside its sheet (v17: the folds moved to the page ⋮). */
+.mh-sheet .chore-fold { padding: 0; border-bottom: 0; }
+.mh-sheet .chore-packs { margin-bottom: var(--space-2); }
+.chore-status .chore-words { font-size: 13px; }
+.track-open > .hist-kept:first-child { margin-top: 0; }

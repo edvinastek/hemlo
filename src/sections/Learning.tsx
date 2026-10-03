@@ -17,6 +17,7 @@ import type { ModuleRecord } from '../lib/types'
 import { NO_REPEAT, RepeatPicker, type RepeatValue } from '../ui/RepeatPicker'
 import { offerUndo } from '../ui/Undo'
 import { DefView, DeleteButton, ModuleTabs, Sheet, defTabs, localToday, useTab } from './ModuleKit'
+import { ModuleMenu } from '../modules/ModuleHead'
 import './learning.css'
 
 const short = (d: string) => format(parseISO(d), 'EEE d MMM')
@@ -31,8 +32,10 @@ export function Learning({ profileId }: { profileId: string; day: string }) {
   const def = useModuleDef('learning')
   const blocks = useLearningRecords(profileId, 'study')
   const ruleOn = useBuiltinRuleOn(profileId, 'learning', 'study_task')
-  const tabs = [{ key: 'study', name: 'Study' }, { key: 'reading', name: 'Reading' }, ...defTabs(def)]
-  const [tab, setTab] = useTab('learning', tabs)
+  const tabs = [{ key: 'study', name: 'Study' }, { key: 'reading', name: 'Reading' }]
+  // Blocks, the month and the books table are under ⋮ → Views (CALM-05).
+  const views = defTabs(def)
+  const [tab, setTab] = useTab('learning', [...tabs, ...views])
 
   // Every block's task follows the block (made, moved, removed) whenever the
   // blocks or the rule change while the page is open.
@@ -42,10 +45,11 @@ export function Learning({ profileId }: { profileId: string; day: string }) {
   if (!def || !blocks) return null
   return (
     <>
+      <ModuleMenu views={views} active={tab} onView={setTab} />
       <ModuleTabs tabs={tabs} active={tab} onTab={setTab} />
       {tab === 'study' && <Study profileId={profileId} blocks={blocks} />}
       {tab === 'reading' && <Reading profileId={profileId} />}
-      {tab.startsWith('view:') && <DefView def={def} viewKey={tab.slice(5)} profileId={profileId} />}
+      {tab.startsWith('view:') && <DefView def={def} viewKey={tab.slice(5)} profileId={profileId} onClose={() => setTab('study')} />}
     </>
   )
 }
@@ -88,8 +92,7 @@ function Study({ profileId, blocks }: { profileId: string; blocks: ModuleRecord[
         <div className="kit-figure"><span className="k">Books</span><span className="v">{finishedIn(books.map(readBook), Number(today.slice(0, 4)))}</span><span className="s">finished this year</span></div>
       </div>
       {blocks.length === 0 ? (
-        <p className="empty">A study block is time set aside for one subject: a day, a start, how long, and the book or course. A block with a day
-          shows on Today and Plan as a task. Tap the round + button to plan the first.</p>
+        <p className="empty">A study block is time set aside for one subject. Tap the round + button to plan the first.</p>
       ) : (
         <>
           <h2 className="section-title">Coming up</h2>
@@ -150,8 +153,7 @@ function Reading({ profileId }: { profileId: string }) {
         </div>
       )}
       {recs.length === 0 ? (
-        <p className="empty">Your reading list: books to read, the ones you are reading with the page you are on, and the ones finished with a rating.
-          Plan time to read a book and a reflection is offered when the task is done. Tap the round + button to add a book.</p>
+        <p className="empty">Your reading list. Tap the round + button to add a book.</p>
       ) : BOOK_STATUSES.map((st) => {
         const group = books.filter((b) => b.status === st)
         if (!group.length) return null

@@ -15,7 +15,7 @@ import { XYChart } from '../ui/charts/XYChart'
 import { HeatGrid, NumberTile, Ring } from '../ui/charts/Figures'
 import { PivotTable } from '../ui/charts/PivotTable'
 import { MoreMenu, type MenuItem } from '../ui/charts/MoreMenu'
-import { ExportLink } from '../ui/ExportLink'
+import { useExport, type ExportSource } from '../ui/ExportLink'
 import { offerUndo } from '../ui/Undo'
 import type { FieldDef } from '../modules/types'
 import './stats.css'
@@ -82,6 +82,18 @@ const EXPORT_COLUMNS = (rowsName: string, colsName: string, split: boolean): Fie
 
 /** A view's chart and table, from a worked-out view. Shared by the Stats
  *  page, the builder's preview and Today's large cards. */
+/** What a view's Export… saves: its table, for the days it shows. */
+function viewExport(view: View, outcome: ViewOutcome): ExportSource {
+  const measures = view.measures.map((m) => outcome.catalogue.find((c) => c.key === m.source)).filter((m): m is Measure => !!m)
+  const rowsName = groupName(view.rows, measures)
+  const colsName = groupName(view.columns, measures)
+  return {
+    rows: pivotRows(outcome.result, rowsName, colsName),
+    fields: EXPORT_COLUMNS(rowsName, colsName, view.columns !== 'none'),
+    label: `${view.name}, ${spanName(outcome.span)}`,
+  }
+}
+
 export function ViewBody({ view, outcome, compact = false, showTable }: { view: View; outcome: ViewOutcome; compact?: boolean; showTable?: boolean }) {
   const paper = usePaper()
   const colourOf = useSeriesColour()
@@ -153,11 +165,6 @@ export function ViewBody({ view, outcome, compact = false, showTable }: { view: 
               {table ? 'Hide the table' : 'Show as a table'}
             </button>
           )}
-          <ExportLink source={{
-            rows: pivotRows(result, rowsName, colsName),
-            fields: EXPORT_COLUMNS(rowsName, colsName, view.columns !== 'none'),
-            label: `${view.name}, ${spanName(span)}`,
-          }} />
         </div>
       )}
     </div>
@@ -178,8 +185,11 @@ export function ViewCard({ view, index, count, profileId, today, onEdit, startOp
   const [ref, setRef] = useState<HTMLElement | null>(null)
   useEffect(() => { if (startOpen && ref) ref.scrollIntoView({ block: 'start' }) }, [startOpen, ref])
 
+  // Export… is in the card's ⋮ (v17: no Export links on pages).
+  const exp = useExport(outcome?.result.values[0] ? viewExport(view, outcome) : null)
   const items: MenuItem[] = [
     { label: 'Edit', onSelect: () => onEdit(view) },
+    ...(exp.item ? [exp.item] : []),
     { label: 'Duplicate', disabled: views.length >= 50, onSelect: () => void saveViews(duplicateView(views, view.id, newViewId(views.map((v) => v.id))), 'View duplicated', views) },
     {
       label: onToday ? 'Take off Today' : 'Pin to Today',
@@ -214,6 +224,7 @@ export function ViewCard({ view, index, count, profileId, today, onEdit, startOp
         <h3>{view.name}</h3>
         {onToday && <span className="chip">on Today</span>}
         <MoreMenu label={`More for ${view.name}`} items={items} />
+        {exp.sheet}
       </header>
       <div className="sv-range">
         <button type="button" className="btn sv-step" aria-label={`Previous ${step}`} disabled={offset <= -120} onClick={() => setOffset((o) => o - 1)}>‹</button>

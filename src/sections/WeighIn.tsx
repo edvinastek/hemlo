@@ -21,7 +21,12 @@ const kg = (n: number) => `${n.toFixed(1)} kg`
 /** The day's weigh-in, the targets it produces, and the recent trend. Saving
  *  a weight recalculates the targets from that day, and the arithmetic is
  *  printed under them so no number looks like it came from nowhere. */
-export function WeighIn({ profileId, day }: { profileId: string; day: string }) {
+export function WeighIn({ profileId, day, history: showHistory = true }: {
+  profileId: string; day: string
+  /** The last weigh-ins and their trend; the Health page has its own chart
+   *  and list, so it leaves them out (v17: shown once). */
+  history?: boolean
+}) {
   const { profile: active, profiles } = useApp()
   // Another profile's height and age must never feed this one's targets,
   // and the store's active profile can be an old copy; pickProfile says why.
@@ -147,8 +152,8 @@ export function WeighIn({ profileId, day }: { profileId: string; day: string }) 
         !missing && <p className="empty">No targets yet. Save a weigh-in and they are worked out from it.</p>
       )}
 
-      <p className="section-title">Last {SHOWN} weigh-ins</p>
-      {rows.length === 0 ? (
+      {showHistory && <p className="section-title">Last {SHOWN} weigh-ins</p>}
+      {!showHistory ? null : rows.length === 0 ? (
         <p className="empty">No weigh-ins yet. The first one starts the trend.</p>
       ) : (
         <>

@@ -15,6 +15,7 @@ import type { ModuleRecord } from '../lib/types'
 import { RepeatPicker, type RepeatValue } from '../ui/RepeatPicker'
 import { offerUndo } from '../ui/Undo'
 import { DefView, DeleteButton, ModuleTabs, Sheet, defTabs, localToday, useTab } from './ModuleKit'
+import { ModuleMenu, QuietAdd } from '../modules/ModuleHead'
 import './finance.css'
 
 const monthOf = (d: string) => d.slice(0, 7)
@@ -31,18 +32,22 @@ export function Finance({ profileId }: { profileId: string; day: string }) {
   const settings = useFinanceSettings(profileId)
   const entries = useEntries(profileId)
   const payments = usePayments(profileId)
-  const tabs = [{ key: 'overview', name: 'Overview' }, { key: 'planned', name: 'Planned' }, { key: 'categories', name: 'Categories' }, ...defTabs(def)]
-  const [tab, setTab] = useTab('finance', tabs)
+  const tabs = [{ key: 'overview', name: 'Overview' }, { key: 'planned', name: 'Planned' }, { key: 'categories', name: 'Categories' }]
+  // Entries and the calendar are under ⋮ → Views (CALM-05).
+  const views = defTabs(def)
+  const [tab, setTab] = useTab('finance', [...tabs, ...views])
   const [quick, setQuick] = useState(false)
   if (!settings || !entries || !payments) return null
 
   return (
     <>
+      <ModuleMenu views={views} active={tab} onView={setTab} />
       <ModuleTabs tabs={tabs} active={tab} onTab={setTab} />
-      {tab === 'overview' && <Overview profileId={profileId} s={settings} entries={entries} payments={payments.map((p) => p.payment)} onAdd={() => setQuick(true)} />}
+      {tab === 'overview' && <Overview profileId={profileId} s={settings} entries={entries} payments={payments.map((p) => p.payment)} onAdd={() => setQuick(true)}
+        onBudgets={() => setTab('categories')} />}
       {tab === 'planned' && <Planned profileId={profileId} s={settings} entries={entries} payments={payments} />}
       {tab === 'categories' && <Categories profileId={profileId} s={settings} />}
-      {tab.startsWith('view:') && def && <DefView def={def} viewKey={tab.slice(5)} profileId={profileId} />}
+      {tab.startsWith('view:') && def && <DefView def={def} viewKey={tab.slice(5)} profileId={profileId} onClose={() => setTab('overview')} />}
       {quick && <QuickEntry profileId={profileId} s={settings} entries={entries} onClose={() => setQuick(false)} />}
     </>
   )
@@ -50,7 +55,9 @@ export function Finance({ profileId }: { profileId: string; day: string }) {
 
 /* ---------- a month at a glance ------------------------------------------------- */
 
-function Overview({ profileId, s, entries, payments, onAdd }: { profileId: string; s: FinanceSettings; entries: ModuleRecord[]; payments: Payment[]; onAdd: () => void }) {
+function Overview({ profileId, s, entries, payments, onAdd, onBudgets }: {
+  profileId: string; s: FinanceSettings; entries: ModuleRecord[]; payments: Payment[]; onAdd: () => void; onBudgets: () => void
+}) {
   const today = localToday()
   const [month, setMonth] = useState(monthOf(today))
   const [entry, setEntry] = useState<ModuleRecord | null>(null)
@@ -103,8 +110,10 @@ function Overview({ profileId, s, entries, payments, onAdd }: { profileId: strin
         </>
       )}
 
-      <h2 className="section-title">Budgets</h2>
-      {rows.length === 0 ? <p className="kit-note">Give a category a monthly budget under Categories to see what is left of it here.</p> : (
+      {/* No budgets: no empty block, a quiet way to set them (CALM-15). */}
+      {rows.length === 0 ? <QuietAdd label="Set budgets" onClick={onBudgets} /> : (
+        <>
+        <h2 className="section-title">Budgets</h2>
         <ul className="kit-list" aria-label="Budgets this month">
           {rows.map((r) => (
             <li key={r.category} className="kit-row fin-budget">
@@ -116,6 +125,7 @@ function Overview({ profileId, s, entries, payments, onAdd }: { profileId: strin
             </li>
           ))}
         </ul>
+        </>
       )}
 
       {tops.length > 0 && (
@@ -137,7 +147,7 @@ function Overview({ profileId, s, entries, payments, onAdd }: { profileId: strin
 
       <h2 className="section-title">Entries</h2>
       {list.length === 0 ? (
-        <p className="kit-note">Nothing in {monthLabel(month)} yet. Tap the round + button: type the amount, then tap its category.</p>
+        <p className="kit-note">Nothing in {monthLabel(month)} yet.</p>
       ) : (
         <ul className="kit-list" aria-label={`Entries in ${monthLabel(month)}`}>
           {list.map((e) => {
@@ -326,8 +336,7 @@ function Planned({ profileId, s, entries, payments }: { profileId: string; s: Fi
   return (
     <>
       {payments.length === 0 ? (
-        <p className="empty">Planned payments are the ones you know are coming: rent, subscriptions, insurance, your salary. Each shows on Today and Plan
-          on its day as “Rent due”; marking it paid writes the entry for you. Tap the round + button to add one.</p>
+        <p className="empty">Rent, subscriptions, your salary: payments you know are coming. Tap the round + button to add one.</p>
       ) : (
         <ul className="kit-list" aria-label="Planned payments">
           {payments.map(({ row, payment: p }) => {
@@ -432,6 +441,7 @@ function Categories({ profileId, s }: { profileId: string; s: FinanceSettings })
           {[...new Set([s.currency, ...CURRENCIES])].map((c) => <option key={c} value={c}>{c}</option>)}
         </select>
       </div>
+      {!s.categories.some((c) => c.budget != null) && <p className="kit-note">Tap a category to give it a monthly budget.</p>}
       {(['expense', 'income'] as Kind[]).map((k) => (
         <section key={k} aria-label={k === 'expense' ? 'Money out' : 'Money in'}>
           <h2 className="section-title">{k === 'expense' ? 'Money out' : 'Money in'}</h2>
@@ -440,7 +450,7 @@ function Categories({ profileId, s }: { profileId: string; s: FinanceSettings })
               <li key={c.name} className={`kit-row${c.parent ? ' fin-sub' : ''}`}>
                 <button type="button" className="kit-open" onClick={() => setOpen(c)}>
                   <span className="row-name">{c.name}</span>
-                  <span className="row-meta">{[c.parent ? `under ${c.parent}` : null, c.budget != null ? `${formatMoney(c.budget, s.currency)} a month` : null].filter(Boolean).join(' · ') || (k === 'expense' ? 'No budget' : '')}</span>
+                  <span className="row-meta">{[c.parent ? `under ${c.parent}` : null, c.budget != null ? `${formatMoney(c.budget, s.currency)} a month` : null].filter(Boolean).join(' · ')}</span>
                 </button>
               </li>
             ))}

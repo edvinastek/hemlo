@@ -16,7 +16,7 @@ import {
   type CardFigure, type Measure,
 } from '../lib/stats-builder-rules'
 import type { StatsView as View } from '../lib/stats-view-rules'
-import { ExportLink } from '../ui/ExportLink'
+import { ModuleMenu, PlainSheet, useHideModuleHead } from '../modules/ModuleHead'
 import { offerUndo } from '../ui/Undo'
 import { XYChart } from '../ui/charts/XYChart'
 import { MoreMenu } from '../ui/charts/MoreMenu'
@@ -77,6 +77,8 @@ export function Stats({ profileId, day }: { profileId: string; day: string }) {
     void saveViews(putView(views, view), `"${t.name}" added`, views)
   }
 
+  // The builder is a page of its own: the module head steps aside.
+  useHideModuleHead(!!building)
   if (building) {
     return (
       <StatsBuilder profileId={profileId} today={today} start={building === 'new' ? null : building}
@@ -94,33 +96,45 @@ export function Stats({ profileId, day }: { profileId: string; day: string }) {
     return f.value == null ? null : { period: `${period} ${cur.start === cur.end ? cur.start : `${cur.start} to ${cur.end}`}`, module: m.name, metric: x.label, value: Math.round(f.value * 100) / 100, unit: x.unit }
   }).filter((r): r is NonNullable<typeof r> => !!r)) : []
 
+  const canTick = !!profile && profile.id === profileId
+  const toggleDisabled = () => {
+    if (!profile || !canTick) return
+    setTickedNow(!showDisabled)
+    void saveSettings(profile, { stats: { show_disabled: !showDisabled } })
+  }
+
   return (
     <section className="st" aria-label="Stats">
-      <div className="st-views-head">
-        <h2 className="st-h">Your views</h2>
-        <button type="button" className="btn" aria-expanded={showTemplates} onClick={() => setShowTemplates((s) => !s)}>Ready-made</button>
-        <button type="button" className="btn btn-primary" onClick={() => setBuilding('new')}>+ New view</button>
-      </div>
+      {/* One call to action (CALM-01): the empty card while there are no
+          views, the page's ⋮ once there are. */}
+      <ModuleMenu items={[
+        views.length > 0 && { label: 'New view', onSelect: () => setBuilding('new') },
+        views.length > 0 && { label: 'Ready-made views…', onSelect: () => setShowTemplates(true) },
+        { label: showDisabled ? 'Hide switched-off modules' : 'Show switched-off modules', disabled: !canTick, onSelect: toggleDisabled },
+      ]} exportSource={data ? { rows: exportRows as unknown as Record<string, unknown>[], fields: EXPORT_FIELDS, label: `Stats, ${periodTitle(period, anchor)}` } : null} />
       {showTemplates && (
-        <div className="st-templates" role="group" aria-label="Ready-made views">
-          {ready.length === 0 ? <p className="st-note">Every ready-made view for the modules you have on is already in your list.</p> : ready.map((t) => (
-            <div key={t.key} className="st-template">
-              <span className="st-template-text"><b>{t.name}</b><span className="st-sub">{t.hint}</span></span>
-              <button type="button" className="btn" onClick={() => addTemplate(t.key)} aria-label={`Add ${t.name}`}>Add</button>
-            </div>
-          ))}
-          <p className="st-note">Each one becomes a view of your own: change it, or delete it, as you like.</p>
-        </div>
+        <PlainSheet title="Ready-made views" onClose={() => setShowTemplates(false)}>
+          <div className="st-templates" role="group" aria-label="Ready-made views">
+            {ready.length === 0 ? <p className="st-note">Every ready-made view for the modules you have on is already in your list.</p> : ready.map((t) => (
+              <div key={t.key} className="st-template">
+                <span className="st-template-text"><b>{t.name}</b><span className="st-sub">{t.hint}</span></span>
+                <button type="button" className="btn" onClick={() => addTemplate(t.key)} aria-label={`Add ${t.name}`}>Add</button>
+              </div>
+            ))}
+          </div>
+        </PlainSheet>
       )}
       {views.length === 0 ? (
         <div className="st-empty-views">
-          <p>Build the stats you want to see: pick any measure from any module, how to sum it up, what to group it by, and the days. Save it as a view, put it on Today or on your home screen.</p>
+          <p>Build the stats you want to see, from any module.</p>
           <div className="st-empty-actions">
             <button type="button" className="btn btn-primary" onClick={() => setBuilding('new')}>Build a view</button>
-            <button type="button" className="btn" onClick={() => setShowTemplates(true)}>Start from a ready-made one</button>
+            <button type="button" className="btn" onClick={() => setShowTemplates(true)}>Ready-made views</button>
           </div>
         </div>
       ) : (
+        <>
+        <h2 className="st-h st-h-views">Your views</h2>
         <div className="st-cards">
           {opened === null && openId && <p className="st-note">That view has been deleted.</p>}
           {pinned.map((v) => (
@@ -142,6 +156,7 @@ export function Stats({ profileId, day }: { profileId: string; day: string }) {
             </details>
           )}
         </div>
+        </>
       )}
 
       <h2 className="st-h st-h-modules">By module</h2>
@@ -156,15 +171,6 @@ export function Stats({ profileId, day }: { profileId: string; day: string }) {
         {!current && <button type="button" className="btn" onClick={() => setAnchor(today)}>Today</button>}
         <button type="button" className="btn" aria-label={`Next ${period}`} disabled={!canShift(period, anchor, 1, today)} onClick={() => step(1)}>›</button>
       </div>
-      <label className="st-check">
-        <input type="checkbox" checked={showDisabled} disabled={!profile || profile.id !== profileId}
-          onChange={(e) => {
-            if (!profile) return
-            setTickedNow(e.target.checked)
-            void saveSettings(profile, { stats: { show_disabled: e.target.checked } })
-          }} />
-        <span>Show switched-off modules</span>
-      </label>
       {anchor > today && !current && <p className="st-note">This {period} has not started yet. Only what is planned for it counts so far.</p>}
 
       {data === undefined ? <p className="st-note">Working it out…</p> : (
@@ -178,12 +184,11 @@ export function Stats({ profileId, day }: { profileId: string; day: string }) {
           </div>
           {data.hiddenOff > 0 && (
             <p className="st-note">
-              {data.hiddenOff === 1 ? 'One switched-off module is' : `${data.hiddenOff} switched-off modules are`} left out.
-              Tick "Show switched-off modules" to see {data.hiddenOff === 1 ? 'it' : 'them'}.
+              {data.hiddenOff === 1 ? 'One switched-off module is' : `${data.hiddenOff} switched-off modules are`} left out.{' '}
+              {canTick && <button type="button" className="slot-link" onClick={toggleDisabled}>Show {data.hiddenOff === 1 ? 'it' : 'them'}</button>}
             </p>
           )}
           <Patterns profileId={profileId} today={today} showDisabled={showDisabled} />
-          <ExportLink source={{ rows: exportRows as unknown as Record<string, unknown>[], fields: EXPORT_FIELDS, label: `Stats, ${periodTitle(period, anchor)}` }} />
         </>
       )}
     </section>
@@ -202,6 +207,9 @@ function ModuleCard({ moduleKey, name, off, period, cur, prev, today, facts, cat
   const colourOf = useSeriesColour()
   const paper = usePaper()
   const [open, setOpen] = useState(false)
+  // One figure on the card (CALM-02); a tap shows the others picked and how
+  // each compares with the period before.
+  const [detail, setDetail] = useState(false)
   const { all, shown } = cardMeasures(catalogue, moduleKey, picked)
   const mine = facts.filter((f) => f.module === moduleKey)
   const figures = shown.map((m) => cardFigure(m, mine, cur, prev, today))
@@ -243,15 +251,15 @@ function ModuleCard({ moduleKey, name, off, period, cur, prev, today, facts, cat
       </header>
       {!any ? <p className="st-empty">{emptyText(moduleKey, name)}</p> : (
         <>
-          <dl className="st-figures">
-            {figures.map((x) => <Figure key={x.key} x={x} period={period} />)}
-          </dl>
+          <button type="button" className="st-figures-btn" aria-expanded={detail} onClick={() => setDetail((d) => !d)}>
+            <span className={`st-figures${detail ? '' : ' is-one'}`}>
+              {(detail ? figures : figures.slice(0, 1)).map((x) => <Figure key={x.key} x={x} period={period} change={detail} />)}
+            </span>
+            <span className="visually-hidden">{detail ? ', hide the comparison' : `, compare with ${beforeName(period)}`}</span>
+          </button>
           {chart && <XYChart data={chart} type={first!.combine === 'sum' || first!.ratio ? 'bar' : 'line'} labels={false} height={72} hint={false} summary={`${first!.label} for each ${period === 'year' ? 'month' : 'day'}`} />}
         </>
       )}
-      <button type="button" className="st-more" aria-expanded={open} onClick={() => setOpen((o) => !o)}>
-        {open ? 'Hide the other measures' : `Every measure ${name} keeps (${all.length})`}
-      </button>
       {open && (
         <ul className="st-measures" aria-label={`Measures ${name} keeps`}>
           {all.map((m) => {
@@ -288,7 +296,7 @@ function emptyText(key: string, name: string): string {
   return `Nothing in ${name} for this period. Add a record on its page and it counts here.`
 }
 
-function Figure({ x, period }: { x: CardFigure; period: Period }) {
+function Figure({ x, period, change: withChange }: { x: CardFigure; period: Period; change: boolean }) {
   const perDecimals = x.perDay != null && Math.abs(x.perDay) >= 100 ? 0 : 1
   let change: string | null = null
   if (x.delta != null) {
@@ -301,14 +309,14 @@ function Figure({ x, period }: { x: CardFigure; period: Period }) {
       : `${d}${unit}${aDay} vs ${beforeName(period)}`
   }
   return (
-    <div className="st-figure">
-      <dt>{x.label}</dt>
-      <dd>
+    <span className="st-figure">
+      <span className="st-figure-k">{x.label}</span>
+      <span className="st-figure-v">
         <span className="st-value">{formatValue(x.value, x.unit, x.decimals)}</span>
         {x.perDay != null && period !== 'day' && <span className="st-sub">{formatValue(x.perDay, x.unit, perDecimals)} {x.perLabel}</span>}
-        {change && <span className="st-sub">{change}</span>}
-      </dd>
-    </div>
+        {withChange && change && <span className="st-sub">{change}</span>}
+      </span>
+    </span>
   )
 }
 

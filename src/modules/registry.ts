@@ -170,7 +170,7 @@ export const MODULES: ModuleDef[] = [
   },
   {
     key: 'learning',
-    name: 'Learning and reading',
+    name: 'Learning',
     summary: 'Study blocks, a reading log and progress.',
     depth: 'full',
     defaultOn: true,

@@ -34,8 +34,12 @@ const overflow = (p) => p.evaluate(() => {
     .map((el) => `${el.tagName.toLowerCase()}.${[...el.classList].join('.')}`).slice(0, 5)
 })
 const card = (p, name) => p.locator('.st-card', { has: p.locator('h3', { hasText: name }) })
-const figure = async (p, cardName, label) =>
-  (await card(p, cardName).locator('.st-figure', { has: p.locator('dt', { hasText: label }) }).locator('.st-value').first().textContent())?.trim()
+// v17: a card shows one figure; a tap on it shows the others.
+const figure = async (p, cardName, label) => {
+  const btn = card(p, cardName).locator('.st-figures-btn')
+  if ((await btn.getAttribute('aria-expanded')) === 'false') await btn.click()
+  return (await card(p, cardName).locator('.st-figure', { has: p.locator('.st-figure-k', { hasText: label }) }).locator('.st-value').first().textContent())?.trim()
+}
 
 for (const colorScheme of ['light', 'dark']) {
   const { b, p, errors } = await open({ viewport: { width: 360, height: 740 }, colorScheme })
@@ -68,23 +72,27 @@ for (const colorScheme of ['light', 'dark']) {
   await p.click('.st-nav button:has-text("Today")')
 
   if (colorScheme === 'light') {
-    await p.locator('.st-check input').check()
+    // v17: the switch is under the page's ⋮.
+    await p.locator('.page-menu .pm-button').click()
+    await p.getByRole('menuitem', { name: 'Show switched-off modules' }).click()
     await p.waitForTimeout(1200)
     is('the tick brings the switched-off Sleep card', await card(p, 'Sleep').count(), 1)
     is('marked as switched off', await card(p, 'Sleep').locator('.chip', { hasText: 'switched off' }).count(), 1)
     await drained(p)
     const [row] = await sql(`select settings->'stats'->>'show_disabled' as v from public.profile where id = ${me}`)
     is('the tick reached profile.settings', row?.v, 'true')
-    await p.locator('.st-check input').uncheck()
+    await p.locator('.page-menu .pm-button').click()
+    await p.getByRole('menuitem', { name: 'Hide switched-off modules' }).click()
     await p.waitForTimeout(900)
     await drained(p)
 
     // Every measure a module keeps, one tap away.
-    await card(p, 'Tasks').locator('.st-more').click()
+    await card(p, 'Tasks').getByRole('button', { name: 'More for Tasks' }).click()
+    await p.getByRole('menuitem', { name: /^Every measure/ }).click()
     is('the Tasks card lists every measure', await card(p, 'Tasks').locator('.st-measures li').count() >= 6, true)
 
     // The builder: one screen, a measure, saved as a view.
-    await p.click('button:has-text("+ New view")')
+    await p.click('.st-empty-views button:has-text("Build a view")')
     await p.fill('.sb-search', 'tasks done')
     await p.locator('.sb-pick', { hasText: 'Tasks done' }).first().click()
     await p.waitForSelector('.sb-preview svg, .sb-preview .ch-number', { timeout: 15000 })

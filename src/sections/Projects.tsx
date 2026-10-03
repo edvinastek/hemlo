@@ -18,6 +18,8 @@ import { search } from '../lib/search-rules'
 import { TaskSheet } from '../ui/TaskSheet'
 import { offerUndo } from '../ui/Undo'
 import { DefView, DeleteButton, ModuleTabs, Sheet, defTabs, localToday, useSearch, useTab } from './ModuleKit'
+import { ModuleMenu, QuietAdd, useHideModuleHead } from '../modules/ModuleHead'
+import { MoreMenu } from '../ui/MoreMenu'
 import { Goals } from './Goals'
 import './projects.css'
 
@@ -33,18 +35,23 @@ export function Projects({ profileId }: { profileId: string; day: string }) {
   const [params, setParams] = useSearch()
   const projectId = params.get('project')
   const goalId = params.get('goal')
-  const tabs = [{ key: 'overview', name: 'Overview' }, { key: 'goals', name: 'Goals' }, ...defTabs(def, ['cards'])]
-  const [tab, setTab] = useTab('projects', tabs)
+  const tabs = [{ key: 'overview', name: 'Overview' }, { key: 'goals', name: 'Goals' }]
+  // The table and the board are under ⋮ → Views (CALM-05).
+  const views = defTabs(def, ['cards'])
+  const [tab, setTab] = useTab('projects', [...tabs, ...views])
+  // One project or one goal is a page of its own, with its own way back.
+  useHideModuleHead(!!(projectId && def) || !!goalId)
 
   if (projectId && def) return <ProjectPage profileId={profileId} projectId={projectId} onClose={() => setParams({ project: null })} />
   // A goal opened from elsewhere (the Year view) lands on the Goals tab.
   const active = goalId ? 'goals' : tab
   return (
     <>
-      <ModuleTabs tabs={tabs} active={active} onTab={(k) => { if (goalId) setParams({ goal: null }); setTab(k) }} />
+      <ModuleMenu views={views} active={active} onView={setTab} />
+      {!goalId && <ModuleTabs tabs={tabs} active={active} onTab={setTab} />}
       {active === 'overview' && <Overview profileId={profileId} onOpen={(id) => setParams({ project: id })} />}
       {active === 'goals' && <Goals profileId={profileId} />}
-      {active.startsWith('view:') && def && <DefView def={def} viewKey={active.slice(5)} profileId={profileId} />}
+      {active.startsWith('view:') && def && <DefView def={def} viewKey={active.slice(5)} profileId={profileId} onClose={() => setTab('overview')} />}
     </>
   )
 }
@@ -102,8 +109,7 @@ function Overview({ profileId, onOpen }: { profileId: string; onOpen: (id: strin
         </div>
       )}
       {projects.length === 0 ? (
-        <p className="empty">A project gathers the tasks towards one result, with its progress and the next thing to do. Tap the round + button
-          to start one; add its tasks and milestones on its page, or pick it in any task's sheet.</p>
+        <p className="empty">A project gathers the tasks towards one result. Tap the round + button to start one.</p>
       ) : (
         <>
           <ul className="kit-list" aria-label="Projects">{open.map(row)}</ul>
@@ -187,14 +193,14 @@ function ProjectPage({ profileId, projectId, onClose }: { profileId: string; pro
           <h2>{projectName(p)}</h2>
           <p className="row-meta">{[statusLabel(projectStatus(p)), due ? `due ${short(due)}` : null, goal ? `towards ${goal.title}` : null].filter(Boolean).join(' · ')}</p>
         </div>
+        <MoreMenu className="prj-menu" label={`More for ${projectName(p)}`} items={[{ label: 'Edit project', onSelect: () => setEditing(true) }]} />
       </header>
-      <div className="kit-toolbar">
-        <button type="button" className="btn" onClick={() => setEditing(true)}>Edit project</button>
-      </div>
-      <div className="prj-progress is-big">
-        <span className={`kit-bar${prog.share === 1 ? ' is-done' : ''}`} aria-hidden><span style={{ width: `${(prog.share ?? 0) * 100}%` }} /></span>
-        <span className="row-meta">{describeProgress(prog)}{prog.share != null ? ` (${Math.round(prog.share * 100)}%)` : ''}</span>
-      </div>
+      {prog.all > 0 && (
+        <div className="prj-progress is-big">
+          <span className={`kit-bar${prog.share === 1 ? ' is-done' : ''}`} aria-hidden><span style={{ width: `${(prog.share ?? 0) * 100}%` }} /></span>
+          <span className="row-meta">{describeProgress(prog)}{prog.share != null ? ` (${Math.round(prog.share * 100)}%)` : ''}</span>
+        </div>
+      )}
 
       <h2 className="section-title">Tasks</h2>
       <form className="prj-add" onSubmit={(e) => void add(e)} aria-label="Add a task to this project">
@@ -202,7 +208,7 @@ function ProjectPage({ profileId, projectId, onClose }: { profileId: string; pro
         <input type="date" value={day} aria-label="Day (none puts it in the Inbox)" onChange={(e) => setDay(e.target.value)} />
         <button type="submit" className="btn btn-primary" disabled={!title.trim()}>Add</button>
       </form>
-      {ts.length === 0 ? <p className="kit-note">No tasks yet. A task with a day shows on Today and Plan; without one it waits in Plan's Inbox.</p> : (
+      {ts.length === 0 ? null : (
         <ul className="kit-list" aria-label="Tasks of this project">
           {ts.map((t) => (
             <li key={t.id} className={`kit-row prj-task${t.status === 'done' ? ' is-done' : ''}`}>
@@ -232,9 +238,8 @@ function ProjectPage({ profileId, projectId, onClose }: { profileId: string; pro
         </ul>
       )}
 
-      <h2 className="section-title">Milestones</h2>
-      {ms.length === 0 && <p className="kit-note">Milestones are dated points along the way. They show on Plan and the Year view.</p>}
-      <ul className="kit-list" aria-label="Milestones">
+      {ms.length > 0 && <h2 className="section-title">Milestones</h2>}
+      {ms.length > 0 && <ul className="kit-list" aria-label="Milestones">
         {ms.map((m) => (
           <li key={m.id} className={`kit-row prj-task${m.done ? ' is-done' : ''}`}>
             <div className="prj-task-main">
@@ -247,8 +252,8 @@ function ProjectPage({ profileId, projectId, onClose }: { profileId: string; pro
             </div>
           </li>
         ))}
-      </ul>
-      <div className="kit-toolbar"><button type="button" className="btn" onClick={() => setMilestone('new')}>Add a milestone</button></div>
+      </ul>}
+      <QuietAdd label="Add a milestone" onClick={() => setMilestone('new')} />
       <div className="kit-gap" />
 
       {editing && (

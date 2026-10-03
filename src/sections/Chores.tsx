@@ -24,6 +24,7 @@ import { Dropdown } from '../ui/Dropdown'
 import { offerUndo } from '../ui/Undo'
 import { PlusGlyph, TickGlyph } from './Habits'
 import { TrackSheet, Choices, SwitchRow } from './TrackSheet'
+import { ModuleMenu, PlainSheet } from '../modules/ModuleHead'
 import '../ui/notes.css'
 import './tracking.css'
 import './chores.css'
@@ -34,8 +35,8 @@ const CHORE_KINDS = ['daily', 'weekdays', 'weekends', 'weekly', 'every_n_weeks',
  *  household: what is due now, this week and later (or by room), each with
  *  calm words and a due-ness bar, who it goes to and who did it last. A
  *  tick marks it done today by you. Opened, a chore shows its checklist,
- *  its history and its actions. Holidays, light days and a daily cap sit
- *  in their own fold; names of members in another. */
+ *  its history and its actions. Starter packs, holidays, light days and a
+ *  daily cap, and members' names are under the page's ⋮ (v17). */
 export function Chores({ profileId, day }: { profileId: string; day: string }) {
   const profile = useApp((s) => s.profile)
   const userId = useApp((s) => s.session?.user.id ?? null)
@@ -63,13 +64,20 @@ export function Chores({ profileId, day }: { profileId: string; day: string }) {
     })()
   }, [householdId, online, userId])
 
-  const [view, setView] = useState<'when' | 'room'>('when')
+  const [view, setView] = useState<'when' | 'room'>(() => {
+    try { return localStorage.getItem('getit:chores:group') === 'room' ? 'room' : 'when' } catch { return 'when' }
+  })
+  const group = (v: 'when' | 'room') => {
+    setView(v)
+    try { localStorage.setItem('getit:chores:group', v) } catch { /* private window: not remembered */ }
+  }
   const [open, setOpen] = useState<string | null>(null)
   const [sheet, setSheet] = useState<Chore | 'new' | null>(null)
   // ?fold=names opens the names (Settings → Household links here, so a
   // person's name is changed in one place).
   const asked = new URLSearchParams(useLocation().search).get('fold')
   const [fold, setFold] = useState<null | 'names' | 'holiday' | 'packs'>(asked === 'names' ? 'names' : null)
+  const closeFold = () => setFold(null)
 
   if (!data || !householdId) return null
   const { chores, logs, old, prefs, members } = data
@@ -102,6 +110,14 @@ export function Chores({ profileId, day }: { profileId: string; day: string }) {
 
   return (
     <section aria-labelledby="chores-title" className="track">
+      {onPage && (
+        <ModuleMenu items={[
+          chores.length > 0 && { label: view === 'when' ? 'Group by room' : 'Group by when', onSelect: () => group(view === 'when' ? 'room' : 'when') },
+          chores.length > 0 && { label: 'Starter packs…', onSelect: () => setFold('packs') },
+          { label: 'Holiday and light days…', onSelect: () => setFold('holiday') },
+          { label: 'Names in the household…', onSelect: () => setFold('names') },
+        ]} />
+      )}
       <div className="track-head">
         <h2 className="section-title" id="chores-title">Chores</h2>
         {chores.length > 0 && <span className="track-count">{dueNow ? `${dueNow} to do now` : 'Nothing waiting'}</span>}
@@ -113,17 +129,11 @@ export function Chores({ profileId, day }: { profileId: string; day: string }) {
       {old.length > 0 && <OldChores records={old} householdId={householdId} nextOrder={nextSortOrder(chores)} today={today} />}
       {chores.length === 0 ? (
         <div className="empty">
-          <p style={{ margin: '0 0 var(--space-3)' }}>
-            Chores everyone in the household shares: on set days, some days after they were last done, or about every few days. Start from a pack and take out what you do not need, or add your own.
-          </p>
+          <p style={{ margin: '0 0 var(--space-3)' }}>Chores everyone in the household shares. Start from a pack, or add your own.</p>
           <Packs householdId={householdId} chores={chores} />
         </div>
       ) : (
         <>
-          <div className="chore-view" role="radiogroup" aria-label="Show chores">
-            <button type="button" role="radio" aria-checked={view === 'when'} className="track-choice" onClick={() => setView('when')}>By when</button>
-            <button type="button" role="radio" aria-checked={view === 'room'} className="track-choice" onClick={() => setView('room')}>By room</button>
-          </div>
           {view === 'when'
             ? choreSections(entries, day).map((s) => (
               <div key={s.key}>
@@ -140,17 +150,19 @@ export function Chores({ profileId, day }: { profileId: string; day: string }) {
         </>
       )}
 
-      <button className="track-add" onClick={() => setSheet('new')}><PlusGlyph />Add a chore</button>
-      {chores.length > 0 && (
-        <>
-          <button type="button" className="track-fold" aria-expanded={fold === 'packs'} onClick={() => setFold(fold === 'packs' ? null : 'packs')}>Starter packs</button>
-          {fold === 'packs' && <div className="chore-fold"><Packs householdId={householdId} chores={chores} /></div>}
-        </>
+      {/* One add on the page: the round + (CALM-01). Elsewhere the row stays. */}
+      {!onPage && <button className="track-add" onClick={() => setSheet('new')}><PlusGlyph />Add a chore</button>}
+      {fold === 'packs' && (
+        <PlainSheet title="Starter packs" onClose={closeFold}><Packs householdId={householdId} chores={chores} onAdded={closeFold} /></PlainSheet>
       )}
-      <button type="button" className="track-fold" aria-expanded={fold === 'holiday'} onClick={() => setFold(fold === 'holiday' ? null : 'holiday')}>Holiday, light days and a daily limit</button>
-      {fold === 'holiday' && <HolidayFold profileId={profileId} chores={chores} prefs={prefs} today={today} />}
-      <button type="button" className="track-fold" aria-expanded={fold === 'names'} onClick={() => setFold(fold === 'names' ? null : 'names')}>Names in the household</button>
-      {fold === 'names' && <Names householdId={householdId} userId={userId} members={members} online={online} profileName={profile?.name ?? ''} />}
+      {fold === 'holiday' && (
+        <PlainSheet title="Holiday, light days and a daily limit" onClose={closeFold}><HolidayFold profileId={profileId} chores={chores} prefs={prefs} today={today} /></PlainSheet>
+      )}
+      {fold === 'names' && (
+        <PlainSheet title="Names in the household" onClose={closeFold}>
+          <Names householdId={householdId} userId={userId} members={members} online={online} profileName={profile?.name ?? ''} />
+        </PlainSheet>
+      )}
 
       {onPage && <button type="button" className="fab" aria-label="Add a chore" onClick={() => setSheet('new')}>+</button>}
       {sheet && (
@@ -182,10 +194,14 @@ function ChoreRow({ chore: c, state: st, logs, day, today, held, nameOf, open, o
   const fill = duenessFill(c, st)
   const last = [...logs].filter((l) => !l.deleted_at && l.done_on <= day).sort((a, b) => b.done_on.localeCompare(a.done_on))[0]
   const who = choreAssignee(c, day, logs).map(nameOf).filter(Boolean)
-  const meta = [
-    c.room, choreScheduleText({ ...c, paused: false }, today), who.length ? (c.rotation !== 'none' && c.assignees.length > 1 ? `${who.join(', ')}’s turn` : who.join(', ')) : null,
-    c.minutes ? `${c.minutes} min` : null,
+  // One quiet line (CALM-06): how due it is, where, and whose turn; the
+  // schedule, the minutes and who did it last are in the opened row.
+  const line = [
+    `${status.text}${held ? ' · waits for another day' : ''}`, c.room,
+    who.length ? (c.rotation !== 'none' && c.assignees.length > 1 ? `${who.join(', ')}’s turn` : who.join(', ')) : null,
   ].filter(Boolean).join(' · ')
+  const facts = [choreScheduleText({ ...c, paused: false }, today), c.minutes ? `${c.minutes} min` : null,
+    lastDoneText(last?.done_on ?? null, last ? nameOf(last.done_by) : null, day)].filter(Boolean).join(' · ')
 
   return (
     <div className={`track-item${open ? ' is-open' : ''}`}>
@@ -195,10 +211,9 @@ function ChoreRow({ chore: c, state: st, logs, day, today, held, nameOf, open, o
             <button type="button" onClick={onToggle} aria-expanded={open}>{c.name}</button>
             {hasNote(c.note) && <span className="row-notemark" aria-label="Has a note"> ▤</span>}
           </div>
-          <div className="row-meta">{meta}</div>
           <div className="chore-status">
             <span className={`chore-bar tone-${status.tone}`} aria-hidden="true"><i style={{ width: `${Math.round(fill * 100)}%` }} /></span>
-            <span className="chore-words">{status.text}{held ? ' · waits for another day' : ''} · {lastDoneText(last?.done_on ?? null, last ? nameOf(last.done_by) : null, day)}</span>
+            <span className="row-meta chore-words">{line}</span>
           </div>
         </div>
         <div className="track-right">
@@ -210,6 +225,7 @@ function ChoreRow({ chore: c, state: st, logs, day, today, held, nameOf, open, o
       </div>
       {open && (
         <div className="track-open">
+          <p className="hist-kept">{facts}</p>
           <div className="track-actions">
             <button type="button" className="btn" onClick={onEdit}>Edit</button>
             <button type="button" className="btn" onClick={() => void saveChore({ ...c, paused: !c.paused }, ['paused'])}>{c.paused ? 'Resume' : 'Pause'}</button>
@@ -294,7 +310,7 @@ function OldChores({ records, householdId, nextOrder, today }: { records: Module
 
 /** Starter packs (HSE-10): every chore of the pack listed and ticked; the
  *  person unticks what they do not need, then adds the rest. */
-function Packs({ householdId, chores }: { householdId: string; chores: Chore[] }) {
+function Packs({ householdId, chores, onAdded }: { householdId: string; chores: Chore[]; onAdded?: () => void }) {
   const [pack, setPack] = useState<StarterPack | null>(null)
   const [off, setOff] = useState<Set<string>>(new Set())
   const [busy, setBusy] = useState(false)
@@ -325,6 +341,7 @@ function Packs({ householdId, chores }: { householdId: string; chores: Chore[] }
     setBusy(false)
     setPack(null)
     if (made.length) offerUndo(`${made.length} chores added`, async () => { for (const c of made) await deleteChore(c) })
+    if (made.length) onAdded?.()
   }
   return (
     <div className="chore-packs">
@@ -364,7 +381,7 @@ function HolidayFold({ profileId, chores, prefs, today }: { profileId: string; c
   return (
     <div className="chore-fold">
       <p className="tp-title">Holiday</p>
-      <p className="tp-empty">Pauses every chore for everyone in the household. What falls due while away is let go, and flexible chores do not grow more due.</p>
+      <p className="tp-empty">Pauses every chore for everyone in the household; what falls due meanwhile is let go.</p>
       <div className="supp-slot-row">
         <label className="chore-date">From <input type="date" value={from} onChange={(e) => setFrom(e.target.value)} /></label>
         <label className="chore-date">Until <input type="date" value={until} min={from} onChange={(e) => setUntil(e.target.value)} /></label>

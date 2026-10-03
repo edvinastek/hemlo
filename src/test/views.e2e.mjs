@@ -17,6 +17,9 @@ const { is, failed } = checks()
 const settle = async (p, ms = 600) => { await p.waitForTimeout(ms); await drained(p) }
 const one = async (query) => (await sql(query))[0] ?? {}
 const exact = (name) => ({ name, exact: true })
+// v17: Edit module and the module's views are under the page's ⋮.
+const pageMenu = async (item) => { await p.locator('.page-menu .pm-button').click(); await p.getByRole('menuitem', exact(item)).click() }
+const pickView = async (name) => { await pageMenu('Views…'); await p.locator('.mh-views').getByRole('button', exact(name)).click() }
 const yesterday = (() => { const d = new Date(); d.setDate(d.getDate() - 1); return d.toLocaleDateString('sv') })()
 
 const A = await open({ viewport: { width: 360, height: 780 } })
@@ -78,7 +81,7 @@ r = await one(`select count(*) n from public.module_record where ${mine} and mod
 is('three records in Postgres', r.n, 3)
 
 // 3. Board: drag Bus from transport to home; Rent to fun from its menu.
-await p.getByRole('tab', exact('Board')).click()
+await pickView('Board')
 await p.locator('.bd-col').first().waitFor({ timeout: 10000 })
 is('a column per category', await p.locator('.bd-col').count(), 7)
 is('no overflow on the board', (await overflow()).join(', '), '')
@@ -109,7 +112,7 @@ is('Move to… changes it too', r.c, 'fun')
 is('and the card is in its new column', await p.locator('.bd-col[data-col="fun"] .bd-card', { hasText: 'Rent' }).count(), 1)
 
 // 4. Grid: tap Lunch yesterday.
-await p.getByRole('tab', exact('Grid')).click()
+await pickView('Grid')
 await p.locator('table.gd').waitFor({ timeout: 10000 })
 is('a row per name', await p.locator('table.gd tbody tr').count(), 3)
 is('today is ticked for Lunch', await p.locator('tr', { hasText: 'Lunch' }).locator('.gd-cell').nth(6).getAttribute('aria-pressed'), 'true')
@@ -124,7 +127,7 @@ is('thirty days', await p.locator('tr', { hasText: 'Lunch' }).locator('.gd-cell'
 is('no overflow on the grid', (await overflow()).join(', '), '')
 
 // 5. Chart: bars, and a value read out on tap.
-await p.getByRole('tab', exact('Chart')).click()
+await pickView('Chart')
 await p.locator('svg.ch-svg').waitFor({ timeout: 10000 })
 is('bars are drawn', (await p.locator('svg.ch-svg rect.ch-bar').count()) >= 1, true)
 await p.locator('.ch-hit').last().click()
@@ -154,7 +157,7 @@ is('with the rule on, Today has a Habits tab', await p.getByRole('tab', exact('H
 const rule = 'A daily habit appears on every day until it is turned off.'
 async function setRule(on) {
   await p.goto(`${APP}m/habits`, { waitUntil: 'networkidle' })
-  await p.getByRole('button', exact('Edit module')).click()
+  await pageMenu('Edit module')
   await p.getByRole('tab', exact('Rules')).click()
   const sw = p.getByRole('switch', exact(rule))
   if ((await sw.getAttribute('aria-checked')) !== String(on)) await sw.click()
@@ -174,14 +177,14 @@ is('switched back on, it comes back', await p.getByRole('tab', exact('Habits')).
 
 // Sleep's bedtime rule is not acted on yet, so it has no switch.
 await p.goto(`${APP}m/sleep`, { waitUntil: 'networkidle' })
-await p.getByRole('button', exact('Edit module')).click()
+await pageMenu('Edit module')
 await p.getByRole('tab', exact('Rules')).click()
 is('Sleep’s bedtime rule shows no switch', await p.getByRole('switch', { name: /Bedtime is locked/ }).count(), 0)
 await p.getByRole('button', exact('Back')).click()
 
 // Tidy up: the module goes (its records stay until the account is deleted).
 await p.goto(`${APP}m/${key}`, { waitUntil: 'networkidle' })
-await p.getByRole('button', exact('Edit module')).click()
+await pageMenu('Edit module')
 await p.getByRole('tab', exact('Settings')).click()
 await p.getByRole('button', exact('Delete module')).click()
 await p.getByRole('button', exact('Delete E2E Views')).click()

@@ -8,11 +8,12 @@ import { SearchPick } from '../ui/SearchPick'
 import { offerUndo } from '../ui/Undo'
 import {
   blankLine, blankRoutine, carryOutSessionRule, deleteRoutine, restoreRoutine, routineLines, saveRoutine,
-  useAllLogs, useExercises, useRoutines, useTrainingSettings,
+  useAllLogs, useExercises, useRoutines,
 } from '../lib/training'
 import { describeTarget, lineProblems, muscleOf, MUSCLE_LABEL, sessionsOf, sessionSummary, trim } from '../lib/training-rules'
 import type { Exercise, Routine, RoutineLine } from '../lib/training-types'
 import { DefView, DeleteButton, ModuleTabs, Sheet, defTabs, localToday, useSearch, useTab, type Tab } from './ModuleKit'
+import { ModuleMenu, useHideModuleHead } from '../modules/ModuleHead'
 import { TrainingSession } from './TrainingSession'
 import { TrainingExercises } from './TrainingExercises'
 import './training.css'
@@ -37,9 +38,12 @@ export function Training({ profileId }: { profileId: string; day: string }) {
     { key: 'routines', name: 'Routines' },
     { key: 'exercises', name: 'Exercises' },
     { key: 'history', name: 'History' },
-    ...defTabs(def, ['sessions']),
   ]
-  const [tab, setTab] = useTab('training', tabs)
+  // The log table and the month are under ⋮ → Views (CALM-05).
+  const views = defTabs(def, ['sessions'])
+  const [tab, setTab] = useTab('training', [...tabs, ...views])
+  // A session is a page of its own: the module head steps aside.
+  useHideModuleHead(!!sessionId)
 
   if (sessionId) {
     return <TrainingSession profileId={profileId} routineId={sessionId === 'free' ? null : sessionId} day={sessionDay}
@@ -50,12 +54,14 @@ export function Training({ profileId }: { profileId: string; day: string }) {
 
   return (
     <>
+      <ModuleMenu views={views} active={tab} onView={setTab}
+        items={[{ label: 'Log a session without a routine', onSelect: () => start(null) }]} />
       <WeekFigures profileId={profileId} today={today} />
       <ModuleTabs tabs={tabs} active={tab} onTab={setTab} />
       {tab === 'routines' && <Routines profileId={profileId} today={today} onStart={start} />}
       {tab === 'exercises' && <TrainingExercises profileId={profileId} />}
       {tab === 'history' && <History profileId={profileId} onOpen={start} />}
-      {tab.startsWith('view:') && def && <DefView def={def} viewKey={tab.slice(5)} profileId={profileId} />}
+      {tab.startsWith('view:') && def && <DefView def={def} viewKey={tab.slice(5)} profileId={profileId} onClose={() => setTab('routines')} />}
     </>
   )
 }
@@ -83,7 +89,6 @@ function WeekFigures({ profileId, today }: { profileId: string; today: string })
 function Routines({ profileId, today, onStart }: { profileId: string; today: string; onStart: (id: string | null) => void }) {
   const routines = useRoutines(profileId)
   const exercises = useExercises()
-  const settings = useTrainingSettings(profileId)
   const [editing, setEditing] = useState<{ routine: Routine; lines: RoutineLine[]; isNew: boolean } | null>(null)
   const names = useMemo(() => new Map((exercises ?? []).map((e) => [e.id, e.name])), [exercises])
   const counts = useLineCounts(routines)
@@ -101,10 +106,8 @@ function Routines({ profileId, today, onStart }: { profileId: string; today: str
     <>
       {routines.length === 0 ? (
         <div className="empty">
-          <p style={{ margin: 0 }}>A routine is a workout you repeat: its exercises with sets and reps. Start it to log set by set, with last time's
-            numbers filled in. Give it days and a time, and each session shows on Today and Plan as a task.</p>
+          <p style={{ margin: 0 }}>A routine is a workout you repeat. Tap the round + button to make one.</p>
           <div className="trn-empty-actions">
-            <button type="button" className="btn btn-primary" onClick={add}>New routine</button>
             <button type="button" className="btn" onClick={() => onStart(null)}>Log a session without one</button>
           </div>
         </div>
@@ -115,12 +118,12 @@ function Routines({ profileId, today, onStart }: { profileId: string; today: str
               const n = counts.get(r.id) ?? 0
               const when = r.rule
                 ? `${describeSchedule({ rule: r.rule as RuleKind, rule_config: r.rule_config ?? {}, start_date: r.start_date ?? today, end_date: r.end_date })}${r.time_of_day ? ` at ${r.time_of_day.slice(0, 5)}` : ''}`
-                : 'Not planned: start it when you like'
+                : 'Not planned'
               return (
                 <li key={r.id} className="kit-row">
                   <button type="button" className="kit-open" onClick={() => void open(r)} aria-label={`Edit ${r.name}`}>
                     <span className="row-name">{r.name}</span>
-                    <span className="row-meta">{n} {n === 1 ? 'exercise' : 'exercises'} · {when}{r.minutes ? ` · ${r.minutes} min` : ''}</span>
+                    <span className="row-meta">{[n ? `${n} ${n === 1 ? 'exercise' : 'exercises'}` : null, when, r.minutes ? `${r.minutes} min` : null].filter(Boolean).join(' · ')}</span>
                   </button>
                   <div className="kit-right">
                     <button type="button" className="btn btn-primary" onClick={() => onStart(r.id)}>Start</button>
@@ -129,10 +132,6 @@ function Routines({ profileId, today, onStart }: { profileId: string; today: str
               )
             })}
           </ul>
-          <div className="kit-toolbar">
-            <button type="button" className="btn" onClick={() => onStart(null)}>Log a session without a routine</button>
-          </div>
-          {settings && <p className="kit-note">Planned sessions follow Training's “Show on Today” and “Show on Plan” switches.</p>}
         </>
       )}
       <div className="kit-gap" />

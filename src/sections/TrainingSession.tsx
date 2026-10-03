@@ -123,7 +123,7 @@ export function TrainingSession({ profileId, routineId, day, onClose }: {
       {error && <p className="kit-note is-warn" role="alert">{error}</p>}
 
       {blocks.length === 0 && (
-        <p className="empty">{routineId ? 'This routine has no exercises yet. Add one below, or edit the routine to keep them.' : 'Add the first exercise to log its sets.'}</p>
+        <p className="empty">{routineId ? 'This routine has no exercises yet. Add one below.' : 'Add the first exercise to log its sets.'}</p>
       )}
 
       {blocks.map((b) => {
@@ -196,7 +196,6 @@ export function TrainingSession({ profileId, routineId, day, onClose }: {
       </div>
       <div className="kit-toolbar trn-finish">
         <button type="button" className="btn btn-primary" onClick={() => void finish()}>Finish session</button>
-        <span className="kit-hint">{routine ? 'Ticks this session on the planner, if it is planned for this day.' : 'Every ticked set is already saved.'}</span>
       </div>
       <div className="kit-gap" />
       {rest && <RestBar rest={rest} onChange={setRest} />}

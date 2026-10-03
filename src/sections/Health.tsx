@@ -3,13 +3,15 @@ import { useLiveQuery } from 'dexie-react-hooks'
 import { format, parseISO } from 'date-fns'
 import { db } from '../lib/db'
 import { weighIns } from '../lib/body'
+import { formatChange } from '../lib/body-rules'
 import { addDays } from '../lib/schedule-rules'
 import {
   chartScale, describeRate, goalDate, lastDays, readGoalWeight, trendLine, weeklyRate, type TrendPoint,
 } from '../lib/trend-rules'
 import { useModuleDef } from '../modules/defs'
 import { WeighIn } from './WeighIn'
-import { DefView, ModuleTabs, Sheet, defTabs, localToday, saveModuleSetting, useInstance, useTab } from './ModuleKit'
+import { DefView, Sheet, defTabs, localToday, saveModuleSetting, useInstance, useTab } from './ModuleKit'
+import { ModuleMenu } from '../modules/ModuleHead'
 import './health.css'
 
 const dayLabel = (d: string) => format(parseISO(d), 'EEE d MMM')
@@ -33,8 +35,12 @@ export function Health({ profileId }: { profileId: string; day: string }) {
   const inst = useInstance(profileId, 'health')
   const weightGoal = useLiveQuery(async () => (await db.goal.where('profile_id').equals(profileId).toArray())
     .find((g) => !g.deleted_at && g.status === 'active' && g.measure_source === 'weight' && g.measure_target != null) ?? null, [profileId])
-  const tabs = [{ key: 'overview', name: 'Overview' }, ...defTabs(def)]
-  const [tab, setTab] = useTab('health', tabs)
+  // One page (CALM-05): the weight table and any other view of the
+  // module's own are under ⋮ → Views.
+  const views = defTabs(def)
+  const [tab, setTab] = useTab('health', [{ key: 'overview', name: 'Overview' }, ...views])
+  // The weigh-in is for today; another day is one tap away.
+  const [otherDay, setOtherDay] = useState(false)
 
   const line = useMemo(() => trendLine(rows ?? []), [rows])
   if (!rows || inst === undefined || weightGoal === undefined) return null
@@ -49,7 +55,7 @@ export function Health({ profileId }: { profileId: string; day: string }) {
 
   return (
     <>
-      <ModuleTabs tabs={tabs} active={tab} onTab={setTab} />
+      <ModuleMenu views={views} active={tab} onView={setTab} />
       {tab === 'overview' && (
         <>
           <div className="kit-figures is-two" aria-label="Weight at a glance">
@@ -73,29 +79,37 @@ export function Health({ profileId }: { profileId: string; day: string }) {
 
           {line.length > 0 && (
             <>
-              <div className="kit-toolbar kit-chips is-scroll" role="group" aria-label="How far back">
-                {RANGES.map((r) => <button key={r.label} type="button" className="kit-chip" aria-pressed={range === r.days} onClick={() => setRange(r.days)}>{r.label}</button>)}
+              <div className="kit-toolbar">
+                <div className="kit-seg hlt-range-seg" role="group" aria-label="How far back">
+                  {RANGES.map((r) => <button key={r.label} type="button" aria-pressed={range === r.days} onClick={() => setRange(r.days)}>{r.label}</button>)}
+                </div>
               </div>
               <WeightChart points={shown} goal={goal} />
             </>
           )}
 
           <div ref={top} className="hlt-day">
-            <button type="button" className="btn" aria-label="Day before" onClick={() => setDay(addDays(day, -1))}>‹</button>
-            <label className="hlt-daypick">
-              <span className="visually-hidden">Day of the weigh-in</span>
-              <input type="date" value={day} max={today} onChange={(e) => e.target.value && setDay(e.target.value)} />
-            </label>
-            <button type="button" className="btn" aria-label="Day after" disabled={day >= today} onClick={() => setDay(addDays(day, 1))}>›</button>
-            {day !== today && <button type="button" className="btn" onClick={() => setDay(today)}>Today</button>}
+            {otherDay || day !== today ? (
+              <>
+                <button type="button" className="btn" aria-label="Day before" onClick={() => setDay(addDays(day, -1))}>‹</button>
+                <label className="hlt-daypick">
+                  <span className="visually-hidden">Day of the weigh-in</span>
+                  <input type="date" value={day} max={today} onChange={(e) => e.target.value && setDay(e.target.value)} />
+                </label>
+                <button type="button" className="btn" aria-label="Day after" disabled={day >= today} onClick={() => setDay(addDays(day, 1))}>›</button>
+                <button type="button" className="btn" onClick={() => { setDay(today); setOtherDay(false) }}>Today</button>
+              </>
+            ) : (
+              <button type="button" className="hlt-another" onClick={() => setOtherDay(true)}>Another day</button>
+            )}
           </div>
-          <WeighIn key={day} profileId={profileId} day={day} />
+          <WeighIn key={day} profileId={profileId} day={day} history={false} />
 
-          {line.length > 8 && <AllWeighIns line={line} onPick={pick} />}
+          {line.length > 0 && <AllWeighIns line={line} onPick={pick} />}
           <div className="kit-gap" />
         </>
       )}
-      {tab.startsWith('view:') && def && <DefView def={def} viewKey={tab.slice(5)} profileId={profileId} fab={false} />}
+      {tab.startsWith('view:') && def && <DefView def={def} viewKey={tab.slice(5)} profileId={profileId} fab={false} onClose={() => setTab('overview')} />}
       {goalSheet && <GoalWeightSheet profileId={profileId} value={own} fromGoal={!own && weightGoal ? Number(weightGoal.measure_target) : null} onClose={() => setGoalSheet(false)} />}
     </>
   )
@@ -131,11 +145,11 @@ function AllWeighIns({ line, onPick }: { line: TrendPoint[]; onPick: (d: string)
     <>
       <h2 className="section-title">Every weigh-in</h2>
       <ul className="kit-list" aria-label="Every weigh-in, newest first">
-        {list.slice(0, shown).map((p) => (
+        {list.slice(0, shown).map((p, i) => (
           <li key={p.day} className="kit-row">
             <button type="button" className="kit-open" onClick={() => onPick(p.day)} aria-label={`Change the weigh-in of ${dayLabel(p.day)}`}>
               <span className="row-name">{dayLabel(p.day)}</span>
-              <span className="row-meta">trend {kg(p.trend)}</span>
+              <span className="row-meta">{formatChange(list[i + 1] ? p.weight - list[i + 1].weight : null)} · trend {kg(p.trend)}</span>
             </button>
             <span className="kit-right kit-num">{kg(p.weight)}</span>
           </li>

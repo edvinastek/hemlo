@@ -22,3 +22,8 @@
 .hlt-daypick { flex: 1; min-width: 0; }
 .hlt-daypick input { width: 100%; box-sizing: border-box; padding: 9px 10px; min-height: 44px; border: 1px solid var(--e-field-line);
   border-radius: var(--radius-md); background: var(--e-field); color: var(--e-ink); font-family: var(--font-sans); font-size: 15px; }
+
+/* "Another day": the weigh-in is for today until another day is asked for. */
+.hlt-another { margin-left: auto; min-height: 40px; padding: 0 var(--space-1); color: var(--e-accent); font-family: var(--font-sans); font-size: 14px; }
+.hlt-another:focus-visible { outline: 2px solid var(--e-accent); outline-offset: 1px; border-radius: var(--radius-sm); }
+.hlt-range-seg button { padding: 6px 12px; min-height: 36px; font-size: 13px; }

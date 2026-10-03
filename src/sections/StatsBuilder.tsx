@@ -229,8 +229,7 @@ export function StatsBuilder({ profileId, today, start, onClose }: {
                 onChange={(v) => set({ columns: v })} />
             </label>
           </div>
-          <p className="sb-hint">Groups go down the side of the table and along the chart; a split goes across, as a series each.</p>
-          {draft.columns !== 'none' && draft.measures.length > 1 && <p className="sb-hint">With a split, the chart draws the first measure for each {groupName(draft.columns, measures).toLowerCase()}; the table shows them all.</p>}
+          {draft.columns !== 'none' && draft.measures.length > 1 && <p className="sb-hint">The chart draws the first measure for each {groupName(draft.columns, measures).toLowerCase()}; the table shows them all.</p>}
         </fieldset>
 
         <fieldset className="sb-group">
@@ -267,7 +266,6 @@ export function StatsBuilder({ profileId, today, start, onClose }: {
 
         <fieldset className="sb-group">
           <legend>Filters</legend>
-          {draft.filters.length === 0 && <p className="sb-hint">Everything counts. Add a filter to count only some of it (one section, one habit, values above a number).</p>}
           {draft.filters.map((f, i) => {
             const kind = f.field === 'value' ? 'number' : 'text'
             const list = suggestions(f.field)
@@ -308,7 +306,7 @@ export function StatsBuilder({ profileId, today, start, onClose }: {
               </label>
             )}
           </div>
-          {draft.compare?.shade && <p className="sb-hint">Days with any of it are shaded behind the chart, and the view says how the first measure differs on those days, once there are at least 3 days with and 3 without.</p>}
+          {draft.compare?.shade && <p className="sb-hint">Days with it are shaded; the view says how the first measure differs on them.</p>}
         </fieldset>
 
         <fieldset className="sb-group">
@@ -375,7 +373,7 @@ export function StatsBuilder({ profileId, today, start, onClose }: {
               onChange={(e) => setOnToday(e.target.checked)} />
             <span>As a card on Today{!onToday && settings.today_cards.length >= MAX_CARDS ? ' (Today already has 6 cards; take one off first)' : ''}</span>
           </label>
-          <p className="sb-hint">Every saved view can also be placed on the home screen as a stats widget: hold the home screen, add the GetIt stats widget and pick this view.</p>
+          <p className="sb-hint">It can also go on the home screen as a GetIt stats widget.</p>
         </fieldset>
         <div className="sheet-actions sb-foot">
           <button type="button" className="btn" onClick={() => onClose()}>Cancel</button>
@@ -395,7 +393,9 @@ function MeasurePicker({ catalogue, onPick, onCancel, loading }: { catalogue: Me
   const groups = new Map<string, Measure[]>()
   for (const m of found) groups.set(m.group, [...(groups.get(m.group) ?? []), m])
   return (
-    <div className="sb-picker">
+    // Each measure's description shows for the one in focus, or once
+    // something is typed (v17: a long list of descriptions is a wall).
+    <div className={`sb-picker${q.trim() ? ' is-searching' : ''}`}>
       <div className="sb-row">
         <input className="sb-search" type="search" aria-label="Find a measure" placeholder="Find a measure: protein, sleep, chores…" value={q} onChange={(e) => setQ(e.target.value)} autoFocus />
         {onCancel && <button type="button" className="btn" onClick={onCancel}>Close</button>}

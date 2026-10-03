@@ -37,8 +37,13 @@
 
 .st-figures { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--space-3) var(--space-3); margin: var(--space-3) 0 0; }
 .st-figure { min-width: 0; }
-.st-figure dt { font-family: var(--font-sans); font-size: 12px; color: var(--e-ink-soft); }
-.st-figure dd { margin: 0; display: grid; gap: 1px; }
+.st-figure { display: grid; gap: 1px; text-align: left; }
+.st-figure-k { font-family: var(--font-sans); font-size: 12px; color: var(--e-ink-soft); }
+.st-figure-v { display: grid; gap: 1px; }
+/* The card's figures are one button: a tap shows the comparison. */
+.st-figures-btn { display: block; width: 100%; padding: 0; text-align: left; color: inherit; font: inherit; border-radius: var(--radius-sm); }
+.st-figures-btn:focus-visible { outline: 2px solid var(--e-accent); outline-offset: 2px; }
+.st-figures.is-one { grid-template-columns: minmax(0, 1fr); }
 .st-value { font-family: var(--font-sans); font-size: 20px; font-weight: 600; color: var(--e-ink); font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
 .st-sub { font-family: var(--font-sans); font-size: 12px; color: var(--e-ink-soft); overflow-wrap: anywhere; }
 
@@ -186,3 +191,11 @@
 .tc-edit-name { flex: 1; min-width: 0; display: grid; font-family: var(--font-sans); font-size: 15px; color: var(--e-ink); overflow-wrap: anywhere; }
 .tc-add { flex: 1 1 200px; }
 .sb-search, .sb-field input[inputmode], .sb-filter input { font-family: var(--font-sans); }
+
+/* v17: the views heading without buttons, and the ready-made list in its sheet. */
+.st-h-views { padding: var(--space-4) var(--space-4) var(--space-2); }
+.st-empty-views { margin-top: var(--space-4); }
+.mh-sheet .st-templates { margin: 0; padding: 0; border: 0; }
+.sb-picker:not(.is-searching) .sb-pick-hint { display: none; }
+.sb-picker:not(.is-searching) .sb-pick:focus-visible .sb-pick-hint,
+.sb-picker:not(.is-searching) .sb-pick:hover .sb-pick-hint { display: block; }

@@ -14,6 +14,8 @@ import { blankTask } from '../lib/tasks'
 import { Dropdown } from '../ui/Dropdown'
 import { offerUndo } from '../ui/Undo'
 import { DeleteButton, Sheet, localToday, useSearch } from './ModuleKit'
+import { QuietAdd } from '../modules/ModuleHead'
+import { MoreMenu } from '../ui/MoreMenu'
 import { MilestoneSheet } from './Projects'
 
 const short = (d: string) => format(parseISO(d), 'd MMM yyyy')
@@ -40,8 +42,7 @@ export function Goals({ profileId }: { profileId: string }) {
   return (
     <>
       {list.length === 0 ? (
-        <p className="empty">A goal is what you are working towards, by a date: run 10 km, read 20 books, finish the course, reach 78 kg.
-          Link projects, tasks and habits to it and its progress follows them. Tap the round + button to set one.</p>
+        <p className="empty">A goal is what you are working towards, by a date. Tap the round + button to set one.</p>
       ) : (
         <ul className="kit-list" aria-label="Goals">
           {list.map((g) => {
@@ -78,6 +79,8 @@ function GoalPage({ profileId, goal, progress, onClose }: { profileId: string; g
   const [milestone, setMilestone] = useState<Milestone | 'new' | null>(null)
   const [title, setTitle] = useState('')
   const [day, setDay] = useState('')
+  // Empty blocks wait behind a quiet line until asked for (CALM-15).
+  const [asked, setAsked] = useState<{ project?: boolean; task?: boolean; habit?: boolean }>({})
   const today = localToday()
   if (!links || !projects || !habits) return null
 
@@ -103,13 +106,13 @@ function GoalPage({ profileId, goal, progress, onClose }: { profileId: string; g
           <p className="row-meta">{[statusLabel(goal.status), goal.end_date ? `by ${short(goal.end_date)}` : null,
             goal.status === 'active' ? daysLeft(goal.end_date, today) : null].filter(Boolean).join(' · ')}</p>
         </div>
+        <MoreMenu className="prj-menu" label={`More for ${goal.title}`} items={[
+          { label: 'Edit goal', onSelect: () => setEditing(true) },
+          goal.status !== 'done'
+            ? { label: 'Mark reached', onSelect: () => void setGoalStatus(goal, 'done') }
+            : { label: 'Not reached after all', onSelect: () => void setGoalStatus(goal, 'active') },
+        ]} />
       </header>
-      <div className="kit-toolbar">
-        <button type="button" className="btn" onClick={() => setEditing(true)}>Edit goal</button>
-        {goal.status !== 'done'
-          ? <button type="button" className="btn" onClick={() => void setGoalStatus(goal, 'done')}>Mark reached</button>
-          : <button type="button" className="btn" onClick={() => void setGoalStatus(goal, 'active')}>Not reached after all</button>}
-      </div>
       <div className="prj-progress is-big">
         <span className={`kit-bar${progress?.share === 1 ? ' is-done' : ''}`} aria-hidden><span style={{ width: `${(progress?.share ?? 0) * 100}%` }} /></span>
         <span className="row-meta">{progress?.text}{progress?.share != null ? ` (${Math.round(progress.share * 100)}%)` : ''}</span>
@@ -125,8 +128,9 @@ function GoalPage({ profileId, goal, progress, onClose }: { profileId: string; g
       )}
       {goal.note && <p className="trn-session-note">{goal.note}</p>}
 
+      {links.projects.length === 0 && !asked.project ? (unlinked.length > 0 && <QuietAdd label="Link a project" onClick={() => setAsked({ ...asked, project: true })} />) : (
+      <>
       <h2 className="section-title">Projects</h2>
-      {links.projects.length === 0 && <p className="kit-note">No project linked.</p>}
       <ul className="kit-list">
         {links.projects.map(({ project, tasks }) => (
           <li key={project.id} className="kit-row">
@@ -141,7 +145,11 @@ function GoalPage({ profileId, goal, progress, onClose }: { profileId: string; g
             options={unlinked.map((p) => ({ value: p.id, label: projectName(p) }))} onChange={(id) => void linkProject(id, goal.id)} /></div>
         </div>
       )}
+      </>
+      )}
 
+      {links.tasks.filter((t) => t.status !== 'dropped').length === 0 && !asked.task ? <QuietAdd label="Add a task" onClick={() => setAsked({ ...asked, task: true })} /> : (
+      <>
       <h2 className="section-title">Tasks</h2>
       <form className="prj-add" onSubmit={(e) => void addTask(e)} aria-label="Add a task towards this goal">
         <input value={title} maxLength={200} placeholder="Add a task" aria-label="New task" onChange={(e) => setTitle(e.target.value)} />
@@ -160,9 +168,11 @@ function GoalPage({ profileId, goal, progress, onClose }: { profileId: string; g
           </li>
         ))}
       </ul>
+      </>
+      )}
 
-      <h2 className="section-title">Milestones</h2>
-      <ul className="kit-list">
+      {links.milestones.length > 0 && <h2 className="section-title">Milestones</h2>}
+      {links.milestones.length > 0 && <ul className="kit-list">
         {orderMilestones(links.milestones).map((m) => (
           <li key={m.id} className={`kit-row prj-task${m.done ? ' is-done' : ''}`}>
             <div className="prj-task-main">
@@ -171,10 +181,10 @@ function GoalPage({ profileId, goal, progress, onClose }: { profileId: string; g
             </div>
           </li>
         ))}
-      </ul>
-      <div className="kit-toolbar"><button type="button" className="btn" onClick={() => setMilestone('new')}>Add a milestone</button></div>
+      </ul>}
+      <QuietAdd label="Add a milestone" onClick={() => setMilestone('new')} />
 
-      {(habitsOn || links.habits.length > 0) && (
+      {links.habits.length === 0 && !asked.habit ? (habitsOn && freeHabits.length > 0 && <QuietAdd label="Link a habit" onClick={() => setAsked({ ...asked, habit: true })} />) : (habitsOn || links.habits.length > 0) && (
         <>
           <h2 className="section-title">Habits</h2>
           <ul className="kit-list">
