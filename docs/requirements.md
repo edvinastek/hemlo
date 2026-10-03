@@ -2,7 +2,7 @@
 title: "GetIt — Requirements and Specification"
 subtitle: "Every requirement, the app as built in version 15, and what the next version must change"
 author: "Prepared for Edvinas Straigis"
-date: "3 October 2026 (statuses updated for version 16)"
+date: "3 October 2026 (statuses updated for version 17)"
 ---
 
 # Part A. About this document
@@ -40,8 +40,9 @@ The competitor comparison and the usability plan are in the second document ("Ge
 - **Should**: next after that (version 17).
 - **Could**: later, or when there is demand.
 
-**Status (updated for version 16, 3 October 2026):**
+**Status (updated for version 17, 3 October 2026):**
 
+- **Done (v17)**: built in version 17 (calm by default, prices) and checked the same way.
 - **Done (v16)**: built in version 16 and checked (rule checks, the security suite, and every screen at 360 px in light and dark); the end-to-end tests against the live project still to run.
 - **Done**: built and tested in an earlier version.
 - **Partly**: built, but missing something the requirement asks for (the cell says what).
@@ -55,7 +56,8 @@ The competitor comparison and the usability plan are in the second document ("Ge
 | R2 | First test on the phone (batch 1) | 27 Sep 2026 |
 | R3 | Batches 2–5: modular app, planning power, data, food and people | 27 Sep 2026 |
 | R4 | Release decisions: calendar links, products, units, email, AI | 28 Sep 2026 |
-| R5 | Feedback of 1 Oct 2026 (this round) | 1 Oct 2026 |
+| R5 | Feedback of 1 Oct 2026 | 1 Oct 2026 |
+| R6 | Feedback after testing version 16: clutter, prices | 3 Oct 2026 |
 | SR | Found by the specification and research work (not asked for, but needed for the asked-for result) | 1 Oct 2026 |
 
 Parts E and F describe the app **as it is**. Where they say something is missing, Part D says what it should become.
@@ -633,11 +635,11 @@ Columns: **ID**, **Requirement** (with "Done when" where a test is needed), **Pr
 | SHOP-30 | The list shows **aisle sections as headings** (collapsible), in the person's aisle order. | Must | Done (v16) | R5 |
 | SHOP-31 | A **shop filter**: "Any shop", or one of the person's shops; each item shows where it is sold when known. | Must | Done (v16) | R5 |
 | SHOP-32 | **Stores tab**: the person's shops (from a list of chains in their country, or typed), each with its own aisle order and the prices the person types or scans. | Must | Done (v16) | R1, R5 |
-| SHOP-33 | Prices: the latest price per shop (own, or shared Open Prices), price per kg or litre, and a running total for the trip. | Should | Partly (v16: own prices per shop, per kg or litre, trip total; shared Open Prices stay on the product page) | R4 |
+| SHOP-33 | Prices: the latest price per shop (own, or shared Open Prices), price per kg or litre, and a running total for the trip. | Should | Done (v17: own prices first, then Open Prices, on the list; see PRICE) | R4 |
 | SHOP-34 | Several lists (e.g. per shop, or "Household" and "Me"), with items movable between them. | Could | Done (v16) | SR |
 | SHOP-35 | Custom aisles (rename, reorder, add). | Should | Done (v16) | SR |
 | SHOP-36 | Shops near the person (country and city) are suggested first. | Should | Partly (v16: the country's chains first, then neighbours'; no open data to rank by city) | R1 |
-| SHOP-40 | Supermarkets' weekly online offers ("catalogues"): kept as a later item. No open data source exists for Dutch chains; scraping their sites would break their terms. Revisit if a chain offers an open feed or partnership. | Could | Open (decided later) | R1, R5 |
+| SHOP-40 | Supermarkets' weekly online offers ("catalogues"): kept as a later item. No open data source exists for Dutch chains; scraping their sites would break their terms. Revisit if a chain offers an open feed or partnership. | Could | Replaced by PRICE-06 (v17) | R1, R5 |
 
 ## D12. Stock (STK)
 
@@ -959,6 +961,44 @@ Columns: **ID**, **Requirement** (with "Done when" where a test is needed), **Pr
 |----------|------------------------------------------------------------------------|----------|-----------|--------|
 | AI-01 | Everything AI is hidden. | Must | Done | R4 |
 | AI-02 | If an assistant is added later, it edits and adjusts the planner when asked (move, add, copy, set up a module) and shows every change for approval; it never plans by itself. Its name and tone are the person's choice. | Could | Open | R1, R4 |
+
+## D36. Calm by default (CALM)
+
+The owner after testing version 16: "the app feels really cluttery; keep most of the options accessible yet kinda hidden; clutter would scare new users." The rules and their research are in docs/calm.md.
+
+| ID | Requirement | Pri | Status | Src |
+|---|---|---|---|---|
+| CALM-01 | One main action per screen: the round + (or, where typing is the action, the capture field); never a second add for the same thing on the same screen. | Must | Done (v17) | R6 |
+| CALM-02 | Visibility follows use: at most 12 tappable things above the fold on a main screen at 360 px, list rows not counted; everything else one level down. | Must | Done (v17) | R6 |
+| CALM-03 | One ⋮ per page, top right: views, sort, grouping, layout switches, select, export, edit module, about. No Export links, Edit module buttons or layout switches on pages. | Must | Done (v17) | R6 |
+| CALM-04 | The page bar holds 3–5 places and never scrolls; past five pages it is Today, Plan, up to two pins and Modules; only the open page is highlighted; Plan shows the Inbox count. | Must | Done (v17) | R6 |
+| CALM-05 | Tabs only for real destinations, at most four; a module's table, board, month and calendar views are under ⋮ → Views. | Must | Done (v17) | R6 |
+| CALM-06 | A row is a title, at most one quiet line, a tick and a ⋮; metadata only when set; push, copy, duplicate, move and skip live in the opened row and the ⋮ (push buttons can be brought back from the page's ⋮). | Must | Done (v17) | R6 |
+| CALM-07 | One way to say a thing on a row: a time, "All day" and a status each once. | Must | Done (v17) | R6 |
+| CALM-08 | Forms stage their fields: what is needed to make the thing is visible; the rest sits in one "More options" that opens by itself when something inside is set and summarises it when closed. | Must | Done (v17) | R6 |
+| CALM-09 | A sheet that can guess its first step skips it and shows the guess with "Change" (the add-food sheet opens on the food). | Must | Done (v17) | R6 |
+| CALM-10 | Never a sheet on a sheet; every sheet closes on Back and Escape. | Must | Done (v17) | R6 |
+| CALM-11 | No explanatory paragraphs or page subtitles on screens; empty states keep one sentence and one button; explanations live in About or a tip. | Must | Done (v17) | R6 |
+| CALM-12 | Settings is a short list of pages with one search; each row has at most one helper line. | Must | Done (v17) | R6 |
+| CALM-13 | Data credits and legal lines live in Settings → About and on the page where the data is shown in full (a food's page), not on lists. | Must | Done (v17) | R6 |
+| CALM-14 | Tips are one slim line with ×, at most one per session, never repeated, and can be shown again from Settings. | Must | Done (v17) | R6 |
+| CALM-15 | Empty sections are hidden and offered as a quiet line where they belong ("+ Set budgets"). | Must | Done (v17) | R6 |
+| CALM-16 | Selecting many starts with a hold (or Select in the ⋮); no always-visible Select buttons. | Must | Done (v17) | R6 |
+| CALM-17 | No global simple/advanced switch: disclosure is local, modules are opt-in, density choices live in the page's ⋮. | Must | Done (v17) | R6 |
+| CALM-18 | Nothing is lost: every function of version 16 is at most two steps away, and "What moved where" lists every move, shown once to people who used an earlier version and never to a new account. | Must | Done (v17) | R6 |
+
+## D37. Prices on the shopping list (PRICE)
+
+The owner: "shopping prices do not seem to appear, yet catalogues online are available." No Dutch supermarket offers an open price feed; their terms forbid scraping and reverse engineering, and the EU database right (CV-Online, C-762/19) makes copying their catalogues a legal risk. Open Prices (ODbL) is the only reusable source; its Dutch coverage is small (about 260 prices in October 2026), so the person's own prices and a one-step "Add price" carry most of the list.
+
+| ID | Requirement | Pri | Status | Src |
+|---|---|---|---|---|
+| PRICE-01 | Open Prices lookup for list items whose food has a barcode, from the device, naming the app, cached 7 days, never blocking the list; offline shows the cache. The person's chain in their country first, else the median of the country's last 90 days. Never a guess. | Must | Done (v17) | R6 |
+| PRICE-02 | The household's own latest price at that shop wins over Open Prices. | Must | Done (v17) | R6 |
+| PRICE-03 | A quiet price on each row ("€1.89" own, "≈ €1.89" shared, count and date on tap); unknown shows nothing and offers "Add price". Summary "5 to get · €12.40 + 2 unpriced". ODbL credit in the price detail and in About. | Must | Done (v17) | R6 |
+| PRICE-04 | Adding a price takes one step from a row: the amount per pack or per kg/l; the shop is the list's shop filter or the last used; Undo. | Must | Done (v17) | R6 |
+| PRICE-05 | Opt-in sharing of a price to Open Prices: an Open Food Facts account (token in secure storage), a photo of the price tag or receipt, the shop's OpenStreetMap location, date and currency; privacy policy updated first. | Should | Open (needs a shop picker on the map, account linking, photo upload tested on a phone, privacy text) | R6 |
+| PRICE-06 | Each kept shop links to the chain's own official weekly offers page, opened in the browser; nothing is copied into the app. No scraping of supermarket sites or use of unofficial APIs or scraped datasets (their terms forbid it; EU database right). | Should | Done (v17) | R6 |
 
 
 
