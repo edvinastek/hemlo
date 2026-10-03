@@ -60,7 +60,7 @@ const openStock = async () => {
   await p.locator('.stock-add').waitFor()
 }
 async function add(name, amount, unit) {
-  await p.fill('input[aria-label="Food to add to stock"]', name)
+  await p.fill('input[aria-label="Add to stock"]', name)
   await p.locator('.sp-list li', { has: p.locator('.sp-name', { hasText: name }) }).first().click()
   await p.fill('.stock-add input[aria-label="Amount"]', amount)
   await p.locator('.stock-add .stock-units').getByRole('button', { name: unit, exact: true }).click()
@@ -123,7 +123,9 @@ await p.click('.bottom-nav a[href="/shop"]')
 await p.click('.tabs button:has-text("List")')
 await p.waitForTimeout(1200)
 if (needG <= 1800) {
-  is('a food the cupboard covers drops off the list', await p.locator('.totals', { hasText: 'covered by stock' }).count(), 1)
+  // The summary line opens to the rest (v17).
+  await p.click('.shop-summary-btn')
+  is('a food the cupboard covers drops off the list', await p.locator('.shop-summary-more', { hasText: 'covered by stock' }).count(), 1)
 }
 const half = Math.max(1, Math.floor(needG / 2))
 await openStock()
@@ -151,16 +153,22 @@ await p.click('button:has-text("Bought, clear the basket")')
 await settle(p)
 r = await one(`select count(*) n from public.shopping_entry where household_id = ${household} and name = 'Apples' and bought_at is not null and deleted_at is not null`)
 is('bought, it leaves the list and is remembered', r.n, 1)
+// Recently bought shows while the add field has the focus (v17).
+await p.focus('input[aria-label="Add an item"]')
 is('and comes back as a recently bought tile', await p.locator('.shop-tile', { hasText: 'Apples' }).count(), 1)
 
 // 4. Auto-deduct: off by default, on by choice; eating takes, unticking gives back.
 await openStock()
 await setAmount(food.name, '1000', 'g')
-const sw = p.locator('button[aria-label="Take ingredients out of stock when a meal is eaten"]')
-is('taking ingredients out is off by default', await sw.getAttribute('aria-checked'), 'false')
+// The switch is in the Stock tab's ⋮ (v17) and in Settings → Shopping.
+await p.click('.page-menu .pm-button')
+const sw = p.getByRole('menuitem', { name: 'Take from stock when meals are eaten' })
+is('taking ingredients out is off by default', await sw.count(), 1)
 await sw.click()
 await settle(p)
-is('it switches on', await sw.getAttribute('aria-checked'), 'true')
+await p.click('.page-menu .pm-button')
+is('it switches on', await p.getByRole('menuitem', { name: 'Stop taking from stock when meals are eaten' }).count(), 1)
+await p.keyboard.press('Escape')
 r = await one(`select settings->>'stock_auto' v from public.profile where id = ${profile}`)
 is('and the choice reached the server', r.v, 'true')
 

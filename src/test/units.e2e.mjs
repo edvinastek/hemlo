@@ -103,7 +103,7 @@ await p.locator('.sb-bar button:has-text("Done")').click()
 // 4. Twelve eggs in stock.
 await p.click('.bottom-nav a[href="/shop"]')
 await p.click('.tabs button:has-text("Stock")')
-await p.fill('input[aria-label="Food to add to stock"]', food)
+await p.fill('input[aria-label="Add to stock"]', food)
 await p.locator('.sp-list li', { has: p.locator('.sp-name', { hasText: food }) }).first().click()
 is('stock is added in eggs', await p.locator('.stock-add .stock-units button[aria-pressed="true"]').textContent(), 'egg')
 await p.fill('.stock-add input[aria-label="Amount"]', '12')

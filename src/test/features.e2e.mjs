@@ -119,12 +119,12 @@ is('the calorie figure moved', /^[1-9]\d* (\/ \d+ )?kcal$/.test(figure ?? ''), t
 // Shopping from the plan.
 await p.click('.bottom-nav a[href="/shop"]')
 await p.waitForTimeout(1500)
-const items = await p.locator('.sheet tbody tr').count()
+const items = await p.locator('.shop-row').count()
 is('the shopping list fills from the plan', items > 0, true)
-await p.locator('.sheet tbody tr').first().locator('input[type=checkbox]').click()
+await p.locator('.shop-row').first().locator('.shop-tick').click()
 await p.waitForTimeout(700)
-const left = await p.locator('.totals').textContent()
-is('ticking an item counts it off', (left ?? '').includes(`${items - 1} of ${items} left`), true)
+const left = await p.locator('.shop-summary-btn').textContent()
+is('ticking an item counts it off', (left ?? '').startsWith(`${items - 1} to get`), true)
 
 // Reminders on this device.
 await p.click('.bottom-nav a[href="/more"]')

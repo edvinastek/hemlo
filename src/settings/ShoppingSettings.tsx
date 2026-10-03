@@ -13,9 +13,10 @@ import './shopping-settings.css'
 const SHORT = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
 const LONG = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday']
 
-/** Settings → Shopping (SHOP-02, SHOP-20, SHOP-21): the shopping trip on
- *  the plan, the days it happens on and the meals the list covers; then the
- *  household the list is shared with. Shown only while Shopping is on. */
+/** Settings → Shopping (SHOP-02, SHOP-20, SHOP-21, STK-02): the shopping
+ *  trip on the plan, the days it happens on and the meals the list covers;
+ *  whether eaten meals take from stock (also in the Stock tab's ⋮). Shown
+ *  only while Shopping is on. One helper line a row at most (CALM-12). */
 export function ShoppingSettings() {
   const profile = useApp((s) => s.profile)
   const navigate = useNavigate()
@@ -24,7 +25,8 @@ export function ShoppingSettings() {
   const [minutes, setMinutes] = useState<string | null>(null)
   const [days, setDays] = useState<string | null>(null)
   if (!profile || !on) return null
-  const s = readSettings(profile).shopping
+  const all = readSettings(profile)
+  const s = { ...all.shopping, stock_auto: all.stock_auto }
   const trip = s.trip
   const window = listWindow(today(), trip.days, s.window_days)
 
@@ -45,10 +47,7 @@ export function ShoppingSettings() {
       <div className="setting-row">
         <div>
           <div className="row-name">Plan a shopping trip when the list has items</div>
-          <div className="row-meta">
-            Puts “Shopping (12 items)” on {describeDays(trip.days)} at {trip.time}, keeps the count up to date and
-            takes it off when the list is empty. It shows where Shopping is set to show (Today, Plan).
-          </div>
+          <div className="row-meta">“Shopping (12 items)” on {describeDays(trip.days)} at {trip.time}, gone when the list is empty.</div>
         </div>
         <button className="switch" role="switch" aria-checked={trip.on} aria-label="Plan a shopping trip when the list has items"
           onClick={() => void change({ on: !trip.on })} />
@@ -93,7 +92,7 @@ export function ShoppingSettings() {
       <div className="setting-row">
         <div>
           <div className="row-name">Lock the trip</div>
-          <div className="row-meta">A locked trip keeps its time: other tasks are not planned over it and it is not pushed.</div>
+          <div className="row-meta">It keeps its time; nothing is planned over it.</div>
         </div>
         <button className="switch" role="switch" aria-checked={trip.locked} aria-label="Lock the shopping trip"
           onClick={() => void change({ locked: !trip.locked })} />
@@ -103,13 +102,10 @@ export function ShoppingSettings() {
         <div>
           <div className="row-name">Meals the list covers</div>
           {trip.days.length ? (
-            <div className="row-meta">
-              Up to the day before the shopping day after next, so each trip buys for the days until the one after it:
-              now {windowText(window.from, window.to)}.
-            </div>
+            <div className="row-meta">Until the trip after next: now {windowText(window.from, window.to)}.</div>
           ) : (
             <>
-              <div className="row-meta">The next days of planned meals: now {windowText(window.from, window.to)}. With shopping days set, the list covers the days until the next trip instead.</div>
+              <div className="row-meta">The next days of planned meals: now {windowText(window.from, window.to)}.</div>
               <label className="ss-field">
                 <input type="number" inputMode="numeric" min={1} max={28} value={days ?? String(s.window_days)}
                   aria-label="Days of meals the list covers" onChange={(e) => setDays(e.target.value)}
@@ -130,8 +126,17 @@ export function ShoppingSettings() {
 
       <div className="setting-row">
         <div>
+          <div className="row-name">Take from stock when meals are eaten</div>
+          <div className="row-meta">A meal ticked eaten takes its ingredients off the stock; unticked, they go back.</div>
+        </div>
+        <button className="switch" role="switch" aria-checked={s.stock_auto} aria-label="Take from stock when meals are eaten"
+          onClick={() => void saveSettings(profile!, { stock_auto: !s.stock_auto })} />
+      </div>
+
+      <div className="setting-row">
+        <div>
           <div className="row-name">Shops, aisles and prices</div>
-          <div className="row-meta">Your shops, the order of their aisles and the prices you note are on the Shop page, under Stores.</div>
+          <div className="row-meta">On the Shop page, under Stores.</div>
         </div>
         <button type="button" className="btn" onClick={async () => { await setMeta('shop:tab', 'Stores'); navigate('/shop') }}>Open Stores</button>
       </div>
