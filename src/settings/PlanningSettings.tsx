@@ -18,25 +18,57 @@ import './planning.css'
 const COUNTRY_ITEMS = COUNTRIES.map((c) => ({ id: c.code, name: c.name, tag: c.code }))
 const TEMPLATE_OPTIONS = TEMPLATES.map((t) => ({ value: t.key, label: t.name, hint: t.description }))
 
-/** More → Profile: where you are, work hours and commute, and starting again
- *  from a template. Everything the first-run setup asked, changeable later. */
-export function PlanningSettings() {
+/** Everything the first-run setup asked, changeable later, each part on
+ *  its own Settings page (v17): where you are (Profile), work hours and
+ *  commute (Planning), and starting again from a template (Modules). Each
+ *  is keyed by profile, so switching profiles starts from that profile's
+ *  values. */
+export function WhereYouAre() {
   const profile = useApp((s) => s.profile)
   if (!profile) return null
-  // Keyed by profile, so switching profiles starts from that profile's values.
-  return <Planning key={profile.id} profile={profile} />
+  return <Where key={profile.id} profile={profile} />
+}
+export function WorkSettings() {
+  const profile = useApp((s) => s.profile)
+  if (!profile) return null
+  return <Work key={profile.id} profile={profile} />
+}
+export function StartingLayout() {
+  const profile = useApp((s) => s.profile)
+  if (!profile) return null
+  return <Layout key={profile.id} profile={profile} />
 }
 
-function Planning({ profile }: { profile: Profile }) {
-  const settings = readSettings(profile)
+function Where({ profile }: { profile: Profile }) {
   const [city, setCity] = useState(profile.city ?? '')
+  return (
+    <>
+      <p className="section-title">Where you are</p>
+      <div className="pl-block">
+        <div className="pl-field">
+          <span>Country</span>
+          <SearchPick items={COUNTRY_ITEMS} label="Country" placeholder="Type to find your country"
+            value={countryName(profile.country)}
+            onPick={(c) => void edit('profile', profile, { country: c.id })}
+            onClear={() => void edit('profile', profile, { country: null })} />
+        </div>
+        <label className="pl-field">City or town
+          <input value={city} maxLength={80} autoComplete="address-level2"
+            onChange={(e) => setCity(e.target.value)}
+            onBlur={() => { if (cleanCity(city) !== (profile.city ?? null)) void edit('profile', profile, { city: cleanCity(city) }) }} />
+        </label>
+        <p className="pl-note">Optional. For nearby shops and public holidays.</p>
+      </div>
+    </>
+  )
+}
+
+function Work({ profile }: { profile: Profile }) {
+  const settings = readSettings(profile)
   const [work, setWork] = useState<WorkHours>(settings.work)
   const [commute, setCommute] = useState<Commute>(settings.commute)
   const [savingWork, setSavingWork] = useState(false)
   const [workNote, setWorkNote] = useState<string | null>(null)
-  const [pick, setPick] = useState(templateByKey(settings.template)?.key ?? TEMPLATES[0].key)
-  const [confirming, setConfirming] = useState(false)
-  const [templateNote, setTemplateNote] = useState<string | null>(null)
 
   // Work is saved with a button, not on every change: each save can stop and
   // start repeating series, and a time typed digit by digit would otherwise
@@ -59,36 +91,8 @@ function Planning({ profile }: { profile: Profile }) {
     }
   }
 
-  async function startAgain() {
-    const tpl = templateByKey(pick)
-    if (!tpl) return
-    await applyTemplate(profile, tpl.key)
-    setConfirming(false)
-    setTemplateNote(`${tpl.name} applied.`)
-  }
-
-  const chosen = templateByKey(pick)
-  const current = templateByKey(settings.template)
-
   return (
     <>
-      <p className="section-title">Where you are</p>
-      <div className="pl-block">
-        <div className="pl-field">
-          <span>Country</span>
-          <SearchPick items={COUNTRY_ITEMS} label="Country" placeholder="Type to find your country"
-            value={countryName(profile.country)}
-            onPick={(c) => void edit('profile', profile, { country: c.id })}
-            onClear={() => void edit('profile', profile, { country: null })} />
-        </div>
-        <label className="pl-field">City or town
-          <input value={city} maxLength={80} autoComplete="address-level2"
-            onChange={(e) => setCity(e.target.value)}
-            onBlur={() => { if (cleanCity(city) !== (profile.city ?? null)) void edit('profile', profile, { city: cleanCity(city) }) }} />
-        </label>
-        <p className="pl-note">Used for nearby shops and public holidays. Both are optional.</p>
-      </div>
-
       <p className="section-title">Work and commute</p>
       {settings.work.on && !dirty && <p className="pl-note pl-now">{describeWork(settings)}</p>}
       <WorkFields work={work} commute={commute}
@@ -107,12 +111,33 @@ function Planning({ profile }: { profile: Profile }) {
           )}
         </div>
       )}
+    </>
+  )
+}
 
+function Layout({ profile }: { profile: Profile }) {
+  const settings = readSettings(profile)
+  const [pick, setPick] = useState(templateByKey(settings.template)?.key ?? TEMPLATES[0].key)
+  const [confirming, setConfirming] = useState(false)
+  const [templateNote, setTemplateNote] = useState<string | null>(null)
+
+  async function startAgain() {
+    const tpl = templateByKey(pick)
+    if (!tpl) return
+    await applyTemplate(profile, tpl.key)
+    setConfirming(false)
+    setTemplateNote(`${tpl.name} applied.`)
+  }
+
+  const chosen = templateByKey(pick)
+  const current = templateByKey(settings.template)
+
+  return (
+    <>
       <p className="section-title">Starting layout</p>
       <div className="pl-block">
         <p className="pl-note">
-          {current ? <>Started from <b>{current.name}</b>.</> : 'No template chosen yet.'}{' '}
-          Starting again switches modules to match a template. Nothing you entered is deleted.
+          {current ? <>Started from <b>{current.name}</b>. </> : ''}Nothing you entered is deleted.
         </p>
         <div className="pl-actions">
           <Dropdown label="Template" className="pl-grow" value={pick} options={TEMPLATE_OPTIONS}

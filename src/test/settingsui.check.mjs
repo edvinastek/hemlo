@@ -2,7 +2,7 @@
 // delete), signing out with changes waiting, the merges list in words, the
 // time zone, the height field, tips and what moved where, and the Modules
 // page's search.
-import { findSettings, SETTINGS_INDEX, SETTINGS_SECTIONS } from '../lib/settings-index-rules.ts'
+import { findSettings, SETTINGS_INDEX, SETTINGS_PAGES, pageForAddress } from '../lib/settings-index-rules.ts'
 import { pickProfile, profileNameProblem, profileDeleteProblem, signOutCheck } from '../lib/accounts-rules.ts'
 import { conflictLine, shownValue } from '../lib/sync-rules.ts'
 import { cleanZone, readZoneChoice, zoneToStore, zoneLabel } from '../lib/timezone-rules.ts'
@@ -18,13 +18,24 @@ const is = (label, got, want) => {
 }
 
 // ---------- search in settings ------------------------------------------------------
-is('five tabs, Looks among them', SETTINGS_SECTIONS, ['Modules', 'Profile', 'Looks', 'Reminders', 'Data'])
-is('found by a word it is known by', findSettings('dark')[0]?.title, 'Make GetIt yours')
+is('Settings is a short list of pages, About last', [SETTINGS_PAGES.length, SETTINGS_PAGES.map((p) => p.key).at(-1)], [11, 'about'])
+is('…each with one short line', SETTINGS_PAGES.every((p) => p.line.length > 0 && p.line.length <= 40 && !p.line.endsWith('.')), true)
+is('found by a word it is known by', findSettings('dark')[0]?.title, 'Looks')
 is('found by its own name first', findSettings('quiet')[0]?.title, 'Quiet hours')
 is('several words, any order', findSettings('out sign')[0]?.title, 'Account')
 is('accents and case do not matter', findSettings('TIME ZÓNE')[0]?.title, 'Time zone')
 is('nothing typed, nothing found', findSettings('  '), [])
-is('every entry is in a tab', SETTINGS_INDEX.every((e) => SETTINGS_SECTIONS.includes(e.section)), true)
+is('found by the page it is on', findSettings('calendars').map((e) => e.title).slice(0, 2).sort(), ['Calendar links', 'Public holidays'])
+is('the data credits are found', findSettings('nevo')[0]?.page, 'about')
+is('every entry is on a page', SETTINGS_INDEX.every((e) => SETTINGS_PAGES.some((p) => p.key === e.page)), true)
+is('every page has something to find', SETTINGS_PAGES.every((p) => SETTINGS_INDEX.some((e) => e.page === p.key)), true)
+is('an address: ?page=', pageForAddress({ page: 'looks' }), 'looks')
+is('…an unknown page is the list', pageForAddress({ page: 'nope' }), null)
+is('…the old tabs still land', ['Modules', 'Profile', 'Looks', 'Reminders', 'Data'].map((section) => pageForAddress({ section })),
+  ['modules', 'profile', 'looks', 'reminders', 'data'])
+is('…?find= opens the setting’s own page, whatever the old tab said', pageForAddress({ section: 'Profile', find: 'Household' }), 'shopping')
+is('…the old calendar links address', pageForAddress({ section: 'Profile', hash: '#calendar-links' }), 'calendars')
+is('…nothing: the list', pageForAddress({}), null)
 
 // ---------- profiles (SET-02) ----------------------------------------------------------
 const ps = [

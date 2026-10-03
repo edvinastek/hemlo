@@ -8,3 +8,8 @@ Branch v17/k3, worktree /home/claude/wt17/k3. Harness: vite on 5303, script in s
   five (two pins; Stats only while a pin place is free), holderOf (Modules marked when the open page is off the bar).
   Nav.tsx: no sideways scrolling on the phone bar, equal columns, only the current page highlighted, long labels a size
   down / two lines, Inbox count badge on Plan (src/lib/inbox-count.ts useInboxCount). "More" is called Settings everywhere.
+- Step 2 (Settings): home is the search plus a list of 11 pages (settings-index-rules SETTINGS_PAGES, pageForAddress for
+  ?page=, old ?section=, ?find= and #calendar-links). PlanningSettings split into WhereYouAre / WorkSettings /
+  StartingLayout. New src/settings/About.tsx (version, NEVO_ATTRIBUTION word for word, USDA, Open Food Facts and Open
+  Prices ODbL, date-holidays CC BY-SA, privacy policy, delete account link). Evening review moved to Planning; Privacy
+  policy moved from Data to About.
