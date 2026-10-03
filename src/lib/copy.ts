@@ -4,7 +4,7 @@ import { writeBatch, unmakeBatch, type BatchRow } from './batch'
 import { builtinRuleOn } from '../modules/rule-switch'
 import { addDays } from './schedule-rules'
 import {
-  copySummary, copyTaskFields, dayPairs, planCopy, weekPairs, type CopyChoices, type CopyKind,
+  copySummary, copyTaskFields, dayPairs, DEFAULT_CHOICES, planCopy, weekPairs, type CopyChoices, type CopyKind,
 } from './copy-rules'
 import { dropTemplate, templateFrom, withTemplate, type PlanTemplate, type TemplateChoices } from './plan-templates-rules'
 import { loadPlanPrefs, savePlanPrefs } from './plan-prefs'
@@ -160,4 +160,23 @@ export async function dropDayTemplate(profileId: string, t: PlanTemplate, day: s
     tasks, meals, skippedRepeats: 0,
     undo: () => unmakeBatch(rows),
   }
+}
+
+/** Duplicate tasks where they are (GEN-53): each a new task on its own day
+ *  (or in the Inbox), with everything kept, after the day's other tasks. */
+export async function duplicateTasks(profileId: string, list: Task[]): Promise<CopyResult> {
+  const keepAll: CopyChoices = { ...DEFAULT_CHOICES, time: 'keep', notes: 'same', keepSection: true, keepMinutes: true, keepLocked: true }
+  const rows: BatchRow[] = []
+  const orders = new Map<string, number>()
+  for (const t of list) {
+    const k = t.planned_date ?? ''
+    const next = orders.get(k) ?? t.sort_order + 1
+    orders.set(k, next + 1)
+    const fields = { ...copyTaskFields(t, t.planned_date ?? '', keepAll), planned_date: t.planned_date, sort_order: next }
+    const row = blankTask(profileId, t.planned_date ?? '', fields)
+    rows.push({ table: 'task', row, fields: Object.keys(row).filter((x) => x !== 'id' && x !== 'updated_at') as never })
+  }
+  await writeBatch(rows)
+  const n = rows.length
+  return { summary: `${n} ${n === 1 ? 'task' : 'tasks'} duplicated`, tasks: n, meals: 0, skippedRepeats: 0, undo: () => unmakeBatch(rows) }
 }
