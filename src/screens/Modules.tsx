@@ -18,11 +18,13 @@ import { offerUndo } from '../ui/Undo'
 import { FirstTip } from '../ui/Tip'
 import './modules-hub.css'
 
-/** The Modules page (NAV-20 to NAV-22): every module that is on, as a grid,
- *  most used first, so the page bar can stay short. One search finds a
- *  module or anything a module holds. Holding a tile (or its ⋮ button)
- *  offers Pin to bar, Pin a card to Today, Hide and Settings. Modules that
- *  are off wait underneath, one tap from being switched on. */
+/** The Modules page (NAV-20 to NAV-22): every module that is on, as a dense
+ *  grid of names, most used first, so the page bar can stay short. One
+ *  search finds a module or anything a module holds. Holding a tile (or its
+ *  ⋮ button) says what the module is and offers Pin to bar, Pin a card to
+ *  Today, Settings and Hide. Modules that are off wait underneath, one tap
+ *  from being switched on. The way to Settings sits by the title, under the
+ *  one name it has everywhere. */
 export function Modules() {
   const profile = useApp((s) => s.profile)
   const pages = usePages()
@@ -66,9 +68,8 @@ export function Modules() {
         <header className="page-head hub-head">
           <div className="hub-title">
             <h1 className="page-date">Modules</h1>
-            <Link className="btn hub-settings" to="/more">{settings.nav.style === 'hub' ? 'Settings' : 'More'}</Link>
+            <Link className="btn hub-settings" to="/more">Settings</Link>
           </div>
-          <p className="page-sub">Everything that is on, most used first. Hold one for more.</p>
           <div className="hub-search">
             <input type="search" value={query} onChange={(e) => setQuery(e.target.value)}
               placeholder="Find a module, or anything in one" aria-label="Search modules and what they hold" />
@@ -83,7 +84,7 @@ export function Modules() {
             {modulePages.length === 0 ? (
               <EmptyState mark="⊞" title="Only the planner is on"
                 action={{ label: 'Choose a module', onClick: () => document.getElementById('hub-off')?.scrollIntoView({ behavior: 'smooth' }) }}
-                more={[{ label: 'Start from a template', to: '/more?section=Profile' }]}>
+                more={[{ label: 'Start from a template', to: '/more?page=modules&find=Starting%20layout' }]}>
                 Today and Plan are always here. Switch on a module for anything else you keep: food, habits, the household, a reading list.
               </EmptyState>
             ) : (
@@ -100,8 +101,8 @@ export function Modules() {
               </>
             )}
 
-            <p className="section-title" id="hub-off">Add a module</p>
-            {off.length === 0 && <p className="mp-note">Every module is on.</p>}
+            {/* Nothing to add: no empty section (CALM-15). */}
+            {off.length > 0 && <p className="section-title" id="hub-off">Add a module</p>}
             {off.map((e) => (
               <div key={e.def.key} className="setting-row">
                 <div>
@@ -112,15 +113,14 @@ export function Modules() {
                   onClick={() => void setModuleEnabled(profile.id, e.def.key, true)}>Switch on</button>
               </div>
             ))}
-            <div className="mp-actions">
-              <button type="button" className="btn btn-primary" onClick={() => setParams({ build: '1' })}>Build a module</button>
+            <div className="mp-actions hub-foot">
+              <button type="button" className="btn" onClick={() => setParams({ build: '1' })}>Build a module</button>
             </div>
-            <p className="mp-note hub-foot">Switching a module off hides it everywhere and deletes nothing; switching it on again brings everything back.</p>
           </>
         )}
       </div>
       {menu && (
-        <TileMenu page={menu} onClose={() => setMenu(null)}
+        <TileMenu page={menu} summary={byModule.get(menu.module!)?.def.summary} onClose={() => setMenu(null)}
           onSettings={() => { setEditing(menu.module); setMenu(null) }} />
       )}
       {building && <ModuleBuilder onClose={() => setParams({})} />}
@@ -165,15 +165,16 @@ function Tile({ page, entry, pinned, carded, onMenu }: {
 }) {
   const navigate = useNavigate()
   const { held, handlers } = useHold(onMenu)
+  // Only what is set: no description on the tile (it is in the ⋮).
   const marks = [pinned && 'on the bar', carded && 'on Today'].filter(Boolean).join(' · ')
   return (
     <li className="hub-tile">
       <button type="button" className="hub-open" {...handlers}
         onClick={() => { if (held.current) { held.current = false; return } navigate(page.route) }}
-        aria-describedby={`hub-${page.key}-meta`}>
+        aria-describedby={marks ? `hub-${page.key}-meta` : undefined} title={entry?.def.summary}>
         <span className="hub-glyph" aria-hidden="true">{page.glyph}</span>
         <span className="hub-name">{page.label}</span>
-        <span className="hub-meta" id={`hub-${page.key}-meta`}>{marks || entry?.def.summary || ''}</span>
+        {marks && <span className="hub-meta" id={`hub-${page.key}-meta`}>{marks}</span>}
       </button>
       <button type="button" className="hub-more" aria-label={`More for ${page.label}`} aria-haspopup="dialog" onClick={onMenu}>⋮</button>
     </li>
@@ -182,8 +183,8 @@ function Tile({ page, entry, pinned, carded, onMenu }: {
 
 /* ---------- the menu ---------------------------------------------------------- */
 
-function TileMenu({ page, onClose, onSettings }: {
-  page: PageInfo; onClose: () => void; onSettings: () => void
+function TileMenu({ page, summary, onClose, onSettings }: {
+  page: PageInfo; summary?: string; onClose: () => void; onSettings: () => void
 }) {
   const profile = useApp((s) => s.profile)
   const pages = usePages()
@@ -231,32 +232,32 @@ function TileMenu({ page, onClose, onSettings }: {
       <div className="sheet-scrim" onClick={onClose} />
       <div ref={box} className="bottom-sheet hub-menu" role="dialog" aria-modal="true" aria-label={page.label}>
         <h2><span className="hub-glyph is-small" aria-hidden="true">{page.glyph}</span> {page.label}</h2>
+        {/* What the module is, and where it shows: here rather than on the tile. */}
+        {summary && <p className="mp-note hub-menu-note">{summary}</p>}
         <p className="mp-note hub-menu-note">{describeView(view)}.</p>
         {!confirmHide ? (
           <div className="hub-actions">
             <button type="button" className="hub-action" onClick={() => void togglePin()}>
               <b>{pinned ? 'Unpin from the bar' : 'Pin to bar'}</b>
-              <span>{pinned ? 'It leaves the bar; it stays here.' : settings.nav.style === 'hub' ? 'It joins Today and Plan on the bar.' : 'It moves next to Plan on the bar.'}</span>
             </button>
             <button type="button" className="hub-action" onClick={() => void toggleCard()}
               disabled={!card && settings.today_cards.length >= 6}>
               <b>{card ? 'Take its card off Today' : 'Pin a card to Today'}</b>
-              <span>{card ? 'Today keeps its items; only the card goes.' : settings.today_cards.length >= 6 ? 'Today holds six cards; take one off first.' : 'A card with its figure at the top of Today.'}</span>
+              {!card && settings.today_cards.length >= 6 && <span>Today holds six cards; take one off first.</span>}
             </button>
             <button type="button" className="hub-action" onClick={onSettings}>
               <b>Settings</b>
-              <span>Where it shows, its fields, views and rules.</span>
             </button>
             <button type="button" className="hub-action" onClick={() => setConfirmHide(true)}>
               <b>Hide</b>
-              <span>Switch it off. Nothing is deleted.</span>
+              <span>Nothing is deleted.</span>
             </button>
           </div>
         ) : (
           <div className="hub-confirm" role="alertdialog" aria-label={`Hide ${page.label}`}>
             <p>
-              {page.label} leaves the bar, Today, Plan, Stats and the widget. Nothing it holds is deleted:
-              switch it on again here under Add a module, and everything comes back.
+              {page.label} leaves the bar, Today, Plan, Stats and the widget. Switching a module off hides it
+              everywhere and deletes nothing: switch it on again here under Add a module, and everything comes back.
             </p>
             <div className="sheet-actions">
               <button type="button" className="btn" onClick={() => setConfirmHide(false)}>Keep it</button>

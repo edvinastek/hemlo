@@ -18,3 +18,6 @@ Branch v17/k3, worktree /home/claude/wt17/k3. Harness: vite on 5303, script in s
   tips state keeps runs[version] = { at, met: {profileId: setUp} } in localStorage (survives sign-out); App notes the run
   at start-up and each profile met; movedShows needs met === true and created_at before the run and before MOVED_SINCE.
   RUNNING version comes from package.json: the sheet shows only once the lead bumps it to 0.17.x. WHAT_MOVED = v17 list.
+- Step 4 (hub): no subtitle; tiles are glyph + name (+ "on the bar · on Today" only when set), three across at 360;
+  the description moved into the tile's ⋮ sheet (and the tile's title attribute); menu hints cut to what matters; the
+  footnote moved into the Hide confirm; the link is always "Settings"; empty "Add a module" section hidden.
