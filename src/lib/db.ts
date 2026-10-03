@@ -6,6 +6,7 @@ import type {
   ModuleRow, ModuleRecord, CalendarEvent, CalendarSubscription, Goal, SleepLog, WorkoutLog,
   ShoppingEntry, Chore, ChoreLog,
 } from './types'
+import type { ShopPrice } from './shopping-types'
 
 /** The local copy. Every device holds the whole account, so the app works
  *  with no connection at all and merges when one comes back. */
@@ -37,6 +38,7 @@ class GetItDB extends Dexie {
   shopping_entry!: Table<ShoppingEntry, string>
   chore!: Table<Chore, string>
   chore_log!: Table<ChoreLog, string>
+  shop_price!: Table<ShopPrice, string>
   pending!: Table<PendingChange, number>
   conflicts!: Table<ConflictEntry, number>
   meta!: Table<{ key: string; value: unknown }, string>
@@ -108,6 +110,10 @@ class GetItDB extends Dexie {
       shopping_entry: 'id, household_id, plan_key, food_id',
       chore: 'id, household_id',
       chore_log: 'id, chore_id, done_on, [chore_id+done_on]',
+    })
+    // Version 9 (028): prices the household notes per shop.
+    this.version(9).stores({
+      shop_price: 'id, household_id, item_key',
     })
   }
 }

@@ -27,12 +27,14 @@ export const NATURAL_KEYS: Record<string, string[]> = {
   // A tick on an item the meal plan put on the list: one per item (026).
   shopping_entry: ['household_id', 'plan_key'],
   chore_log: ['chore_id', 'done_on'],
+  // The latest price of one item at one shop (028).
+  shop_price: ['household_id', 'shop', 'item_key'],
 }
 
 /** Tables whose rule only counts rows that are not deleted: the database's
  *  index for them leaves deleted rows out, so a deleted food never blocks
  *  scanning the same product again. */
-export const LIVE_ONLY = new Set(['food', 'shopping_entry'])
+export const LIVE_ONLY = new Set(['food', 'shopping_entry', 'shop_price'])
 
 /** The row's natural key as one string, or null when it has none: the table
  *  has no such rule, a part of the key is empty (a food without a barcode),
@@ -78,8 +80,11 @@ export const REFERENCES: Record<string, { table: string; fields: string[] }[]> =
     { table: 'stock', fields: ['food_id'] },
     { table: 'recipe_line', fields: ['food_id'] },
     { table: 'food_log', fields: ['food_id'] },
-    { table: 'shopping_entry', fields: ['food_id'] },
+    // A planned item's tick keeps the food's id as its plan_key.
+    { table: 'shopping_entry', fields: ['food_id', 'plan_key'] },
     { table: 'meal_plan_slot', fields: ['food_id'] },
+    // A price's item_key is the food's id itself, so it follows too.
+    { table: 'shop_price', fields: ['food_id', 'item_key'] },
     { table: 'module_record', fields: ['data'] },
     { table: 'profile', fields: ['settings'] },
   ],

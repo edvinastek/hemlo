@@ -16,7 +16,7 @@ const SYNCED = ['task', 'target', 'body_log', 'food_log', 'meal_plan_slot', 'mod
 /** Rows that belong to a profile through their parent (a log to its habit).
  *  Row-level security already limits them to the account, so they are fetched
  *  without a profile filter, still incrementally. */
-const CHILDREN = ['habit_log', 'supplement_log', 'series_exception', 'stock', 'module', 'shopping_entry', 'chore', 'chore_log'] as const
+const CHILDREN = ['habit_log', 'supplement_log', 'series_exception', 'stock', 'module', 'shopping_entry', 'chore', 'chore_log', 'shop_price'] as const
 /** Foods include, besides the shared catalogue and the person's own, foods a
  *  housemate scanned into the shared cupboard (025): readable, never theirs
  *  to change. */
@@ -210,7 +210,7 @@ async function sendOne(entry: Entry): Promise<'sent' | 'refused' | 'orphan' | 'w
 }
 
 /** Tables whose rows point at a food by food_id. */
-const FOOD_CHILDREN = new Set(['stock', 'recipe_line', 'food_log', 'shopping_entry', 'meal_plan_slot'])
+const FOOD_CHILDREN = new Set(['stock', 'recipe_line', 'food_log', 'shopping_entry', 'meal_plan_slot', 'shop_price'])
 
 /** A row that waits for its food, when the food's own insert is no longer in
  *  the queue: an older version refused a scanned food as a duplicate of the

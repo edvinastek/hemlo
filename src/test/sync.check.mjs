@@ -59,8 +59,11 @@ is('a table without a rule has no key', naturalKey('task', { id: 'x' }), null)
 // ---- following a folded row to its twin --------------------------------------------------
 const A = 'aaaaaaaa-0000-4000-8000-000000000001'  // the copy made on this phone
 const T = 'bbbbbbbb-0000-4000-8000-000000000002'  // its twin on the server
-is('a food is pointed at by stock, ingredients, the food log, the shopping list, meals, records and books',
-  REFERENCES.food.map((r) => r.table), ['stock', 'recipe_line', 'food_log', 'shopping_entry', 'meal_plan_slot', 'module_record', 'profile'])
+is('a food is pointed at by stock, ingredients, the food log, the shopping list, meals, prices, records and books',
+  REFERENCES.food.map((r) => r.table), ['stock', 'recipe_line', 'food_log', 'shopping_entry', 'meal_plan_slot', 'shop_price', 'module_record', 'profile'])
+is('a planned item\'s tick and a price follow their food by its id (028)',
+  repointRow({ food_id: null, plan_key: A, item_key: A }, ['food_id', 'plan_key', 'item_key'], A, T), { plan_key: T, item_key: T })
+is('one live price per item per shop', NATURAL_KEYS.shop_price, ['household_id', 'shop', 'item_key'])
 is('an id swapped', swapId(A, A, T), T)
 is('inside lists and objects', swapId({ books: [{ ids: ['x', A] }], n: 3 }, A, T), { books: [{ ids: ['x', T] }], n: 3 })
 const same = { books: [{ ids: ['x'] }] }

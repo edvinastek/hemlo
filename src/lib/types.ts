@@ -226,6 +226,12 @@ export interface Stock extends UnitAmount {
   food_id: UUID
   grams_on_hand: number
   note: string | null
+  /** Where it is kept (028): fridge, freezer, cupboard, or the person's own word. */
+  place?: string | null
+  /** Its best-before or use-by date (028), 'yyyy-MM-dd'. */
+  best_before?: string | null
+  /** Below this many grams it goes on the shopping list (028). */
+  min_grams?: number | null
   updated_at: string
   deleted_at: string | null
 }
@@ -324,6 +330,13 @@ export interface ShoppingEntry extends UnitAmount {
   checked_at: string | null
   sort_order: number
   added_by: UUID | null
+  /** Which of the household's lists it is on (028); none is the main list. */
+  list?: string | null
+  /** When it was bought (028): what the "recently bought" tiles are made of. */
+  bought_at?: string | null
+  /** An item the meal plan put there, bought or "not needed this time"
+   *  (028): the plan's needs up to this day count as dealt with, by `grams`. */
+  done_until?: string | null
   created_at?: string
   updated_at: string
   deleted_at: string | null
