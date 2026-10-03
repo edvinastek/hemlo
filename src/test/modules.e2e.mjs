@@ -23,7 +23,7 @@ const p = A.p
 await signIn(p, email)
 
 // 1. Build a module from the Expenses preset.
-await p.goto(`${APP}more`, { waitUntil: 'networkidle' })
+await p.goto(`${APP}more?page=modules`, { waitUntil: 'networkidle' })
 await p.getByRole('button', exact('Build a module')).click()
 await p.getByRole('dialog', { name: 'Build a module' }).getByLabel('Name').first().fill('E2E Spending')
 await p.getByRole('button', exact('Next')).click()
@@ -89,8 +89,8 @@ await p.getByRole('button', exact('Cancel')).click()
 r = await one(`select definition::text like '%"name": "shop"%' or definition::text like '%"name":"shop"%' has from public.module where key = '${key}'`)
 is('and in the stored definition', r.has, true)
 
-// 5. Sleep: switched on in More, a night added on its page.
-await p.goto(`${APP}more`, { waitUntil: 'networkidle' })
+// 5. Sleep: switched on in Settings → Modules, a night added on its page.
+await p.goto(`${APP}more?page=modules`, { waitUntil: 'networkidle' })
 const sleepSwitch = p.getByRole('switch', { name: /Turn Sleep (on|off)/ })
 if ((await sleepSwitch.getAttribute('aria-checked')) !== 'true') await sleepSwitch.click()
 await settle(p)

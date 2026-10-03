@@ -1,4 +1,4 @@
-import { need, open, signIn, sql, checks, drained, modulesOn } from './e2e.mjs'
+import { need, open, signIn, sql, checks, drained, modulesOn, toPage } from './e2e.mjs'
 
 // Supermarket products from Open Food Facts, at 360 px: "hagelslag" searched
 // from Foods → Find in stores, a result sold in a Dutch shop added to the
@@ -43,7 +43,7 @@ const overflow = () => p.evaluate(() => {
 const offFoods = async () => sql(`select name, barcode, source, brand, pack_size_g::float pack from public.food
   where owner_id = ${user} and source = 'off' and deleted_at is null`)
 
-await p.click('.bottom-nav a[href="/food"]')
+await toPage(p, '/food')
 await p.click('.tabs button:has-text("Foods")')
 await p.click('.pf-bar button:has-text("Find in stores")')
 await sheet.waitFor()

@@ -1,4 +1,4 @@
-import { need, sql, checks, open, signIn, profileOf, drained, modulesOn, localCount } from './e2e.mjs'
+import { need, sql, checks, open, signIn, profileOf, drained, modulesOn, localCount, toPage } from './e2e.mjs'
 
 // The household's stock, clicked through on a phone: add a food by search,
 // nudge it and type a new amount, remove another with a confirm; plan a meal
@@ -55,7 +55,7 @@ const stockRow = (name) => p.locator('.stock-row', { has: p.locator('.stock-name
 const server = async (foodId) => one(`select grams_on_hand::float g, (deleted_at is not null) gone
   from public.stock where household_id = ${household} and food_id = '${foodId}'`)
 const openStock = async () => {
-  await p.click('.bottom-nav a[href="/shop"]')
+  await toPage(p, '/shop')
   await p.click('.tabs button:has-text("Stock")')
   await p.locator('.stock-add').waitFor()
 }
@@ -114,12 +114,12 @@ r = await one(`select count(*) n from public.stock s join public.food f on f.id 
 is('and is removed on the server (softly)', r.n, 1)
 
 // 3. The list takes stock off (Shop → List, version 16).
-await p.click('.bottom-nav a[href="/food"]')
+await toPage(p, '/food')
 await p.waitForTimeout(1200)
 await p.fill('input[aria-label="Lunch recipe"]', recipe.name)
 await p.locator('.sp-list li[role=option]', { hasText: recipe.name }).first().click()
 await settle(p, 900)
-await p.click('.bottom-nav a[href="/shop"]')
+await toPage(p, '/shop')
 await p.click('.tabs button:has-text("List")')
 await p.waitForTimeout(1200)
 if (needG <= 1800) {
@@ -164,7 +164,7 @@ is('it switches on', await sw.getAttribute('aria-checked'), 'true')
 r = await one(`select settings->>'stock_auto' v from public.profile where id = ${profile}`)
 is('and the choice reached the server', r.v, 'true')
 
-await p.click('.bottom-nav a[href="/food"]')
+await toPage(p, '/food')
 await p.waitForTimeout(1000)
 await p.locator('input[aria-label="Lunch eaten"]').click()
 await settle(p, 1200)

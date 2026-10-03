@@ -1,4 +1,4 @@
-import { need, sql, checks, open, profileOf, today, drained, APP } from './e2e.mjs'
+import { need, sql, checks, open, profileOf, today, drained, APP, openSettings } from './e2e.mjs'
 
 // The first-run wizard as a planner, not a body tracker: a name, where you
 // are, work hours with a commute, a template suggested from a few words, and
@@ -132,10 +132,11 @@ is('each marked as the app’s own', series.map((s) => s.task_template?.managed)
 r = await one(`select count(*) n from public.task where ${mine} and title = 'Work' and deleted_at is null and planned_date >= '${day}'`)
 is('work laid out on the weeks ahead', Number(r.n) >= 30, true)
 
-// More → Profile: later hours replace the series from tomorrow.
-await p.click('.bottom-nav a[href="/more"]')
-await p.click('.tabs button:has-text("Profile")')
+// Settings → Profile shows where you are; Settings → Planning: later hours
+// replace the series from tomorrow.
+await openSettings(p, 'profile')
 is('where you are shows the country', await p.locator('.pl-field', { hasText: 'Country' }).locator('input').getAttribute('placeholder'), 'Netherlands')
+await openSettings(p, 'planning')
 await p.locator('.wf-grid label', { hasText: 'End' }).locator('input').fill('17:00')
 await p.click('button:has-text("Save work hours")')
 await p.getByText('The new hours start tomorrow').waitFor()

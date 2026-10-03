@@ -1,4 +1,4 @@
-import { need, open, signIn, sql, profileOf, checks, drained, modulesOn } from './e2e.mjs'
+import { need, open, signIn, sql, profileOf, checks, drained, modulesOn, toPage } from './e2e.mjs'
 
 // Recipe books and select mode on the Recipes tab, at 360 px: a book made,
 // two own recipes put in it (one by holding the row, one by its tick box),
@@ -42,7 +42,7 @@ const chip = (name) => p.locator('.bk-bar .bk-chip', { hasText: name })
 const bar = p.locator('.sb-bar')
 const status = () => bar.locator('.sb-status').textContent()
 
-await p.click('.bottom-nav a[href="/food"]')
+await toPage(p, '/food')
 await p.click('.tabs button:has-text("Recipes")')
 await row('E2E bowl A').waitFor({ timeout: 20000 })
 

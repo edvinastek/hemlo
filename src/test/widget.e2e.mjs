@@ -1,4 +1,4 @@
-import { need, sql, checks, open, signIn, profileOf, today, drained, APP } from './e2e.mjs'
+import { need, sql, checks, open, signIn, profileOf, today, drained, APP, openSettings } from './e2e.mjs'
 
 // The app's side of the home-screen widget, in a browser that pretends to be
 // the Android app: a stand-in for Capacitor's native bridge records what the
@@ -150,8 +150,7 @@ is('the stats widgets are given the saved views', await p.evaluate(() => Array.i
 is('text follows the phone’s font size', await p.evaluate(() => window.__widget.zoom), 115)
 
 // Signing out clears the widget.
-await p.click('.bottom-nav a[href="/more"]')
-await p.click('.tabs button:has-text("Data")')
+await openSettings(p, 'data')
 await p.click('button:has-text("Sign out")')
 await p.locator('input[type=email]').waitFor({ timeout: 15000 })
 await p.waitForTimeout(800)

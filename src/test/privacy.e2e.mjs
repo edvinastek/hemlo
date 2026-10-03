@@ -1,5 +1,5 @@
 import { chromium } from 'playwright'
-import { completeWizard, drained } from './e2e.mjs'
+import { completeWizard, drained, openSettings } from './e2e.mjs'
 
 // Three things the security review fixed, checked in a real browser:
 //  1. A row created on the device (the wizard's targets and weigh-in) reaches
@@ -59,8 +59,7 @@ is('an edit to an existing row reached the server', Number(server[0]?.height), 1
 
 // 2. Sign out: the device forgets the account.
 is('the device holds the account while signed in', (await localCount()) > 0, true)
-await p.click('.bottom-nav a[href="/more"]')
-await p.click('.tabs button:has-text("Data")')
+await openSettings(p, 'data')
 await p.click('button:has-text("Sign out")')
 await p.waitForSelector('input[type=email]', { timeout: 15000 })
 await p.waitForTimeout(1000)
@@ -72,8 +71,7 @@ await p.fill('input[type=password]', process.env.TEST_PASSWORD)
 await p.click('button[type=submit]')
 await p.waitForSelector('.bottom-nav', { timeout: 20000 })
 await p.waitForTimeout(2000)
-await p.click('.bottom-nav a[href="/more"]')
-await p.click('.tabs button:has-text("Data")')
+await openSettings(p, 'data')
 await p.click('.setting-row:has-text("Delete account") button:has-text("Delete")')
 const confirm = p.locator('button:has-text("Delete for good")')
 is('the delete button waits for the word', await confirm.isDisabled(), true)

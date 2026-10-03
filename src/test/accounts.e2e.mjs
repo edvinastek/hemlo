@@ -1,6 +1,6 @@
-import { need, open, signIn, completeWizard, sql, profileOf, today, checks, drained, localCount } from './e2e.mjs'
+import { need, open, signIn, completeWizard, sql, profileOf, today, checks, drained, localCount, openSettings } from './e2e.mjs'
 
-// Several accounts in one browser (More → Data → Account). In a browser,
+// Several accounts in one browser (Settings → Data and account → Account). In a browser,
 // switching asks for the other account's password; on the phone it asks for
 // the phone's unlock instead, which this check cannot reach.
 //  1. Sign in to TEST_EMAIL, add TEST_ONBOARD_EMAIL from More: the second opens,
@@ -23,8 +23,7 @@ const { b, ctx, p, errors } = await open({ viewport: { width: 360, height: 740 }
 
 const saved = () => p.evaluate(() => JSON.parse(localStorage.getItem('getit-accounts') ?? '[]'))
 const toAccount = async () => {
-  await p.click('.bottom-nav a[href="/more"]')
-  await p.click('.tabs button:has-text("Data")')
+  await openSettings(p, 'data')
   await p.locator('.section-title', { hasText: 'Account' }).scrollIntoViewIfNeeded()
 }
 /** Waits for the switching screen to go and the app (or a first run) to show. */

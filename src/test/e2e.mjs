@@ -70,6 +70,27 @@ export async function dismissWhatMoved(p) {
   if (await wm.count()) await wm.getByRole('button', { name: 'Got it' }).click()
 }
 
+/** Opens a Settings page (v17: Settings is a list of pages, and with more
+ *  than five pages on it is not on the bar but on the Modules page): in
+ *  place, as a link would, without reloading the app. `find` scrolls to a
+ *  setting on the page, as the settings search does. */
+export async function openSettings(p, page, find) {
+  const to = new URL(`more?page=${page}${find ? `&find=${encodeURIComponent(find)}` : ''}`, APP)
+  await p.evaluate((href) => { history.pushState({}, '', href); dispatchEvent(new PopStateEvent('popstate')) }, to.pathname + to.search)
+  await p.waitForSelector('.more-sub-head', { timeout: 15000 })
+  await p.waitForTimeout(500)
+}
+
+/** Opens a page from the page bar, or, when the bar does not hold it (v17,
+ *  CALM-04: past five pages the Modules page holds the rest), in place as a
+ *  link would, without reloading the app. */
+export async function toPage(p, href) {
+  const link = p.locator(`.bottom-nav a[href="${href}"]`)
+  if (await link.count()) { await link.first().click(); return }
+  const to = new URL(href.replace(/^\//, ''), APP)
+  await p.evaluate((h) => { history.pushState({}, '', h); dispatchEvent(new PopStateEvent('popstate')) }, to.pathname + to.search)
+}
+
 /** The first-run wizard, four steps. Only a name is needed; everything else
  *  is filled in when asked for. `targets` fills a 180 cm, 1996-born man
  *  weighing 80 kg. */

@@ -1,5 +1,5 @@
 import { chromium } from 'playwright'
-import { signIn, addTask } from './e2e.mjs'
+import { signIn, addTask, openSettings, toPage } from './e2e.mjs'
 
 // What a closed-test tester will do in the first ten minutes, end to end:
 // add, edit and delete a task; plan meals and size the main one; eat one;
@@ -73,12 +73,11 @@ is('deleting removes it', await p.locator('.row', { hasText: 'Mobility' }).count
 
 // Meals: one's own meals (dinner the main one), plan lunch and dinner from
 // each card's +, size dinner to the target, eat lunch.
-await p.click('.bottom-nav a[href="/more"]')
-await p.click('.tabs button:has-text("Profile")')
+await openSettings(p, 'food')
 const presets = p.locator('.fs-presets button:has-text("Breakfast, lunch, dinner")')
 if (await presets.count()) await presets.click()
 await p.waitForTimeout(800)
-await p.click('.bottom-nav a[href="/food"]')
+await toPage(p, '/food')
 await p.waitForTimeout(1200)
 // Recipes are found with the one search, in the add sheet's Recipes tab.
 const plan = async (meal, name) => {
@@ -117,7 +116,7 @@ const figure = await p.locator('.page-sub').first().textContent()
 is('the calorie figure moved', /^[1-9]\d* (\/ \d+ )?kcal$/.test(figure ?? ''), true)
 
 // Shopping from the plan.
-await p.click('.bottom-nav a[href="/shop"]')
+await toPage(p, '/shop')
 await p.waitForTimeout(1500)
 const items = await p.locator('.sheet tbody tr').count()
 is('the shopping list fills from the plan', items > 0, true)
@@ -127,13 +126,12 @@ const left = await p.locator('.totals').textContent()
 is('ticking an item counts it off', (left ?? '').includes(`${items - 1} of ${items} left`), true)
 
 // Reminders on this device.
-await p.click('.bottom-nav a[href="/more"]')
-await p.click('.tabs button:has-text("Reminders")')
+await openSettings(p, 'reminders')
 const sw = p.locator('button[aria-label="Reminders"]')
 await sw.click()
 await p.waitForTimeout(800)
 is('reminders switch on', await sw.getAttribute('aria-checked'), 'true')
-await p.click('.tabs button:has-text("Data")')
+await openSettings(p, 'about')
 await p.click('.setting-row:has-text("Privacy policy") button:has-text("Read")')
 is('the privacy policy is in the app', await p.locator('h2', { hasText: 'Your rights' }).count(), 1)
 

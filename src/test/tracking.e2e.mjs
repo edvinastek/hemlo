@@ -2,7 +2,7 @@ import * as XLSX from 'xlsx'
 import { writeFileSync, mkdtempSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { need, sql, checks, open, signIn, profileOf, today, localCount, drained, modulesOn, APP } from './e2e.mjs'
+import { need, sql, checks, open, signIn, profileOf, today, localCount, drained, modulesOn, APP, openSettings } from './e2e.mjs'
 
 // The features added for the closed test, clicked through as a tester would:
 // a weigh-in, habits and supplements, the same habit ticked offline on two
@@ -222,8 +222,7 @@ XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet([
 const xlsx = join(dir, 'mine.xlsx')
 writeFileSync(xlsx, XLSX.write(wb, { type: 'buffer', bookType: 'xlsx' }))
 
-await p.click('.bottom-nav a[href="/more"]')
-await p.click('.tabs button:has-text("Data")')
+await openSettings(p, 'data')
 await p.setInputFiles('input[type=file]', xlsx)
 await p.locator('text=Preview · mine.xlsx').waitFor({ timeout: 15000 })
 is('the preview counts what is new', (await p.locator('.setting-row .row-name', { hasText: 'new foods' }).textContent())?.trim(), '1 new foods · 1 new recipes')
@@ -250,8 +249,7 @@ await p.locator('input[type=email]').waitFor({ timeout: 15000 })
 await signIn(p, other)
 const theirs = `profile_id = ${profileOf(other)}`
 const modulesBefore = (await one(`select count(*) n from public.module_instance where ${theirs}`)).n
-await p.click('.bottom-nav a[href="/more"]')
-await p.click('.tabs button:has-text("Data")')
+await openSettings(p, 'data')
 await p.setInputFiles('input[type=file]', exported)
 await p.locator('text=/records from export.getit.json added/').waitFor({ timeout: 15000 })
 await settle(p)

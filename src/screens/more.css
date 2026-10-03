@@ -41,3 +41,5 @@
 .more-times input { min-width: 0; flex: 1 1 120px; }
 /* A source named in a quiet line links in the accent, not browser blue. */
 .setting-row .row-meta a { color: var(--e-accent); }
+/* A link drawn as a button reads as one: no underline, no browser blue. */
+.setting-row a.btn { color: var(--e-ink); text-decoration: none; display: inline-flex; align-items: center; }

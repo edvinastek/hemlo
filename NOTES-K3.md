@@ -26,3 +26,9 @@ Branch v17/k3, worktree /home/claude/wt17/k3. Harness: vite on 5303, script in s
   now names Settings → Shopping and household), Accounts, SignOut, Body (intro gone), Food (meals line), Hold (two
   paragraphs gone), Holidays (intro gone, credit in About), NoteTemplates (intro gone), Profiles, Reminders, Review,
   Data, Delete account (full text shows when opened). Comments say Settings → <page>.
+- Step 7 (e2e, not run): e2e.mjs gains openSettings(p, page, find) and toPage(p, href) (both navigate in place with
+  pushState + popstate, no reload). Settings tab clicks replaced in accounts, daytabs, features, food, holidays,
+  landscape, modules, nav, onboarding, privacy, sharing, tour, tracking, transfer, views, widget; bar clicks to pages
+  that may now live on the Modules page go through toPage (books, daytabs, features, food-units, food, holidays,
+  products, sharing, stock, tour, units). nav.e2e: six styles, Sleep opened by address, grid ≤4 across, nothing
+  scrolls, "Let GetIt pick" gives ≤5 with one marked; puts the person's style back.

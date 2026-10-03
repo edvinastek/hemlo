@@ -1,8 +1,8 @@
 import Holidays from 'date-holidays'
-import { need, open, signIn, sql, profileOf, today, checks, drained } from './e2e.mjs'
+import { need, open, signIn, sql, profileOf, today, checks, drained, openSettings, toPage } from './e2e.mjs'
 
 // Public holidays, at 360 px, light theme. With the profile's country set to
-// the Netherlands and no holidays chosen, More → Profile offers the
+// the Netherlands and no holidays chosen, Settings → Calendars offers the
 // Netherlands with one tap; Germany is added by search; both reach
 // profile.settings in Postgres in different colours. Plan's Month view then
 // marks the next Dutch or German holiday in the right colours with the names
@@ -37,8 +37,9 @@ const todays = all.filter((h) => h.date === day)
 const { b, p, errors } = await open({ viewport: { width: 360, height: 740 }, colorScheme: 'light' })
 await signIn(p, email)
 
-const go = async (href) => { await p.click(`.bottom-nav a[href="${href}"]`); await p.waitForTimeout(1200) }
-const toProfile = async () => { await go('/more'); await p.click('[role=tab]:has-text("Profile")'); await p.waitForTimeout(400) }
+const go = async (href) => { await toPage(p, href); await p.waitForTimeout(1200) }
+// Public holidays live in Settings → Calendars (v17).
+const toProfile = async () => { await openSettings(p, 'calendars') }
 const overflow = () => p.evaluate(() => {
   const w = document.documentElement.clientWidth
   return [...document.querySelectorAll('.page *')]
