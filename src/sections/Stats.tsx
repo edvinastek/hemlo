@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState, type CSSProperties } from 'react'
-import { useSearchParams } from 'react-router-dom'
+import { Navigate, useLocation, useSearchParams } from 'react-router-dom'
 import { format } from 'date-fns'
 import { useApp } from '../lib/store'
 import { readSettings } from '../lib/settings'
@@ -342,4 +342,11 @@ function Patterns({ profileId, today, showDisabled }: { profileId: string; today
       </div>
     </section>
   )
+}
+
+/** /stats and /stats?view=<id> (the address a stats widget opens) lead to
+ *  the Stats page, which lives at /m/stats like every module page. */
+export function StatsAddress() {
+  const { search } = useLocation()
+  return <Navigate to={`/m/stats${search}`} replace />
 }
