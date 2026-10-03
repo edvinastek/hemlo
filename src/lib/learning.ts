@@ -5,10 +5,9 @@ import { queueChange } from './sync'
 import { blankTask, deleteTask, saveTask } from './tasks'
 import { uuidV5 } from './sync-rules'
 import type { ModuleRecord, Task } from './types'
-import { readingTask, statusChange, studyChange, studyPlan, STUDY_TASK_NAMESPACE, type Book, type BookStatus } from './learning-rules'
-import { keepSeries } from './training-series'
+import { readingTask, statusChange, studyChange, studyMinutes, studyPlan, STUDY_TASK_NAMESPACE, type Book, type BookStatus } from './learning-rules'
+import { keepSeries, moduleRuleOn } from './training-series'
 import type { RepeatValue } from './repeat-choice-rules'
-import { builtinRuleOn } from '../modules/rule-switch'
 
 /** Learning and reading on the device: study blocks and books are Learning
  *  records (module_record), so their fields can still be shaped in Edit
@@ -31,7 +30,7 @@ export function useLearningRecords(profileId: string | null | undefined, entity:
  *  has an id worked out from the block's, so two devices doing this at
  *  once make the same task, not two. */
 export async function syncStudyTasks(profileId: string): Promise<number> {
-  const ruleOn = await builtinRuleOn(profileId, MODULE, 'study_task')
+  const ruleOn = await moduleRuleOn(profileId, MODULE, 'study_task')
   const recs = (await db.module_record.where('[profile_id+module_key]').equals([profileId, MODULE]).toArray()).filter((r) => r.entity === 'study')
   let changed = 0
   for (const r of recs) {
@@ -117,4 +116,11 @@ export function useReadingTasks(profileId: string | null | undefined, title: str
     ? (await db.task.where('profile_id').equals(profileId).filter((t) => !t.deleted_at && t.title === `Read ${title}` && t.status !== 'done'
       && !!t.planned_date && t.planned_date >= today).toArray()).sort((a, b) => a.planned_date!.localeCompare(b.planned_date!))
     : []), [profileId, title, today])
+}
+
+/** Minutes studied per day (LEARNING_MEASURES in learning-rules.ts), for the
+ *  stats builder, optionally for one subject. */
+export async function loadStudyMinutes(profileId: string, from: string, to: string, subject?: string): Promise<Record<string, number>> {
+  const recs = (await db.module_record.where('[profile_id+module_key]').equals([profileId, MODULE]).toArray()).filter((r) => r.entity === 'study')
+  return Object.fromEntries(Object.entries(studyMinutes(recs, subject)).filter(([d]) => d >= from && d <= to))
 }

@@ -17,5 +17,10 @@
 - Sleep: target, debt, regularity, nights, bedtime block series; SleepDay compares with target
 - Projects/Goals: overview, project page (tasks, milestones), board view (registry), goals list/page/sheet, ProjectField/GoalField, loaders loadYearGoals/loadMilestones
 - trend-rules.ts (+check)
+- Finance: rules, data, page (overview, quick entry, planned, categories), day-items payment block + loader feed
+- Learning: study tasks (uuidV5 ids), reading list, reading tasks with after-done
+- Health: trend headline, rate, goal date, chart, any-day weigh-in
+- rule-switch.carryOutRules; stats loaders (loadTrainingSeries, loadSleepSeries, loadFinanceSeries, loadStudyMinutes)
 
 ## Left
+- final verification (check, build, localdb, security), remove harness (hx/, harness.html, harness.vite.config.ts are untracked), report

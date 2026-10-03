@@ -1,6 +1,9 @@
 import { useLiveQuery } from 'dexie-react-hooks'
 import { db } from '../lib/db'
 import { OVERLAY_KEY, isBuiltinRuleOn } from './def-rules'
+import { carryOutSessionRule } from '../lib/training'
+import { carryOutBedtimeRule } from '../lib/sleep'
+import { syncStudyTasks } from '../lib/learning'
 
 /** Whether a built-in module's rule is switched on for a profile: the
  *  registry's rule with the person's switch from Edit module laid over it.
@@ -26,17 +29,9 @@ export function useBuiltinRuleOn(profileId: string | null | undefined, moduleKey
  *  - sleep.bedtime: the nightly bedtime block;
  *  - learning.study_task: a dated study block's task.
  *  Each only adds or removes what the rule decides; nothing the person
- *  changed on one day is undone. Loaded on demand, so the screens that only
- *  read a switch do not pull in the planners. */
+ *  changed on one day is undone. */
 export async function carryOutRules(profileId: string, moduleKey: string, today: string): Promise<void> {
-  if (moduleKey === 'training') {
-    const { carryOutSessionRule } = await import('../lib/training')
-    await carryOutSessionRule(profileId, today)
-  } else if (moduleKey === 'sleep') {
-    const { carryOutBedtimeRule } = await import('../lib/sleep')
-    await carryOutBedtimeRule(profileId, today)
-  } else if (moduleKey === 'learning') {
-    const { syncStudyTasks } = await import('../lib/learning')
-    await syncStudyTasks(profileId)
-  }
+  if (moduleKey === 'training') await carryOutSessionRule(profileId, today)
+  else if (moduleKey === 'sleep') await carryOutBedtimeRule(profileId, today)
+  else if (moduleKey === 'learning') await syncStudyTasks(profileId)
 }

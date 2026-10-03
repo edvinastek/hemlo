@@ -5,12 +5,21 @@ import { saveTask } from './tasks'
 import { addDays } from './schedule-rules'
 import type { Series, Task } from './types'
 import { sessionChange, type SeriesShape } from './training-rules'
+import { OVERLAY_KEY, isBuiltinRuleOn } from '../modules/def-rules'
 
 /** A task series a module keeps on the planner for the person: a routine's
  *  planned sessions (Training), the bedtime block (Sleep). The module says
  *  what it wants; this makes the planner match, through the same series and
  *  tasks every repeating task uses, so Today, Plan, reminders, the widget
  *  and calendar export all see them with nothing extra. */
+
+/** Is a built-in module's rule on for a profile (the same answer as
+ *  builtinRuleOn in modules/rule-switch.ts, read here so rule-switch.ts can
+ *  call these planners without a loop between the two files). */
+export async function moduleRuleOn(profileId: string, moduleKey: string, ruleName: string): Promise<boolean> {
+  const inst = await db.module_instance.where('profile_id').equals(profileId).filter((m) => m.module_key === moduleKey).first()
+  return isBuiltinRuleOn(moduleKey, ruleName, inst?.settings?.[OVERLAY_KEY])
+}
 
 export type Want = Omit<SeriesShape, 'active' | 'deleted_at'> & { module_key: string }
 

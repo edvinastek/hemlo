@@ -3,11 +3,10 @@ import { db, getMeta } from './db'
 import { edit } from './write'
 import { queueChange } from './sync'
 import { setTaskDone } from './tasks'
-import { keepSeries } from './training-series'
+import { keepSeries, moduleRuleOn } from './training-series'
 import type { Task, WorkoutLog } from './types'
 import type { Exercise, Muscle, Routine, RoutineLine } from './training-types'
-import { readMuscleChoices, routineForTask, sessionSeries } from './training-rules'
-import { builtinRuleOn } from '../modules/rule-switch'
+import { muscleOf, readMuscleChoices, routineForTask, sessionSeries, trainingSeries, type TrainingMeasure } from './training-rules'
 import { instanceFor } from '../modules/defs'
 
 /** Training on the device: exercises (the shared catalogue and the person's
@@ -167,7 +166,7 @@ export async function routineLines(routineId: string): Promise<RoutineLine[]> {
 /** Bring a routine's series in line with the routine and the rule (see
  *  keepSeries for what `full` means). */
 export async function planSessions(routine: Routine, today: string, full: boolean): Promise<Routine> {
-  const ruleOn = await builtinRuleOn(routine.profile_id, 'training', 'session_task')
+  const ruleOn = await moduleRuleOn(routine.profile_id, 'training', 'session_task')
   const want = sessionSeries(routine, ruleOn, today)
   const res = await keepSeries(routine.profile_id, routine.series_id, want ? { ...want, module_key: 'training' } : null, today, full)
   if (res.retired) {
@@ -254,3 +253,22 @@ export async function sessionLinkForTask(task: Task): Promise<string | null> {
 
 export const sessionLink = (routineId: string | null, day: string | null) =>
   `/m/training?session=${encodeURIComponent(routineId ?? 'free')}${day ? `&day=${day}` : ''}`
+
+/* ---------- figures for Stats (TRN-08) -------------------------------------------- */
+
+/** A value per day for one of Training's measures (TRAINING_MEASURES in
+ *  training-rules.ts), for the stats builder: sessions, sets, reps, volume,
+ *  best set or heaviest load, optionally for one exercise or muscle group
+ *  (as this person counts it). Days with nothing logged are left out. */
+export async function loadTrainingSeries(profileId: string, measure: TrainingMeasure, from: string, to: string,
+  filter: { exercise?: string; muscle?: Muscle } = {}): Promise<Record<string, number>> {
+  const logs = (await db.workout_log.where('profile_id').equals(profileId).toArray())
+    .filter((l) => !l.deleted_at && l.log_date >= from && l.log_date <= to)
+  let muscleOfId: ((id: string) => Muscle | null) | undefined
+  if (filter.muscle) {
+    const exercises = new Map((await loadExercises()).map((e) => [e.id, e]))
+    const chosen = readTrainingSettings((await instanceFor(profileId, 'training'))?.settings).muscles
+    muscleOfId = (id) => { const e = exercises.get(id); return e ? muscleOf(e, chosen) : null }
+  }
+  return trainingSeries(logs, measure, { ...filter, muscleOf: muscleOfId })
+}

@@ -2,9 +2,8 @@ import { useLiveQuery } from 'dexie-react-hooks'
 import { db } from './db'
 import { edit } from './write'
 import type { SleepLog } from './types'
-import { bedtimeSeries, hoursSlept, readSleepSettings, type SleepSettings } from './sleep-rules'
-import { keepSeries } from './training-series'
-import { builtinRuleOn } from '../modules/rule-switch'
+import { bedtimeSeries, hoursSlept, readSleepSettings, sleepSeries, type SleepSettings } from './sleep-rules'
+import { keepSeries, moduleRuleOn } from './training-series'
 import { ensureInstance, instanceFor } from '../modules/defs'
 
 /** Sleep on the device: the target kept in the module's own settings (so it
@@ -28,7 +27,7 @@ export async function saveSleepSettings(profileId: string, next: Editable, today
 /** The bedtime block on the planner, in line with the settings and the rule
  *  "bedtime is locked and nothing is scheduled across it". */
 export async function keepBedtime(profileId: string, s: SleepSettings, today: string, full: boolean): Promise<SleepSettings> {
-  const ruleOn = await builtinRuleOn(profileId, 'sleep', 'bedtime')
+  const ruleOn = await moduleRuleOn(profileId, 'sleep', 'bedtime')
   const want = bedtimeSeries(s, ruleOn, today)
   const res = await keepSeries(profileId, s.block_series, want ? { ...want, module_key: 'sleep' } : null, today, full)
   if (res.seriesId === s.block_series) return s
@@ -82,4 +81,12 @@ export async function restoreNight(row: SleepLog): Promise<void> {
   const twin = (await db.sleep_log.where('[profile_id+log_date]').equals([row.profile_id, row.log_date]).toArray())
     .find((r) => !r.deleted_at && r.id !== row.id)
   if (!twin) await edit('sleep_log', current, { deleted_at: null })
+}
+
+/** A value per night for one of Sleep's measures (SLEEP_MEASURES in
+ *  sleep-rules.ts), for the stats builder; nights without it are left out. */
+export async function loadSleepSeries(profileId: string, measure: 'hours' | 'vs_target' | 'bed_late' | 'quality', from: string, to: string): Promise<Record<string, number>> {
+  const s = readSleepSettings((await instanceFor(profileId, 'sleep'))?.settings)
+  const nights = (await db.sleep_log.where('profile_id').equals(profileId).toArray()).filter((n) => !n.deleted_at && n.log_date >= from && n.log_date <= to)
+  return sleepSeries(nights, measure, s)
 }
