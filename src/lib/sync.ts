@@ -304,8 +304,12 @@ async function foldIntoTwin(table: string, local: Row, patch: Record<string, unk
       kept: 'local', at: new Date().toISOString(),
     })
   }
-  await store(table).delete(local.id)
-  await store(table).put(row)
+  // One step, so nothing watching the local copy ever sees the row gone
+  // (a module would read as off for a moment and Today would drop its tab).
+  await db.transaction('rw', db.table(table), async () => {
+    await db.table(table).delete(local.id)
+    await db.table(table).put(row)
+  })
   if (REFERENCES[table]) await repoint(table, local.id, twin.id, sent)
   return true
 }
