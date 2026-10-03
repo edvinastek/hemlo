@@ -2,6 +2,7 @@ import { readFileSync } from 'node:fs'
 import { createRequire } from 'node:module'
 import { defineConfig, type Plugin } from 'vite'
 import react from '@vitejs/plugin-react'
+import { flattenLinks } from './src/lib/tz-links-rules'
 
 /** Writes the built filenames into the service worker, so the whole app is in
  *  the cache after the first load rather than after the second. */
@@ -48,6 +49,8 @@ function trimTimeZones(): Plugin {
       const data = moment.tz.filterLinkPack(
         { version: latest.version, zones: latest.zones.map((z: string) => moment.tz.unpack(z)), links: latest.links },
         2000, 2100)
+      // A trimmed link can point at another link; moment-timezone follows one step only.
+      data.links = flattenLinks(data.zones, data.links)
       data.countries = latest.countries
       // The library's code without its bundled data, then the trimmed data.
       return `import moment from 'moment-timezone/moment-timezone.js'\n` +

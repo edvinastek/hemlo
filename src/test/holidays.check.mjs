@@ -8,6 +8,8 @@ import {
 } from '../lib/holidays-rules.ts'
 import { SWATCHES, PAPER, contrast, hashColour } from '../lib/colours-rules.ts'
 import { readSettings, mergeSettings } from '../lib/settings.ts'
+import { flattenLinks } from '../lib/tz-links-rules.ts'
+import { createRequire } from 'node:module'
 
 let fail = 0
 const is = (label, got, want) => {
@@ -160,6 +162,29 @@ is('the legend: countries seen, in the order chosen',
   countriesIn([merged.get('2026-04-27'), merged.get('2026-12-25')], ['DE', 'NL']).map((c) => c.country), ['DE', 'NL'])
 is('the legend leaves out countries with nothing in view',
   countriesIn([merged.get('2026-04-27')], ['DE', 'NL']), [{ country: 'NL', colour: '#4777d2' }])
+
+// The build's trimmed time zones (vite.config.ts): every name the full data
+// knows still has data, Amsterdam included, with the same offsets.
+{
+  const require = createRequire(import.meta.url)
+  const full = require('moment-timezone')
+  require('moment-timezone/moment-timezone-utils')
+  const latest = require('moment-timezone/data/packed/latest.json')
+  const data = full.tz.filterLinkPack(
+    { version: latest.version, zones: latest.zones.map((z) => full.tz.unpack(z)), links: latest.links }, 2000, 2100)
+  const chained = data.links.filter((l) => !data.zones.some((z) => z.split('|')[0] === l.split('|')[0]))
+  is('trimming alone leaves links pointing at links (why the rewrite is needed)', chained.length > 0, true)
+  data.links = flattenLinks(data.zones, data.links)
+  for (const k of Object.keys(require.cache)) if (k.includes('moment')) delete require.cache[k]
+  const trimmed = require('moment-timezone/moment-timezone.js')
+  trimmed.tz.load(data)
+  const names = [...latest.zones.map((z) => z.split('|')[0]), ...latest.links.flatMap((l) => l.split('|'))]
+  is('every time zone name still has data after trimming', names.filter((n) => !trimmed.tz.zone(n)), [])
+  const at = Date.UTC(2026, 6, 1)
+  is('Amsterdam keeps its summer offset', trimmed.tz.zone('Europe/Amsterdam').utcOffset(at), -120)
+  is('and its winter offset', trimmed.tz.zone('Europe/Amsterdam').utcOffset(Date.UTC(2026, 0, 1)), -60)
+  is('a chain of three is linked straight', flattenLinks(['C|x'], ['B|A', 'C|B']), ['C|A', 'C|B'])
+}
 
 console.log(fail ? `\n${fail} failed` : '\nall passed')
 process.exit(fail ? 1 : 0)
