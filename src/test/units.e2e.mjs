@@ -79,8 +79,9 @@ is('the recipe reached the server', await drained(p), true)
 const line = await one(`select l.unit, l.unit_qty::float qty, l.grams_per_portion::float g
   from public.recipe_line l join public.recipe r on r.id = l.recipe_id where r.owner_id = ${user} and r.name = '${recipe}'`)
 is('Postgres holds 2 eggs as 100 g', `${line.qty} ${line.unit}, ${line.g} g`, '2 egg, 100 g')
+// The table's figures are read-only fields: their value, not their text.
 is('the recipe counts 143 kcal a portion',
-  / 143 /.test(` ${(await p.locator('table.sheet tbody tr', { hasText: recipe }).first().innerText()).replace(/\s+/g, ' ')} `), true)
+  await p.locator('table.sheet tbody tr', { hasText: recipe }).first().locator('input[aria-label="kcal"]').inputValue(), '143')
 
 // Opened again (from the one list), it reads 2 eggs, not 100 g. Edit is in
 // the ⋮ by the recipe's name (v17).
