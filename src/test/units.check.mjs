@@ -7,6 +7,7 @@ import {
   addUnit, removeUnit, unitsText, parseUnitsText, amountChoices, readAmount, amountHint, entryText, unitColumns,
   addCounts, countOf, wholeToBuy, countIn, nudgeCount, parseServing, unitFromText, unitLine, MAX_UNITS,
   countFits, leadingAmount, plainFractions, stockUnitColumns,
+  defaultUnit, withOverlay, boughtGrams, foodWord, choiceLabel, VOLUMES,
 } from '../lib/units-rules.ts'
 
 let fail = 0
@@ -199,6 +200,60 @@ is('a food without units', unitFromText('2 slices', [], null), null)
 is('a word that is no unit of it', unitFromText('2 cups', [egg], null), null)
 
 is('every Unicode fraction reads right: 1⅜, 2⅓, ⅝', [readQty(plainFractions('1⅜')), readQty(plainFractions('2⅓')), readQty(plainFractions('⅝'))], [1.375, 2.333, 0.625])
+
+// Sizes, as-bought weights and where a weight came from (UNIT-10 to UNIT-15).
+const onionUnits = [
+  { name: 'onion', plural: 'onions', g: 95, bought_g: 100, size: 'M', source: 'Portie-online 2026/2.0' },
+  { name: 'small onion', plural: 'small onions', g: 57, bought_g: 60, size: 'S', source: 'Portie-online 2026/2.0' },
+  { name: 'large onion', plural: 'large onions', g: 142, bought_g: 150, size: 'L', source: 'Portie-online 2026/2.0' },
+  { name: 'tbsp chopped', g: 20, source: 'Portie-online 2026/2.0' },
+]
+is('sizes and as-bought weights are kept', readUnits(onionUnits), onionUnits)
+is('as bought under what is eaten is dropped', readUnits([{ name: 'pear', g: 214, bought_g: 100 }]), [{ name: 'pear', g: 214 }])
+is('a size that is not S, M, L or XL is dropped', readUnits([{ name: 'egg', g: 50, size: 'huge' }]), [{ name: 'egg', g: 50 }])
+is('"1 onion" is the medium one (UNIT-12)', defaultUnit([onionUnits[1], onionUnits[0], onionUnits[2]]).name, 'onion')
+is('no medium: the first', defaultUnit([egg, slice]).name, 'egg')
+is('no units: none', defaultUnit([]), null)
+is('a unit line says what one weighs as bought', unitLine(onionUnits[0]), '1 onion = 95 g (100 g as bought)')
+is('as bought for the shopping list', boughtGrams(3, onionUnits[0]), 300)
+is('no as-bought weight: what is eaten', boughtGrams(2, egg), 100)
+
+// A person's own units on a shared food (UNIT-16).
+is('own units come after the food’s, marked as theirs', withOverlay([egg], [{ name: 'tray', g: 600 }]), [egg, { name: 'tray', g: 600, source: 'mine' }])
+is('a name the food has stays the food’s', withOverlay([egg], [{ name: 'Egg', g: 70 }]), [egg])
+is('never more than eight', withOverlay(Array.from({ length: 7 }, (_, i) => ({ name: `u${i}`, g: 1 })), [{ name: 'a', g: 1 }, { name: 'b', g: 1 }]).length, 8)
+
+// The food's own word for the add-a-unit form (UNIT-20).
+is('Onions, raw is counted in onions', foodWord('Onions, raw'), 'onion')
+is('Red cabbage, raw: cabbage', foodWord('Red cabbage, raw'), 'cabbage')
+is('Tomatoes: tomato', foodWord('Classic round tomatoes'), 'tomato')
+is('Raspberries: raspberry', foodWord('Raspberries'), 'raspberry')
+is('Peaches: peach', foodWord('Peaches'), 'peach')
+is('a name in brackets is left out', foodWord('Onion (ui)'), 'onion')
+is('never egg on another food', foodWord('Onions, raw') === 'egg', false)
+
+// The unit's word follows the number, on the buttons too (UNIT-21).
+const onionChoice = amountChoices([onionUnits[0]]).find((c) => c.unit)
+is('1 onion', choiceLabel(onionChoice, '1'), 'onion')
+is('2 onions', choiceLabel(onionChoice, '2'), 'onions')
+is('half an onion is singular', choiceLabel(onionChoice, '0.5'), 'onion')
+is('nothing typed yet: the singular', choiceLabel(onionChoice, ''), 'onion')
+is('1½ onions', choiceLabel(onionChoice, '1½'), 'onions')
+is('grams stay grams', choiceLabel(amountChoices([])[0], '200'), 'g')
+is('no leading space or separator in any word', [choiceLabel(onionChoice, '3'), formatCount(3, onionUnits[0])].some((w) => /^\s|·/.test(w)), false)
+
+// Volumes (UNIT-04): ml, l, tsp 5 ml, tbsp 15 ml, cup 250 ml (EU).
+is('the measures', VOLUMES.map((v) => `${v.name} ${v.ml}`), ['tsp 5', 'tbsp 15', 'cup 250'])
+const drink = amountChoices([], { kilos: true, perMl: 1 })
+is('a drink is typed in ml and l, and spoons and cups', drink.map((c) => c.label), ['ml', 'l', 'tsp', 'tbsp', 'cup'])
+is('a cup of a drink is 250', drink.find((c) => c.label === 'cup').g, 250)
+const oilChoices = amountChoices([{ name: 'tbsp', g: 13.5 }], { perMl: 0.92 })
+is('an oil’s own tablespoon wins over the measure', oilChoices.filter((c) => c.label === 'tbsp').map((c) => c.g), [13.5])
+is('a teaspoon of oil by its density', oilChoices.find((c) => c.label === 'tsp').g, 4.6)
+is('ml of a food with a density', oilChoices.find((c) => c.label === 'ml').g, 0.92)
+is('2 tbsp of a drink keeps the unit and its grams', readAmount('2', drink.find((c) => c.label === 'tbsp')), { grams: 30, unit: 'tbsp', unit_qty: 2 })
+is('… and shows as typed', entryText({ grams: 30, unit: 'tbsp', unit_qty: 2 }, []), '2 tbsp (30 g)')
+is('no density: no spoons offered', amountChoices([]).map((c) => c.label), ['g'])
 
 if (fail) { console.log(`\n${fail} failed`); process.exit(1) }
 console.log('\nall unit checks passed')

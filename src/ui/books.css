@@ -109,3 +109,7 @@
    the bar, and the page needs no room kept for it. */
 .is-selecting .fab { display: none; }
 .is-selecting .page { padding-bottom: 0; }
+
+/* "Showing 200 of 2,400" under a long list, and the way to see them all. */
+.bk-more { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--space-2);
+  padding: var(--space-3) var(--space-4); }

@@ -372,3 +372,38 @@ export function draftOf(f: Partial<Record<string, unknown>> | null, name?: strin
 export function foodSearchText(f: { name_nl?: string | null; name_en?: string | null; synonyms?: string | null; brand?: string | null; food_group?: string | null }): string {
   return [f.name_nl, f.name_en, f.synonyms, f.brand].filter(Boolean).join(' ')
 }
+
+// ---- which figures a person sees (FOOD-16, FOOD-06) ------------------------------------
+
+/** The label lines beyond the five the app has always counted (calories,
+ *  protein, carbohydrate, fat, fibre: settings.nutrients). */
+export type ExtraFigure = 'sat_fat_g' | 'mufa_g' | 'pufa_g' | 'sugars_g' | 'polyols_g' | 'starch_g' | 'salt_g' | 'alcohol_g'
+export const EXTRA_KEYS: ExtraFigure[] = ['sat_fat_g', 'mufa_g', 'pufa_g', 'sugars_g', 'polyols_g', 'starch_g', 'salt_g', 'alcohol_g']
+
+export interface LabelChoice {
+  /** Extra label lines shown in the food and recipe lists, in label order. */
+  figures: ExtraFigure[]
+  /** Show each figure's share of the adult reference intake (%RI). */
+  ri: boolean
+}
+
+/** As stored in nutrition's module settings; anything odd is left out. */
+export function readLabelChoice(v: unknown): LabelChoice {
+  const r = (v && typeof v === 'object' ? v : {}) as Record<string, unknown>
+  const figures = Array.isArray(r.figures) ? EXTRA_KEYS.filter((k) => (r.figures as unknown[]).includes(k)) : []
+  return { figures, ri: r.ri === true }
+}
+
+/** Every figure a list shows, in label order: the five the person tracks
+ *  (calories always) and the extra ones they picked. */
+export function shownFigures(core: string[], extra: ExtraFigure[]): LabelKey[] {
+  const want = new Set<string>(['kcal', ...core, ...extra])
+  return LABEL.map((r) => r.key).filter((k) => k !== 'kj' && want.has(k))
+}
+
+/** A figure's short name for a column or a line: "Saturates", "Salt". */
+export function figureName(key: LabelKey): string {
+  if (key === 'kcal') return 'kcal'
+  if (key === 'kj') return 'kJ'
+  return EXTRA_FIGURES.find((f) => f.key === key)?.label ?? key
+}

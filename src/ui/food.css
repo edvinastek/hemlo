@@ -1,0 +1,62 @@
+/* A food's page and the form for one's own foods. Tokens only, no shadows;
+   light and dark come from the theme. Everything fits a 360 px phone. */
+
+.fe-sheet h2 { margin-bottom: var(--space-2); }
+.fe-note { margin: 0; font-family: var(--font-sans); font-size: 12px; color: var(--e-ink-soft); }
+.fe-note.is-warn { color: var(--e-warn); }
+.fe-optional { font-size: 11px; color: var(--e-ink-soft); font-weight: 400; }
+.fe-field { display: grid; gap: 4px; min-width: 0; font-family: var(--font-sans); font-size: 13px; color: var(--e-ink-soft); }
+.fe-per { display: flex; align-items: center; justify-content: space-between; gap: var(--space-3);
+  font-family: var(--font-sans); font-size: 13px; color: var(--e-ink-soft); }
+.fe-per .amt-units button { min-width: 72px; min-height: 40px; }
+
+/* The label: one line a figure, the "of which" lines indented. */
+.fe-label { display: grid; gap: var(--space-2); margin: 0; padding: var(--space-3); min-width: 0;
+  border: 1px solid var(--e-rule); border-radius: var(--radius-md); }
+.fe-label legend { padding: 0 var(--space-1); font-family: var(--font-sans); font-size: 12px; color: var(--e-ink-soft); }
+.form-grid .fe-figure { display: grid; grid-template-columns: minmax(0, 1fr) 132px; align-items: center; gap: var(--space-2);
+  font-size: 14px; color: var(--e-ink); }
+.form-grid .fe-figure.is-sub > span:first-child { padding-left: var(--space-4); color: var(--e-ink-soft); font-size: 13px; }
+.fe-input { display: flex; align-items: center; gap: var(--space-1); min-width: 0; }
+.form-grid .fe-input input { text-align: right; padding: 7px 8px; min-height: 40px; }
+.fe-unit { width: 30px; flex: 0 0 30px; font-family: var(--font-sans); font-size: 12px; color: var(--e-ink-soft); }
+.fe-label details { display: grid; gap: var(--space-2); }
+.fe-label details[open] > summary { margin-bottom: var(--space-2); }
+.fe-label summary { cursor: pointer; min-height: 32px; display: flex; align-items: center;
+  font-family: var(--font-sans); font-size: 13px; color: var(--e-accent); }
+.fe-label details > label + label { margin-top: var(--space-2); }
+
+/* A food's page (FoodSheet). */
+.fs-sheet h2 { margin-bottom: 2px; overflow-wrap: anywhere; }
+.fs-sub { margin: 0 0 var(--space-3); font-family: var(--font-sans); font-size: 13px; color: var(--e-ink-soft); overflow-wrap: anywhere; }
+.fs-table { width: 100%; border-collapse: collapse; font-family: var(--font-sans); font-size: 14px; font-variant-numeric: tabular-nums; }
+.fs-table caption { text-align: left; padding-bottom: var(--space-1); font-size: 12px; color: var(--e-ink-soft); }
+.fs-table th, .fs-table td { padding: 6px 0; border-bottom: 1px solid var(--e-rule); text-align: right; font-weight: 400; }
+.fs-table th[scope="row"] { text-align: left; color: var(--e-ink); }
+.fs-table thead th { font-size: 12px; color: var(--e-ink-soft); }
+.fs-table tr.is-sub th[scope="row"] { padding-left: var(--space-4); color: var(--e-ink-soft); font-size: 13px; }
+.fs-table td.fs-ri { width: 56px; color: var(--e-ink-soft); font-size: 12px; }
+.fs-row { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--space-2); margin-top: var(--space-2); }
+.fs-toggle { display: inline-flex; align-items: center; gap: var(--space-2); min-height: 44px;
+  font-family: var(--font-sans); font-size: 13px; color: var(--e-ink-soft); }
+.fs-facts { display: grid; gap: 2px; margin: var(--space-3) 0 0; font-family: var(--font-sans); font-size: 13px; color: var(--e-ink-soft); }
+.fs-facts dt { display: inline; color: var(--e-ink); }
+.fs-facts dd { display: inline; margin: 0; }
+.fs-source { margin: var(--space-3) 0 0; padding: var(--space-2) var(--space-3); border-left: 2px solid var(--e-rule);
+  font-family: var(--font-sans); font-size: 12px; color: var(--e-ink-soft); }
+.fs-source b { color: var(--e-ink); font-weight: 600; }
+.fs-unit-tag { margin-left: var(--space-1); font-size: 11px; color: var(--e-ink-soft); }
+.fs-actions { display: flex; flex-wrap: wrap; gap: var(--space-2); margin-top: var(--space-4); }
+.fs-actions .grow { margin-left: auto; }
+.fs-danger { color: var(--e-warn); border-color: var(--e-warn); }
+
+/* The Foods tab's tools. */
+.ft-tools { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2); padding: var(--space-2) var(--space-4) 0; }
+.ft-tools .ft-search { flex: 1 1 160px; min-width: 0; min-height: 40px; padding: 6px 10px;
+  border: 1px solid var(--e-field-line); border-radius: var(--radius-md); background: var(--e-field); color: var(--e-ink);
+  font-family: var(--font-sans); font-size: 15px; }
+.ft-more { padding: 0 var(--space-4) var(--space-3); }
+.ft-credit { padding: var(--space-3) var(--space-4); margin: 0; font-family: var(--font-sans); font-size: 12px; color: var(--e-ink-soft); }
+.ft-figures { display: flex; flex-wrap: wrap; gap: var(--space-1) var(--space-3); margin-top: var(--space-2); }
+.ft-figures label { display: inline-flex; align-items: center; gap: 6px; min-height: 36px;
+  font-family: var(--font-sans); font-size: 13px; color: var(--e-ink); }

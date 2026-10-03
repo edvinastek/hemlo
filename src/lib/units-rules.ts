@@ -15,9 +15,22 @@ export interface FoodUnit {
   name: string
   /** "eggs"; worked out from the name when left out. */
   plural?: string
-  /** What one weighs, in grams (a millilitre of a drink counts as a gram). */
+  /** What one weighs, in grams (a millilitre of a drink counts as a gram):
+   *  the part that is eaten, which is what the figures count. */
   g: number
+  /** What one weighs as bought, with its peel, core or stone (027): for the
+   *  shopping list and the cupboard. Never less than `g`. */
+  bought_g?: number
+  /** The small, medium or large one (S, M, L; XL for eggs). The medium one
+   *  carries the food's own word, so "1 onion" is a medium onion. */
+  size?: UnitSize
+  /** Where its weight came from: "Portie-online 2026/2.0", "GetIt", or
+   *  "mine" for a unit a person added to a shared food (their overlay). */
+  source?: string
 }
+
+export type UnitSize = 'S' | 'M' | 'L' | 'XL'
+const SIZES_KEPT: UnitSize[] = ['S', 'M', 'L', 'XL']
 
 /** The database's limits (migration 022), so nothing is offered that it refuses. */
 export const MAX_UNITS = 8
@@ -45,8 +58,12 @@ export function cleanUnitName(v: unknown): string {
 const same = (a: string, b: string) => a.toLowerCase() === b.toLowerCase()
 
 /** One unit, its plural left out when there is none or it is the name. */
-function makeUnit(name: string, plural: string, g: number): FoodUnit {
-  return plural && !same(plural, name) ? { name, plural, g } : { name, g }
+function makeUnit(name: string, plural: string, g: number, extra: Partial<Pick<FoodUnit, 'bought_g' | 'size' | 'source'>> = {}): FoodUnit {
+  const unit: FoodUnit = plural && !same(plural, name) ? { name, plural, g } : { name, g }
+  if (extra.bought_g !== undefined && extra.bought_g >= g && extra.bought_g <= UNIT_G_MAX) unit.bought_g = round(extra.bought_g, 1)
+  if (extra.size && SIZES_KEPT.includes(extra.size)) unit.size = extra.size
+  if (extra.source) unit.source = extra.source.slice(0, 40)
+  return unit
 }
 
 /** A food's units as stored, read strictly: anything that is not a whole,
@@ -64,9 +81,51 @@ export function readUnits(v: unknown): FoodUnit[] {
     const g = typeof r.g === 'number' ? r.g : typeof r.g === 'string' ? Number(r.g) : NaN
     if (!name || RESERVED.has(name.toLowerCase()) || !Number.isFinite(g) || g < UNIT_G_MIN || g > UNIT_G_MAX) continue
     if (out.some((u) => same(u.name, name))) continue
-    out.push(makeUnit(name, cleanUnitName(r.plural), round(g, 1)))
+    const bought = typeof r.bought_g === 'number' ? r.bought_g : typeof r.bought_g === 'string' ? Number(r.bought_g) : NaN
+    out.push(makeUnit(name, cleanUnitName(r.plural), round(g, 1), {
+      bought_g: Number.isFinite(bought) ? bought : undefined,
+      size: typeof r.size === 'string' ? (r.size as UnitSize) : undefined,
+      source: typeof r.source === 'string' ? r.source : undefined,
+    }))
   }
   return out
+}
+
+/** The unit "1 onion" means when no size is said: the medium one, else the
+ *  first (UNIT-12). Null for a food counted in grams only. */
+export function defaultUnit(units: FoodUnit[]): FoodUnit | null {
+  return units.find((u) => u.size === 'M') ?? units[0] ?? null
+}
+
+/** The food's units with a person's own added after them (their overlay on
+ *  a shared food, UNIT-16), at most eight in all. A name the food already has
+ *  stays the food's. */
+export function withOverlay(units: FoodUnit[], own: FoodUnit[]): FoodUnit[] {
+  const out = [...units]
+  for (const u of own) {
+    if (out.length >= MAX_UNITS) break
+    if (!findUnit(out, u.name)) out.push({ ...u, source: 'mine' })
+  }
+  return out
+}
+
+/** What a number of a unit weighs as bought (the shopping list, the
+ *  cupboard): its as-bought weight when known, else what is eaten. */
+export const boughtGrams = (qty: number, unit: Pick<FoodUnit, 'g' | 'bought_g'>) => round(qty * (unit.bought_g ?? unit.g), 1)
+
+/** The word a food's own units are written in, for the example in the add-a-
+ *  unit form and its hint (UNIT-20): "Onions, raw" is "onion", "Red
+ *  cabbage" is "cabbage". Never another food's word. */
+export function foodWord(name: string): string {
+  const plain = name.split(',')[0].replace(/\([^)]*\)/g, ' ').replace(/[^A-Za-zÀ-ž' -]/g, ' ').trim()
+  const last = plain.split(/\s+/).filter(Boolean).pop() ?? ''
+  const w = last.toLowerCase()
+  if (!w) return 'piece'
+  if (/ies$/.test(w) && w.length > 4) return `${w.slice(0, -3)}y`
+  if (/(tomato|potato|mango)es$/.test(w)) return w.slice(0, -2)
+  if (/(ch|sh|ss|x)es$/.test(w)) return w.slice(0, -2)
+  if (/[^s]s$/.test(w) && w.length > 3) return w.slice(0, -1)
+  return w
 }
 
 /** The unit with this name (or plural), whatever the capitals. */
@@ -187,8 +246,10 @@ export function removeUnit(units: FoodUnit[], name: string): FoodUnit[] {
   return units.filter((u) => !same(u.name, name))
 }
 
-/** "egg = 50 g", "slice = 35 g": one unit as a line for a food's page. */
-export const unitLine = (u: FoodUnit) => `1 ${u.name} = ${gramsLabel(u.g)}`
+/** "1 egg = 50 g", "1 onion = 95 g (100 g as bought)": one unit as a line
+ *  for a food's page. */
+export const unitLine = (u: FoodUnit) =>
+  `1 ${u.name} = ${gramsLabel(u.g)}${u.bought_g && u.bought_g > u.g ? ` (${gramsLabel(u.bought_g)} as bought)` : ''}`
 
 /** Units as one cell of an export: "egg/eggs = 50 g; slice = 35 g". */
 export function unitsText(units: FoodUnit[]): string {
@@ -227,16 +288,45 @@ export interface AmountChoice {
 
 export const unitKey = (name: string) => `u:${name.toLowerCase()}`
 
+/** A choice's word as it goes with the number typed (UNIT-21): "1 onion",
+ *  "2 onions", "0.5 cup"; grams and kilos as they are. */
+export function choiceLabel(c: Pick<AmountChoice, 'label' | 'unit' | 'key'>, text: string | number | null | undefined): string {
+  if (!c.unit) return c.key === 'packs' ? (readQty(text ?? '') === 1 ? 'pack' : 'packs') : c.label
+  const qty = readQty(text ?? '')
+  return unitWord(c.unit, qty === null || qty === 0 ? 1 : qty)
+}
+
+/** Kitchen measures for volume (UNIT-04): an EU cup is 250 ml. */
+export const VOLUMES: { name: string; ml: number }[] = [
+  { name: 'tsp', ml: 5 }, { name: 'tbsp', ml: 15 }, { name: 'cup', ml: 250 },
+]
+
 /** Grams first, then (where it makes sense) kilos and packs, then the food's
  *  units. `keep` is a unit an entry was saved in that the food no longer has:
  *  it stays on offer at the weight it was saved with, so opening an entry
  *  never changes it. */
-export function amountChoices(units: FoodUnit[], opts: { kilos?: boolean; pack?: number | null; keep?: FoodUnit | null } = {}): AmountChoice[] {
+export function amountChoices(units: FoodUnit[], opts: {
+  kilos?: boolean; pack?: number | null; keep?: FoodUnit | null
+  /** Grams in a millilitre: 1 for a food whose figures are per 100 ml, or
+   *  the food's density. Given, spoons and cups are offered too (UNIT-04). */
+  perMl?: number | null
+} = {}): AmountChoice[] {
   const out: AmountChoice[] = []
   if (opts.pack && opts.pack > 0) out.push({ key: 'packs', label: 'packs', g: opts.pack, unit: null })
-  out.push({ key: 'g', label: 'g', g: 1, unit: null })
-  if (opts.kilos) out.push({ key: 'kg', label: 'kg', g: 1000, unit: null })
+  out.push({ key: 'g', label: opts.perMl === 1 ? 'ml' : 'g', g: 1, unit: null })
+  if (opts.kilos) out.push({ key: 'kg', label: opts.perMl === 1 ? 'l' : 'kg', g: 1000, unit: null })
   for (const u of units) out.push({ key: unitKey(u.name), label: u.name, g: u.g, unit: u })
+  const d = opts.perMl
+  if (d && d > 0) {
+    // A volume the food has as a unit of its own already (an oil's tbsp)
+    // is the food's: its own weight wins.
+    if (d !== 1) out.push({ key: 'u:ml', label: 'ml', g: d, unit: { name: 'ml', g: round(d, 2) } })
+    for (const v of VOLUMES) {
+      if (findUnit(units, v.name)) continue
+      const g = round(v.ml * d, 1)
+      out.push({ key: unitKey(v.name), label: v.name, g, unit: { name: v.name, g } })
+    }
+  }
   const kept = opts.keep
   if (kept && !findUnit(units, kept.name)) out.push({ key: unitKey(kept.name), label: kept.name, g: kept.g, unit: kept })
   return out
@@ -471,4 +561,24 @@ export function unitFromText(qtyText: string | null | undefined, units: FoodUnit
   const g = grams ?? gramsOf(a.qty, unit)
   if (g > max) return null
   return { grams: g, unit: unit.name, unit_qty: a.qty }
+}
+
+/* ---------- a person's own units on shared foods (UNIT-16) -------------------- */
+
+/** At most this many shared foods can carry a person's own units. */
+export const MAX_OVERLAY_FOODS = 300
+
+/** Their own units on shared foods, as stored (nutrition's module settings,
+ *  per profile, synced): food id to units, read strictly like any units. */
+export function readUnitOverlay(v: unknown): Record<string, FoodUnit[]> {
+  const out: Record<string, FoodUnit[]> = {}
+  if (!v || typeof v !== 'object' || Array.isArray(v)) return out
+  let n = 0
+  for (const [id, units] of Object.entries(v as Record<string, unknown>)) {
+    if (n >= MAX_OVERLAY_FOODS) break
+    if (!/^[0-9a-f-]{36}$/i.test(id)) continue
+    const read = readUnits(units).map(({ source: _s, ...u }) => u)
+    if (read.length) { out[id] = read; n++ }
+  }
+  return out
 }
