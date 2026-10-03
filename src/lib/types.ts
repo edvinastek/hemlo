@@ -287,6 +287,8 @@ export interface Habit {
   /** A count to reach each time it is due ("8" glasses), and its unit. */
   target?: number | null
   unit?: string | null
+  /** The goal this habit works towards (029). */
+  goal_id?: UUID | null
   sort_order: number
   active: boolean
   updated_at: string
@@ -492,6 +494,14 @@ export interface Goal {
   end_date: string | null
   status: 'active' | 'done' | 'dropped' | 'paused'
   horizon: 'week' | 'month' | 'quarter' | 'year' | 'multi_year' | null
+  /** 029: a note; where progress comes from (a number updated by hand, the
+   *  linked tasks, projects and habits, or the body weight); the number now
+   *  and where it started; the order on the Goals page. */
+  note?: string | null
+  measure_source?: 'manual' | 'linked' | 'weight'
+  measure_current?: number | null
+  measure_start?: number | null
+  sort_order?: number
   updated_at: string
   deleted_at: string | null
 }
@@ -514,6 +524,8 @@ export interface WorkoutLog {
   log_date: string
   exercise_id: UUID | null
   workout_id: UUID | null
+  /** The routine whose session this set was logged in (029). */
+  routine_id?: UUID | null
   set_number: number | null
   reps_achieved: number | null
   load_kg: number | null

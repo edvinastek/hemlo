@@ -714,6 +714,140 @@ insert into _r (check_name, expected, actual) values
   ('The remaining member keeps their own profile', '1',
      (select count(*) from profile where user_id = (select m from _ids))::text);
 
+-- 029 (engineer H): own exercises, training routines, milestones, goal links ---
+-- M (still here) keeps an exercise of their own, a goal, a routine with a line
+-- under it, a project with a milestone, and a set logged in that routine's
+-- session. B, the stranger, tries to read, change and borrow each of them.
+create temp table _h (pm uuid, ex uuid, g uuid, r uuid, proj uuid, rb uuid);
+grant all on _h to authenticated;
+insert into _h (pm) select id from profile where user_id = (select m from _ids) limit 1;
+
+do $$
+declare n int; v_ex uuid; v_g uuid; v_r uuid; v_proj uuid;
+begin
+  perform set_config('role', 'authenticated', true);
+  perform set_config('request.jwt.claims', json_build_object('sub', (select m from _ids), 'role', 'authenticated')::text, true);
+  insert into exercise (owner_id, name, muscle) values ((select m from _ids), 'M''s cable fly', 'chest') returning id into v_ex;
+  insert into goal (profile_id, title, measure_source) values ((select pm from _h), 'M''s private goal', 'linked') returning id into v_g;
+  insert into routine (profile_id, name, goal_id, rule, rule_config) values ((select pm from _h), 'M''s push day', v_g, 'weekly', '{"weekdays":[1,4]}') returning id into v_r;
+  insert into routine_line (routine_id, exercise_id, sets, reps, reps_max, rest_s) values (v_r, v_ex, 3, 8, 12, 90);
+  insert into module_record (profile_id, module_key, entity, data) values ((select pm from _h), 'projects', 'project', '{"name":"M''s project"}') returning id into v_proj;
+  insert into milestone (profile_id, project_id, goal_id, title, due_date) values ((select pm from _h), v_proj, v_g, 'M''s milestone', current_date);
+  insert into workout_log (profile_id, log_date, exercise_id, routine_id, set_number, reps_achieved) values ((select pm from _h), current_date, v_ex, v_r, 1, 10);
+  insert into habit (profile_id, name, goal_id) values ((select pm from _h), 'M''s goal habit', v_g);
+  update _h set ex = v_ex, g = v_g, r = v_r, proj = v_proj;
+
+  insert into _r (check_name, expected, actual) values
+    ('M sees their own exercise, routine, line and milestone', '1,1,1,1',
+       (select count(*) from exercise where name = 'M''s cable fly')::text || ',' || (select count(*) from routine)::text || ','
+       || (select count(*) from routine_line)::text || ',' || (select count(*) from milestone)::text);
+  begin
+    insert into exercise (owner_id, name) values (null, 'Planted in the catalogue');
+    insert into _r (check_name, expected, actual) values ('M cannot add to the shared exercise catalogue', 'denied', 'allowed');
+  exception when others then
+    insert into _r (check_name, expected, actual) values ('M cannot add to the shared exercise catalogue', 'denied', 'denied');
+  end;
+  update exercise set name = 'Renamed by M' where owner_id is null and name = 'Air Squat';
+  get diagnostics n = row_count;
+  insert into _r (check_name, expected, actual) values ('M cannot rename a catalogue exercise', '0', n::text);
+  begin
+    insert into milestone (profile_id, title) values ((select pm from _h), 'Belongs to nothing');
+    insert into _r (check_name, expected, actual) values ('A milestone needs a goal or a project', 'denied', 'allowed');
+  exception when others then
+    insert into _r (check_name, expected, actual) values ('A milestone needs a goal or a project', 'denied', 'denied');
+  end;
+  begin
+    insert into routine_line (routine_id, sets) values ((select r from _h), 25);
+    insert into _r (check_name, expected, actual) values ('A routine line has at most 20 sets', 'denied', 'allowed');
+  exception when others then
+    insert into _r (check_name, expected, actual) values ('A routine line has at most 20 sets', 'denied', 'denied');
+  end;
+  execute 'reset role';
+end $$;
+
+do $$
+declare n int; v_rb uuid;
+begin
+  perform set_config('role', 'authenticated', true);
+  perform set_config('request.jwt.claims', json_build_object('sub', (select b from _ids), 'role', 'authenticated')::text, true);
+  insert into _r (check_name, expected, actual) values
+    ('B cannot see M''s own exercise', '0', (select count(*) from exercise where name = 'M''s cable fly')::text),
+    ('B cannot see M''s routines or their lines', '0,0', (select count(*) from routine where name = 'M''s push day')::text || ','
+       || (select count(*) from routine_line where routine_id = (select r from _h))::text),
+    ('B cannot see M''s milestones or goals', '0,0', (select count(*) from milestone where title = 'M''s milestone')::text || ','
+       || (select count(*) from goal where title = 'M''s private goal')::text),
+    ('B still sees the shared exercise catalogue', 'yes',
+       case when (select count(*) from exercise where owner_id is null) > 200 then 'yes' else 'no' end);
+
+  update exercise set name = 'Renamed by B' where id = (select ex from _h);
+  get diagnostics n = row_count;
+  insert into _r (check_name, expected, actual) values ('B cannot rename M''s exercise', '0', n::text);
+  update routine set name = 'Renamed by B' where id = (select r from _h);
+  get diagnostics n = row_count;
+  insert into _r (check_name, expected, actual) values ('B cannot rename M''s routine', '0', n::text);
+
+  begin
+    insert into routine (profile_id, name) values ((select pm from _h), 'Planted by B');
+    insert into _r (check_name, expected, actual) values ('B cannot put a routine in M''s profile', 'denied', 'allowed');
+  exception when others then
+    insert into _r (check_name, expected, actual) values ('B cannot put a routine in M''s profile', 'denied', 'denied');
+  end;
+  begin
+    insert into routine_line (routine_id, sets) values ((select r from _h), 3);
+    insert into _r (check_name, expected, actual) values ('B cannot add a line to M''s routine', 'denied', 'allowed');
+  exception when others then
+    insert into _r (check_name, expected, actual) values ('B cannot add a line to M''s routine', 'denied', 'denied');
+  end;
+  begin
+    insert into routine (profile_id, name, goal_id) values ((select pb from _ids), 'B''s routine on M''s goal', (select g from _h));
+    insert into _r (check_name, expected, actual) values ('B cannot link a routine to M''s goal', 'denied', 'allowed');
+  exception when others then
+    insert into _r (check_name, expected, actual) values ('B cannot link a routine to M''s goal', 'denied', 'denied');
+  end;
+  begin
+    insert into habit (profile_id, name, goal_id) values ((select pb from _ids), 'B''s habit on M''s goal', (select g from _h));
+    insert into _r (check_name, expected, actual) values ('B cannot link a habit to M''s goal', 'denied', 'allowed');
+  exception when others then
+    insert into _r (check_name, expected, actual) values ('B cannot link a habit to M''s goal', 'denied', 'denied');
+  end;
+  begin
+    insert into milestone (profile_id, project_id, title) values ((select pb from _ids), (select proj from _h), 'B on M''s project');
+    insert into _r (check_name, expected, actual) values ('B cannot hang a milestone on M''s project', 'denied', 'allowed');
+  exception when others then
+    insert into _r (check_name, expected, actual) values ('B cannot hang a milestone on M''s project', 'denied', 'denied');
+  end;
+  begin
+    insert into workout_log (profile_id, log_date, routine_id, set_number) values ((select pb from _ids), current_date, (select r from _h), 1);
+    insert into _r (check_name, expected, actual) values ('B cannot log a set under M''s routine', 'denied', 'allowed');
+  exception when others then
+    insert into _r (check_name, expected, actual) values ('B cannot log a set under M''s routine', 'denied', 'denied');
+  end;
+
+  insert into routine (profile_id, name) values ((select pb from _ids), 'B''s own routine') returning id into v_rb;
+  update _h set rb = v_rb;
+  begin
+    insert into routine_line (routine_id, exercise_id, sets) values (v_rb, (select ex from _h), 3);
+    insert into _r (check_name, expected, actual) values ('B cannot use M''s own exercise in a routine', 'denied', 'allowed');
+  exception when others then
+    insert into _r (check_name, expected, actual) values ('B cannot use M''s own exercise in a routine', 'denied', 'denied');
+  end;
+  begin
+    insert into routine_line (routine_id, exercise_id, sets, reps) values (v_rb, (select id from exercise where owner_id is null and name = 'Air Squat'), 3, 15);
+    insert into _r (check_name, expected, actual) values ('B can build a routine from the shared catalogue', 'allowed', 'allowed');
+  exception when others then
+    insert into _r (check_name, expected, actual) values ('B can build a routine from the shared catalogue', 'allowed', 'denied');
+  end;
+  execute 'reset role';
+end $$;
+
+delete from routine where id = (select r from _h);
+insert into _r (check_name, expected, actual) values
+  ('Deleting a routine takes its lines and keeps the logged sets', '0,1',
+     (select count(*) from routine_line where routine_id = (select r from _h))::text || ','
+     || (select count(*) from workout_log where profile_id = (select pm from _h) and exercise_id = (select ex from _h))::text),
+  ('A logged set outlives its routine with no link to it', '0',
+     (select count(*) from workout_log where routine_id = (select r from _h))::text);
+
 -- The reviewer row made for this run goes (the rollback would take it anyway).
 delete from app_admin where user_id = (select m from _ids);
 

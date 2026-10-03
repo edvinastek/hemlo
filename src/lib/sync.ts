@@ -12,11 +12,15 @@ export { NATURAL_KEYS }
 /** Tables the app keeps a full local copy of. Catalogue tables are shared
  *  reference data: pulled, never pushed, except rows a person owns. */
 const SYNCED = ['task', 'target', 'body_log', 'food_log', 'meal_plan_slot', 'module_instance', 'series', 'habit', 'supplement',
-  'module_record', 'calendar_event', 'goal', 'sleep_log', 'workout_log', 'calendar_subscription'] as const
+  'module_record', 'calendar_event', 'goal', 'sleep_log', 'workout_log', 'calendar_subscription',
+  // 029: training routines and milestones.
+  'routine', 'milestone'] as const
 /** Rows that belong to a profile through their parent (a log to its habit).
  *  Row-level security already limits them to the account, so they are fetched
  *  without a profile filter, still incrementally. */
-const CHILDREN = ['habit_log', 'supplement_log', 'series_exception', 'stock', 'module', 'shopping_entry', 'chore', 'chore_log'] as const
+const CHILDREN = ['habit_log', 'supplement_log', 'series_exception', 'stock', 'module', 'shopping_entry', 'chore', 'chore_log',
+  // 029: a routine's lines; exercises (the shared catalogue and the person's own, by RLS).
+  'routine_line', 'exercise'] as const
 /** Foods include, besides the shared catalogue and the person's own, foods a
  *  housemate scanned into the shared cupboard (025): readable, never theirs
  *  to change. */
