@@ -9,6 +9,8 @@ import {
 import { deleteBuiltModule, saveModuleDef, useModuleDef, useModuleDefs } from '../modules/defs'
 import { syncModuleTasks } from '../modules/records'
 import { syncMealTasks } from '../lib/meals'
+import { carryOutRules } from '../modules/rule-switch'
+import { localDay } from '../lib/review-rules'
 import { FieldForm, STATS_OPTIONS, describeField } from '../modules/FieldForm'
 import { VIEW_TYPE_NAME, VIEW_TYPE_OPTIONS, ViewSettings } from '../modules/ViewSettings'
 import { Dropdown } from './Dropdown'
@@ -84,8 +86,10 @@ export function ModuleEditor({ moduleKey, onBack, tab: firstTab = 'fields' }: { 
         || JSON.stringify(draft.entities) !== JSON.stringify(live.entities)
       await saveModuleDef(profile.id, draft)
       if (draft.built && rulesChanged) await syncModuleTasks(profile.id, draft)
-      // A built-in rule that makes tasks follows its switch at once, from today on.
+      // A built-in rule that makes tasks follows its switch at once, from today
+      // on: meal tasks, planned training sessions, bedtime, study blocks.
       if (draft.key === 'nutrition' && rulesChanged) await syncMealTasks(profile.id)
+      if (!draft.built && rulesChanged) await carryOutRules(profile.id, draft.key, localDay(new Date()))
       setNote({ text: 'Saved.' })
       window.setTimeout(() => setNote((n) => (n?.text === 'Saved.' ? null : n)), 2500)
     } catch (e) {
