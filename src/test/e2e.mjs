@@ -44,6 +44,15 @@ export async function open(options = {}) {
   const p = await ctx.newPage()
   const errors = []
   p.on('pageerror', (e) => errors.push(String(e).slice(0, 200)))
+  // A step that throws ends the check: say where the page was and what it
+  // showed first, so a failed run can be read from its log alone.
+  process.once('uncaughtException', async (e) => {
+    console.error(e)
+    try {
+      console.error(`\nThe page at ${p.url()} showed:\n${(await p.locator('body').innerText({ timeout: 3000 })).slice(0, 800)}`)
+    } catch { /* the browser is gone */ }
+    process.exit(1)
+  })
   return { b, ctx, p, errors }
 }
 
