@@ -5,7 +5,7 @@
  *
  *  The wording is calm on purpose (Tody's lesson): a chore is never
  *  "overdue!" or "failed". It is due, or it has been waiting a few days. */
-import { addDays, toDayNumber, weekdayOf, dayName, shortDate, isDay, describeChore, type ChoreLike, type ChoreState, type RuleConfig, type RuleKind } from './schedule-rules.ts'
+import { addDays, toDayNumber, weekdayOf, dayName, shortDate, isDay, describeChore, choreState, choreAssignee, type ChoreLike, type ChoreState, type RuleConfig, type RuleKind } from './schedule-rules.ts'
 
 /* ---------- days in words -------------------------------------------------- */
 
@@ -252,4 +252,37 @@ export function choreFromRecord(data: Record<string, unknown>, today: string): O
   if (schedule === 'daily') return { name, room: null, mode: 'fixed', rule: 'daily', rule_config: {}, note: who }
   if (schedule === 'monthly') return { name, room: null, mode: 'fixed', rule: 'monthly', rule_config: { day_of_month: Number(today.slice(8, 10)) }, note: who }
   return { name, room: null, mode: 'fixed', rule: 'weekly', rule_config: { weekdays: [weekdayOf(today)] }, note: who }
+}
+
+/* ---------- exporting (the household page's Export) ------------------------------ */
+
+type ExportChore = ChoreLike & { id: string; name: string; room: string | null; note: string | null; sort_order: number; deleted_at?: string | null }
+type ExportLog = { chore_id: string; done_on: string; done_by: string | null; deleted_at?: string | null }
+
+/** The household's chores as rows to save: name, room, how often in words,
+ *  who does it next, when it is next due, when it was last done, how many
+ *  times, its note, paused or not. In the page's order (room, then the
+ *  person's order). `nameOf` turns a member's id into the household's name
+ *  for them. */
+export function choreExportRows(chores: ExportChore[], logs: ExportLog[], nameOf: (userId: string) => string, today: string): Record<string, unknown>[] {
+  const live = chores.filter((c) => !c.deleted_at)
+  return choreRooms(live).flatMap((g) => g.chores).map((c) => {
+    const own = logs.filter((l) => l.chore_id === c.id && !l.deleted_at)
+    const st = choreState(c, today, own)
+    return {
+      name: c.name, room: c.room, schedule: choreScheduleText(c, today),
+      who: choreAssignee(c, today, own).map(nameOf).filter(Boolean).join(', ') || null,
+      next: st.doneToday || st.shows ? today : st.next, last_done: st.lastDone, times_done: own.length,
+      note: c.note, paused: !!c.paused,
+    }
+  })
+}
+
+/** Every time a chore was done, newest first: the day, the chore, its room
+ *  and who did it. A chore since deleted keeps its history, named as it was. */
+export function choreHistoryRows(chores: ExportChore[], logs: ExportLog[], nameOf: (userId: string) => string): Record<string, unknown>[] {
+  const byId = new Map(chores.map((c) => [c.id, c]))
+  return logs.filter((l) => !l.deleted_at && byId.has(l.chore_id))
+    .sort((a, b) => b.done_on.localeCompare(a.done_on) || byId.get(a.chore_id)!.name.localeCompare(byId.get(b.chore_id)!.name))
+    .map((l) => ({ done_on: l.done_on, chore: byId.get(l.chore_id)!.name, room: byId.get(l.chore_id)!.room, done_by: l.done_by ? nameOf(l.done_by) || null : null }))
 }

@@ -132,7 +132,12 @@ function Body({ def, profileId, onEdit }: { def: ModuleDef; profileId: string; o
       <>
         <Head def={def} onEdit={onEdit} />
         <Section profileId={profileId} day={format(new Date(), 'yyyy-MM-dd')} />
-        {def.entities[0] && <ExportLink source={{ dataset: `m:${def.key}:${def.entities[0].name}` }} />}
+        {def.entities[0] && <ExportLink source={{
+          dataset: `m:${def.key}:${def.entities[0].name}`,
+          // The module's other things to save: its other entities, and the
+          // household's done history beside its chores.
+          more: [...def.entities.slice(1).map((e) => `m:${def.key}:${e.name}`), ...(def.key === 'household' ? [`m:household:chore_log`] : [])],
+        }} />}
       </>
     )
   }

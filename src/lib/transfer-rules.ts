@@ -28,7 +28,7 @@ export const IMPORT_LIMITS = { bytes: 5 * 1024 * 1024, rows: 20000, columns: 200
 
 /** Where a dataset's rows live, which decides how they are read and saved. */
 export type Store =
-  | 'record' | 'food' | 'recipe' | 'body_log' | 'habit' | 'supplement' | 'meal_plan_slot' | 'stock'
+  | 'record' | 'food' | 'recipe' | 'body_log' | 'habit' | 'supplement' | 'meal_plan_slot' | 'stock' | 'chore' | 'chore_log'
   | 'tasks' | 'notes' | 'calendar' | 'stats' | 'backup'
 
 export interface Dataset {
@@ -131,6 +131,28 @@ export const STATS_FIELDS: FieldDef[] = [
   { name: 'unit', label: 'Unit', type: 'text' },
 ]
 
+/** The household's chores (the chore table, 026), as the Chores page reads
+ *  them. Saved only: chores are made on their page. */
+export const CHORE_EXPORT_FIELDS: FieldDef[] = [
+  { name: 'name', label: 'Chore', type: 'text' },
+  { name: 'room', label: 'Room', type: 'text' },
+  { name: 'schedule', label: 'How often', type: 'text' },
+  { name: 'who', label: 'Who', type: 'text' },
+  { name: 'next', label: 'Next due', type: 'date' },
+  { name: 'last_done', label: 'Last done', type: 'date' },
+  { name: 'times_done', label: 'Times done', type: 'integer' },
+  { name: 'note', label: 'Note', type: 'text' },
+  { name: 'paused', label: 'Paused', type: 'boolean' },
+]
+
+/** Every time a chore was done (chore_log): its "done" history. */
+export const CHORE_LOG_FIELDS: FieldDef[] = [
+  { name: 'done_on', label: 'Done on', type: 'date' },
+  { name: 'chore', label: 'Chore', type: 'text' },
+  { name: 'room', label: 'Room', type: 'text' },
+  { name: 'done_by', label: 'Done by', type: 'text' },
+]
+
 export const STOCK_FIELDS: FieldDef[] = [
   { name: 'food', label: 'Food', type: 'text' },
   { name: 'grams_on_hand', label: 'In stock', type: 'number', unit: 'g' },
@@ -172,6 +194,19 @@ export function listDatasetsFrom(modules: { def: ModuleDef; enabled: boolean }[]
   const out: Dataset[] = [...PLANNER]
   for (const { def, enabled } of modules) {
     for (const e of def.entities) {
+      // Household chores live in the chore table now (026), shared with the
+      // household; the old chore records were moved into it. The page's
+      // Export saves the chores and, beside them, their done history.
+      if (def.key === 'household' && e.name === 'chore' && !e.table) {
+        out.push({
+          key: `m:${def.key}:chore`, label: `${def.name} · Chores`, group: 'Modules', store: 'chore', moduleKey: def.key, entity: e.name,
+          fields: CHORE_EXPORT_FIELDS, dateField: null, formats: TABLE_FORMATS, imports: [], natural: null, off: !enabled,
+        }, {
+          key: `m:${def.key}:chore_log`, label: `${def.name} · Done history`, group: 'Modules', store: 'chore_log', moduleKey: def.key,
+          fields: CHORE_LOG_FIELDS, dateField: 'done_on', formats: TABLE_FORMATS, imports: [], natural: null, off: !enabled,
+        })
+        continue
+      }
       const table = e.table
       const store: Store | undefined = !table || RECORD_TABLES.includes(table) ? 'record' : OWN_STORES[table]
       if (!store) continue

@@ -9,6 +9,8 @@ import { addHabit, addSupplement } from './tracking'
 import { saveWeighIn } from './body'
 import { exportBundle, importBundle } from './bundle'
 import { hasNote } from './notes'
+import { cachedMembers } from './household'
+import { choreExportRows, choreHistoryRows, memberName } from './chore-rules'
 import { moduleDef, moduleDefs } from '../modules/defs'
 import { addRecord, isoToLocal, listRecords } from '../modules/records'
 import { computeFormulas, mainField } from '../modules/def-rules'
@@ -132,7 +134,7 @@ async function readRows(profile: Profile, d: Dataset, userId: string | null): Pr
     case 'stats': {
       const recs: Parameters<typeof statsRows>[0] = []
       for (const other of await listDatasets(profile.id)) {
-        if (other.group !== 'Modules' || !other.dateField || ['meal_plan_slot', 'stock'].includes(other.store)) continue
+        if (other.group !== 'Modules' || !other.dateField || ['meal_plan_slot', 'stock', 'chore', 'chore_log'].includes(other.store)) continue
         const name = other.label
         for (const r of await readRows(profile, other, userId)) recs.push({ module: name, date: r.date, fields: other.fields, values: r.values })
       }
@@ -172,6 +174,16 @@ async function readRows(profile: Profile, d: Dataset, userId: string | null): Pr
           food: foods.get(r.food_id) ?? r.food_id, grams_on_hand: r.grams_on_hand,
           unit: r.unit ?? null, unit_qty: r.unit_qty ?? null, note: r.note,
         } }))
+    }
+    case 'chore':
+    case 'chore_log': {
+      // The household's, shared: names of members as the household sees them.
+      const chores = await db.chore.where('household_id').equals(profile.household_id).toArray()
+      const logs = chores.length ? await db.chore_log.where('chore_id').anyOf(chores.map((c) => c.id)).toArray() : []
+      const members = await cachedMembers(profile.household_id)
+      const nameOf = (id: string) => memberName(members, id, userId)
+      const rows = d.store === 'chore' ? choreExportRows(chores, logs, nameOf, today()) : choreHistoryRows(chores, logs, nameOf)
+      return rows.map((values, i) => ({ id: String(i), date: d.store === 'chore_log' ? String(values.done_on) : null, values }))
     }
     case 'backup': return []
   }

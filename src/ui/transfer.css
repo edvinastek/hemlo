@@ -62,3 +62,12 @@
 .tx-preview .sheet tr.is-dup td { color: var(--e-ink-soft); }
 .tx-problems { margin: 0; padding-left: 18px; font-family: var(--font-sans); font-size: 12px; color: var(--e-warn); display: grid; gap: 2px; }
 .tx-actions { display: flex; flex-wrap: wrap; gap: var(--space-2); justify-content: flex-end; }
+
+/* A page with more than one thing to save (Household: chores, done history):
+   the choice sits above the formats. */
+.xl-which { display: flex; flex-wrap: wrap; gap: var(--space-2); margin-bottom: var(--space-2); }
+.xl-which button {
+  min-height: 40px; padding: 6px 14px; border: 1px solid var(--e-rule); border-radius: var(--radius-pill);
+  font-family: var(--font-sans); font-size: 13px; color: var(--e-ink-soft);
+}
+.xl-which button[aria-pressed="true"] { background: var(--e-tint); color: var(--e-ink); border-color: var(--e-ink-soft); font-weight: 600; }

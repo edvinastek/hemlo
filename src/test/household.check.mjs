@@ -5,7 +5,7 @@
 // 2026-10-03 is a Saturday.
 import {
   nearDay, choreStatus, duenessFill, lastDoneText, choreScheduleText, choreSections, choreRooms, roomsIn, readChorePrefs,
-  heldBack, memberName, cleanMemberName, STARTER_PACKS, packChoresToAdd,
+  heldBack, memberName, cleanMemberName, STARTER_PACKS, packChoresToAdd, choreExportRows, choreHistoryRows,
 } from '../lib/chore-rules.ts'
 import { choreState, chorePausedOn, cleanRule } from '../lib/schedule-rules.ts'
 
@@ -111,6 +111,30 @@ const capped = dayItems([today], 'today', { ...base, chores: [flexChore('a', 3),
 is('a cap of one keeps one flexible chore', capped.filter((i) => i.kind === 'chore').length, 1)
 const light = dayItems([today], 'today', { ...base, chores: [flexChore('a', 3)], chorePrefs: { light_days: [6], cap: null } })
 is('none on a light day', light.filter((i) => i.kind === 'chore').length, 0)
+
+// The household page's Export: chores from the chore table, and when each was done.
+const exChores = [
+  { id: 'c1', name: 'Hoover', room: 'Lounge', mode: 'fixed', rule: 'weekly', rule_config: { weekdays: [6] }, start_date: '2026-09-01', end_date: null,
+    every_days: null, assignees: ['u1', 'u2'], rotation: 'each_time', note: 'Under the sofa', paused: false, sort_order: 0, deleted_at: null },
+  { id: 'c2', name: 'Bins', room: null, mode: 'after', rule: null, rule_config: {}, every_days: 7, start_date: null, end_date: null,
+    assignees: [], rotation: 'none', note: null, paused: false, sort_order: 0, deleted_at: null },
+  { id: 'c3', name: 'Old', room: null, mode: 'fixed', rule: 'daily', rule_config: {}, start_date: null, end_date: null, every_days: null,
+    assignees: [], rotation: 'none', note: null, paused: false, sort_order: 1, deleted_at: '2026-09-01' },
+]
+const exLogs = [
+  { chore_id: 'c1', done_on: '2026-09-26', done_by: 'u1', deleted_at: null },
+  { chore_id: 'c2', done_on: '2026-09-30', done_by: 'u2', deleted_at: null },
+  { chore_id: 'c2', done_on: '2026-09-29', done_by: 'u2', deleted_at: '2026-09-29' },
+  { chore_id: 'c3', done_on: '2026-08-01', done_by: null, deleted_at: null },
+]
+const names = { u1: 'Sam', u2: 'Alex' }
+const rows = choreExportRows(exChores, exLogs, (id) => names[id] ?? '', today)
+is('chores in the page order, deleted ones left out', rows.map((r) => r.name), ['Hoover', 'Bins'])
+is('a chore in words: due today, the next in turn, last done, times', (({ schedule, who, next, last_done, times_done, note }) => [schedule, who, next, last_done, times_done, note])(rows[0]),
+  ['Weekly on Sat', 'Alex', '2026-10-03', '2026-09-26', 1, 'Under the sofa'])
+is('an "after" chore: next a week after it was done, an undone tick not counted', [rows[1].next, rows[1].times_done, rows[1].who], ['2026-10-07', 1, null])
+is('done history, newest first; a deleted chore keeps its history', choreHistoryRows(exChores, exLogs, (id) => names[id] ?? '').map((r) => [r.done_on, r.chore, r.done_by]),
+  [['2026-09-30', 'Bins', 'Alex'], ['2026-09-26', 'Hoover', 'Sam'], ['2026-08-01', 'Old', null]])
 
 console.log(fail ? `\n${fail} check(s) failed` : '\nall checks passed')
 process.exit(fail ? 1 : 0)

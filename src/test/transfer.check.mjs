@@ -141,6 +141,10 @@ eq('agenda events import from a calendar file', byKey('m:agenda:calendar_event')
 eq('weigh-ins do not (a calendar has no weights)', byKey('m:health:body_log').imports.includes('ics'), false)
 eq('the meal plan has its day and is export only', [byKey('m:nutrition:meal_plan_slot').fields[0].name, byKey('m:nutrition:meal_plan_slot').imports], ['slot_date', []])
 eq('stats are export only', byKey('stats').imports, [])
+eq('household chores come from the chore table, with their done history', [byKey('m:household:chore').store, byKey('m:household:chore_log').store, byKey('m:household:chore_log').dateField],
+  ['chore', 'chore_log', 'done_on'])
+eq('both are saved only, as tables', [byKey('m:household:chore').imports, byKey('m:household:chore').formats, byKey('m:household:chore_log').formats],
+  [[], ['csv', 'xlsx', 'json'], ['csv', 'xlsx', 'json']])
 eq('natural keys', [byKey('m:sleep:sleep_log').natural, byKey('m:agenda:calendar_event').natural, byKey('m:learning:study').natural], [['log_date'], ['title', 'starts_at'], null])
 const built = { key: 'u_abc123', name: 'Reading', summary: '', depth: 'light', built: true, views: [], rules: [],
   entities: [{ name: 'book', label: 'Book', fields: [{ name: 'title', label: 'Title', type: 'text', required: true }, { name: 'finished', label: 'Finished', type: 'date' }] }] }
