@@ -26,8 +26,13 @@
   font-family: var(--font-sans); font-size: 13px; color: var(--e-accent); }
 .fe-label details > label + label { margin-top: var(--space-2); }
 
-/* A food's page (FoodSheet). */
+/* A food's page (FoodSheet): its name with the ⋮ beside it. */
 .fs-sheet h2 { margin-bottom: 2px; overflow-wrap: anywhere; }
+.fs-head { display: flex; align-items: flex-start; gap: var(--space-2); }
+.fs-head h2 { flex: 1; min-width: 0; }
+.fs-more .pm-button { min-width: 44px; min-height: 44px; font-size: 20px; }
+.fu-open { justify-self: start; min-height: 44px; margin-top: var(--space-2); }
+.fu-do { display: flex; gap: var(--space-2); justify-content: flex-end; }
 .fs-sub { margin: 0 0 var(--space-3); font-family: var(--font-sans); font-size: 13px; color: var(--e-ink-soft); overflow-wrap: anywhere; }
 .fs-table { width: 100%; border-collapse: collapse; font-family: var(--font-sans); font-size: 14px; font-variant-numeric: tabular-nums; }
 .fs-table caption { text-align: left; padding-bottom: var(--space-1); font-size: 12px; color: var(--e-ink-soft); }
@@ -37,8 +42,6 @@
 .fs-table tr.is-sub th[scope="row"] { padding-left: var(--space-4); color: var(--e-ink-soft); font-size: 13px; }
 .fs-table td.fs-ri { width: 56px; color: var(--e-ink-soft); font-size: 12px; }
 .fs-row { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--space-2); margin-top: var(--space-2); }
-.fs-toggle { display: inline-flex; align-items: center; gap: var(--space-2); min-height: 44px;
-  font-family: var(--font-sans); font-size: 13px; color: var(--e-ink-soft); }
 .fs-facts { display: grid; gap: 2px; margin: var(--space-3) 0 0; font-family: var(--font-sans); font-size: 13px; color: var(--e-ink-soft); }
 .fs-facts dt { display: inline; color: var(--e-ink); }
 .fs-facts dd { display: inline; margin: 0; }

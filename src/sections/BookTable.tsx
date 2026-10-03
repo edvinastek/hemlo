@@ -126,7 +126,7 @@ export function BookTable<T extends Row>({
   useEffect(() => {
     if (!selecting) return
     const onKey = (e: KeyboardEvent) => {
-      if (e.key !== 'Escape' || document.querySelector('.bottom-sheet')) return
+      if (e.key !== 'Escape' || document.querySelector('.bottom-sheet, .pm-menu')) return
       leave()
     }
     document.addEventListener('keydown', onKey)

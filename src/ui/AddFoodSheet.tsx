@@ -68,8 +68,10 @@ function keepTab(t: Tab) {
   try { window.localStorage.setItem(TAB_KEY, t) } catch { /* private window: the tab is not remembered */ }
 }
 
-export function AddFoodSheet({ day, meal: startMeal, time: startTime, onClose }: {
+export function AddFoodSheet({ day, meal: startMeal, time: startTime, food: startFood, onClose }: {
   day: string
+  /** A food to start the plate with (a food's page: "Add to a meal"). */
+  food?: Food
   /** The meal to add to (its label; '' for no meal). Left out, it is
    *  guessed from the time of day and what is usually eaten now. */
   meal?: string | null
@@ -123,9 +125,18 @@ export function AddFoodSheet({ day, meal: startMeal, time: startTime, onClose }:
   const [busy, setBusy] = useState(false)
   const [note, setNote] = useState<string | null>(null)
   const [numbersLabel, setNumbersLabel] = useState<string | undefined>(undefined)
+  // The food the sheet was opened with goes on the plate once, in the
+  // amount it was last had in (so the history is waited for).
+  const started = useRef(false)
+  useEffect(() => {
+    if (!profile || !startFood || started.current || history === null) return
+    started.current = true
+    putFood(startFood)
+  }, [history]) // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
-    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose() }
+    // Escape closes an open ⋮ first (it handles that itself), then the sheet.
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape' && !document.querySelector('.af-sheet .pm-menu')) onClose() }
     document.addEventListener('keydown', onKey)
     return () => document.removeEventListener('keydown', onKey)
   }, [onClose])
@@ -319,7 +330,7 @@ export function AddFoodSheet({ day, meal: startMeal, time: startTime, onClose }:
             )}
             {tab === 'search' && (
               <SearchList profileId={profile.id} foods={foods} recipes={recipes} lines={lines} userId={userId} query={query} look={look}
-                history={history ?? []} plate={plate} onFood={(f) => putFood(f)} onRecipe={putRecipe} onItem={putItem}
+                history={history ?? []} onFood={(f) => putFood(f)} onRecipe={putRecipe} onItem={putItem}
                 onLog={(m) => void logFields(m.items.map((i) => itemFields(i) as Partial<MealPlanSlot>), m.name)}
                 onExplode={(m) => {
                   for (const i of m.items) putItem({ id: '', slot: '', slot_date: day, status: 'planned', portion_multiplier: 1, recipe_id: null, ...itemFields(i) } as Item)
@@ -468,9 +479,9 @@ function useRecentRank(history: Item[]) {
  *  matches comes first, with the amount it was had in; nothing found offers
  *  the shops and plain numbers. With nothing typed, a few of each to browse,
  *  the latest first. */
-function SearchList({ profileId, foods, recipes, lines, userId, query, look, history, plate, onFood, onRecipe, onItem, onLog, onExplode, onFind, onNumbers }: {
+function SearchList({ profileId, foods, recipes, lines, userId, query, look, history, onFood, onRecipe, onItem, onLog, onExplode, onFind, onNumbers }: {
   profileId: string; foods: Food[]; recipes: Recipe[]; lines: RecipeLine[]; userId: string | null; query: string; look: Lookup
-  history: Item[]; plate: OnPlate[]
+  history: Item[]
   onFood: (f: Food) => void; onRecipe: (r: Recipe) => void; onItem: (i: Item) => void
   onLog: (m: SavedMeal) => void; onExplode: (m: SavedMeal) => void; onFind: () => void; onNumbers: () => void
 }) {
