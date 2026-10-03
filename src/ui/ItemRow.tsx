@@ -95,6 +95,13 @@ export function ItemRow(p: Props) {
   )
 }
 
+/** A note as it is read: no "after done" marker line, and a recipe link's
+ *  code left out (its words stay). Lines keep their places, so a tick still
+ *  finds its line. */
+const shownNote = (note: string) => note
+  .replace(/^\{after-done:[a-z0-9-]{1,64}\}$/gm, '')
+  .replace(/ ?\{recipe:[0-9a-f-]{36}\}/g, '')
+
 /** The small line under the name. */
 function metaLine({ item, colour, moduleName }: Props): string {
   const t = item.task
@@ -106,7 +113,8 @@ function metaLine({ item, colour, moduleName }: Props): string {
       !(t.status === 'stuck' || t.needs_review) && t.push_count > 0 ? `pushed ${t.push_count}×` : null,
     ].filter(Boolean).join(' · ')
   }
-  if (item.kind === 'event') return [item.minutes ? `${item.minutes} min` : null, item.meta || null].filter(Boolean).join(' · ')
+  // "All day" already stands in the margin.
+  if (item.kind === 'event') return [item.minutes ? `${item.minutes} min` : null, (item.allDay ? item.meta.replace(/^All day( · )?/, '') : item.meta) || null].filter(Boolean).join(' · ')
   if (item.kind === 'record') return moduleName ?? ''
   return item.meta
 }
@@ -229,7 +237,7 @@ function NoteView({ note, checks, onCheck, label }: {
 function Body(p: Props) {
   const { item, actions } = p
   const t = item.task
-  const note = item.note ? removeMarkers(item.note) : ''
+  const note = item.note ? shownNote(item.note) : ''
   const waiting = t ? pendingAfterDone(t.notes) : null
 
   const facts = t

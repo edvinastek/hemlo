@@ -24,7 +24,7 @@ type Entry = AddEntry & { target: Target }
 
 /** Where a module whose main add lives on its own page goes. */
 const PAGE_OF: Record<string, string> = {
-  habits: '/m/habits', supplements: '/m/supplements', health: '/m/health', shopping: '/shop',
+  habits: '/m/habits', supplements: '/m/supplements', health: '/m/health', shopping: '/shop', household: '/m/household',
 }
 
 /** The round + on Today and Plan (GEN-50): a short menu of what the person
@@ -62,7 +62,7 @@ export function AddFab({ day, label = 'Add' }: { day: string; label?: string }) 
       if (fixed && PAGE_OF[key]) { out.push({ key: `m:${key}`, label: fixed.label, hint: fixed.hint, target: { kind: 'page', to: PAGE_OF[key] } }); continue }
       const ent = e.def.entities.find((x) => !x.table || SHEET_TABLES.includes(x.table))
       if (!ent) continue
-      out.push({ key: `m:${key}`, label: ent.label, hint: e.def.name, target: { kind: 'record', module: key, entity: ent.name } })
+      out.push({ key: `m:${key}`, label: fixed?.label ?? ent.label, hint: fixed?.hint ?? e.def.name, target: { kind: 'record', module: key, entity: ent.name } })
     }
     // Event first among the modules, as the person expects to find it.
     return out.sort((a, b) => rank(a.key) - rank(b.key))

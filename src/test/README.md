@@ -155,14 +155,16 @@ to the test accounts, because they run against the live project.
 - `tour` — walks every screen and reports what rendered.
 - `widget` — the app’s side of the Android widget, with a stand-in for the native bridge:
   what it is sent, ticks applied while open and after a restart, cleared on sign-out.
-- `tasksheet` — a task with a time range, a checklist note ticked on its page, the chip on Today.
+- `tasksheet` — a task with a time range (added through the round + menu's "Task"), a checklist note ticked on its
+  page, the chip on Today.
 - `repeat` — a task repeating on days picked in the sheet's calendar (Clear, the count, one day past the eight
   weeks the series fills), what Postgres holds, "every few days", Plan's Year as scrolling months with the
   far day marked as a planned repeat and opening its week, and the header's calendar reaching three years
   back and five ahead.
 - `reorder` — at 360 px: hold and drag on Today (timed tasks swap times, untimed ones slide into place), the sheet
-  that asks before a clash, Move up and Move down in the ⋮ menu, taps still tick and open, a held drag never
-  swipes the page; on Plan's week, two days swapped (a locked task stays) and one task dragged onto a day.
+  that asks before a clash, Move up and Move down among the row's actions in the ⋮ menu, taps still tick and open,
+  the two-stage hold (held still for the long time the row opens in place with its actions and nothing moves; let go
+  between the stages nothing happens), Undo after a drag putting the order back, a held drag never swipes the page; on Plan's week, two days swapped (a locked task stays) and one task dragged onto a day.
 - `stock` — the cupboard: add by search, adjust, remove; the trip less stock; ingredients
   taken out when a meal is eaten and put back when it is unticked.
 - `daytabs` — Today's tabs follow the day: none on a Minimal planner, Habits once a habit is due, no
