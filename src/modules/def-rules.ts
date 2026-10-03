@@ -368,8 +368,10 @@ export const ruleOn = (def: Pick<ModuleDef, 'rules'>, name: string) =>
  *  - switch: it acts on it, so switching it off stops it;
  *  - always: it is what the module is, so it has no switch (switch the
  *    module off instead);
- *  - later: nothing in the app acts on it yet, so a switch would do nothing
- *    and none is shown. */
+ *  - later: nothing in the app acts on it yet. Such a rule is not shown at
+ *    all (MOD-06): a rule on screen is a promise, and only rules the app
+ *    keeps are made. When the app learns one, its line here changes and it
+ *    appears. */
 export type RuleSupport = 'switch' | 'always' | 'later'
 
 /** Every rule in the registry, by "module.rule", with a line for the editor
@@ -384,13 +386,13 @@ export const BUILTIN_RULES: Record<string, { support: RuleSupport; note: string 
   'shopping.trip_days': { support: 'later', note: 'Not acted on yet: shopping days are not put on the planner.' },
   'training.session_task': { support: 'later', note: 'Not acted on yet: sessions are logged, not planned ahead.' },
   'habits.daily': { support: 'switch', note: 'Off: habits no longer appear on Today or the widget; the Habits page still has them.' },
-  'supplements.slot_task': { support: 'later', note: 'Not acted on yet: supplements are ticked on Today, not made into tasks.' },
+  'supplements.slot_task': { support: 'always', note: 'This is how supplements reach Today. To keep them off Today, switch Show on Today off under Show.' },
   'health.retarget': { support: 'switch', note: 'Off: a weigh-in is saved and the calorie and protein targets are left as they are.' },
   'learning.soft': { support: 'later', note: 'Not acted on yet: the planner does not move tasks by itself.' },
   'agenda.no_overlap': { support: 'later', note: 'Not acted on yet: the planner does not place tasks by itself.' },
   'sleep.bedtime': { support: 'later', note: 'Not acted on yet: the planner does not place tasks by itself.' },
   'projects.to_goal': { support: 'later', note: 'Not acted on yet: goals have no page of their own to show on.' },
-  'household.shared': { support: 'later', note: 'Not acted on yet: records are kept per person.' },
+  'household.shared': { support: 'always', note: 'Chores belong to the household: everyone in it sees and can tick them. Who does each one is set on the chore.' },
 }
 
 export function ruleSupport(moduleKey: string, ruleName: string): RuleSupport {
@@ -400,6 +402,10 @@ export function ruleSupport(moduleKey: string, ruleName: string): RuleSupport {
 }
 
 export const ruleSwitchable = (moduleKey: string, ruleName: string) => ruleSupport(moduleKey, ruleName) === 'switch'
+
+/** Whether a rule is shown in the editor: every rule of a built module, and
+ *  a built-in module's rules the app carries out (MOD-06). */
+export const ruleShown = (moduleKey: string, ruleName: string) => ruleSupport(moduleKey, ruleName) !== 'later'
 
 /** Whether a built-in module's rule is on for a profile, from the changes
  *  kept in its settings (module_instance.settings.overlay). A rule the app

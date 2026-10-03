@@ -111,6 +111,9 @@ Types, then every check that needs nothing but Node. CI runs the same command.
 - `afterdone` — "ask after done" templates: the marker line in a note, what Fill in, Skip and Later leave behind.
 - `repeat` — the one repeat control's choices: the rule each stands for from a first day (the 2nd or last Wednesday,
   the 14th, 14 October), numbers kept and capped, picked days, and every choice reading back as itself.
+- `visibility` — only what is switched on appears: the one rule for which modules are on (a built module must still
+  exist), the five switches per module (Today, Plan, widget, Stats, reminders) and how one is saved, what each template
+  sets (every module's switches, Today's cards only for modules kept on), and which built-in rules the editor shows.
 
 ## Browser checks
 
