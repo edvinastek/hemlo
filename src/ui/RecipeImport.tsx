@@ -103,7 +103,7 @@ export function RecipeImport({ userId, onClose }: { userId: string; onClose: () 
               onChange={(e) => { setText(e.target.value); setProblem(null) }} style={{ fontFamily: 'var(--font-sans)', fontSize: 14 }} />
           </label>
           <p className="fe-note">Its text, a recipe page’s source (schema.org recipe data is read), or a GetIt or CSV recipe file.</p>
-          <div className="rv-actions">
+          <div className="rcp-actions">
             <label className="btn" style={{ cursor: 'pointer' }}>
               Choose a file
               <input type="file" accept=".json,.csv,.txt,.html,.htm" hidden
@@ -121,8 +121,8 @@ export function RecipeImport({ userId, onClose }: { userId: string; onClose: () 
               ? <p className="fe-note">No recipe found in that ({read.kind}).</p>
               : (
                 <div>
-                  <p className="rv-section">Found · {read.kind}</p>
-                  <ul className="rv-list">
+                  <p className="rcp-section">Found · {read.kind}</p>
+                  <ul className="rcp-list">
                     {planned.map((p, i) => (
                       <li key={i} style={{ display: 'grid', gap: 2 }}>
                         <span className="row-name" style={{ fontSize: 15 }}>{p.name}</span>

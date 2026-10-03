@@ -59,7 +59,7 @@ export function RecipesTab() {
   const slots = useLiveQuery(async () => (profile ? db.meal_plan_slot.where('profile_id').equals(profile.id).toArray() : []), [profile?.id], [])
   const use = useMemo(() => usage(logs, slots), [logs, slots])
   const liveRecipes = useMemo(() => recipes.filter(live), [recipes])
-  const figures = shownFigures(shownNutrients(settings).filter((k) => k !== 'kcal'), prefs.label.figures)
+  const figures = shownFigures(shownNutrients(settings).filter((k) => k !== 'kcal'), prefs.label.figures).filter((k) => k !== 'kcal')
   /** Recipe figures are worked out from the lines every time they are shown,
    *  never read from a stored column, so a changed ingredient shows at once. */
   const recipeRows = useMemo(() => liveRecipes.map((r) => {
@@ -194,7 +194,7 @@ export function FoodsTab() {
     <>
       <FindProducts onShow={setSearch} />
       <div className="ft-tools">
-        <input className="ft-search" type="search" placeholder="Search foods, in English or Dutch" aria-label="Search foods"
+        <input className="ft-search" type="search" placeholder="Search, in English or Dutch" aria-label="Search foods, in English or Dutch"
           value={search} onChange={(e) => setSearch(e.target.value)} autoComplete="off" />
         <button type="button" className="btn" aria-expanded={choosing} onClick={() => setChoosing((v) => !v)}>Figures</button>
         {userId && <button type="button" className="btn btn-primary" onClick={() => setAdding(true)}>New food</button>}

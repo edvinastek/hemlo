@@ -349,7 +349,7 @@ function Line({ line: l, i, last, foods, onChange, onMove, onRemove }: {
             </span>
           </>
         ) : (
-          <input className="rl-grams" inputMode="decimal" value={l.grams} placeholder="g, optional" aria-label={`${name}, grams per portion`}
+          <input className="rl-grams" inputMode="decimal" value={l.grams} placeholder="g" aria-label={`${name}, grams per portion, optional`}
             onChange={(e) => onChange({ grams: e.target.value })} />
         )}
       </div>

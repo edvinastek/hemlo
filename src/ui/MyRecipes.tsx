@@ -46,14 +46,14 @@ export function MyRecipes({ userId, recipes, lines, foods, onOpen, onNew }: {
         <button type="button" className="btn" onClick={() => setImporting(true)}>Import</button>
         <button type="button" className="btn" aria-expanded={exporting} onClick={() => setExporting((v) => !v)}>Export all</button>
         {exporting && (
-          <span className="rv-actions" style={{ margin: 0 }}>
+          <span className="rcp-actions" style={{ margin: 0 }}>
             <button type="button" className="slot-link" onClick={() => void out('json')}>GetIt file</button>
             <button type="button" className="slot-link" onClick={() => void out('csv')}>CSV</button>
             <button type="button" className="slot-link" onClick={() => void out('schema')}>schema.org</button>
           </span>
         )}
       </div>
-      {said && <p className="rv-done" style={{ padding: '0 var(--space-4) var(--space-2)' }} role="status">{said}</p>}
+      {said && <p className="rcp-done" style={{ padding: '0 var(--space-4) var(--space-2)' }} role="status">{said}</p>}
       {mine.length > 0 && (
         <details open={mine.length <= 5 || flagged > 0}>
           <summary className="my-recipes-head">Your recipes · {mine.length}</summary>

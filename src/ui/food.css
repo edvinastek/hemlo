@@ -52,7 +52,7 @@
 
 /* The Foods tab's tools. */
 .ft-tools { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2); padding: var(--space-2) var(--space-4) 0; }
-.ft-tools .ft-search { flex: 1 1 160px; min-width: 0; min-height: 40px; padding: 6px 10px;
+.ft-search { flex: 1 1 160px; min-width: 0; min-height: 44px; box-sizing: border-box; padding: 6px 10px;
   border: 1px solid var(--e-field-line); border-radius: var(--radius-md); background: var(--e-field); color: var(--e-ink);
   font-family: var(--font-sans); font-size: 15px; }
 .ft-more { padding: 0 var(--space-4) var(--space-3); }

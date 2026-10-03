@@ -88,7 +88,7 @@ export function RecipeView({ recipe: given, lines, foods, userId, onClose, onEdi
   const titleId = useId()
   const mine = !!userId && recipe.owner_id === userId
   const scaled = scaleLines(recipe.id, own, foods, portions)
-  const keys = shownFigures(shownNutrients(readSettings(profile)).filter((k) => k !== 'kcal'), prefs.label.figures)
+  const keys = shownFigures(shownNutrients(readSettings(profile)).filter((k) => k !== 'kcal'), prefs.label.figures).filter((k) => k !== 'kcal')
   const perPortion = recipeFigures(own, foods, ['kcal', ...keys], 1)
   const forShown = recipeFigures(own, foods, ['kcal', ...keys], portions)
   const attribution = attributionFor(own.flatMap((l) => (l.food_id && foods.get(l.food_id) ? [foods.get(l.food_id)!] : [])))
@@ -111,14 +111,14 @@ export function RecipeView({ recipe: given, lines, foods, userId, onClose, onEdi
   return (
     <>
       <div className="sheet-scrim" onClick={onClose} />
-      <div className="bottom-sheet rv" role="dialog" aria-modal="true" aria-labelledby={titleId}>
+      <div className="bottom-sheet rcp" role="dialog" aria-modal="true" aria-labelledby={titleId}>
         <h2 id={titleId}>{recipe.name}</h2>
-        <p className="rv-sub">
+        <p className="rcp-sub">
           {[roleLabel(recipe.role), `${qtyText(batch)} ${batch === 1 ? 'portion' : 'portions'} a batch`, recipe.cook_minutes ? `${recipe.cook_minutes} min` : null].filter(Boolean).join(' · ')}
           {' · '}
           {mine ? <SharingStatus recipe={recipe} withNote={false} /> : recipe.owner_id ? 'Shared by someone' : 'GetIt’s recipe'}
         </p>
-        {mine && sharing === 'rejected' && recipe.review_note && <p className="rv-warn">Not accepted: {recipe.review_note}</p>}
+        {mine && sharing === 'rejected' && recipe.review_note && <p className="rcp-warn">Not accepted: {recipe.review_note}</p>}
 
         {panel === 'task' && profile && <TaskPanel recipe={recipe} scaled={scaled} portions={portions} figures={perPortion} keys={keys} profileId={profile.id} onBack={back} onDone={close} />}
         {panel === 'meal' && profile && <MealPanel recipe={recipe} profileId={profile.id} onBack={back} onDone={close} />}
@@ -135,7 +135,7 @@ export function RecipeView({ recipe: given, lines, foods, userId, onClose, onEdi
               </p>
             )}
             {!isReady(recipe) && (
-              <div className="rv-scale" role="group" aria-label="Portions to show">
+              <div className="rcp-scale" role="group" aria-label="Portions to show">
                 <span>Amounts for</span>
                 <button type="button" className="btn" aria-label="Fewer portions" onClick={() => step(-1)}>−</button>
                 <input inputMode="decimal" value={portionsText} aria-label="Portions" onChange={(e) => setPortionsText(e.target.value)} />
@@ -145,23 +145,23 @@ export function RecipeView({ recipe: given, lines, foods, userId, onClose, onEdi
               </div>
             )}
 
-            <p className="rv-section">Ingredients</p>
+            <p className="rcp-section">Ingredients</p>
             {scaled.length === 0 ? <p className="fe-note">No ingredients listed.</p> : (
-              <ul className="rv-lines">
+              <ul className="rcp-lines">
                 {scaled.map((l) => (
                   <li key={l.id}>
                     <span>{l.said ?? l.name}</span>
-                    <span className="rv-amount">{amountOf(l)}</span>
+                    <span className="rcp-amount">{amountOf(l)}</span>
                     {/* What the recipe calls it, and the food it counts as. */}
                     {(l.note || (l.said && l.food && l.said !== l.food.name)) && (
-                      <span className="rv-note">{[l.said && l.food && l.said !== l.food.name ? l.food.name : null, l.note].filter(Boolean).join(' · ')}</span>
+                      <span className="rcp-note">{[l.said && l.food && l.said !== l.food.name ? l.food.name : null, l.note].filter(Boolean).join(' · ')}</span>
                     )}
                   </li>
                 ))}
               </ul>
             )}
 
-            <table className="rv-figures">
+            <table className="rcp-figures">
               <thead>
                 <tr><th scope="col"><span className="visually-hidden">Figure</span></th><th scope="col">A portion</th>
                   {portions !== 1 && <th scope="col">{qtyText(portions)} portions</th>}</tr>
@@ -186,11 +186,11 @@ export function RecipeView({ recipe: given, lines, foods, userId, onClose, onEdi
               <p className="fe-note">* Some ingredients do not give this figure, so the real amount is higher.</p>
             )}
 
-            {recipe.steps?.trim() && (<><p className="rv-section">Steps</p><p className="rv-steps">{recipe.steps.trim()}</p></>)}
-            {attribution && <p className="rv-credit">{attribution}.</p>}
-            {done && <p className="rv-done" role="status">{done}</p>}
+            {recipe.steps?.trim() && (<><p className="rcp-section">Steps</p><p className="rcp-steps">{recipe.steps.trim()}</p></>)}
+            {attribution && <p className="rcp-credit">{attribution}.</p>}
+            {done && <p className="rcp-done" role="status">{done}</p>}
 
-            <div className="rv-actions">
+            <div className="rcp-actions">
               {mine && <button type="button" className="btn btn-primary" onClick={() => onEdit(recipe)}>Edit</button>}
               {userId && <button type="button" className="btn" onClick={() => onVariation(recipe)}>Make a variation</button>}
               {profile && <button type="button" className="btn" onClick={() => setPanel('task')}>Add to a task’s note</button>}
@@ -244,8 +244,8 @@ function TaskPanel({ recipe, scaled, portions, figures, keys, profileId, onBack,
   }
 
   return (
-    <div className="rv-choice form-grid">
-      <p className="rv-section">Add to a task’s note · {qtyText(portions)} {portions === 1 ? 'portion' : 'portions'}</p>
+    <div className="rcp-choice form-grid">
+      <p className="rcp-section">Add to a task’s note · {qtyText(portions)} {portions === 1 ? 'portion' : 'portions'}</p>
       <div className="amt-units" role="group" aria-label="Which task">
         <button type="button" aria-pressed={into === 'new'} onClick={() => setInto('new')}>A new task</button>
         <button type="button" aria-pressed={into === 'existing'} onClick={() => setInto('existing')}>A task I have</button>
@@ -258,7 +258,7 @@ function TaskPanel({ recipe, scaled, portions, figures, keys, profileId, onBack,
       ) : (
         <>
           <label>Find the task<input type="search" value={query} placeholder="Type a task’s name" onChange={(e) => { setQuery(e.target.value); setPicked(null) }} /></label>
-          <ul className="rv-list" aria-label="Tasks">
+          <ul className="rcp-list" aria-label="Tasks">
             {found.map(({ t }) => (
               <li key={t.id}>
                 <button type="button" className="slot-link" aria-pressed={picked?.id === t.id} onClick={() => setPicked(t)}>{t.title}</button>
@@ -271,7 +271,7 @@ function TaskPanel({ recipe, scaled, portions, figures, keys, profileId, onBack,
       )}
       <div>
         {(['ingredients', 'steps', 'figures'] as const).map((k) => (
-          <label key={k} className="rv-check"><input type="checkbox" checked={opts[k]} onChange={(e) => setOpts({ ...opts, [k]: e.target.checked })} />
+          <label key={k} className="rcp-check"><input type="checkbox" checked={opts[k]} onChange={(e) => setOpts({ ...opts, [k]: e.target.checked })} />
             {k === 'ingredients' ? 'Ingredients as a checklist' : k === 'steps' ? 'Steps' : 'Figures a portion'}</label>
         ))}
       </div>
@@ -311,8 +311,8 @@ function MealPanel({ recipe, profileId, onBack, onDone }: { recipe: Recipe; prof
   }
 
   return (
-    <div className="rv-choice form-grid">
-      <p className="rv-section">Plan as a meal</p>
+    <div className="rcp-choice form-grid">
+      <p className="rcp-section">Plan as a meal</p>
       <div className="two">
         <label>Day<input type="date" value={day} onChange={(e) => setDay(e.target.value || today)} /></label>
         <label>Portions<input inputMode="decimal" value={portions} onChange={(e) => setPortions(e.target.value)} /></label>
@@ -321,7 +321,7 @@ function MealPanel({ recipe, profileId, onBack, onDone }: { recipe: Recipe; prof
         <span className="fe-note">Meal</span>
         <Dropdown<SlotKey> value={slot} options={SLOTS.map((s) => ({ value: s.key, label: s.label }))} label="Meal" onChange={setSlot} />
       </div>
-      {there && thereName && there.recipe_id !== recipe.id && <p className="rv-warn">This takes the place of {thereName} planned then.</p>}
+      {there && thereName && there.recipe_id !== recipe.id && <p className="rcp-warn">This takes the place of {thereName} planned then.</p>}
       <div className="sheet-actions">
         <button type="button" className="btn" onClick={onBack}>Back</button>
         <button type="button" className="btn btn-primary grow" disabled={!n || n <= 0} onClick={() => void plan()}>Plan it</button>
@@ -349,12 +349,12 @@ function ShopPanel({ recipe, scaled, portions, profile, onBack, onDone }: {
   }
 
   return (
-    <div className="rv-choice">
-      <p className="rv-section">To buy for {qtyText(portions)} {portions === 1 ? 'portion' : 'portions'}</p>
+    <div className="rcp-choice">
+      <p className="rcp-section">To buy for {qtyText(portions)} {portions === 1 ? 'portion' : 'portions'}</p>
       {!plan ? <p className="fe-note">Looking in the cupboard…</p> : (
         <>
           {plan.buy.length === 0 ? <p className="fe-note">Everything is in the cupboard already.</p> : (
-            <ul className="rv-list">
+            <ul className="rcp-list">
               {plan.buy.map((b) => (
                 <li key={b.food_id ?? b.name}>
                   <span>{b.name}</span>
@@ -389,14 +389,14 @@ function ExportPanel({ shape, attribution, onBack, onDone }: { shape: ExportReci
     if (how !== 'cancelled') onDone(`Exported ${name}.`)
   }
   return (
-    <div className="rv-choice">
-      <p className="rv-section">Export</p>
-      <div className="rv-actions">
+    <div className="rcp-choice">
+      <p className="rcp-section">Export</p>
+      <div className="rcp-actions">
         <button type="button" className="btn" onClick={() => void save('json')}>GetIt recipe file</button>
         <button type="button" className="btn" onClick={() => void save('csv')}>Spreadsheet (CSV)</button>
         <button type="button" className="btn" onClick={() => void save('schema')}>schema.org Recipe</button>
       </div>
-      {attribution && <p className="rv-credit">The file says: {attribution}.</p>}
+      {attribution && <p className="rcp-credit">The file says: {attribution}.</p>}
       <div className="sheet-actions"><button type="button" className="btn grow" onClick={onBack}>Back</button></div>
     </div>
   )

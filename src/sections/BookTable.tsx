@@ -215,6 +215,7 @@ export function BookTable<T extends Row>({
 
       <div className="totals">{head}</div>
 
+      <div className="bk-table">
       <DataTable
         fields={fields}
         priority={priority}
@@ -229,6 +230,7 @@ export function BookTable<T extends Row>({
         onOpen={selecting || !onOpen ? undefined : (row) => onOpen(row as T)}
         openLabel={openLabel ? (row) => openLabel(row as T) : undefined}
       />
+      </div>
       {more}
       {capped && (
         <div className="bk-more">
