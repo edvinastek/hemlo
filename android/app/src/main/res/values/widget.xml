@@ -1,7 +1,9 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- The widget's colours: the app's "notebook" tokens, the e set in
-     src/styles/tokens.css. values-night holds the dark ones; the home screen
-     picks by the phone's own light or dark setting. -->
+<!-- The widgets' default colours: the "notebook" theme, as in
+     src/lib/theme-rules.ts. values-night holds the dark ones. The widgets
+     paint the theme the person chose over these (WidgetColours); these are
+     what the widget picker's previews and a widget before the app's first
+     run show. -->
 <resources>
     <color name="widget_paper">#F8F4ED</color>
     <color name="widget_ink">#201E1B</color>
@@ -12,4 +14,7 @@
     <string name="widget_name">GetIt · Today</string>
     <string name="widget_description">Today\'s next tasks and habits. Tick them off without opening the app.</string>
     <string name="widget_tick">Tick</string>
+    <string name="widget_stats_name">GetIt · Stats</string>
+    <string name="widget_stats_description">One of your saved stats views: a figure, a ring, a small chart or a short table. Place as many as you like.</string>
+    <string name="widget_stats_choose">Choose a stats view</string>
 </resources>

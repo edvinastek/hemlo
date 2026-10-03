@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  2 x 2 cells by default; 4 x 2 and 4 x 4 (and anything between) by resizing.
+  The settings screen opens when one is placed, and again from the widget's
+  own settings ("reconfigurable"); on Android 12 and later it may also be
+  placed without it ("configuration_optional"), showing the first saved view.
+  It redraws whenever the app writes new figures, and every 30 minutes.
+-->
+<appwidget-provider xmlns:android="http://schemas.android.com/apk/res/android"
+    android:minWidth="110dp"
+    android:minHeight="110dp"
+    android:minResizeWidth="110dp"
+    android:minResizeHeight="100dp"
+    android:targetCellWidth="2"
+    android:targetCellHeight="2"
+    android:resizeMode="horizontal|vertical"
+    android:updatePeriodMillis="1800000"
+    android:initialLayout="@layout/widget_stats_figure"
+    android:previewLayout="@layout/widget_stats_preview"
+    android:configure="app.getit.planner.widget.StatsWidgetConfigure"
+    android:widgetFeatures="reconfigurable|configuration_optional"
+    android:description="@string/widget_stats_description"
+    android:widgetCategory="home_screen" />

@@ -21,6 +21,7 @@ import { BodySettings } from '../settings/BodySettings'
 import { ShoppingSettings } from '../settings/ShoppingSettings'
 import { NavSettings } from '../settings/NavSettings'
 import { ColourSettings } from '../settings/ColourSettings'
+import { LooksSettings } from '../settings/Looks'
 import { HolidaySettings } from '../settings/HolidaySettings'
 import { CalendarLinks } from '../settings/CalendarLinks'
 import { TransferSettings } from '../settings/TransferSettings'
@@ -683,6 +684,7 @@ function DeleteAccount() {
 function LooksPanel() {
   return (
     <>
+      <LooksSettings />
       <ColourSettings />
     </>
   )

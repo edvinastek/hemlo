@@ -19,16 +19,11 @@
         tools:replace="android:allowBackup">
         <activity
             android:configChanges="orientation|keyboardHidden|keyboard|screenSize|locale|smallestScreenSize|screenLayout|uiMode|navigation|density"
-            android:name=".MainActivity"
+            android:name=".PlannerActivity"
             android:label="@string/title_activity_main"
             android:theme="@style/AppTheme.NoActionBarLaunch"
             android:launchMode="singleTask"
             android:exported="true">
-            <intent-filter>
-                <action android:name="android.intent.action.MAIN" />
-                <category android:name="android.intent.category.LAUNCHER" />
-            </intent-filter>
-
             <!--
               Links from the confirmation and password-reset emails come back
               here: app.getit.planner://auth-callback?code=…
@@ -40,6 +35,131 @@
                 <data android:scheme="app.getit.planner" android:host="auth-callback" />
             </intent-filter>
         </activity>
+
+        <!--
+          The app icons the person can choose (Settings → Looks). Each is a
+          launcher entry pointing at the one screen above; exactly one is
+          enabled at a time (looks/AppIcons.java), so GetIt is never hidden
+          and never shows twice. Classic keeps the name the launcher has
+          always known, ".MainActivity", so existing home-screen icons stay.
+        -->
+        <activity-alias
+            android:name=".MainActivity"
+            android:targetActivity=".PlannerActivity"
+            android:enabled="true"
+            android:exported="true"
+            android:icon="@mipmap/ic_launcher"
+            android:roundIcon="@mipmap/ic_launcher_round"
+            android:label="@string/title_activity_main">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity-alias>
+        <activity-alias
+            android:name=".IconNight"
+            android:targetActivity=".PlannerActivity"
+            android:enabled="false"
+            android:exported="true"
+            android:icon="@mipmap/ic_icon_night"
+            android:roundIcon="@mipmap/ic_icon_night"
+            android:label="@string/title_activity_main">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity-alias>
+        <activity-alias
+            android:name=".IconMono"
+            android:targetActivity=".PlannerActivity"
+            android:enabled="false"
+            android:exported="true"
+            android:icon="@mipmap/ic_icon_mono"
+            android:roundIcon="@mipmap/ic_icon_mono"
+            android:label="@string/title_activity_main">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity-alias>
+        <activity-alias
+            android:name=".IconBrick"
+            android:targetActivity=".PlannerActivity"
+            android:enabled="false"
+            android:exported="true"
+            android:icon="@mipmap/ic_icon_brick"
+            android:roundIcon="@mipmap/ic_icon_brick"
+            android:label="@string/title_activity_main">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity-alias>
+        <activity-alias
+            android:name=".IconSage"
+            android:targetActivity=".PlannerActivity"
+            android:enabled="false"
+            android:exported="true"
+            android:icon="@mipmap/ic_icon_sage"
+            android:roundIcon="@mipmap/ic_icon_sage"
+            android:label="@string/title_activity_main">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity-alias>
+        <activity-alias
+            android:name=".IconHarbour"
+            android:targetActivity=".PlannerActivity"
+            android:enabled="false"
+            android:exported="true"
+            android:icon="@mipmap/ic_icon_harbour"
+            android:roundIcon="@mipmap/ic_icon_harbour"
+            android:label="@string/title_activity_main">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity-alias>
+        <activity-alias
+            android:name=".IconUb"
+            android:targetActivity=".PlannerActivity"
+            android:enabled="false"
+            android:exported="true"
+            android:icon="@mipmap/ic_icon_ub"
+            android:roundIcon="@mipmap/ic_icon_ub"
+            android:label="@string/title_activity_main">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity-alias>
+        <activity-alias
+            android:name=".IconTick"
+            android:targetActivity=".PlannerActivity"
+            android:enabled="false"
+            android:exported="true"
+            android:icon="@mipmap/ic_icon_tick"
+            android:roundIcon="@mipmap/ic_icon_tick"
+            android:label="@string/title_activity_main">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity-alias>
+        <activity-alias
+            android:name=".IconWeek"
+            android:targetActivity=".PlannerActivity"
+            android:enabled="false"
+            android:exported="true"
+            android:icon="@mipmap/ic_icon_week"
+            android:roundIcon="@mipmap/ic_icon_week"
+            android:label="@string/title_activity_main">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity-alias>
 
         <!--
           The home-screen widget. It shows today's tasks and habits from a copy
@@ -58,6 +178,34 @@
         <receiver
             android:name=".widget.TickReceiver"
             android:exported="false" />
+
+        <!--
+          The stats widgets (as many as the person places): each shows one saved
+          stats view from the copy the app keeps on the phone. The settings
+          screen picks the view when one is placed and again from the widget's
+          own settings; only the launcher can start it (it is the widget host
+          that holds the configure action).
+        -->
+        <receiver
+            android:name=".widget.StatsWidget"
+            android:label="@string/widget_stats_name"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data android:name="android.appwidget.provider" android:resource="@xml/widget_stats_info" />
+        </receiver>
+        <activity
+            android:name=".widget.StatsWidgetConfigure"
+            android:label="@string/widget_stats_choose"
+            android:theme="@android:style/Theme.DeviceDefault.NoActionBar"
+            android:excludeFromRecents="true"
+            android:taskAffinity=""
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_CONFIGURE" />
+            </intent-filter>
+        </activity>
 
         <!--
           Barcodes are read by Google's code scanner in Play services, which

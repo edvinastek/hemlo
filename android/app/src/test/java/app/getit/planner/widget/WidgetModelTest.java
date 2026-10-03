@@ -100,4 +100,77 @@ public class WidgetModelTest {
         WidgetModel m = WidgetModel.build(s.toString(), DAY, 5);
         assertEquals(List.of("TASK:A@08:00", "LABEL:Habits", "HABIT:A(done)"), rows(m));
     }
+
+    // WID-02: the rest of the day, from the modules shown on the widget.
+    private static String snapItems(String tasks, String habits, String items) {
+        return "{\"v\":1,\"updated_at\":\"x\",\"days\":{\"" + DAY + "\":{\"tasks\":[" + tasks + "],\"habits\":[" + habits + "],\"items\":[" + items + "]}}}";
+    }
+
+    private static String item(String kind, String id, String time, boolean done, boolean tick, boolean late) {
+        return "{\"kind\":\"" + kind + "\",\"id\":\"" + id + "\",\"title\":\"" + id + "\",\"time\":" + (time == null ? "null" : "\"" + time + "\"")
+            + ",\"done\":" + done + ",\"tick\":" + tick + ",\"late\":" + late + "}";
+    }
+
+    @Test public void itemsSitAmongTheTasksByTime() {
+        WidgetModel m = WidgetModel.build(snapItems(
+            task("Standup", "09:00", false) + "," + task("Untimed", null, false),
+            "",
+            item("event", "Dentist", "14:00", false, false, false) + "," + item("chore", "Dishes", "19:00", false, true, false) + ","
+                + item("supplements", "Morning supplements", "08:00", false, true, false) + "," + item("chore", "Bins", null, false, true, true)), DAY, 8);
+        List<String> want = new ArrayList<>();
+        want.add("SUPPLEMENTS:Morning supplements@08:00");
+        want.add("TASK:Standup@09:00");
+        want.add("EVENT:Dentist@14:00");
+        want.add("CHORE:Dishes@19:00");
+        want.add("TASK:Untimed");
+        want.add("CHORE:Bins(late)");
+        assertEquals(want, rows(m));
+        // Events are on the day but not to do.
+        assertEquals("5 left", m.summary);
+    }
+
+    @Test public void doneItemsGoWithTheDoneTasks() {
+        WidgetModel m = WidgetModel.build(snapItems(task("Run", "07:00", true), "",
+            item("chore", "Dishes", "19:00", true, true, false)), DAY, 8);
+        assertEquals("All done", m.summary);
+        assertEquals("TASK:Run(done)@07:00", m.rows.get(0).toString());
+        assertEquals("CHORE:Dishes(done)@19:00", m.rows.get(1).toString());
+    }
+
+    @Test public void onlyChoresAndSlotsHaveTicks() {
+        WidgetModel m = WidgetModel.build(snapItems("", "",
+            item("record", "Weigh-in", null, false, false, false) + "," + item("chore", "Fake", null, true, false, false) + ","
+                + item("surprise", "From a newer app", null, false, true, false)), DAY, 8);
+        assertEquals(2, m.rows.size());
+        for (WidgetModel.Row r : m.rows) assertEquals(false, r.tickable());
+        // A chore without a tick is shown, never ticked, and never shown done.
+        assertEquals("RECORD:Fake", m.rows.get(1).toString());
+        assertEquals("", m.summary);
+    }
+
+    @Test public void tickKindsAreTheFour() {
+        assertEquals(4, WidgetModel.TICK_KINDS.size());
+        assertEquals(true, WidgetModel.TICK_KINDS.contains("supplements"));
+        assertEquals(false, WidgetModel.TICK_KINDS.contains("event"));
+    }
+
+    // LOOK-09: the widget's colours come from the app's theme.
+    @Test public void coloursFollowTheApp() {
+        WidgetColours none = WidgetColours.parse(null, true);
+        assertEquals(WidgetColours.DARK.paper, none.now().paper);
+        assertEquals(WidgetColours.LIGHT.paper, WidgetColours.parse(null, false).now().paper);
+
+        String ub = "{\"v\":1,\"mode\":\"black\",\"light\":{\"paper\":\"#f6f2f5\"},\"dark\":{\"paper\":\"#000000\",\"accent\":\"#ffa500\",\"ink\":\"nonsense\"}}";
+        WidgetColours c = WidgetColours.parse(ub, false);
+        assertEquals(true, c.night());
+        assertEquals(0xFF000000, c.now().paper);
+        assertEquals(0xFFFFA500, c.now().accent);
+        assertEquals(WidgetColours.DARK.ink, c.now().ink);
+
+        WidgetColours light = WidgetColours.parse("{\"mode\":\"light\"}", true);
+        assertEquals(false, light.night());
+        WidgetColours follows = WidgetColours.parse("{\"mode\":\"system\"}", true);
+        assertEquals(true, follows.night());
+        assertEquals(WidgetColours.LIGHT.paper, WidgetColours.parse("not json", false).now().paper);
+    }
 }

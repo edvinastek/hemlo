@@ -4,21 +4,30 @@ import org.json.JSONArray;
 import org.json.JSONObject;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
+import java.util.Comparator;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 
 /**
  * What one widget shows, worked out from the snapshot the app wrote. No Android
  * views here, so it runs in a plain JVM test (WidgetModelTest).
  *
- * The widget has a fixed number of rows for its size. Open tasks come first in
- * time order, then the day's habits under a "Habits" label, then tasks already
- * done if there is room. Habits keep their own order whether ticked or not, so
- * a row never jumps away from the finger that just ticked it.
+ * The widget has a fixed number of rows for its size. What is still to do
+ * comes first in time order: open tasks, chores and supplement slots, with
+ * the day's events and dated records among them (WID-02); then the day's
+ * habits under a "Habits" label; then what is already done, if there is
+ * room. Habits keep their own order whether ticked or not, so a row never
+ * jumps away from the finger that just ticked it.
  */
 public final class WidgetModel {
 
-    public enum Kind { TASK, HABIT, LABEL, NOTE }
+    public enum Kind { TASK, HABIT, CHORE, SUPPLEMENTS, EVENT, RECORD, LABEL, NOTE }
+
+    /** The kinds a tick on the widget may name (TickReceiver checks it). */
+    public static final Set<String> TICK_KINDS = Collections.unmodifiableSet(new HashSet<>(Arrays.asList("task", "habit", "chore", "supplements")));
 
     public static final class Row {
         public final Kind kind;
@@ -26,17 +35,40 @@ public final class WidgetModel {
         public final String text;
         public final String time;
         public final boolean done;
+        /** A chore that has waited past its day. */
+        public final boolean late;
 
-        Row(Kind kind, String id, String text, String time, boolean done) {
+        Row(Kind kind, String id, String text, String time, boolean done, boolean late) {
             this.kind = kind;
             this.id = id;
             this.text = text;
             this.time = time;
             this.done = done;
+            this.late = late;
+        }
+
+        Row(Kind kind, String id, String text, String time, boolean done) {
+            this(kind, id, text, time, done, false);
+        }
+
+        /** Has a tick box. */
+        public boolean tickable() {
+            return kind == Kind.TASK || kind == Kind.HABIT || kind == Kind.CHORE || kind == Kind.SUPPLEMENTS;
+        }
+
+        /** The word a tick on this row carries to the app. */
+        public String tickKind() {
+            switch (kind) {
+                case TASK: return "task";
+                case HABIT: return "habit";
+                case CHORE: return "chore";
+                case SUPPLEMENTS: return "supplements";
+                default: return null;
+            }
         }
 
         @Override public String toString() {
-            return kind + ":" + text + (done ? "(done)" : "") + (time != null ? "@" + time : "");
+            return kind + ":" + text + (done ? "(done)" : "") + (late ? "(late)" : "") + (time != null ? "@" + time : "");
         }
     }
 
@@ -45,7 +77,7 @@ public final class WidgetModel {
     /** "3 left", "All done", or empty. */
     public final String summary;
     public final List<Row> rows;
-    /** How many open tasks did not fit; the app has them. */
+    /** How many open rows did not fit; the app has them. */
     public final int hiddenOpen;
 
     private WidgetModel(String message, String summary, List<Row> rows, int hiddenOpen) {
@@ -58,6 +90,10 @@ public final class WidgetModel {
     public static final String SIGNED_OUT = "Open GetIt and sign in to see your day here.";
     public static final String STALE = "Open GetIt to bring today up to date.";
     public static final String EMPTY = "Nothing planned today.";
+
+    private static String time(JSONObject o) {
+        return o.isNull("time") ? null : o.optString("time", null);
+    }
 
     /**
      * @param snapshotJson what the app last wrote, or null when signed out
@@ -86,11 +122,35 @@ public final class WidgetModel {
             for (int i = 0; i < tasks.length(); i++) {
                 JSONObject t = tasks.optJSONObject(i);
                 if (t == null) continue;
-                String time = t.isNull("time") ? null : t.optString("time", null);
-                Row r = new Row(Kind.TASK, t.optString("id"), t.optString("title"), time, t.optBoolean("done"));
+                Row r = new Row(Kind.TASK, t.optString("id"), t.optString("title"), time(t), t.optBoolean("done"));
                 (r.done ? done : open).add(r);
             }
         }
+        // Everything else the day holds, from the modules shown on the widget.
+        JSONArray items = today.optJSONArray("items");
+        if (items != null) {
+            for (int i = 0; i < items.length(); i++) {
+                JSONObject t = items.optJSONObject(i);
+                if (t == null) continue;
+                Kind kind;
+                switch (t.optString("kind")) {
+                    case "chore": kind = Kind.CHORE; break;
+                    case "supplements": kind = Kind.SUPPLEMENTS; break;
+                    case "event": kind = Kind.EVENT; break;
+                    case "record": kind = Kind.RECORD; break;
+                    default: continue; // a kind from a newer app: left out, not guessed at
+                }
+                boolean tick = t.optBoolean("tick") && (kind == Kind.CHORE || kind == Kind.SUPPLEMENTS);
+                if (!tick && (kind == Kind.CHORE || kind == Kind.SUPPLEMENTS)) kind = Kind.RECORD;
+                Row r = new Row(kind, t.optString("id"), t.optString("title"), time(t), tick && t.optBoolean("done"), t.optBoolean("late"));
+                (r.done ? done : open).add(r);
+            }
+        }
+        // By time, untimed last; the sort keeps tasks before the other rows at
+        // the same time, as the app does.
+        Comparator<Row> byTime = (a, b) -> (a.time != null ? a.time : "99:99").compareTo(b.time != null ? b.time : "99:99");
+        Collections.sort(open, byTime);
+
         List<Row> habits = new ArrayList<>();
         JSONArray hs = today.optJSONArray("habits");
         if (hs != null) {
@@ -101,10 +161,12 @@ public final class WidgetModel {
             }
         }
 
+        int openToDo = 0;
+        for (Row r : open) if (r.tickable()) openToDo++;
         String summary;
-        if (open.isEmpty() && done.isEmpty()) summary = "";
-        else if (open.isEmpty()) summary = "All done";
-        else summary = open.size() + " left";
+        if (openToDo == 0 && done.isEmpty()) summary = "";
+        else if (openToDo == 0) summary = "All done";
+        else summary = openToDo + " left";
 
         int n = Math.max(1, slots);
         List<Row> rows = new ArrayList<>();
@@ -120,8 +182,8 @@ public final class WidgetModel {
         if (open.isEmpty() && done.isEmpty()) {
             rows.add(new Row(Kind.NOTE, "", EMPTY, null, false));
         }
-        // Rows the tasks left free go to habits first, then to tasks already
-        // done, which sit with the other tasks above the habits.
+        // Rows the day left free go to habits first, then to what is already
+        // done, which sits with the rest of the day above the habits.
         int spare = taskRows - rows.size();
         if (habitRows > 0 && spare > 0) habitRows = Math.min(habits.size(), habitRows + spare);
         int room = n - rows.size() - (habitRows > 0 ? habitRows + 1 : 0);

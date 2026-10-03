@@ -1,7 +1,71 @@
 // Draws every icon and store graphic from one mark, so they cannot drift apart.
 // Run: node scripts/make-assets.mjs, then npx capacitor-assets generate --android
+//
+// The launcher icons the person can choose (Settings → Looks, LOOK-10) are
+// Android vector drawables, drawn from the same shapes and colours the Looks
+// panel shows (src/lib/theme-rules.ts). They are tiny, sharp at every size and
+// carry a monochrome layer for Android 13's themed icons (LOOK-11):
+//   node --experimental-strip-types scripts/make-assets.mjs icons
 import sharp from 'sharp'
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs'
+
+if (process.argv.includes('icons')) {
+  await launcherIcons()
+  process.exit(0)
+}
+
+async function launcherIcons() {
+  const { ICONS, iconShapes } = await import('../src/lib/theme-rules.ts')
+  const res = 'android/app/src/main/res'
+  for (const d of ['drawable', 'mipmap-anydpi', 'mipmap-anydpi-v26', 'values']) mkdirSync(`${res}/${d}`, { recursive: true })
+  const head = '<?xml version="1.0" encoding="utf-8"?>\n<!-- Drawn by scripts/make-assets.mjs icons; do not edit by hand. -->\n'
+  const n = (v) => Number(v.toFixed(3)).toString()
+  // A rounded rectangle as path data; a pill when the radius is half its short side.
+  const rect = ({ x, y, w, h, r }) =>
+    `M${n(x + r)},${n(y)}h${n(w - 2 * r)}a${n(r)},${n(r)} 0,0 1,${n(r)},${n(r)}v${n(h - 2 * r)}a${n(r)},${n(r)} 0,0 1,${n(-r)},${n(r)}` +
+    `h${n(-(w - 2 * r))}a${n(r)},${n(r)} 0,0 1,${n(-r)},${n(-r)}v${n(-(h - 2 * r))}a${n(r)},${n(r)} 0,0 1,${n(r)},${n(-r)}z`
+  const paths = (kind, fill, alpha = () => 1) => iconShapes(kind).map((s) => {
+    const p = `<path android:fillColor="${fill(s)}" android:fillAlpha="${alpha(s)}" android:pathData="${rect(s)}" />`
+    return s.rot ? `    <group android:rotation="${s.rot}" android:pivotX="${s.ox}" android:pivotY="${s.oy}">\n        ${p}\n    </group>` : `    ${p}`
+  }).join('\n')
+  const vector = (body, before = '') =>
+    `${head}<vector xmlns:android="http://schemas.android.com/apk/res/android"\n    android:width="108dp" android:height="108dp" android:viewportWidth="108" android:viewportHeight="108">\n${before}${body}\n</vector>\n`
+
+  // One monochrome layer per drawing: the system tints it, keeping only its
+  // alpha, so the rail is drawn fainter than the rows as on the design page.
+  for (const kind of ['rows', 'tick', 'week']) {
+    writeFileSync(`${res}/drawable/ic_icon_mono_${kind}.xml`,
+      vector(paths(kind, () => '#FF000000', (s) => (s.colour === 'rail' ? 0.45 : 1))))
+  }
+  const colours = []
+  for (const icon of ICONS) {
+    const c = { rail: icon.rail, ink: icon.ink, dot: icon.dot }
+    writeFileSync(`${res}/drawable/ic_icon_${icon.key}_fg.xml`, vector(paths(icon.kind, (s) => c[s.colour])))
+    colours.push(`    <color name="ic_icon_${icon.key}_bg">${icon.bg.toUpperCase()}</color>`)
+    // Android 8 and later: the adaptive icon, masked to the phone's shape.
+    writeFileSync(`${res}/mipmap-anydpi-v26/ic_icon_${icon.key}.xml`, `${head}<adaptive-icon xmlns:android="http://schemas.android.com/apk/res/android">
+    <background android:drawable="@color/ic_icon_${icon.key}_bg" />
+    <foreground android:drawable="@drawable/ic_icon_${icon.key}_fg" />
+    <monochrome android:drawable="@drawable/ic_icon_mono_${icon.kind}" />
+</adaptive-icon>
+`)
+    // Android 7: a plain round icon.
+    writeFileSync(`${res}/mipmap-anydpi/ic_icon_${icon.key}.xml`,
+      vector(paths(icon.kind, (s) => c[s.colour]), `    <path android:fillColor="${icon.bg}" android:pathData="M54,0a54,54 0,1 1,0 108a54,54 0,1 1,0 -108z" />\n`))
+  }
+  writeFileSync(`${res}/values/icons.xml`, `${head}<resources>\n${colours.join('\n')}\n</resources>\n`)
+  // The app's own icon (app info, recent apps) is Classic, drawn the same
+  // way. capacitor-assets rewrites these two files, so run this step after it.
+  for (const name of ['ic_launcher', 'ic_launcher_round']) {
+    writeFileSync(`${res}/mipmap-anydpi-v26/${name}.xml`, `${head}<adaptive-icon xmlns:android="http://schemas.android.com/apk/res/android">
+    <background android:drawable="@color/ic_icon_classic_bg" />
+    <foreground android:drawable="@drawable/ic_icon_classic_fg" />
+    <monochrome android:drawable="@drawable/ic_icon_mono_rows" />
+</adaptive-icon>
+`)
+  }
+  console.log(`${ICONS.length} launcher icons written`)
+}
 
 const PAPER = '#f8f4ed', PAPER_DARK = '#15141b', RAIL = '#cfc6b3', INK = '#201e1b', ACCENT = '#b4442a'
 const mark = readFileSync('assets/mark.svg', 'utf8')

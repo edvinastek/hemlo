@@ -31,6 +31,7 @@ import { pickProfile } from './lib/accounts-rules'
 import { rememberedProfile } from './settings/Profiles'
 import { StatsAddress } from './sections/Stats'
 import { watchShoppingTrip } from './lib/shopping'
+import { watchLooks } from './lib/looks'
 
 export default function App() {
   const { session, profile, recovering, setSession, setProfile, setProfiles } = useApp()
@@ -54,6 +55,8 @@ export default function App() {
   // while the app is open.
   // The accounts kept on this device follow the open one (see accounts.ts).
   useEffect(() => { listenForAuthLinks(); watchLifecycle(); watchAccounts() }, [])
+  // The chosen theme, mode and text size, following the open profile.
+  useEffect(() => watchLooks(), [])
   const switching = useAccounts((s) => s.switching)
   const adding = useAccounts((s) => s.adding)
 

@@ -228,8 +228,17 @@ export function parseHex(raw: string): string | null {
 
 /* ---------- contrast ------------------------------------------------------ */
 
-/** The two page colours a marker sits on (--e-paper, light and dark). */
+/** The two page colours a marker sits on (--e-paper, light and dark) in
+ *  the default theme. */
 export const PAPER = { light: '#f8f4ed', dark: '#15141b' } as const
+
+/** The pages of the theme the person chose (LOOK-06): set by looks.ts when
+ *  the theme is applied, so a colour's note speaks of the pages they see. */
+const pages: { light: string; dark: string } = { ...PAPER }
+export function setPagePapers(light: string, dark: string) {
+  pages.light = light
+  pages.dark = dark
+}
 
 /** WCAG relative luminance. */
 export function luminance(hex: string): number {
@@ -247,8 +256,8 @@ export function contrast(a: string, b: string): number {
 /** For a colour typed by hand: which page it will be hard to see on, if
  *  either. 3:1 is the floor for a small non-text mark. */
 export function contrastNote(hex: string): string | null {
-  const light = contrast(hex, PAPER.light) < 3
-  const dark = contrast(hex, PAPER.dark) < 3
+  const light = contrast(hex, pages.light) < 3
+  const dark = contrast(hex, pages.dark) < 3
   if (light && dark) return 'Hard to see on both the light and the dark page.'
   if (light) return 'Hard to see on the light page.'
   if (dark) return 'Hard to see on the dark page.'

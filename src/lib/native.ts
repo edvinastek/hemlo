@@ -1,4 +1,4 @@
-import { Capacitor } from '@capacitor/core'
+import { Capacitor, registerPlugin } from '@capacitor/core'
 
 /** True inside the Android app, false in a browser and on Windows. */
 export const isNative = () => Capacitor.isNativePlatform()
@@ -65,4 +65,56 @@ function toBase64(blob: Blob): Promise<string> {
 export function authRedirect(kind: 'confirm' | 'recovery'): string {
   if (isNative()) return `app.getit.planner://auth-callback?kind=${kind}`
   return `${window.location.origin}${import.meta.env.BASE_URL}?kind=${kind}`
+}
+
+/* ---------- looks, app icon and haptics (android/…/LooksPlugin.java) ---------- */
+
+interface GetItLooks {
+  setTextZoom(options: { percent: number }): Promise<void>
+  fontScale(): Promise<{ scale: number }>
+  systemColours(): Promise<{ accent: string | null }>
+  setIcon(options: { key: string }): Promise<void>
+  getIcon(): Promise<{ key: string; pending: string | null }>
+  haptic(options: { kind: 'tick' | 'hold' }): Promise<void>
+}
+const Looks = registerPlugin<GetItLooks>('GetItLooks')
+const android = () => Capacitor.getPlatform() === 'android'
+
+/** Text drawn at this percent of normal (LOOK-07); Android app only. */
+export async function setTextZoom(percent: number): Promise<boolean> {
+  if (!android()) return false
+  try { await Looks.setTextZoom({ percent }); return true } catch { return false }
+}
+
+/** The phone's own font size setting, 1 being its default. */
+export async function phoneFontScale(): Promise<number> {
+  if (!android()) return 1
+  try { return (await Looks.fontScale()).scale || 1 } catch { return 1 }
+}
+
+/** The main colour of the phone's wallpaper palette (Android 12 and later),
+ *  or null where the phone has none (LOOK-02). */
+export async function systemAccent(): Promise<string | null> {
+  if (!android()) return null
+  try { return (await Looks.systemColours()).accent } catch { return null }
+}
+
+/** The launcher icon this phone shows, and one waiting to be applied when
+ *  the person next leaves the app (LOOK-10). Null outside the Android app. */
+export async function appIcon(): Promise<{ key: string; pending: string | null } | null> {
+  if (!android()) return null
+  try { return await Looks.getIcon() } catch { return null }
+}
+
+/** Switch the launcher icon. It changes when the person leaves the app, so
+ *  the screen they are on is never closed under them. */
+export async function setAppIcon(key: string): Promise<boolean> {
+  if (!android()) return false
+  try { await Looks.setIcon({ key }); return true } catch { return false }
+}
+
+/** A short buzz: 'tick' for a tick, 'hold' when a long press takes hold. */
+export function haptic(kind: 'tick' | 'hold' = 'tick') {
+  if (android()) { void Looks.haptic({ kind }).catch(() => undefined); return }
+  try { navigator.vibrate?.(kind === 'hold' ? 20 : 10) } catch { /* not every browser has it */ }
 }

@@ -233,6 +233,17 @@ Types, then every check that needs nothing but Node. CI runs the same command.
   items, added, renamed (no two with one name), removed and sorted.
 - `readymeal` — ready meals: a portion as the whole pack or the stated serving, the recipe of one line it is kept as,
   and the one already made for the same food found again.
+- `looks` — themes, modes, own colour, text size and app icons (theme-rules.ts): all eleven themes pass every
+  contrast pair (text 4.5:1 on the page, on tints and in fields; goal lines 3:1) in light, dark and black with no
+  colour moved, and every module swatch keeps 3:1 on each page; the default looks as before; 120 own colours in every
+  shade come out readable and say "Adjusted for readability" only when the chosen colour moved; system mode follows
+  the phone and never picks black; text zoom on top of the phone's font size; nine icons with every mark inside the
+  adaptive icon's safe zone.
+- `widget` — what the Today widget is sent: the day's tasks in time order, due habits, and (WID-02) chores, supplement
+  slots, events and dated records only for modules set to "Show on the widget"; ticks of every kind, the last per row
+  winning; a stats widget's tap kept inside the app; the widgets' colours taken only from plain hex values. The
+  Android side has its own tests (android/app/src/test: models, and the real layouts drawn to PNGs in
+  app/build/widget-previews by `./gradlew :app:testDebugUnitTest`).
 
 - `trend` — trend weight: a moving average that weighs each weigh-in by the days since the last (10% a day), deleted
   and empty weigh-ins left out; the weekly rate from a straight line through the trend (none with too few weigh-ins or
@@ -288,6 +299,10 @@ to the test accounts, because they run against the live project.
   what it is sent, ticks applied while open and after a restart, cleared on sign-out.
 - `tasksheet` — a task with a time range (added through the round + menu's "Task"), a checklist note ticked on its
   page, the chip on Today.
+- `widget` — the app’s side of the Android widgets, with a stand-in for the native bridge:
+  what it is sent (with the other modules’ items, the theme and the stats views), ticks applied while open and after
+  a restart, text following the phone’s font size, cleared on sign-out.
+- `tasksheet` — a task with a time range, a checklist note ticked on its page, the chip on Today.
 - `repeat` — a task repeating on days picked in the sheet's calendar (Clear, the count, one day past the eight
   weeks the series fills), what Postgres holds, "every few days", Plan's Year as scrolling months with the
   far day marked as a planned repeat and opening its week, and the header's calendar reaching three years

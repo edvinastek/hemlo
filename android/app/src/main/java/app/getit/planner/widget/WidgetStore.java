@@ -7,14 +7,19 @@ import org.json.JSONArray;
 import org.json.JSONObject;
 
 /**
- * The widget's copy of today, and the ticks made on it that the app has not
- * picked up yet. Both live in private app storage, which the manifest already
+ * The widgets' copies of today and of the saved stats views, the theme they
+ * draw in, and the ticks made on the Today widget that the app has not picked
+ * up yet. All of it lives in private app storage, which the manifest already
  * keeps out of backups and device transfers. Signing out clears them.
  */
 public final class WidgetStore {
     private static final String FILE = "getit_widget";
     private static final String SNAPSHOT = "snapshot";
     private static final String TICKS = "ticks";
+    private static final String LOOKS = "looks";
+    private static final String STATS = "stats";
+    /** Which saved stats view each stats widget shows: "view_<widget id>". */
+    private static final String VIEW_PREFIX = "view_";
     /** A tick the app never collects (the app not opened for weeks) stops
      *  growing the queue here. The app applies the last per row anyway. */
     private static final int MAX_TICKS = 200;
@@ -79,8 +84,40 @@ public final class WidgetStore {
         return ticks;
     }
 
+    /** Signing out forgets the day, the stats and waiting ticks. The theme
+     *  and which view each stats widget was set to show belong to the phone
+     *  and stay, so the widgets look right and keep their choice. */
     public static synchronized void clear(Context c) {
-        prefs(c).edit().clear().apply();
+        prefs(c).edit().remove(SNAPSHOT).remove(TICKS).remove(STATS).apply();
+    }
+
+    public static synchronized String looks(Context c) {
+        return prefs(c).getString(LOOKS, null);
+    }
+
+    public static synchronized void putLooks(Context c, String json) {
+        prefs(c).edit().putString(LOOKS, json).apply();
+    }
+
+    public static synchronized String stats(Context c) {
+        return prefs(c).getString(STATS, null);
+    }
+
+    public static synchronized void putStats(Context c, String json) {
+        prefs(c).edit().putString(STATS, json).apply();
+    }
+
+    /** The saved view a stats widget shows, or null when none was chosen. */
+    public static synchronized String statsView(Context c, int widgetId) {
+        return prefs(c).getString(VIEW_PREFIX + widgetId, null);
+    }
+
+    public static synchronized void setStatsView(Context c, int widgetId, String viewId) {
+        prefs(c).edit().putString(VIEW_PREFIX + widgetId, viewId).apply();
+    }
+
+    public static synchronized void forgetStatsView(Context c, int widgetId) {
+        prefs(c).edit().remove(VIEW_PREFIX + widgetId).apply();
     }
 
     private static JSONArray pending(Context c) {
@@ -97,10 +134,15 @@ public final class WidgetStore {
         if (days == null) return;
         JSONObject day = days.optJSONObject(tick.getString("day"));
         if (day == null) return;
-        JSONArray list = day.optJSONArray("task".equals(tick.getString("kind")) ? "tasks" : "habits");
+        String kind = tick.getString("kind");
+        String name = "task".equals(kind) ? "tasks" : "habit".equals(kind) ? "habits" : "items";
+        JSONArray list = day.optJSONArray(name);
         if (list == null) return;
         for (int i = 0; i < list.length(); i++) {
             JSONObject row = list.getJSONObject(i);
+            // Chores and supplement slots share the items list with rows of
+            // other kinds; the kind keeps a chore and a slot apart.
+            if ("items".equals(name) && !kind.equals(row.optString("kind"))) continue;
             if (tick.getString("id").equals(row.optString("id"))) row.put("done", tick.getBoolean("done"));
         }
     }
