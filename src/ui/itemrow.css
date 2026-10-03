@@ -3,8 +3,10 @@
    Tokens only, so light and dark both work; no shadows. Serif for what the
    person wrote (names, notes), sans for what the app says. */
 
-/* The row keeps the planner's look (app.css .row), with its head as a grid. */
-.ir { display: block; }
+/* The row keeps the planner's look (app.css .row), with its head as a grid.
+   Two classes, so it wins over app.css's .row grid whichever file the build
+   puts last (else an open row's body sat beside a squeezed head). */
+.row.ir { display: block; }
 .ir-head { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: var(--space-2); }
 .ir-main { min-width: 0; }
 .ir .row-name { overflow-wrap: anywhere; }
