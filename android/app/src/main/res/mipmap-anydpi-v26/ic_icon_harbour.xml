@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!-- Drawn by scripts/make-assets.mjs icons; do not edit by hand. -->
 <adaptive-icon xmlns:android="http://schemas.android.com/apk/res/android">
-    <background android:drawable="@color/ic_icon_classic_bg" />
-    <foreground android:drawable="@drawable/ic_icon_classic_fg" />
+    <background android:drawable="@color/ic_icon_harbour_bg" />
+    <foreground android:drawable="@drawable/ic_icon_harbour_fg" />
     <monochrome android:drawable="@drawable/ic_icon_mono_rows" />
 </adaptive-icon>

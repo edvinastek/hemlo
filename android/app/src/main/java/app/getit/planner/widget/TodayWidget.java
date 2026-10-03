@@ -18,7 +18,7 @@ import java.text.SimpleDateFormat;
 import java.util.Date;
 import java.util.Locale;
 
-import app.getit.planner.MainActivity;
+import app.getit.planner.PlannerActivity;
 import app.getit.planner.R;
 
 /**
@@ -136,7 +136,7 @@ public class TodayWidget extends AppWidgetProvider {
     }
 
     private static PendingIntent openApp(Context context) {
-        Intent intent = new Intent(context, MainActivity.class)
+        Intent intent = new Intent(context, PlannerActivity.class)
             .setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_SINGLE_TOP);
         return PendingIntent.getActivity(context, 0, intent, PendingIntent.FLAG_IMMUTABLE | PendingIntent.FLAG_UPDATE_CURRENT);
     }

@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Drawn by scripts/make-assets.mjs icons; do not edit by hand. -->
+<resources>
+    <color name="ic_icon_classic_bg">#F8F4ED</color>
+    <color name="ic_icon_night_bg">#15141B</color>
+    <color name="ic_icon_mono_bg">#FFFFFF</color>
+    <color name="ic_icon_brick_bg">#B4442A</color>
+    <color name="ic_icon_sage_bg">#E5EADD</color>
+    <color name="ic_icon_harbour_bg">#255D9C</color>
+    <color name="ic_icon_ub_bg">#0B0B0B</color>
+    <color name="ic_icon_tick_bg">#F8F4ED</color>
+    <color name="ic_icon_week_bg">#201E1B</color>
+</resources>
