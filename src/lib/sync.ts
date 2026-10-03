@@ -1,6 +1,7 @@
 import { db, setMeta, getMeta } from './db'
 import { supabase } from './supabase'
 import { useApp } from './store'
+import { followReplacedFoods } from './food-replaced'
 import { keepInCatalogue, staleForeign, type SharingRow } from './sharing-rules'
 import {
   LIVE_ONLY, NATURAL_KEYS, PAGE, REFERENCES, afterFilter, cursorAfter, morePages, naturalKey, readCursor, repointPending, repointRow,
@@ -365,7 +366,10 @@ export async function pull(ids: string[]): Promise<number> {
   let count = remoteProfiles?.length ?? 0
   const pullTable = async (table: string): Promise<void> => {
     const scoped = (SYNCED as readonly string[]).includes(table)
-    const incremental = scoped || (CHILDREN as readonly string[]).includes(table)
+    // Foods are fetched by what changed too: the catalogue is 3,000 rows
+    // since 027, and a new or corrected catalogue reaches every device as
+    // just the rows that changed (FOOD-20).
+    const incremental = scoped || (CHILDREN as readonly string[]).includes(table) || table === 'food'
     const cursorKey = `cursor:${table}`
     const cursor = incremental ? readCursor(await getMeta<unknown>(cursorKey, null)) : null
 
@@ -384,8 +388,13 @@ export async function pull(ids: string[]): Promise<number> {
     // A housemate's food is here while it is in the shared cupboard (025);
     // once the server stops showing it (taken out, or they left), it goes.
     if (table === 'food' && userId) {
-      const stale = staleForeign((await db.food.toArray()) as never, new Set(fetched.map((r) => r.id)), userId)
-      if (stale.length) await db.food.bulkDelete(stale)
+      // Fetched by what changed, so which housemates' foods are still
+      // readable is asked for on its own: only their ids, a handful of rows.
+      const { data: readable, error: idsError } = await supabase.from('food').select('id').not('owner_id', 'is', null).neq('owner_id', userId)
+      if (!idsError && readable) {
+        const stale = staleForeign((await db.food.toArray()) as never, new Set((readable as { id: string }[]).map((r) => r.id)), userId)
+        if (stale.length) await db.food.bulkDelete(stale)
+      }
     }
     data = data.filter((r) => !removing.has(`${table}:${r.id}`))
 
@@ -430,6 +439,7 @@ export async function pull(ids: string[]): Promise<number> {
   const first = [...SYNCED, ...CHILDREN, ...CATALOGUE].filter((t) => t !== 'recipe_line')
   await inBatches(first, PULL_PARALLEL, pullTable)
   await pullTable('recipe_line')
+  await followReplacedFoods()
   return count
 }
 

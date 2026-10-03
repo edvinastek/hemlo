@@ -105,6 +105,23 @@ export interface Food {
   /** 'eu': carbohydrate leaves fibre out, as on an EU label (every row
    *  since 026). 'us': the older figure that included it. */
   carb_basis?: 'eu' | 'us'
+  /** Where a shared food came from (027): NEVO's code, its Dutch and English
+   *  names and synonyms as published, its food group and remark, and the
+   *  version of the source. NEVO publishes sodium (mg); salt is worked out
+   *  from it where it is shown (eu-label-rules.ts saltOf). */
+  nevo_code?: number | null
+  name_nl?: string | null
+  name_en?: string | null
+  synonyms?: string | null
+  food_group?: string | null
+  source_note?: string | null
+  source_version?: string | null
+  sodium_mg?: number | null
+  /** Grams per millilitre, so a spoon or a cup of it can be counted (027). */
+  density?: number | null
+  /** The shared food that took this one's place (027): set on old catalogue
+   *  rows NEVO replaced, which are hidden. */
+  replaced_by?: string | null
   deleted_at?: string | null
 }
 
