@@ -11,6 +11,11 @@
 8. Registry entries, rule-switch carry-out, checks, README, screenshots
 
 ## Done
-(see below as steps land)
+- 029 migration + security checks (153 ok), Dexie 10, sync, backup bundle
+- ModuleKit (tabs, def views, sheets), registered sections in ModulePage: training, sleep, projects
+- Training: exercises, routines, session (prefill/previous/rest), planned sessions via series (training-series.ts keepSeries)
+- Sleep: target, debt, regularity, nights, bedtime block series; SleepDay compares with target
+- Projects/Goals: overview, project page (tasks, milestones), board view (registry), goals list/page/sheet, ProjectField/GoalField, loaders loadYearGoals/loadMilestones
+- trend-rules.ts (+check)
 
 ## Left

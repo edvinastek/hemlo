@@ -237,19 +237,23 @@ export const MODULES: ModuleDef[] = [
   {
     key: 'projects',
     name: 'Projects',
-    keywords: ['projects', 'project', 'milestones', 'deadlines', 'clients'],
-    summary: 'Projects, tasks and milestones.',
+    summary: 'Projects with their tasks and milestones, and the goals they work towards.',
+    keywords: ['projects', 'project', 'milestones', 'deadlines', 'clients', 'goals', 'goal'],
     depth: 'light',
     entities: [
       { name: 'project', label: 'Project', fields: [
         { name: 'name', label: 'Project', type: 'text', required: true, width: 240 },
         { name: 'status', label: 'Status', type: 'select', options: ['active','paused','done'], width: 110 },
         { name: 'due_date', label: 'Due', type: 'date', width: 120 },
+        // The goal the project works towards (GEN-36, 029).
+        { name: 'goal_id', label: 'Goal', type: 'lookup', lookup: 'goal', width: 180 },
       ]},
     ],
     views: [
-      { key: 'list', name: 'Projects', type: 'table', entity: 'project', columns: ['name','status','due_date'] },
+      { key: 'list', name: 'Table', type: 'table', entity: 'project', columns: ['name','status','due_date'] },
       { key: 'cards', name: 'Cards', type: 'list', entity: 'project' },
+      // A board by status, ready to use (PRJ-04): a card moves by dragging or from its menu.
+      { key: 'board', name: 'Board', type: 'board', entity: 'project', groupBy: 'status' },
     ],
     rules: [{ name: 'to_goal', sentence: 'A project with a date becomes a goal on the year view.', when: 'project.created', then: 'goal.create' }],
   },

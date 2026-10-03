@@ -1,0 +1,15 @@
+/* Projects and goals: progress, a project's tasks and milestones. */
+@import './training.css';
+
+.prj-progress { display: grid; grid-template-columns: minmax(60px, 1fr) auto; gap: var(--space-2); align-items: center; margin-top: 4px; }
+.prj-progress.is-big { padding: 0 var(--space-4) var(--space-2); }
+.prj-progress.is-big .kit-bar { height: 8px; }
+.prj-row .kit-open { gap: 3px; }
+.prj-add { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: var(--space-2); padding: 0 var(--space-4) var(--space-2); }
+.prj-add input { min-width: 0; box-sizing: border-box; padding: 9px 10px; min-height: 44px; border: 1px solid var(--e-field-line);
+  border-radius: var(--radius-md); background: var(--e-field); color: var(--e-ink); font: inherit; font-size: 15px; }
+.prj-add input[type="date"] { grid-column: 1; font-family: var(--font-sans); font-size: 14px; }
+.prj-add .btn { grid-column: 2; grid-row: 1 / span 2; align-self: stretch; }
+.prj-task-main { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: var(--space-3); align-items: center; min-width: 0; }
+.prj-task.is-done .row-name { color: var(--e-ink-soft); text-decoration: line-through; }
+.prj-current { min-width: 72px; text-align: center; font-size: 16px; }

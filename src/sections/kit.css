@@ -18,7 +18,8 @@
 .kit-list { list-style: none; margin: 0; padding: 0; }
 .kit-row { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: var(--space-2) var(--space-3); align-items: center;
   padding: var(--space-3) var(--space-4); border-bottom: 1px solid var(--e-rule); min-height: 48px; }
-.kit-row > button.kit-open { text-align: left; display: grid; gap: 2px; min-width: 0; padding: 0; min-height: 40px; color: inherit; }
+.kit-open { text-align: left; display: grid; gap: 2px; min-width: 0; padding: 0; min-height: 40px; color: inherit; align-content: center; justify-items: start; }
+button.kit-open { width: 100%; }
 .kit-row .row-name { overflow-wrap: anywhere; }
 .kit-right { display: flex; align-items: center; gap: var(--space-2); font-family: var(--font-sans); font-size: 13px; }
 .kit-num { font-family: var(--font-sans); font-variant-numeric: tabular-nums; }
