@@ -25,6 +25,7 @@ import { useSwipe } from './ui/useSwipe'
 import { useAccounts, watchAccounts } from './lib/accounts'
 import { Switching } from './screens/Switching'
 import { watchCalendarFollows } from './lib/calendar-links'
+import { watchShoppingTrip } from './lib/shopping'
 
 export default function App() {
   const { session, profile, recovering, setSession, setProfile, setProfiles } = useApp()
@@ -56,6 +57,8 @@ export default function App() {
 
   // The home-screen widget shows the open profile's day.
   useEffect(() => { watchWidget(profile?.id ?? null) }, [profile?.id])
+  // The shopping trip on the plan follows the list (SHOP-20).
+  useEffect(() => watchShoppingTrip(profile?.id ?? null), [profile?.id])
 
   // Session first: the app opens signed in wherever it was left.
   //

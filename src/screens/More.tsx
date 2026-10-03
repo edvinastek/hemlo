@@ -13,6 +13,7 @@ import { BuiltModules } from '../modules/ModuleBuilder'
 import { Dropdown } from '../ui/Dropdown'
 import { PlanningSettings } from '../settings/PlanningSettings'
 import { FoodSettings } from '../settings/FoodSettings'
+import { ShoppingSettings } from '../settings/ShoppingSettings'
 import { NavSettings } from '../settings/NavSettings'
 import { ColourSettings } from '../settings/ColourSettings'
 import { HolidaySettings } from '../settings/HolidaySettings'
@@ -176,6 +177,7 @@ function ProfilePanel() {
         </div>
       </div>
       <FoodSettings />
+      <ShoppingSettings />
     </>
   )
 }
