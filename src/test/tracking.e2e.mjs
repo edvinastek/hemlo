@@ -266,7 +266,10 @@ const before = await one(`select
 await openSettings(p, 'data')
 await p.setInputFiles('input[type=file]', exported)
 await p.locator('text=/records from export.getit.json added/').waitFor({ timeout: 15000 })
-await settle(p)
+// A whole export goes up row by row, parents first: wait until all of it has
+// been sent (it can take longer than the usual half minute) before counting.
+await p.waitForTimeout(600)
+await drained(p, 120000)
 r = await one(`select
   (select count(*) from public.habit where ${theirs} and name in ('Stretch','Water')) habits,
   (select count(*) from public.habit_log l join public.habit h on h.id = l.habit_id where h.${theirs} and l.done) ticks,

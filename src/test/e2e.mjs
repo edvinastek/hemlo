@@ -196,7 +196,12 @@ export async function addTask(p) {
 export async function todayPart(p, label, timeout = 30000) {
   const tab = p.getByRole('tab', { name: label, exact: true })
   const show = p.getByRole('button', { name: 'Show part of today' })
-  await tab.or(show).first().waitFor({ timeout })
+  await tab.or(show).first().waitFor({ timeout }).catch(async (e) => {
+    // Say what was there instead, so a failed run can be read from its log.
+    console.log(`todayPart(${label}) at ${p.url()}: tabs ${JSON.stringify(await p.getByRole('tab').allTextContents())}`)
+    console.log((await p.locator('body').innerText().catch(() => '')).slice(0, 600))
+    throw e
+  })
   if (await tab.count()) return tab.first().click()
   await show.click()
   await p.getByRole('option', { name: label === 'Today' ? 'All' : label, exact: true }).click({ timeout })
