@@ -114,6 +114,10 @@ Types, then every check that needs nothing but Node. CI runs the same command.
 - `visibility` — only what is switched on appears: the one rule for which modules are on (a built module must still
   exist), the five switches per module (Today, Plan, widget, Stats, reminders) and how one is saved, what each template
   sets (every module's switches, Today's cards only for modules kept on), and which built-in rules the editor shows.
+- `settingsui` — the rules behind Settings: search in settings, profiles (which one opens, names, which can go),
+  signing out with changes waiting, the merges list in words (refused, never "[object Object]"), the time zone
+  following the phone or a chosen one, height emptied as not known, tips shown once and "Make GetIt yours" after
+  three days, what moved where (once, only to people from before), and the Modules page's search.
 
 ## Browser checks
 

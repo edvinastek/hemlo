@@ -33,6 +33,7 @@ import { saveTipState, tipState } from '../lib/tips'
 import { setMeta } from '../lib/db'
 import { reviewSettings, setReviewTime, DEFAULT_EXTENSION_LIMIT } from '../lib/review'
 import { cleanLimit } from '../lib/review-rules'
+import { heightFrom } from '../lib/profile-fields-rules'
 import { exportBundle, importBundle } from '../lib/bundle'
 import { getReminderSettings, setReminderSettings, requestPermission, type ReminderSettings } from '../lib/notify'
 import type { ModuleInstance } from '../lib/types'
@@ -689,16 +690,6 @@ function DeleteAccount() {
           </div>}
     </div>
   )
-}
-
-/** Height as typed (HLT-06): empty is "not known" (null), never 0; a number
- *  from 50 to 260 cm (a comma counts as a point); anything else is refused
- *  (undefined). */
-export function heightFrom(v: string): number | null | undefined {
-  const t = v.trim().replace(',', '.')
-  if (!t) return null
-  const n = Number(t)
-  return Number.isFinite(n) && n >= 50 && n <= 260 ? Math.round(n * 10) / 10 : undefined
 }
 
 /** Settings → Looks (SET-01). The colours of the modules live here; the
