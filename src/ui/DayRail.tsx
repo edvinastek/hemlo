@@ -19,13 +19,15 @@ import { sessionLinkForTask } from '../lib/training'
 import type { Task } from '../lib/types'
 import { DragList, type MenuAction, type RailEntry } from './DragList'
 import { ItemRow, type RowAction } from './ItemRow'
+import { PUSH_STEPS, pushWords } from './TaskRow'
+import type { MenuItem } from './MoreMenu'
 import { TaskSheet } from './TaskSheet'
 import { CopySheet } from './CopySheet'
 import { NotesPage } from './NotesPage'
 import { PlannedDay } from './PlannedDay'
 import { offerUndo } from './Undo'
 import { FirstTip } from './Tip'
-import { AfterDoneSheet, AskDoneSheet, MoveToSheet, OpenRecord, PushTimeSheet, dayWords } from './RailSheets'
+import { AfterDoneSheet, AskDoneSheet, MoveToSheet, OpenRecord, PushPickSheet, PushTimeSheet, dayWords } from './RailSheets'
 import './itemrow.css'
 
 /** Today's date on this phone, kept fresh: past midnight it moves on by
@@ -44,6 +46,24 @@ export function useToday(): { today: string; now: string } {
     return () => { window.clearInterval(id); document.removeEventListener('visibilitychange', seen) }
   }, [])
   return state
+}
+
+/** The rail's two set-once choices, for the page's ⋮ on Today and Plan's
+ *  Day (CALM-03, CALM-17): the timeline or parts of the day, and push
+ *  buttons on the rows (off by default). Each item says what it will do. */
+export function useRailMenu(): MenuItem[] {
+  const profileId = useApp((s) => s.profile?.id ?? null)
+  const prefs = useTodayPrefs()
+  if (!profileId) return []
+  return [
+    prefs.layout === 'time'
+      ? { label: 'Group by part of the day', onSelect: () => void saveTodayPrefs(profileId, (p) => ({ ...p, layout: 'parts' })) }
+      : { label: 'Show as one timeline', onSelect: () => void saveTodayPrefs(profileId, (p) => ({ ...p, layout: 'time' })) },
+    {
+      label: prefs.push_on_rows ? 'Hide push buttons on rows' : 'Show push buttons on rows',
+      onSelect: () => void saveTodayPrefs(profileId, (p) => ({ ...p, push_on_rows: !p.push_on_rows })),
+    },
+  ]
 }
 
 /** The phone's Back closes a row open in place (TOD-10): opening it adds a
@@ -86,6 +106,7 @@ type Sheet =
   | { kind: 'move'; task: Task }
   | { kind: 'note'; task: Task }
   | { kind: 'push'; task: Task; minutes: number }
+  | { kind: 'pushpick'; task: Task }
   | { kind: 'ask'; title: string; yes: () => void }
   | { kind: 'after'; task: Task }
   | { kind: 'record'; moduleKey: string; id: string }
@@ -236,24 +257,29 @@ export function DayRail({ day, where, filter, emptyText }: {
     setSheet({ kind: 'edit', task: copy, isNew: true })
   }
 
-  /** The row's quick actions, the same in the open row and in its ⋮ menu. */
+  /** The row's quick actions, the same in the open row and in its ⋮ menu.
+   *  The everyday ones are `main`: the open row shows them as buttons and
+   *  keeps the rest under "More…". Push 15 / 30 / 60 live here since v17,
+   *  not on the collapsed row (CALM-06). */
   function actionsOf(item: DayItem): RowAction[] {
     const t = item.task
     if (t) {
       const skipped = t.status === 'dropped'
       const route = tapRoute(item)
+      const canPush = !t.locked && t.status !== 'done' && !skipped
       return [
-        ...(route ? [{ label: 'Open the shopping list', run: () => navigate(route) }] : []),
+        ...(route ? [{ label: 'Open the shopping list', main: true, run: () => navigate(route) }] : []),
         // A session task's tick opens the session; this ticks it without one.
         ...(t.module_key === 'training' || t.source === 'workout'
-          ? [{ label: t.status === 'done' ? 'Mark not done' : 'Mark done', run: () => void tickTask(t) }] : []),
-        { label: 'Edit', run: () => setSheet({ kind: 'edit', task: t, isNew: false }) },
+          ? [{ label: t.status === 'done' ? 'Mark not done' : 'Mark done', main: true, run: () => void tickTask(t) }] : []),
+        { label: 'Edit', main: true, run: () => setSheet({ kind: 'edit', task: t, isNew: false }) },
+        ...(canPush ? PUSH_STEPS.map((m) => ({ label: `Push ${pushWords(m)}`, push: pushWords(m), main: true, run: () => void push(t, m) })) : []),
+        { label: 'Move to…', main: true, run: () => setSheet({ kind: 'move', task: t }) },
+        skipped
+          ? { label: 'Bring back', main: true, run: async () => offerUndo(`${t.title || 'Task'} brought back`, await act.unskip(t)) }
+          : { label: 'Skip', main: true, run: async () => offerUndo(`${t.title || 'Task'} skipped`, await act.skip(t)) },
         { label: 'Copy to…', run: () => setSheet({ kind: 'copy', task: t }) },
         { label: 'Duplicate', run: () => duplicate(t) },
-        { label: 'Move to…', run: () => setSheet({ kind: 'move', task: t }) },
-        skipped
-          ? { label: 'Bring back', run: async () => offerUndo(`${t.title || 'Task'} brought back`, await act.unskip(t)) }
-          : { label: 'Skip', run: async () => offerUndo(`${t.title || 'Task'} skipped`, await act.skip(t)) },
         { label: 'Open note as page', run: () => setSheet({ kind: 'note', task: t }) },
         { label: 'Delete', danger: true, run: async () => { setExpanded(null); offerUndo(`${t.title || 'Task'} deleted`, await act.remove(t)) } },
       ]
@@ -276,28 +302,24 @@ export function DayRail({ day, where, filter, emptyText }: {
     const item = byKey.get(entry.key)
     if (!item) return []
     const isOpen = expanded === item.key
+    // The three pushes are one "Push…" here, so the menu stays short; the
+    // open row shows them as buttons.
+    const actions = actionsOf(item)
+    const at = actions.findIndex((a) => a.push)
+    const listed = actions.filter((a) => !a.push)
+    if (at >= 0 && item.task) listed.splice(at, 0, { label: 'Push…', run: () => setSheet({ kind: 'pushpick', task: item.task! }) })
     return [
       { label: isOpen ? 'Close' : 'Open here', run: () => setExpanded(isOpen ? null : item.key) },
-      ...actionsOf(item),
+      ...listed,
     ]
   }
 
   const templates = settings.note_templates
   const empty = shown.length === 0
 
+  // The timeline / parts of day switch is in the page's ⋮ (useRailMenu).
   return (
     <div className="day-rail">
-      {!empty && (
-        <div className="rail-bar">
-          <span className="rail-bar-title" id={`rail-layout-${where}`}>Show the day</span>
-          <div className="seg" role="group" aria-labelledby={`rail-layout-${where}`}>
-            <button type="button" aria-pressed={layout === 'time'}
-              onClick={() => void saveTodayPrefs(profile.id, (p) => ({ ...p, layout: 'time' }))}>Timeline</button>
-            <button type="button" aria-pressed={layout === 'parts'}
-              onClick={() => void saveTodayPrefs(profile.id, (p) => ({ ...p, layout: 'parts' }))}>Parts of day</button>
-          </div>
-        </div>
-      )}
       {/* Tips, one at a time (ONB-12, ONB-13): holding, the first time
           there is a task to hold; on Today, a few days in, Make GetIt yours. */}
       <FirstTip ids={[...(entries.some((e) => e.type === 'item' && e.task && !e.static) ? ['first-hold'] : []), ...(where === 'today' ? ['make-yours'] : [])]} />
@@ -326,6 +348,7 @@ export function DayRail({ day, where, filter, emptyText }: {
                 onCheck={(at) => void check(item, at)}
                 onPart={(id) => void toggleSupplement(id, item.day)}
                 actions={actionsOf(item)}
+                showPush={prefs.push_on_rows}
                 afterDoneName={waiting ? templates.find((x) => x.id === waiting)?.name ?? null : null}
               />
             )
@@ -348,6 +371,10 @@ export function DayRail({ day, where, filter, emptyText }: {
             const r = await act.pushToTime(sheet.task, time)
             offerUndo(`${sheet.task.title || 'Task'} set for ${time}`, r.undo)
           }} />
+      )}
+      {sheet?.kind === 'pushpick' && (
+        <PushPickSheet task={sheet.task} onClose={() => setSheet(null)}
+          onPush={(m) => { const t = sheet.task; setSheet(null); void push(t, m) }} />
       )}
       {sheet?.kind === 'ask' && <AskDoneSheet title={sheet.title} onYes={sheet.yes} onClose={() => setSheet((s) => (s?.kind === 'ask' ? null : s))} />}
       {sheet?.kind === 'after' && <AfterDoneSheet task={sheet.task} onClose={() => setSheet(null)} />}

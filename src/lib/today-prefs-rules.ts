@@ -7,7 +7,10 @@
  *    and evening (TOD-02).
  *  - add: what the + menu offers first. Ordered by how often each is used,
  *    unless the person arranged it themselves; anything they hide is still
- *    under "More", so nothing is lost. */
+ *    under "More", so nothing is lost.
+ *  - push_on_rows: Push 15 / 30 / 60 on every open task's row, as before
+ *    version 17. Off by default (CALM-06, CALM-17): the pushes live in the
+ *    open row and its ⋮; this density choice in the page ⋮ brings them back. */
 
 export type TodayLayout = 'time' | 'parts'
 
@@ -23,9 +26,10 @@ export interface AddPrefs {
 export interface TodayPrefs {
   layout: TodayLayout
   add: AddPrefs
+  push_on_rows: boolean
 }
 
-export const DEFAULT_TODAY_PREFS: TodayPrefs = { layout: 'time', add: { uses: {}, hidden: [], order: [] } }
+export const DEFAULT_TODAY_PREFS: TodayPrefs = { layout: 'time', add: { uses: {}, hidden: [], order: [] }, push_on_rows: false }
 
 /** The short menu holds this many; the rest are under "More". */
 export const MENU_SIZE = 6
@@ -49,6 +53,7 @@ export function readTodayPrefs(v: unknown): TodayPrefs {
   return {
     layout: r.layout === 'parts' ? 'parts' : 'time',
     add: { uses, hidden: keyList(a.hidden), order: keyList(a.order) },
+    push_on_rows: r.push_on_rows === true,
   }
 }
 

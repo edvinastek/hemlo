@@ -16,24 +16,30 @@
 .today-page .tabs button { flex: none; white-space: nowrap; max-width: 16ch; overflow: hidden; text-overflow: ellipsis; }
 
 /* ---------- Today's own header (TOD-01) ---------------------------------- */
-.today-head .page-date { margin: 0; }
+/* The date and the page's one ⋮, on one line (CALM-03). */
+.today-title { display: flex; align-items: center; gap: var(--space-2); min-width: 0; }
+.today-head .page-date { margin: 0; min-width: 0; }
 .today-figure { margin-top: var(--space-2); max-width: 320px; }
-/* Tomorrow, Inbox, Other days: three plain links under the date. */
-.today-links { display: flex; flex-wrap: wrap; gap: var(--space-2); margin-top: var(--space-3); }
+/* One quiet "Tomorrow ›" under the date, and the "Show" choice when the
+   day has more parts than fit as tabs. */
+.today-links { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--space-2); margin-top: var(--space-2); }
 .today-link {
-  display: inline-flex; align-items: center; gap: 6px; min-height: 36px; padding: 6px 12px;
-  border: 1px solid var(--e-rule); border-radius: var(--radius-pill);
-  font-family: var(--font-sans); font-size: 13px; color: var(--e-ink); text-decoration: none;
+  display: inline-flex; align-items: center; gap: 4px; min-height: 40px; padding: 6px 0;
+  font-family: var(--font-sans); font-size: 14px; color: var(--e-accent); text-decoration: none;
 }
-.today-link:hover, .today-link:focus-visible { background: var(--e-tint); }
-.today-count {
-  min-width: 18px; padding: 0 5px; border-radius: var(--radius-pill); background: var(--e-accent);
-  color: var(--e-paper); font-size: 11px; line-height: 18px; text-align: center;
+.today-link:focus-visible { outline: 2px solid var(--e-accent); outline-offset: 2px; border-radius: var(--radius-sm); }
+.today-show { display: flex; align-items: center; gap: 6px; font-family: var(--font-sans); font-size: 13px; color: var(--e-ink-soft); }
+.today-show .dd-button {
+  min-height: 40px; padding: 6px 10px; border: 1px solid var(--e-rule); border-radius: var(--radius-pill);
+  background: transparent; color: var(--e-ink); font-size: 13px;
 }
 
 /* ---------- carry-over: one row that opens (TOD-03) ---------------------- */
 .carry { margin: var(--space-3) var(--space-4) 0; border: 1px solid var(--e-rule); border-radius: var(--radius-md); }
+.carry-top { display: flex; align-items: center; padding-right: var(--space-2); }
+.carry-more { flex: none; }
 .carry-head {
+  flex: 1 1 auto; min-width: 0;
   display: flex; align-items: center; gap: var(--space-2); width: 100%; min-height: 48px;
   padding: var(--space-2) var(--space-3); text-align: left; font-family: var(--font-sans); font-size: 14px; color: var(--e-ink);
 }
@@ -43,11 +49,7 @@
 }
 .carry-title { flex: 1; min-width: 0; }
 .carry-toggle { color: var(--e-accent); font-size: 12px; white-space: nowrap; }
-.carry-all {
-  display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2);
-  padding: 0 var(--space-3) var(--space-2); font-family: var(--font-sans); font-size: 12px; color: var(--e-ink-soft);
-}
-.carry-all .chip, .carry .review-actions .chip { min-height: 32px; padding: 4px 11px; }
+.carry .review-actions .chip { min-height: 32px; padding: 4px 11px; }
 .carry .review-list { margin-top: 0; border-top: 1px solid var(--e-rule); }
 .carry .review-item:last-child { border-bottom: 0; }
 .carry .review-item { padding-left: var(--space-3); padding-right: var(--space-3); }

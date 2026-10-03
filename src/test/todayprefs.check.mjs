@@ -21,6 +21,9 @@ is('stored counts and lists are cleaned',
   readTodayPrefs({ add: { uses: { task: 3, food: -1, 'bad key!': 4, inbox: 'x', event: 2.6 }, hidden: ['food', 'food', 7], order: 'no' } }).add,
   { uses: { task: 3, event: 3 }, hidden: ['food'], order: [] })
 is('a broken value never throws', readTodayPrefs([1, 2]), DEFAULT_TODAY_PREFS)
+is('push buttons on rows: off by default', DEFAULT_TODAY_PREFS.push_on_rows, false)
+is('push buttons on rows: kept when chosen', readTodayPrefs({ push_on_rows: true }).push_on_rows, true)
+is('push buttons on rows: anything but true is off', readTodayPrefs({ push_on_rows: 'yes' }).push_on_rows, false)
 
 const E = (key) => ({ key, label: key, hint: '' })
 const all = ['task', 'inbox', 'food', 'event', 'habits', 'learning', 'finance', 'sleep'].map(E)
