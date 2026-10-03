@@ -52,12 +52,16 @@ export const PLAN: PageInfo = { key: 'plan', label: 'Plan', route: '/plan', glyp
 export const MORE: PageInfo = { key: 'more', label: 'More', route: '/more', glyph: '⋯', primary: false, module: null }
 export const FOOD: PageInfo = { key: 'food', label: 'Food', route: '/food', glyph: '◍', primary: false, module: 'nutrition' }
 export const SHOP: PageInfo = { key: 'shop', label: 'Shop', route: '/shop', glyph: '⛬', primary: false, module: 'shopping' }
+/** The Modules page (NAV-20): every module that is on, as a grid, with the
+ *  shared search. Always there (its address always opens), but in no module
+ *  list: the hub style puts it at the end of the bar, and More links to it. */
+export const MODULES_PAGE: PageInfo = { key: 'modules', label: 'Modules', route: '/modules', glyph: '⊞', primary: false, module: null }
 
 /** The pages that are always there, for the moment before modules have loaded. */
 export const FIXED_PAGES: PageInfo[] = [TODAY, PLAN, MORE]
 
 /** Pages that can never be hidden or moved away from their place. */
-export const isFixed = (key: string) => key === 'today' || key === 'plan' || key === 'more'
+export const isFixed = (key: string) => key === 'today' || key === 'plan' || key === 'more' || key === 'modules'
 
 const MODULE_KEY = /^[a-z0-9_]{1,40}$/
 
@@ -124,17 +128,67 @@ export interface PageList {
   bar: PageInfo[]
 }
 
-export function pageList(instances: InstanceLike[], built: BuiltLike[], nav: Pick<NavSettings, 'order' | 'hidden'>): PageList {
+export function pageList(instances: InstanceLike[], built: BuiltLike[],
+  nav: Pick<NavSettings, 'order' | 'hidden'> & Partial<Pick<NavSettings, 'style' | 'pinned'>>): PageList {
   const all = orderPages(availablePages(instances, built), nav.order)
+  if (nav.style === 'hub') return { all, bar: hubBar(all, nav.pinned ?? []) }
   const hidden = new Set(nav.hidden.filter((k) => !isFixed(k)))
   return { all, bar: all.filter((p) => !hidden.has(p.key)) }
+}
+
+/** The hub style's bar (NAV-20): Today, Plan, the pages pinned from the
+ *  Modules page, Stats when it is on, and the Modules page, which holds
+ *  everything else, More included. Pins of pages that have gone (a module
+ *  switched off) are passed over. */
+export function hubBar(all: PageInfo[], pinned: string[]): PageInfo[] {
+  const byKey = new Map(all.map((p) => [p.key, p]))
+  const out: PageInfo[] = all.filter((p) => p.primary)
+  for (const k of pinned) {
+    const p = byKey.get(k)
+    if (p && !isFixed(k) && !out.includes(p)) out.push(p)
+  }
+  const stats = byKey.get('m:stats')
+  if (stats && !out.includes(stats)) out.push(stats)
+  out.push(MODULES_PAGE)
+  return out
+}
+
+/** Pin a page to the bar (NAV-21): it joins the pinned pages (at most two,
+ *  the oldest pin making room), comes off the hidden list, and moves to
+ *  just after Plan in the order, so every style shows it near the front. */
+export function pinPage(nav: Pick<NavSettings, 'order' | 'hidden' | 'pinned'>, key: string, all: PageInfo[]): Pick<NavSettings, 'order' | 'hidden' | 'pinned'> {
+  if (isFixed(key)) return nav
+  const pinned = [...nav.pinned.filter((k) => k !== key), key].slice(-2)
+  const middle = all.filter((p) => !isFixed(p.key)).map((p) => p.key)
+  const order = ['today', 'plan', key, ...middle.filter((k) => k !== key), 'more']
+  return { pinned, hidden: nav.hidden.filter((k) => k !== key), order }
+}
+
+/** Take a pin away; the page stays where it is in the order. */
+export function unpinPage(nav: Pick<NavSettings, 'pinned'>, key: string): Pick<NavSettings, 'pinned'> {
+  return { pinned: nav.pinned.filter((k) => k !== key) }
+}
+
+/** The modules on the Modules page, most used first (NAV-20), then in the
+ *  app's order. `uses` counts how often each page was opened on this device. */
+export function orderByUse(pages: PageInfo[], uses: Record<string, number>): PageInfo[] {
+  const rank = new Map(pages.map((p, i) => [p.key, i]))
+  return [...pages].sort((a, b) => (uses[b.key] ?? 0) - (uses[a.key] ?? 0) || rank.get(a.key)! - rank.get(b.key)!)
+}
+
+/** One more opening of a page, kept small: counts above a thousand are
+ *  halved, so what is used now outranks what was used a year ago. */
+export function countUse(uses: Record<string, number>, key: string): Record<string, number> {
+  const next = { ...uses, [key]: (uses[key] ?? 0) + 1 }
+  if (next[key] > 1000) for (const k of Object.keys(next)) next[k] = Math.floor(next[k] / 2)
+  return next
 }
 
 /** The page key a path belongs to, or null for a path that is no page. */
 export function pageForPath(pathname: string): string | null {
   const path = pathname.replace(/\/+$/, '') || '/'
   if (path === '/') return 'today'
-  const fixed: Record<string, string> = { '/plan': 'plan', '/food': 'food', '/shop': 'shop', '/more': 'more' }
+  const fixed: Record<string, string> = { '/plan': 'plan', '/food': 'food', '/shop': 'shop', '/more': 'more', '/modules': 'modules' }
   if (fixed[path]) return fixed[path]
   const m = /^\/m\/([^/]+)$/.exec(path)
   if (m) {
@@ -157,6 +211,10 @@ export function pageAllowed(key: string | null, all: PageInfo[]): boolean {
  *  hidden one, opened from settings) steps from its place in the full list. */
 export function neighbour(list: PageList, current: string | null, dir: 1 | -1): PageInfo | null {
   if (!current) return null
+  // On the bar: the next one along the bar (the bar keeps the full list's
+  // order, and in the hub style it also ends with the Modules page).
+  const b = list.bar.findIndex((p) => p.key === current)
+  if (b >= 0) return list.bar[b + dir] ?? null
   const onBar = new Set(list.bar.map((p) => p.key))
   const i = list.all.findIndex((p) => p.key === current)
   if (i < 0) return null
@@ -172,10 +230,12 @@ export function neighbour(list: PageList, current: string | null, dir: 1 | -1): 
  *  stay at the left, More at the right, and the rest scroll between them. */
 export function rowLayout(bar: PageInfo[]): { fixedLeft: PageInfo[]; scroll: PageInfo[]; fixedRight: PageInfo[] } | null {
   if (bar.length <= 5) return null
+  // The way to everything else (More, or the hub's Modules page) holds the right.
+  const end = (p: PageInfo) => p.key === 'more' || p.key === 'modules'
   return {
     fixedLeft: bar.filter((p) => p.primary),
-    scroll: bar.filter((p) => !p.primary && p.key !== 'more'),
-    fixedRight: bar.filter((p) => p.key === 'more'),
+    scroll: bar.filter((p) => !p.primary && !end(p)),
+    fixedRight: bar.filter(end),
   }
 }
 

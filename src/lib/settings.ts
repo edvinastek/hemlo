@@ -38,9 +38,10 @@ export interface Commute {
   km: number | null
 }
 
-/** How the page bar at the bottom is laid out. */
-export type NavStyle = 'row' | 'two_rows' | 'three_rows' | 'drawer' | 'fan'
-export const NAV_STYLES: NavStyle[] = ['row', 'two_rows', 'three_rows', 'drawer', 'fan']
+/** How the page bar at the bottom is laid out. 'hub' (NAV-20): Today, Plan,
+ *  the pinned pages, Stats and the Modules page, which holds the rest. */
+export type NavStyle = 'row' | 'two_rows' | 'three_rows' | 'drawer' | 'fan' | 'hub'
+export const NAV_STYLES: NavStyle[] = ['row', 'two_rows', 'three_rows', 'drawer', 'fan', 'hub']
 
 export interface NavSettings {
   style: NavStyle
@@ -52,6 +53,9 @@ export interface NavSettings {
   hidden: string[]
   /** Swipe sideways on a page to go to the next or previous one. */
   swipe: boolean
+  /** Pages pinned to the bar from the Modules page (NAV-21), at most two,
+   *  newest last: in the hub style they are the bar's own pages. */
+  pinned: string[]
 }
 
 export interface ColourSettings {
@@ -176,7 +180,7 @@ export const DEFAULT_SETTINGS: ProfileSettings = {
   today_metric: 'kcal',
   meal_times: {},
   stock_auto: false,
-  nav: { style: 'row', order: [], hidden: [], swipe: true },
+  nav: { style: 'row', order: [], hidden: [], swipe: true, pinned: [] },
   colours: { on: true, modules: {} },
   holidays: { countries: [], colours: {} },
   stats: { show_disabled: false },
@@ -383,6 +387,7 @@ function readNav(v: unknown, d: NavSettings): NavSettings {
     // Today, Plan and More can never be hidden: without them there is no way back.
     hidden: pageKeys(n.hidden).filter((k) => k !== 'today' && k !== 'plan' && k !== 'more'),
     swipe: bool(n.swipe, d.swipe),
+    pinned: pageKeys(n.pinned).filter((k) => k !== 'today' && k !== 'plan' && k !== 'more').slice(-2),
   }
 }
 

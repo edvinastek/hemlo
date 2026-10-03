@@ -20,6 +20,7 @@ import { More } from './screens/More'
 import { Onboarding } from './screens/Onboarding'
 import { readSettings } from './lib/settings'
 import { ModulePage } from './modules/ModulePage'
+import { Modules } from './screens/Modules'
 import { usePages, pageForPath, pageAllowed, neighbour, type Pages } from './lib/pages'
 import { useSwipe } from './ui/useSwipe'
 import { useAccounts, watchAccounts } from './lib/accounts'
@@ -164,6 +165,7 @@ export default function App() {
         <Route path="/food" element={<Only page="food" pages={pages}><Food /></Only>} />
         <Route path="/shop" element={<Only page="shop" pages={pages}><Shop /></Only>} />
         <Route path="/more" element={<More />} />
+        <Route path="/modules" element={<Modules />} />
         <Route path="/m/:key" element={<ModuleRoute pages={pages} />} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>

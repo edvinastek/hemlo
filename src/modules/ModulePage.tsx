@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
+import { useSearchParams } from 'react-router-dom'
 import { format } from 'date-fns'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { useApp } from '../lib/store'
@@ -162,6 +163,15 @@ function Generic({ def, profileId, onEdit }: { def: ModuleDef; profileId: string
   const viewType = view?.type
   const searchable = !!recs && recs.length >= SEARCH_FROM && (viewType === 'list' || viewType === 'table' || viewType === 'board')
   const shown = useRecordSearch(entity, recs, lookups, searchable ? query : '')
+  // ?open=<id>: a record found by the Modules page's search opens in its sheet.
+  const [params, setParams] = useSearchParams()
+  const openId = params.get('open')
+  useEffect(() => {
+    if (!openId || !recs || !entity) return
+    const rec = recs.find((r) => r.id === openId)
+    if (rec) setSheet({ rec, entity: entity.name })
+    setParams({}, { replace: true })
+  }, [openId, recs, entity, setParams])
 
   if (!entity) {
     return (

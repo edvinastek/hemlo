@@ -1,6 +1,6 @@
 import { Children, useCallback, useEffect, useLayoutEffect, useRef, useState, type CSSProperties, type ReactNode, type RefObject, type TouchEvent } from 'react'
 import { NavLink, useLocation } from 'react-router-dom'
-import { FIXED_PAGES, pageForPath, type PageInfo, type Pages } from '../lib/pages'
+import { FIXED_PAGES, noteUse, pageForPath, type PageInfo, type Pages } from '../lib/pages'
 import { drawerLayout, fanLayout, fanRows, gridLayout, rowLayout } from '../lib/pages-rules'
 import { useNarrow } from './useNarrow'
 import { useLayout } from './useLayout'
@@ -22,6 +22,11 @@ export function Nav({ pages }: { pages: Pages | undefined }) {
   const bar = pages?.bar ?? FIXED_PAGES
   const style = pages?.nav.style ?? 'row'
   useNavHeight(navRef, narrow && layout === 'bar')
+  // Each page opened is counted, so the Modules page can put the most used
+  // first (NAV-20). Today, Plan and the settings are not modules.
+  useEffect(() => {
+    if (current && current !== 'today' && current !== 'plan' && current !== 'more' && current !== 'modules') noteUse(current)
+  }, [current])
 
   if (layout === 'rail') {
     // The drawer keeps its idea (a few pages, the rest behind a button); the
@@ -40,6 +45,8 @@ export function Nav({ pages }: { pages: Pages | undefined }) {
   if (style === 'two_rows' || style === 'three_rows') return <GridBar navRef={navRef} bar={bar} rows={style === 'two_rows' ? 2 : 3} current={current} />
   if (style === 'drawer') return <DrawerBar navRef={navRef} bar={bar} current={current} pathname={pathname} />
   if (style === 'fan') return <FanBar navRef={navRef} bar={bar} current={current} pathname={pathname} />
+  // The hub style (NAV-20) is a short row: its bar already holds only Today,
+  // Plan, the pinned pages, Stats and the Modules page.
   return <RowBar navRef={navRef} bar={bar} current={current} />
 }
 
@@ -179,8 +186,8 @@ function GridBar({ navRef, bar, rows, current }: { navRef: RefObject<HTMLElement
  *  one, sits under More (app.css), clear of the page's content. */
 function RailBar({ navRef, bar, current }: { navRef: RefObject<HTMLElement>; bar: PageInfo[]; current: string | null }) {
   const top = bar.filter((p) => p.primary)
-  const rest = bar.filter((p) => !p.primary && p.key !== 'more')
-  const foot = bar.filter((p) => p.key === 'more')
+  const rest = bar.filter((p) => !p.primary && p.key !== 'more' && p.key !== 'modules')
+  const foot = bar.filter((p) => p.key === 'more' || p.key === 'modules')
   return (
     <nav ref={navRef} className="bottom-nav nav nav-rail" aria-label="Pages">
       {top.map((p) => <PageLink key={p.key} page={p} />)}

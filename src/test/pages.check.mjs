@@ -4,6 +4,7 @@
 import {
   availablePages, orderPages, pageList, pageForPath, pageAllowed, neighbour,
   rowLayout, gridLayout, drawerLayout, fanLayout, fanRows, isFixed,
+  hubBar, pinPage, unpinPage, orderByUse, countUse,
 } from '../lib/pages-rules.ts'
 
 let fail = 0
@@ -97,6 +98,33 @@ is('fan rows widen upwards', [fanRows(1, 4), fanRows(2, 4), fanRows(3, 4), fanRo
 is('fan rows never pass what fits', fanRows(14, 4).every((c) => c <= 4) && fanRows(14, 4).reduce((a, b) => a + b, 0) === 14, true)
 is('fan rows never shrink upwards', [3, 6, 7, 9, 12, 20].every((n) => fanRows(n, 5).every((c, i, a) => i === 0 || c >= a[i - 1])), true)
 is('nothing to fan, no rows', fanRows(0, 4), [])
+
+/* ---------- the hub style and the Modules page (NAV-20 to NAV-22) ---------- */
+const hubMods = on('nutrition', 'shopping', 'training', 'habits', 'sleep', 'stats')
+const hub = (pinned = [], hidden = []) => pageList(hubMods, [], { order: [], hidden, style: 'hub', pinned })
+is('hub: Today, Plan, Stats and Modules', keys(hub().bar), ['today', 'plan', 'm:stats', 'modules'])
+is('hub: pinned pages after Plan, in pin order', keys(hub(['m:sleep', 'food']).bar), ['today', 'plan', 'm:sleep', 'food', 'm:stats', 'modules'])
+is('hub: a pin of a page that has gone is passed over', keys(hub(['m:finance']).bar), ['today', 'plan', 'm:stats', 'modules'])
+is('hub: a pin wins over hiding', keys(hub(['food'], ['food']).bar), ['today', 'plan', 'food', 'm:stats', 'modules'])
+is('hub: without Stats on, no Stats', keys(hubBar(availablePages(on('habits'), []), [])), ['today', 'plan', 'modules'])
+is('hub: every page still opens', pageAllowed('m:training', hub().all), true)
+is('the Modules page has an address', pageForPath('/modules'), 'modules')
+is('the Modules page is fixed', isFixed('modules'), true)
+is('other styles keep the bar as it was', keys(pageList(hubMods, [], { order: [], hidden: [], style: 'row', pinned: ['m:sleep'] }).bar).includes('modules'), false)
+is('a swipe walks the hub’s bar, Modules last', neighbour(hub(['food']), 'm:stats', 1)?.key, 'modules')
+is('…and back from Modules', neighbour(hub(['food']), 'modules', -1)?.key, 'm:stats')
+is('…and no further', neighbour(hub(), 'modules', 1), null)
+const hubAll = hub().all
+const pinned1 = pinPage({ order: [], hidden: ['m:sleep'], pinned: [] }, 'm:sleep', hubAll)
+is('pin: joins the pins, leaves the hidden list, goes after Plan', [pinned1.pinned, pinned1.hidden, pinned1.order.slice(0, 3)], [['m:sleep'], [], ['today', 'plan', 'm:sleep']])
+is('pin: at most two, the oldest makes room', pinPage({ order: [], hidden: [], pinned: ['food', 'shop'] }, 'm:sleep', hubAll).pinned, ['shop', 'm:sleep'])
+is('pin: Today cannot be pinned', pinPage({ order: [], hidden: [], pinned: [] }, 'today', hubAll).pinned, [])
+is('unpin', unpinPage({ pinned: ['food', 'm:sleep'] }, 'food').pinned, ['m:sleep'])
+const usePages = availablePages(on('training', 'habits', 'sleep'), []).filter((p) => p.module)
+is('most used first, then the app’s order', keys(orderByUse(usePages, { 'm:sleep': 5, 'm:habits': 2 })), ['m:sleep', 'm:habits', 'm:training'])
+is('never used: the app’s order', keys(orderByUse(usePages, {})), ['m:training', 'm:habits', 'm:sleep'])
+is('a use counted', countUse({ a: 2 }, 'a'), { a: 3 })
+is('counts are halved past a thousand, so now outranks long ago', countUse({ a: 1000, b: 9 }, 'a'), { a: 500, b: 4 })
 
 if (fail) { console.log(`\n${fail} failed`); process.exit(1) }
 console.log('\nall page checks passed')
