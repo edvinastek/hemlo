@@ -23,4 +23,4 @@
 - rule-switch.carryOutRules; stats loaders (loadTrainingSeries, loadSleepSeries, loadFinanceSeries, loadStudyMinutes)
 
 ## Left
-- final verification (check, build, localdb, security), remove harness (hx/, harness.html, harness.vite.config.ts are untracked), report
+- nothing: verified (tsc, check, vite build, localdb, security 153 ok); harness removed

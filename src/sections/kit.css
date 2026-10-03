@@ -68,7 +68,7 @@ button.kit-open { width: 100%; }
 .kit-gap { height: calc(var(--space-6) * 3); }
 
 /* A row of choices drawn as buttons (expense or income, a rating). */
-.kit-seg { display: inline-flex; border: 1px solid var(--e-rule); border-radius: var(--radius-md); overflow: hidden; }
+.kit-seg { justify-self: start; display: inline-flex; border: 1px solid var(--e-rule); border-radius: var(--radius-md); overflow: hidden; }
 .kit-seg button { padding: 8px 14px; min-height: 40px; font-family: var(--font-sans); font-size: 14px; color: var(--e-ink-soft); }
 .kit-seg button + button { border-left: 1px solid var(--e-rule); }
 .kit-seg button[aria-pressed="true"] { background: var(--e-ink); color: var(--e-paper); }
