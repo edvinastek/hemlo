@@ -19,7 +19,7 @@ export interface EmptyAction {
 export function EmptyState({ mark, title, children, action, more, compact }: {
   mark?: string
   title: string
-  /** One or two sentences: what this is for, and what appears here. */
+  /** One sentence (CALM-11): what this is for, or what appears here. */
   children?: ReactNode
   action?: EmptyAction
   /** Second ways in: a template, an import, a link to learn more. */

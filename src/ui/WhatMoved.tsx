@@ -18,7 +18,7 @@ export function WhatMoved() {
   // Claimed once due, and kept: reading it marks it read, which would
   // otherwise let a tip take the place straight after.
   const [mine, setMine] = useState(false)
-  useEffect(() => { if (due && !mine && claimTip('what-moved', 'app')) setMine(true) }, [due, mine])
+  useEffect(() => { if (due && !mine && claimTip('what-moved')) setMine(true) }, [due, mine])
   const show = due && mine
   useEffect(() => {
     if (!show) return

@@ -1,4 +1,4 @@
-import { useEffect, useId, useState } from 'react'
+import { useEffect, useState } from 'react'
 import { format } from 'date-fns'
 import { Link } from 'react-router-dom'
 import { dismissTip, tipById, tipShows } from '../lib/tips-rules'
@@ -13,11 +13,10 @@ const today = () => format(new Date(), 'yyyy-MM-dd')
  *  Show tips again brings them all back. Ids are in tips-rules.ts. */
 export function Tip({ id }: { id: string }) {
   const s = useTipState()
-  const owner = useId()
   const tip = tipById(id)
   // Decided once, when the tip first draws: it keeps its place while it is
   // on screen even though it counts as seen from that moment.
-  const [mine] = useState(() => !!tip && tipShows(id, s, today()) && claimTip(id, owner))
+  const [mine] = useState(() => !!tip && tipShows(id, s, today()) && claimTip(id))
   const [closed, setClosed] = useState(false)
   useEffect(() => { if (mine) saveTipState(dismissTip(tipState(), id)) }, [mine, id])
   if (!mine || closed || !tip) return null

@@ -53,15 +53,15 @@ export function noteProfileMet(id: string, setUp: boolean) {
 /* ---------- one tip a session (CALM-14) ------------------------------------- */
 
 /** The one tip this session may show: the first to ask gets it, and keeps
- *  it while the app is open, so the rest wait for another day. The note on
- *  what moved takes the place too. `owner` tells two copies of one tip on
- *  screen apart: only the first shows. */
-let slot: { id: string; owner: string } | null = null
+ *  it while the app is open, so the rest wait for another session. The note
+ *  on what moved takes the place too. Kept by id, not by component: React
+ *  draws a component twice in development, each time with a new identity. */
+let slot: string | null = null
 
-export function claimTip(id: string, owner: string): boolean {
-  if (!slot) slot = { id, owner }
-  return slot.id === id && slot.owner === owner
+export function claimTip(id: string): boolean {
+  if (!slot) slot = id
+  return slot === id
 }
 
 /** Whether a tip could still claim the place (for choosing among several). */
-export const tipPlaceFree = (id: string) => !slot || slot.id === id
+export const tipPlaceFree = (id: string) => !slot || slot === id

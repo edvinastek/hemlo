@@ -85,7 +85,7 @@ export function Modules() {
               <EmptyState mark="⊞" title="Only the planner is on"
                 action={{ label: 'Choose a module', onClick: () => document.getElementById('hub-off')?.scrollIntoView({ behavior: 'smooth' }) }}
                 more={[{ label: 'Start from a template', to: '/more?page=modules&find=Starting%20layout' }]}>
-                Today and Plan are always here. Switch on a module for anything else you keep: food, habits, the household, a reading list.
+                Switch one on for anything else you keep: food, habits, the household, a reading list.
               </EmptyState>
             ) : (
               <>
