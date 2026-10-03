@@ -40,6 +40,8 @@ await p.waitForURL(/\/m\/u_[a-z0-9]{12}$/, { timeout: 15000 })
 const key = p.url().match(/\/m\/(u_[a-z0-9]{12})$/)[1]
 await p.locator('h1', { hasText: 'E2E Spending' }).waitFor({ timeout: 10000 }).catch(() => undefined)
 is('its page opens, with its name', await p.locator('h1', { hasText: 'E2E Spending' }).count(), 1)
+// Its records are read a moment after the page draws.
+await p.getByText('No expenses yet').waitFor({ timeout: 10000 }).catch(() => undefined)
 is('the empty page says how to add the first record', await p.getByText('No expenses yet').count(), 1)
 
 // 2. A record with a date, in Postgres.
