@@ -27,15 +27,15 @@
 .kit-good { color: var(--e-done); }
 
 /* Figures at the top of a page: the headline number and a few beside it. */
-.kit-figures { display: grid; grid-template-columns: repeat(auto-fit, minmax(132px, 1fr)); gap: var(--space-2);
+.kit-figures { display: grid; grid-template-columns: repeat(auto-fit, minmax(96px, 1fr)); gap: var(--space-2);
   padding: var(--space-3) var(--space-4); }
-.kit-figure { background: var(--e-tint); border-radius: var(--radius-md); padding: var(--space-3); min-width: 0; }
+.kit-figure { background: var(--e-tint); border-radius: var(--radius-md); padding: var(--space-2) var(--space-3); min-width: 0; }
 .kit-figure .k { display: block; font-family: var(--font-sans); font-size: 12px; color: var(--e-ink-soft); }
-.kit-figure .v { display: block; font-family: var(--font-sans); font-size: 22px; font-weight: 600; font-variant-numeric: tabular-nums;
+.kit-figure .v { display: block; font-family: var(--font-sans); font-size: 20px; font-weight: 600; font-variant-numeric: tabular-nums;
   color: var(--e-ink); margin-top: 2px; }
 .kit-figure .s { display: block; font-family: var(--font-sans); font-size: 12px; color: var(--e-ink-soft); margin-top: 2px; }
 .kit-figure.is-head { grid-column: 1 / -1; }
-.kit-figure.is-head .v { font-size: 30px; }
+.kit-figure.is-head .v { font-size: 28px; }
 
 /* A progress bar with its words beside it; never colour alone. */
 .kit-bar { height: 6px; background: var(--e-rule); border-radius: var(--radius-pill); overflow: hidden; }
@@ -48,6 +48,9 @@
 .kit-search { width: 100%; box-sizing: border-box; padding: 9px 10px; border: 1px solid var(--e-field-line); border-radius: var(--radius-md);
   background: var(--e-field); color: var(--e-ink); font: inherit; font-family: var(--font-sans); font-size: 15px; min-height: 44px; }
 .kit-chips { display: flex; flex-wrap: wrap; gap: var(--space-2); }
+.kit-chips.is-scroll { flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; padding-bottom: var(--space-1); }
+.kit-chips.is-scroll::-webkit-scrollbar { display: none; }
+.kit-chips.is-scroll .kit-chip { flex: none; }
 .kit-chip { font-family: var(--font-sans); font-size: 13px; padding: 6px 12px; min-height: 36px; border-radius: var(--radius-pill);
   border: 1px solid var(--e-rule); color: var(--e-ink-soft); }
 .kit-chip[aria-pressed="true"] { background: var(--e-ink); color: var(--e-paper); border-color: var(--e-ink); }
