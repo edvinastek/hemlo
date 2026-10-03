@@ -12,6 +12,11 @@ export interface RowAction {
   label: string
   run: () => void
   danger?: boolean
+  /** Shown as a button in the open row; the others wait under "More…"
+   *  there (CALM-06). The ⋮ always lists them all. */
+  main?: boolean
+  /** A push: drawn in the open row's one "Push" group, by this short word. */
+  push?: string
 }
 
 interface Props {
@@ -39,15 +44,17 @@ interface Props {
   actions: RowAction[]
   /** Name of the template a ticked task will ask for, for the plain words. */
   afterDoneName?: string | null
+  /** Push 15 / 30 / 60 on the collapsed row too (a density choice, off by default). */
+  showPush?: boolean
 }
 
 /** A row on the day's rail, for anything the day holds: a task, a habit, a
- *  chore, a supplement slot, an event or a record. Collapsed it reads like
- *  the planner always did: time in the margin, a dot on the rail, the name,
- *  a line under it, and its controls on the right. Open in place (the long
- *  hold, TOD-10) it shows its note with a checklist to tick (TOD-12), its
- *  facts and its quick actions; its header stays in sight while the rest
- *  scrolls (TOD-11). */
+ *  chore, a supplement slot, an event or a record. Collapsed it is calm
+ *  (CALM-06): time in the margin, a dot on the rail, the name, at most one
+ *  quiet line under it, the tick and the ⋮. Open in place (the long hold,
+ *  TOD-10) it shows its note with a checklist to tick (TOD-12), its facts
+ *  and its quick actions; its header stays in sight while the rest scrolls
+ *  (TOD-11). */
 export function ItemRow(p: Props) {
   const { item, colour, expanded } = p
   const task = item.task
@@ -81,7 +88,6 @@ export function ItemRow(p: Props) {
             {!meta && mark}
           </div>
           {meta && <div className="row-meta">{meta}{mark}</div>}
-          {slipped && <div className="row-note">pushed {task!.push_count}×, needs a new time</div>}
           {item.kind === 'chore' && typeof item.dueness === 'number' && !done && item.dueness > 0 && item.dueness < 1 && (
             <span className="ir-due" role="img" aria-label={`About ${Math.round(item.dueness * 100)}% of the way to due`}>
               <i style={{ width: `${Math.round(item.dueness * 100)}%` }} />
@@ -103,15 +109,17 @@ const shownNote = (note: string) => note
   .replace(/^\{after-done:[a-z0-9-]{1,64}\}$/gm, '')
   .replace(/ ?\{recipe:[0-9a-f-]{36}\}/g, '')
 
-/** The small line under the name. */
+/** The one quiet line under the name: only what is set (CALM-06). A task
+ *  pushed too often says so here too, rather than on a line of its own. */
 function metaLine({ item, colour, moduleName }: Props): string {
   const t = item.task
   if (t) {
+    const stuck = (t.status === 'stuck' || t.needs_review) && t.status !== 'done' && t.status !== 'dropped'
     return [
       t.status === 'dropped' ? 'Skipped' : null,
       t.duration_min ? `${t.duration_min} min` : null,
       t.category ?? (colour ? moduleName : null),
-      !(t.status === 'stuck' || t.needs_review) && t.push_count > 0 ? `pushed ${t.push_count}×` : null,
+      stuck ? `pushed ${t.push_count}×, needs a new time` : t.push_count > 0 ? `pushed ${t.push_count}×` : null,
     ].filter(Boolean).join(' · ')
   }
   // "All day" already stands in the margin.
@@ -155,7 +163,7 @@ function NoteMark() {
 /** The controls on the right, by kind. */
 function Controls(p: Props) {
   const { item, more } = p
-  if (item.task) return <TaskControls task={item.task} onPush={p.onPush} onTick={p.onTick} more={more} />
+  if (item.task) return <TaskControls task={item.task} onPush={p.onPush} onTick={p.onTick} more={more} showPush={p.showPush} />
   if (item.kind === 'habit' && item.target && item.target > 0) {
     const n = item.amount ?? 0
     return (
@@ -243,25 +251,18 @@ function Body(p: Props) {
   const note = item.note ? shownNote(item.note) : ''
   const waiting = t ? pendingAfterDone(t.notes) : null
 
+  // Only what is set and the row does not already say (CALM-06, CALM-07):
+  // the time stands in the margin, the length and section in the line under
+  // the name; what is left is how the task holds its place.
   const facts = t
-    ? [
-      t.planned_time ? t.planned_time.slice(0, 5) : 'No time',
-      t.duration_min ? `${t.duration_min} min` : null,
-      t.category ?? 'No section',
-      t.locked ? 'Locked' : null,
-      t.series_id ? 'Repeats' : null,
-    ]
-    : item.kind === 'event'
-      ? [item.allDay ? 'All day' : item.time, item.minutes ? `${item.minutes} min` : null, item.meta || null]
-      : [item.time ?? (item.kind === 'record' ? null : 'Any time'), item.minutes ? `${item.minutes} min` : null, item.kind === 'record' ? null : item.meta || null]
+    ? [t.locked ? 'Locked' : null, t.fixed ? 'Fixed' : null, t.series_id ? 'Repeats' : null].filter(Boolean).join(' · ')
+    : ''
 
   return (
     <div className="ir-body" data-no-hold data-no-swipe>
-      <p className="ir-facts">{facts.filter(Boolean).join(' · ')}</p>
+      {facts && <p className="ir-facts">{facts}</p>}
 
-      {hasNote(note)
-        ? <NoteView note={note} checks={item.kind === 'habit' ? item.checks ?? [] : undefined} onCheck={p.onCheck} label={item.title} />
-        : (t || item.kind === 'habit' || item.kind === 'chore') && <p className="ir-empty">No note.</p>}
+      {hasNote(note) && <NoteView note={note} checks={item.kind === 'habit' ? item.checks ?? [] : undefined} onCheck={p.onCheck} label={item.title} />}
       {waiting && (
         <p className="ir-asks">When it is ticked, it asks for {p.afterDoneName ? `“${p.afterDoneName}”` : 'a note'}.</p>
       )}
@@ -281,14 +282,45 @@ function Body(p: Props) {
         </ul>
       )}
 
-      {actions.length > 0 && (
-        <div className="ir-actions">
-          {actions.map((a) => (
-            <button key={a.label} type="button" className={`btn ir-act${a.danger ? ' is-danger' : ''}`} onClick={a.run}>{a.label}</button>
+      <Actions actions={actions} title={item.title} />
+    </div>
+  )
+}
+
+/** The open row's buttons: the everyday ones (Edit, the pushes, Move to…,
+ *  Skip) in sight, the rest under one "More…" (CALM-06). Every one of them
+ *  is in the row's ⋮ as well. */
+function Actions({ actions, title }: { actions: RowAction[]; title: string }) {
+  const [more, setMore] = useState(false)
+  if (!actions.length) return null
+  // A row with only a few actions (an event, a habit) shows them all.
+  const split = actions.some((a) => a.main)
+  const main = split ? actions.filter((a) => a.main && !a.push) : actions.filter((a) => !a.push)
+  const pushes = actions.filter((a) => a.push)
+  const rest = split ? actions.filter((a) => !a.main && !a.push) : []
+  const button = (a: RowAction) => (
+    <button key={a.label} type="button" className={`btn ir-act${a.danger ? ' is-danger' : ''}`} onClick={a.run}>{a.label}</button>
+  )
+  return (
+    <>
+      {pushes.length > 0 && (
+        <div className="ir-push" role="group" aria-label={`Push ${title || 'task'}`}>
+          <span className="ir-push-name" aria-hidden="true">Push</span>
+          {pushes.map((a) => (
+            <button key={a.label} type="button" className="btn ir-act" aria-label={a.label} onClick={a.run}>{a.push}</button>
           ))}
         </div>
       )}
-    </div>
+      <div className="ir-actions">
+        {main.map(button)}
+        {rest.length > 0 && (
+          <button type="button" className="btn ir-act ir-more" aria-expanded={more} onClick={() => setMore((m) => !m)}>
+            {more ? 'Fewer' : 'More…'}
+          </button>
+        )}
+      </div>
+      {more && rest.length > 0 && <div className="ir-actions">{rest.map(button)}</div>}
+    </>
   )
 }
 

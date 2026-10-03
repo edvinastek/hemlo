@@ -32,7 +32,10 @@ const PAGE_OF: Record<string, string> = {
  *  rest under "More". Task and Task to Inbox are always there; then Food,
  *  Event and the main add of every other module that is on. Off modules are
  *  not offered (P1). Choosing one opens its one sheet straight away: the menu
- *  closes first, so a sheet never sits on a sheet (GEN-51). */
+ *  closes first, so a sheet never sits on a sheet (GEN-51).
+ *
+ *  Calm (v17): each entry is its name alone, no hint line under it; "Edit
+ *  menu" sits at the bottom beside Close, out of the way of the choices. */
 export function AddFab({ day, label = 'Add' }: { day: string; label?: string }) {
   const profile = useApp((s) => s.profile)
   const navigate = useNavigate()
@@ -92,7 +95,7 @@ export function AddFab({ day, label = 'Add' }: { day: string; label?: string }) 
     <li key={e.key} className="add-item">
       {editing ? (
         <div className="add-edit">
-          <span className="add-label">{e.label}<span className="add-hint">{e.hint}</span></span>
+          <span className="add-label">{e.label}</span>
           {!isHidden && (
             <>
               <button type="button" className="add-step" aria-label={`Move ${e.label} up`} disabled={i === 0 && list === shown}
@@ -107,7 +110,6 @@ export function AddFab({ day, label = 'Add' }: { day: string; label?: string }) 
       ) : (
         <button type="button" className="add-pick" onClick={() => choose(e)}>
           <span className="add-label">{e.label}</span>
-          <span className="add-hint">{e.hint}</span>
         </button>
       )}
     </li>
@@ -124,16 +126,9 @@ export function AddFab({ day, label = 'Add' }: { day: string; label?: string }) 
           <div className="sheet-scrim" onClick={close} />
           <div className="bottom-sheet add-sheet" role="dialog" aria-modal="true" aria-labelledby="add-title" data-no-swipe
             onKeyDown={(e) => { if (e.key === 'Escape') close() }}>
-            <div className="add-top">
-              <h2 id="add-title">{editing ? 'Arrange this menu' : 'Add'}</h2>
-              <button type="button" className="add-editbtn" aria-pressed={editing} onClick={() => setEditing((x) => !x)}>
-                {editing ? 'Done' : 'Edit menu'}
-              </button>
-            </div>
+            <h2 id="add-title">{editing ? 'Arrange this menu' : 'Add'}</h2>
             {editing && (
-              <p className="add-why">
-                The first six show here. {prefs.add.order.length ? 'They follow your order.' : 'The ones you use most come first.'} Hidden ones stay under More.
-              </p>
+              <p className="add-why">{prefs.add.order.length ? 'Your order.' : 'Most used first.'} Hidden ones stay under More.</p>
             )}
             <ul className="add-list">{shown.map((e, i) => row(e, i, shown))}</ul>
             {(more.length > 0 || hidden.length > 0) && (
@@ -152,6 +147,9 @@ export function AddFab({ day, label = 'Add' }: { day: string; label?: string }) 
               </>
             )}
             <div className="sheet-actions">
+              <button type="button" className="btn add-editbtn" aria-pressed={editing} onClick={() => setEditing((x) => !x)}>
+                {editing ? 'Done' : 'Edit menu'}
+              </button>
               {editing && prefs.add.order.length > 0 && (
                 <button type="button" className="btn" onClick={() => change(byUse)}>Most used first</button>
               )}

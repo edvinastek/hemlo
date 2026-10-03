@@ -7,6 +7,7 @@ import { singleMoveWarnings, suggestPushTime, type Warning } from '../lib/reorde
 import { fillTemplate } from '../lib/template-rules'
 import { pendingAfterDone, resolveAfterDone } from '../lib/after-done-rules'
 import { saveNote, moveTo } from '../lib/rail-actions'
+import { PUSH_STEPS, pushWords } from './TaskRow'
 import { useModuleDef } from '../modules/defs'
 import { listRecords, useLookups, type Rec } from '../modules/records'
 import { RecordSheet } from '../modules/RecordSheet'
@@ -52,6 +53,24 @@ const nowHHMM = () => {
   return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`
 }
 
+/** "Push…" from a row's ⋮: 15 min, 30 min or 1 h, one tap each. The open
+ *  row has the same three as buttons. */
+export function PushPickSheet({ task, onPush, onClose }: { task: Task; onPush: (minutes: number) => void; onClose: () => void }) {
+  return (
+    <Sheet label={`Push ${task.title || 'task'}`} onClose={onClose}>
+      <h2>Push “{task.title || 'this task'}”</h2>
+      <div className="rail-pushes" role="group" aria-label="By how long">
+        {PUSH_STEPS.map((m, i) => (
+          <button key={m} type="button" className="btn" autoFocus={i === 0} onClick={() => onPush(m)}>{pushWords(m)}</button>
+        ))}
+      </div>
+      <div className="sheet-actions">
+        <button type="button" className="btn grow" onClick={onClose}>Cancel</button>
+      </div>
+    </Sheet>
+  )
+}
+
 /** An untimed task pushed: it asks for a time instead of guessing 09:00. */
 export function PushTimeSheet({ task, minutes, onSet, onClose }: {
   task: Task; minutes: number; onSet: (time: string) => void; onClose: () => void
@@ -59,8 +78,7 @@ export function PushTimeSheet({ task, minutes, onSet, onClose }: {
   const [time, setTime] = useState(() => suggestPushTime(nowHHMM(), minutes))
   return (
     <Sheet label="Give it a time" onClose={onClose} onSubmit={(e) => { e.preventDefault(); if (time) { onSet(time); onClose() } }}>
-      <h2>When should “{task.title || 'this task'}” be?</h2>
-      <p className="rail-sheet-why">It has no time yet, so there is nothing to push it from. Pick one.</p>
+      <h2>It has no time yet. When should “{task.title || 'this task'}” be?</h2>
       <div className="form-grid">
         <label>
           <span>Time</span>

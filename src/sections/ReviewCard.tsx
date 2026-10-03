@@ -10,6 +10,7 @@ import { db } from '../lib/db'
 import { carryOver } from '../lib/day-items-rules'
 import { carry, type CarryAction } from '../lib/rail-actions'
 import { TaskSheet } from '../ui/TaskSheet'
+import { MoreMenu } from '../ui/MoreMenu'
 import { offerUndo } from '../ui/Undo'
 import type { Task } from '../lib/types'
 import './review.css'
@@ -114,13 +115,14 @@ function ReviewItem({ task, day, today, onEdit }: {
       {meta && <div className="row-meta">{meta}</div>}
       {flag && <div className="review-note">{flag}</div>}
 
+      {/* The two everyday answers as chips; the rest in the ⋮ (CALM-06). */}
       <div className="review-actions">
         <button className="chip" disabled={busy} onClick={() => void act({ kind: 'tomorrow' })}>Tomorrow</button>
-        <button className="chip" disabled={busy} aria-expanded={picking} onClick={() => setPicking((p) => !p)}>
-          Pick a day
-        </button>
         <button className="chip" disabled={busy} onClick={() => void act({ kind: 'done' })}>Done</button>
-        <button className="chip" disabled={busy} onClick={() => void act({ kind: 'drop' })}>Drop</button>
+        <MoreMenu label={`More for ${task.title || 'this task'}`} items={[
+          { label: picking ? 'Close the day picker' : 'Pick a day…', disabled: busy, onSelect: () => setPicking((p) => !p) },
+          { label: 'Drop', danger: true, disabled: busy, onSelect: () => void act({ kind: 'drop' }) },
+        ]} />
       </div>
 
       {picking && (
@@ -161,9 +163,10 @@ const CARRY_WORDS: Record<CarryAction, string> = {
 const plural = (n: number) => (n === 1 ? '1 task' : `${n} tasks`)
 
 /** Unfinished tasks from earlier days, in one row at the top of Today that
- *  opens into the list. Each can go to today, tomorrow, a day picked, or the
- *  Inbox; or be marked done, or dropped; and all of them at once. Every
- *  choice can be undone for a few seconds. The evening review stays as it
+ *  opens into the list. Each can go to today or tomorrow with one tap, and
+ *  from its ⋮ to a day picked or the Inbox, or be marked done or dropped;
+ *  all of them at once from the card's ⋮. Every choice can be undone for a
+ *  few seconds. The evening review stays as it
  *  was; this is the same decision, offered in the morning too. */
 export function CarryOverRow({ profileId, today }: { profileId: string; today: string }) {
   const [open, setOpen] = useState(false)
@@ -190,30 +193,29 @@ export function CarryOverRow({ profileId, today }: { profileId: string; today: s
   const undated = tasks.filter((t) => !t.series_id)
   return (
     <section className="carry" aria-label="Left from earlier days">
-      <button type="button" className="carry-head" aria-expanded={open} onClick={() => setOpen((o) => !o)}>
-        <span className="carry-count">{tasks.length}</span>
-        <span className="carry-title">{tasks.length === 1 ? 'task left from earlier days' : 'tasks left from earlier days'}</span>
-        <span className="carry-toggle">{open ? 'Hide' : 'Show'}</span>
-      </button>
+      <div className="carry-top">
+        <button type="button" className="carry-head" aria-expanded={open} onClick={() => setOpen((o) => !o)}>
+          <span className="carry-count">{tasks.length}</span>
+          <span className="carry-title">{tasks.length === 1 ? 'task left from earlier days' : 'tasks left from earlier days'}</span>
+          <span className="carry-toggle">{open ? 'Hide' : 'Show'}</span>
+        </button>
+        {/* All of them at once: in the card's ⋮, not a row of chips. */}
+        {tasks.length > 1 && (
+          <MoreMenu className="carry-more" label="All tasks left from earlier days" items={[
+            { label: 'All to today', disabled: busy, onSelect: () => void run(tasks, 'today') },
+            { label: 'All to tomorrow', disabled: busy, onSelect: () => void run(tasks, 'tomorrow') },
+            undated.length > 0 && {
+              label: `All to the Inbox${undated.length < tasks.length ? ` (${undated.length})` : ''}`,
+              disabled: busy, onSelect: () => void run(undated, 'inbox'),
+            },
+            { label: 'Drop all', danger: true, disabled: busy, onSelect: () => void run(tasks, 'drop') },
+          ]} />
+        )}
+      </div>
       {open && (
-        <>
-          {tasks.length > 1 && (
-            <div className="carry-all" role="group" aria-label="All of them">
-              <span>All of them:</span>
-              <button type="button" className="chip" disabled={busy} onClick={() => void run(tasks, 'today')}>Today</button>
-              <button type="button" className="chip" disabled={busy} onClick={() => void run(tasks, 'tomorrow')}>Tomorrow</button>
-              {undated.length > 0 && (
-                <button type="button" className="chip" disabled={busy} onClick={() => void run(undated, 'inbox')}>
-                  Inbox{undated.length < tasks.length ? ` (${undated.length})` : ''}
-                </button>
-              )}
-              <button type="button" className="chip" disabled={busy} onClick={() => void run(tasks, 'drop')}>Drop</button>
-            </div>
-          )}
-          <ul className="review-list">
-            {tasks.map((t) => <CarryItem key={t.id} task={t} today={today} busy={busy} onRun={run} onEdit={setEditing} />)}
-          </ul>
-        </>
+        <ul className="review-list">
+          {tasks.map((t) => <CarryItem key={t.id} task={t} today={today} busy={busy} onRun={run} onEdit={setEditing} />)}
+        </ul>
       )}
       {editing && <TaskSheet task={editing} isNew={false} onClose={() => setEditing(null)} />}
     </section>
@@ -239,14 +241,17 @@ function CarryItem({ task, today, busy, onRun, onEdit }: {
       <div className="row-name"><button onClick={() => onEdit(task)}>{task.title || 'Untitled'}</button></div>
       {meta && <div className="row-meta">{meta}</div>}
       {flag && <div className="review-note">{flag}</div>}
+      {/* Today and Tomorrow as chips; the rest in the ⋮ (CALM-06). */}
       <div className="review-actions">
         <button className="chip" disabled={busy} onClick={() => void onRun([task], 'today')}>Today</button>
         <button className="chip" disabled={busy} onClick={() => void onRun([task], 'tomorrow')}>Tomorrow</button>
-        <button className="chip" disabled={busy} aria-expanded={picking} onClick={() => setPicking((p) => !p)}>Pick a day</button>
-        {/* A repeating task keeps its day in its series; it cannot go undated. */}
-        {!task.series_id && <button className="chip" disabled={busy} onClick={() => void onRun([task], 'inbox')}>Inbox</button>}
-        <button className="chip" disabled={busy} onClick={() => void onRun([task], 'done')}>Done</button>
-        <button className="chip" disabled={busy} onClick={() => void onRun([task], 'drop')}>Drop</button>
+        <MoreMenu label={`More for ${task.title || 'this task'}`} items={[
+          { label: picking ? 'Close the day picker' : 'Pick a day…', disabled: busy, onSelect: () => setPicking((p) => !p) },
+          // A repeating task keeps its day in its series; it cannot go undated.
+          !task.series_id && { label: 'Send to the Inbox', disabled: busy, onSelect: () => void onRun([task], 'inbox') },
+          { label: 'Mark done', disabled: busy, onSelect: () => void onRun([task], 'done') },
+          { label: 'Drop', danger: true, disabled: busy, onSelect: () => void onRun([task], 'drop') },
+        ]} />
       </div>
       {picking && (
         <form className="review-pick" onSubmit={(e) => {

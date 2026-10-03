@@ -21,6 +21,8 @@ import { NoteEditor } from './NoteEditor'
 import { NotesPage } from './NotesPage'
 import { RepeatPicker, NO_REPEAT, type RepeatValue } from './RepeatPicker'
 import { CopySheet } from './CopySheet'
+import { MoreOptions } from './MoreOptions'
+import { MoreMenu } from './MoreMenu'
 import { GoalField, ProjectField } from '../sections/ProjectField'
 import { useBackClose } from './useBackClose'
 import { offerUndo } from './Undo'
@@ -42,7 +44,13 @@ type Step = 'form' | 'scope' | 'rule' | 'stop' | 'template'
  *  one on (GEN-23).
  *
  *  Duplicate opens a copy of the task in this same sheet, as a new task,
- *  so anything can be changed before saving (TSK-24). */
+ *  so anything can be changed before saving (TSK-24).
+ *
+ *  Staged (v17, CALM-08): what a task needs is in sight (what, day, time,
+ *  minutes, repeat, note); the rest (an end time instead of minutes,
+ *  section, project, goal, fixed, locked, starting from a saved task) is in
+ *  one "More options", open by itself when any of it is set. Copy to…,
+ *  Duplicate and Save as template are in the ⋮ beside the title. */
 export function TaskSheet({ task, isNew, onClose }: { task: Task; isNew: boolean; onClose: () => void }) {
   const [open, setOpen] = useState({ task, isNew, n: 0 })
   return (
@@ -243,12 +251,35 @@ function TaskForm({ task, isNew, onClose, onDuplicate }: {
   }
 
   const heading = isNew ? (task.planned_date ? 'New task' : 'New task for the Inbox') : 'Edit task'
+  const named = !!draft.title.trim()
+  // Never a sheet on a sheet (CALM-10): while copying, the copy dialog
+  // stands in for this one, and Back or Cancel there comes back here.
+  if (copyOpen) {
+    return <CopySheet what={{ kind: 'task', task: { ...draft, title: draft.title.trim() } }} onClose={() => setCopyOpen(false)} />
+  }
+  const extras = [
+    draft.category ? `Section ${draft.category}` : null,
+    draft.project_id ? 'a project' : null,
+    draft.goal_id ? 'a goal' : null,
+    draft.fixed ? 'fixed' : null,
+    draft.locked ? 'locked' : null,
+  ].filter(Boolean).join(' · ')
+  const hasExtras = !!(task.category || task.project_id || task.goal_id || task.fixed || task.locked)
 
   return (
     <>
       <div className="sheet-scrim" onClick={onClose} />
       <form className="bottom-sheet" onSubmit={(e) => void save(e)} role="dialog" aria-modal="true" aria-label={heading}>
-        <h2>{heading}</h2>
+        <div className="ts-top">
+          <h2>{heading}</h2>
+          {step === 'form' && (
+            <MoreMenu label="More for this task" items={[
+              !isNew && { label: 'Copy to…', disabled: !named, onSelect: () => setCopyOpen(true) },
+              !isNew && { label: 'Duplicate', disabled: !named, onSelect: () => onDuplicate({ ...draft, title: draft.title.trim() }) },
+              { label: 'Save as template…', disabled: !named, onSelect: () => { setTemplateName(draft.title.trim()); setStep('template') } },
+            ]} />
+          )}
+        </div>
 
         {step === 'scope' && series && (
           <div className="ts-question">
@@ -337,81 +368,39 @@ function TaskForm({ task, isNew, onClose, onDuplicate }: {
         {step === 'form' && (
           <>
             <div className="form-grid">
-              {isNew && savedTemplates.length > 0 && (
-                <div className="ts-field">
-                  <span className="ts-field-name">Start from a saved task</span>
-                  <Dropdown label="Start from a saved task" value="" placeholder="Choose one"
-                    options={savedTemplates.map((t) => ({ value: t.id, label: t.name }))} onChange={startFrom} />
-                </div>
-              )}
               <label>What
                 <input autoFocus required value={draft.title} placeholder="Mobility"
                   onChange={(e) => set('title', e.target.value)} />
               </label>
+              <div className="ts-daycell">
+                <label>Day
+                  <input type="date" value={day ?? ''} onChange={(e) => set('planned_date', e.target.value || null)} />
+                </label>
+                {day ? (
+                  <button type="button" className="ts-inbox-link"
+                    onClick={() => set('planned_date', null)}>No day (Inbox)</button>
+                ) : (
+                  <button type="button" className="ts-inbox-link" onClick={() => set('planned_date', today)}>Today</button>
+                )}
+              </div>
               <div className="two">
-                <div className="ts-daycell">
-                  <label>Day
-                    <input type="date" value={day ?? ''} onChange={(e) => set('planned_date', e.target.value || null)} />
-                  </label>
-                  {day ? (
-                    <button type="button" className="ts-inbox-link"
-                      onClick={() => set('planned_date', null)}>No day (Inbox)</button>
-                  ) : (
-                    <button type="button" className="ts-inbox-link" onClick={() => set('planned_date', today)}>Today</button>
-                  )}
-                </div>
                 <label>Time
                   <input type="time" value={draft.planned_time?.slice(0, 5) ?? ''} onChange={(e) => changeStart(e.target.value)} />
                 </label>
-              </div>
-              {!day && (
-                <p className="ts-repeat-rule ts-inbox-note" role="note">
-                  No day: it waits in Plan’s Inbox until you give it one.
-                </p>
-              )}
-              <div className="two">
-                {/* One cell, two ways to give the length; the box in its corner
-                    switches between them without adding a row. */}
-                <div className="ts-dur">
-                  {showUntil ? (
-                    <label>
-                      <span className="ts-dur-name">Ends{draft.duration_min ? ` · ${shortSpan(draft.duration_min)}` : ''}</span>
-                      <input type="time" aria-label="End time" value={endTime} onChange={(e) => changeEnd(e.target.value)} />
-                    </label>
-                  ) : (
-                    <label>
-                      <span className="ts-dur-name">Minutes</span>
-                      <input type="number" min={0} step={5} value={draft.duration_min ?? ''}
-                        onChange={(e) => set('duration_min', e.target.value ? Number(e.target.value) : null)} />
-                    </label>
-                  )}
-                  <label className="ts-until" title={hasStart ? 'Give an end time instead of minutes' : 'Set a time first'}>
-                    <input type="checkbox" checked={showUntil} disabled={!hasStart} onChange={(e) => chooseUntil(e.target.checked)} />
-                    Until
+                {/* Minutes, or an end time when "End time instead" is on (in
+                    More options): one cell either way (TSK-02). */}
+                {showUntil ? (
+                  <label>
+                    <span className="ts-dur-name">Ends{draft.duration_min ? ` · ${shortSpan(draft.duration_min)}` : ''}</span>
+                    <input type="time" aria-label="End time" value={endTime} onChange={(e) => changeEnd(e.target.value)} />
                   </label>
-                </div>
-                <div className="ts-field">
-                  <span className="ts-field-name">Section</span>
-                  {newSection === null ? (
-                    <Dropdown className="dd-end" label="Section" placeholder="—" value={draft.category ?? ''}
-                      options={sectionOptions} onChange={chooseSection} />
-                  ) : (
-                    <div className="ts-newsection">
-                      <input autoFocus aria-label="New section name" value={newSection} maxLength={30} placeholder="Garden"
-                        onChange={(e) => setNewSection(e.target.value)}
-                        onKeyDown={(e) => {
-                          if (e.key === 'Enter') { e.preventDefault(); void addSection() }
-                          if (e.key === 'Escape') { e.preventDefault(); setNewSection(null) }
-                        }}
-                        onBlur={() => void addSection()} />
-                    </div>
-                  )}
-                </div>
+                ) : (
+                  <label>Minutes
+                    <input type="number" min={0} step={5} value={draft.duration_min ?? ''}
+                      onChange={(e) => set('duration_min', e.target.value ? Number(e.target.value) : null)} />
+                  </label>
+                )}
               </div>
-
-              {/* Projects and goals: shown only while Projects is on (P1). */}
-              <ProjectField value={draft.project_id ?? null} onChange={(id) => set('project_id', id)} />
-              <GoalField value={draft.goal_id} onChange={(id) => set('goal_id', id)} />
 
               {inSeries && !running && (
                 <div className="ts-repeat">
@@ -437,27 +426,58 @@ function TaskForm({ task, isNew, onClose, onDuplicate }: {
                 <p className="ts-repeat-rule">Give it a day to make it repeat.</p>
               ))}
 
-              <label className="ts-check">
-                <input type="checkbox" checked={draft.fixed} onChange={(e) => set('fixed', e.target.checked)} />
-                <span>Fixed<span className="ts-check-sub">It belongs at this day and time: moving it asks first.</span></span>
-              </label>
-              <label className="ts-check">
-                <input type="checkbox" checked={draft.locked} onChange={(e) => set('locked', e.target.checked)} />
-                <span>Locked<span className="ts-check-sub">Nothing may move it: no pushes, and it stays when days swap.</span></span>
-              </label>
               <NoteEditor value={draft.notes ?? ''} onChange={(text) => set('notes', text || null)}
                 context={{ day: start, title: draft.title.trim() || undefined, time: draft.planned_time, start: repeat.rule ? start : null }}
                 startLabel={isNew ? 'Start from a note template' : undefined}
                 onTemplateUsed={(t) => setNoteTpl(t.id)}
                 aside={<button type="button" className="ne-open" onClick={() => setNotesOpen(true)}>Open as page</button>} />
+
+              <MoreOptions open={hasExtras} summary={extras || null}>
+                {isNew && savedTemplates.length > 0 && (
+                  <div className="ts-field">
+                    <span className="ts-field-name">Start from a saved task</span>
+                    <Dropdown label="Start from a saved task" value="" placeholder="Choose one"
+                      options={savedTemplates.map((t) => ({ value: t.id, label: t.name }))} onChange={startFrom} />
+                  </div>
+                )}
+                <label className="ts-check" title={hasStart ? undefined : 'Set a time first'}>
+                  <input type="checkbox" checked={showUntil} disabled={!hasStart} onChange={(e) => chooseUntil(e.target.checked)} />
+                  <span>End time instead of minutes</span>
+                </label>
+                <div className="ts-field">
+                  <span className="ts-field-name">Section</span>
+                  {newSection === null ? (
+                    <Dropdown label="Section" placeholder="—" value={draft.category ?? ''}
+                      options={sectionOptions} onChange={chooseSection} />
+                  ) : (
+                    <div className="ts-newsection">
+                      <input autoFocus aria-label="New section name" value={newSection} maxLength={30} placeholder="Garden"
+                        onChange={(e) => setNewSection(e.target.value)}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') { e.preventDefault(); void addSection() }
+                          if (e.key === 'Escape') { e.preventDefault(); setNewSection(null) }
+                        }}
+                        onBlur={() => void addSection()} />
+                    </div>
+                  )}
+                </div>
+
+                {/* Projects and goals: shown only while Projects is on (P1). */}
+                <ProjectField value={draft.project_id ?? null} onChange={(id) => set('project_id', id)} />
+                <GoalField value={draft.goal_id} onChange={(id) => set('goal_id', id)} />
+
+                {/* What each one means is in its tooltip, not a line under it (CALM-11). */}
+                <label className="ts-check" title="It belongs at this day and time: moving it asks first.">
+                  <input type="checkbox" checked={draft.fixed} onChange={(e) => set('fixed', e.target.checked)} />
+                  <span>Fixed</span>
+                </label>
+                <label className="ts-check" title="Nothing may move it: no pushes, and it stays when days swap.">
+                  <input type="checkbox" checked={draft.locked} onChange={(e) => set('locked', e.target.checked)} />
+                  <span>Locked</span>
+                </label>
+              </MoreOptions>
             </div>
 
-            <div className="ts-more" role="group" aria-label="More for this task">
-              {!isNew && <button type="button" className="ts-more-btn" disabled={!draft.title.trim()} onClick={() => setCopyOpen(true)}>Copy to…</button>}
-              {!isNew && <button type="button" className="ts-more-btn" disabled={!draft.title.trim()} onClick={() => onDuplicate({ ...draft, title: draft.title.trim() })}>Duplicate</button>}
-              <button type="button" className="ts-more-btn" disabled={!draft.title.trim()}
-                onClick={() => { setTemplateName(draft.title.trim()); setStep('template') }}>Save as template</button>
-            </div>
             {said && <p className="ts-repeat-rule" role="status">{said}</p>}
 
             {inSeries && confirmDelete && (
@@ -477,9 +497,6 @@ function TaskForm({ task, isNew, onClose, onDuplicate }: {
       </form>
       {notesOpen && (
         <NotesPage title={draft.title} notes={draft.notes} onKeep={(n) => void keepNotes(n)} onClose={() => setNotesOpen(false)} />
-      )}
-      {copyOpen && (
-        <CopySheet what={{ kind: 'task', task: { ...draft, title: draft.title.trim() } }} onClose={() => setCopyOpen(false)} />
       )}
     </>
   )

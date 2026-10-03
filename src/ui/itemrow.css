@@ -23,8 +23,11 @@
 .tick.is-partly { border-color: var(--e-done); }
 .tick.is-partly::before { content: ""; width: 8px; height: 2px; background: var(--e-done); border-radius: 1px; }
 
-/* Push buttons: 28 px tall targets. */
+/* Push buttons on the row (only when the person asks for them): 28 px
+   tall targets. */
 .ir .push button { min-width: 28px; min-height: 28px; }
+/* A task pushed too often: its one line says so, in the warning colour. */
+.row.is-slipped .row-meta { color: var(--e-warn); }
 
 /* Skipped (dropped): kept on the day, quieter, not struck through. */
 .row.is-skipped .row-name { color: var(--e-ink-soft); }
@@ -65,7 +68,6 @@
 
 .ir-body { padding: var(--space-2) 0 var(--space-3); display: grid; gap: var(--space-2); min-width: 0; }
 .ir-facts { margin: 0; font-family: var(--font-sans); font-size: 12px; color: var(--e-ink-soft); }
-.ir-empty { margin: 0; font-family: var(--font-sans); font-size: 13px; color: var(--e-ink-soft); }
 .ir-asks { margin: 0; font-family: var(--font-sans); font-size: 12px; color: var(--e-ink-soft); border-left: 2px solid var(--e-accent); padding-left: var(--space-2); }
 
 .ir-note { font-family: var(--font-serif); font-size: 15px; line-height: 1.45; color: var(--e-ink); min-width: 0; overflow-wrap: anywhere; }
@@ -92,6 +94,10 @@
 
 /* Quick actions: wrap onto as many lines as a 360 px phone needs. */
 .ir-actions { display: flex; flex-wrap: wrap; gap: var(--space-2); }
+/* Push 15 / 30 / 1 h: one group with one word in front. */
+.ir-push { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2); }
+.ir-push-name { font-family: var(--font-sans); font-size: 12px; color: var(--e-ink-soft); min-width: 36px; }
+.ir-more[aria-expanded="true"] { background: var(--e-tint); }
 .ir-act { min-height: 40px; padding: 6px 12px; font-size: 13px; color: var(--e-ink); background: var(--e-paper); }
 .ir-act.is-danger, .move-menu button.is-danger { color: var(--e-warn); }
 
@@ -115,16 +121,9 @@
   font-family: var(--font-sans); font-size: 11px; color: var(--e-accent);
 }
 
-/* The layout switch above the rail, and the rail's empty state. */
-.rail-bar {
-  display: flex; align-items: center; justify-content: space-between; gap: var(--space-2);
-  padding: var(--space-2) var(--space-4) 0; flex-wrap: wrap;
-}
-.rail-bar-title { font-family: var(--font-sans); font-size: 12px; color: var(--e-ink-soft); }
-.seg { display: inline-flex; border: 1px solid var(--e-rule); border-radius: var(--radius-pill); overflow: hidden; }
-.seg button {
-  font-family: var(--font-sans); font-size: 12px; color: var(--e-ink-soft);
-  padding: 6px 10px; min-height: 32px;
-}
-.seg button[aria-pressed="true"] { background: var(--e-tint); color: var(--e-ink); font-weight: 600; }
+/* The rail's empty state. */
 .rail-empty { padding: var(--space-4) var(--space-4) var(--space-4) 0; margin: 0; }
+
+/* "Push…" from a row's ⋮: three big buttons in a small sheet. */
+.rail-pushes { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--space-2); margin-bottom: var(--space-2); }
+.rail-pushes .btn { min-height: 48px; font-size: 15px; }

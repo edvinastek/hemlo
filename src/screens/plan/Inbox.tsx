@@ -1,4 +1,4 @@
-import { useMemo, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { blankTask, saveTask } from '../../lib/tasks'
 import { writeBatch } from '../../lib/batch'
 import { duplicateTasks } from '../../lib/copy'
@@ -20,19 +20,32 @@ import { useDayRange } from '../../ui/useDayRange'
 /** Where a held task is over: a day to plan it for, or a place in the list. */
 type Over = { kind: 'day'; day: string } | { kind: 'row'; index: number } | null
 
+/** A search field earns its place only once the list is this long (CALM-02). */
+const SEARCH_FROM = 8
+
 /** The Inbox (PLN-07, TSK-01): every task without a day, in one place that
- *  is not a module of its own. Capture with one line at the top; find with
- *  the one search; put in order by hand; and give a task a day with "Plan
- *  for…", or by holding it and dropping it on a day. Several at once with
- *  Select (GEN-53). Every move, plan and delete can be undone. */
-export function Inbox({ profileId, tasks, onOpen }: { profileId: string; tasks: Task[]; onOpen: (t: Task) => void }) {
+ *  is not a module of its own. Capture with one line at the top (its one
+ *  add: no + here, CALM-01); find with the one search once the list is
+ *  long; put in order by hand; and give a task a day with "Plan for…", or by
+ *  holding it and dropping it on a day. Several at once (GEN-53): hold a
+ *  task and let go without moving it, or "Select tasks" in Plan's ⋮
+ *  (CALM-16). Every move, plan and delete can be undone. */
+export function Inbox({ profileId, tasks, onOpen, selecting, onSelecting }: {
+  profileId: string; tasks: Task[]; onOpen: (t: Task) => void
+  /** Select mode, kept by Plan so its ⋮ can start it. */
+  selecting: boolean
+  onSelecting: (on: boolean) => void
+}) {
   const { today } = useDayRange()
   const [text, setText] = useState('')
   const [query, setQuery] = useState('')
   const [planning, setPlanning] = useState<Task[] | null>(null)
   const [copying, setCopying] = useState<CopyWhat | null>(null)
-  const [selecting, setSelecting] = useState(false)
   const [chosen, setChosen] = useState<Set<string>>(new Set())
+  // Where a hold began, to tell a hold-and-let-go (select) from a drag.
+  const holdFrom = useRef<{ x: number; y: number; moved: boolean } | null>(null)
+  // Select mode ended (here or from Plan's ⋮): nothing stays ticked.
+  useEffect(() => { if (!selecting) setChosen(new Set()) }, [selecting])
   const [held, setHeld] = useState<string | null>(null)
   const [over, setOver] = useState<Over>(null)
   const [status, setStatus] = useState<{ text: string; bad?: boolean } | null>(null)
@@ -93,11 +106,14 @@ export function Inbox({ profileId, tasks, onOpen }: { profileId: string; tasks: 
   }
 
   const hold = useLongPress<string>({
-    onStart: (id) => {
+    onStart: (id, at) => {
       if (selecting) return false
+      holdFrom.current = { x: at.x, y: at.y, moved: false }
       setHeld(id)
     },
     onMove: (_, at) => {
+      const from = holdFrom.current
+      if (from && Math.hypot(at.x - from.x, at.y - from.y) > 12) from.moved = true
       const el = document.elementFromPoint(at.x, at.y)
       const day = el?.closest('[data-inbox-day]')?.getAttribute('data-inbox-day')
       if (day) return setOver({ kind: 'day', day })
@@ -107,13 +123,22 @@ export function Inbox({ profileId, tasks, onOpen }: { profileId: string; tasks: 
     onDrop: (id) => {
       const t = tasks.find((x) => x.id === id)
       const o = over
+      const still = !holdFrom.current?.moved
+      holdFrom.current = null
       setHeld(null)
       setOver(null)
+      // Held and let go where it was: select it, and start selecting.
+      if (t && still && (!o || (o.kind === 'row' && tasks[o.index]?.id === t.id))) {
+        onSelecting(true)
+        setChosen(new Set([t.id]))
+        setStatus(null)
+        return
+      }
       if (!t || !o) return
       if (o.kind === 'day') void planFor([t], o.day)
       else void reorder(moveInList(tasks.map((x) => x.id), tasks.indexOf(t), o.index))
     },
-    onCancel: () => { setHeld(null); setOver(null) },
+    onCancel: () => { holdFrom.current = null; setHeld(null); setOver(null) },
   })
 
   const toggle = (id: string) => setChosen((s) => {
@@ -133,12 +158,10 @@ export function Inbox({ profileId, tasks, onOpen }: { profileId: string; tasks: 
         <button type="submit" className="btn btn-primary" disabled={!text.trim()}>Add</button>
       </form>
 
-      {tasks.length > 0 && (
+      {(tasks.length >= SEARCH_FROM || query) && (
         <div className="pi-tools">
           <input type="search" className="pi-search" value={query} onChange={(e) => setQuery(e.target.value)}
             placeholder={`Find in ${tasks.length} ${tasks.length === 1 ? 'task' : 'tasks'}`} aria-label="Find in the Inbox" />
-          <button type="button" className="btn pi-select" aria-pressed={selecting}
-            onClick={() => { setSelecting((s) => !s); setChosen(new Set()); setStatus(null) }}>{selecting ? 'Done' : 'Select'}</button>
         </div>
       )}
 
@@ -157,9 +180,7 @@ export function Inbox({ profileId, tasks, onOpen }: { profileId: string; tasks: 
       )}
 
       {tasks.length === 0 ? (
-        <p className="empty pi-empty">
-          Nothing waiting. Tasks without a day land here: add one above, or clear a task’s day to park it until you know when.
-        </p>
+        <p className="empty pi-empty">Nothing waiting.</p>
       ) : shown.length === 0 ? (
         <p className="empty">No task in the Inbox has those words.</p>
       ) : (
@@ -188,7 +209,7 @@ export function Inbox({ profileId, tasks, onOpen }: { profileId: string; tasks: 
                       sorting && { label: 'Move up', disabled: index <= 0, onSelect: () => step(t, -1) },
                       sorting && { label: 'Move down', disabled: index >= tasks.length - 1, onSelect: () => step(t, 1) },
                       { label: 'Delete', danger: true, onSelect: () => void remove([t]) },
-                    ]}>Or hold it, then drop it on a day{sorting ? ' or another place in the list' : ''}.</MoreMenu>
+                    ]}>Or hold it and drop it on a day{sorting ? ' or another place in the list' : ''}; hold it still and let go to select.</MoreMenu>
                   </>
                 )}
               </li>
@@ -200,7 +221,7 @@ export function Inbox({ profileId, tasks, onOpen }: { profileId: string; tasks: 
       {selecting && (
         <SelectBar count={picked.length} noun="tasks" allShown={shown.length > 0 && shown.every((t) => chosen.has(t.id))} anyShown={shown.length > 0}
           onAll={() => setChosen((s) => (shown.every((t) => s.has(t.id)) ? new Set([...s].filter((id) => !shown.some((t) => t.id === id))) : new Set([...s, ...shown.map((t) => t.id)])))}
-          onDone={() => { setSelecting(false); setChosen(new Set()) }} status={status}>
+          onDone={() => { onSelecting(false); setChosen(new Set()) }} status={status}>
           <button type="button" className="btn" disabled={!picked.length} onClick={() => setPlanning(picked)}>Plan for…</button>
           <button type="button" className="btn" disabled={!picked.length} onClick={() => setCopying({ kind: 'tasks', tasks: picked })}>Copy to day…</button>
           <button type="button" className="btn" disabled={!picked.length} onClick={() => void duplicate(picked)}>Duplicate</button>

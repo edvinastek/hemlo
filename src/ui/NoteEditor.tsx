@@ -31,6 +31,11 @@ type Panel = null | 'menu' | 'template' | 'recipe' | 'save' | { ask: NoteTemplat
  *  stays readable wherever it ends up. `aside` sits at the right end of the
  *  label row (the task sheet puts "Open as page" there).
  *
+ *  Calm (v17): the formatting row and the fill-in pills show only while the
+ *  note is being written (it has the focus, or one of its panels is open);
+ *  "Insert ▾" stays on the label line, the one way in to a template, a
+ *  recipe or saving the note as a template.
+ *
  *  The same editor serves tasks, habits, chores and module records (NOT-16).
  *  Its Insert menu puts in a note template (NOT-13) or a recipe (NOT-20),
  *  and keeps any note as a new template (NOT-11). Codes never show in the
@@ -44,9 +49,10 @@ type Panel = null | 'menu' | 'template' | 'recipe' | 'save' | { ask: NoteTemplat
  *    tick instead of going in at once.
  *  - `templateMode` edits a template's own text: fill-in buttons instead of
  *    the Insert menu, and nothing hidden.
- *  - `startLabel` shows a button of that name while the note is empty, to
- *    start it from a note template (a new task: NOT-13); `onTemplateUsed`
- *    hears which template went in, so a task template can carry it (NOT-15). */
+ *  - `startLabel` names the template choice while the note is empty ("Start
+ *    from a note template", a new task: NOT-13), in the Insert menu;
+ *    `onTemplateUsed` hears which template went in, so a task template can
+ *    carry it (NOT-15). */
 export function NoteEditor({
   value, onChange, label = 'Note', aside, className, autoFocus, context, afterDone = true, templateMode = false,
   startLabel, onTemplateUsed,
@@ -69,6 +75,9 @@ export function NoteEditor({
   const caret = useRef<[number, number] | null>(null)
   const [panel, setPanel] = useState<Panel>(null)
   const [note, setNote] = useState<string | null>(null)
+  // Being written: the focus is somewhere in the editor.
+  const [writing, setWriting] = useState(!!autoFocus)
+  const wrap = useRef<HTMLDivElement>(null)
   const profile = useApp((s) => s.profile)
   const templates = useMemo(() => readSettings(profile).note_templates, [profile])
 
@@ -152,14 +161,25 @@ export function NoteEditor({
   }
 
   const askName = hidden.afterDone ? templates.find((t) => t.id === hidden.afterDone)?.name ?? 'a note' : null
+  const empty = !value.trim()
+  const tools = writing || panel !== null
 
   return (
-    <div className={`ne${className ? ` ${className}` : ''}`}>
+    <div ref={wrap} className={`ne${className ? ` ${className}` : ''}`}
+      onFocus={() => setWriting(true)}
+      // Leaving for something outside the editor ends the writing; a move
+      // between the box and its own buttons does not.
+      onBlur={(e) => { if (!wrap.current?.contains(e.relatedTarget as Node | null)) setWriting(false) }}>
       <div className="ne-head">
         <span className="ne-label">{label}</span>
+        {!templateMode && (
+          <button type="button" className="ne-insert" aria-expanded={panel === 'menu'} aria-haspopup="true"
+            onMouseDown={(e) => { if (document.activeElement === box.current) e.preventDefault() }}
+            onClick={() => setPanel(panel === 'menu' ? null : 'menu')}>Insert <span aria-hidden="true">▾</span></button>
+        )}
         {aside}
       </div>
-      <div className="ne-tools" role="toolbar" aria-label="Formatting">
+      {tools && <div className="ne-tools" role="toolbar" aria-label="Formatting">
         {TOOLS.map((t) => (
           // Pressing a button would otherwise take the focus, and on a phone
           // the keyboard with it, from the text being formatted.
@@ -170,13 +190,9 @@ export function NoteEditor({
           onMouseDown={(e) => e.preventDefault()} onClick={() => indent(1)}>→</button>
         <button type="button" className="ne-tool" aria-label="Outdent list item" title="Outdent"
           onMouseDown={(e) => e.preventDefault()} onClick={() => indent(-1)}>←</button>
-        {!templateMode && (
-          <button type="button" className="ne-tool ne-insert" aria-expanded={panel === 'menu'} aria-haspopup="true"
-            onClick={() => setPanel(panel === 'menu' ? null : 'menu')}>Insert</button>
-        )}
-      </div>
+      </div>}
 
-      {templateMode && (
+      {templateMode && tools && (
         <div className="ne-fills" role="group" aria-label="Fill-ins">
           <span className="ne-fills-label">Fill in when used:</span>
           {FILLS.map((f) => (
@@ -186,19 +202,15 @@ export function NoteEditor({
         </div>
       )}
 
-      {startLabel && !templateMode && !panel && !value.trim() && (
-        <button type="button" className="ne-pill ne-start" onClick={() => setPanel('template')}>{startLabel}</button>
-      )}
-
       {panel === 'menu' && (
         <div className="ne-menu" role="menu" aria-label="Insert">
-          <button type="button" role="menuitem" onClick={() => setPanel('template')}>A note template</button>
+          <button type="button" role="menuitem" onClick={() => setPanel('template')}>{startLabel && empty ? startLabel : 'A note template'}</button>
           <button type="button" role="menuitem" onClick={() => setPanel('recipe')}>A recipe</button>
           <button type="button" role="menuitem" disabled={!value.trim()} onClick={() => setPanel('save')}>Save this note as a template</button>
         </div>
       )}
       {panel === 'template' && <TemplatePicker onPick={pickTemplate} onClose={() => setPanel(null)}
-        title={startLabel && !value.trim() ? startLabel : undefined} />}
+        title={startLabel && empty ? startLabel : undefined} />}
       {panel && typeof panel === 'object' && 'ask' in panel && (
         <div className="tp" role="group" aria-label={`${panel.ask.name}: when`}>
           <p className="tp-title">{panel.ask.name} is meant for after the task.</p>

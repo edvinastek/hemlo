@@ -115,12 +115,10 @@ export function useWeekSwap({ byDay, work }: { byDay: Map<string, Task[]>; work:
 
   const ui: ReactNode = (
     <>
-      {/* The hint keeps its place while a banner floats over it, so nothing
-          under the finger moves when something is picked up. */}
+      {/* The banner floats over the top of the week, so nothing under the
+          finger moves when something is picked up. How to hold is said in
+          each day's ⋮, not on the page (CALM-11). */}
       <div className="week-pick-slot">
-        <p className="week-hint" style={picked && !ask ? { visibility: 'hidden' } : undefined}>
-          Hold a day to swap it with another, or hold a task to move it.
-        </p>
         {picked && !ask && (
           <div className="week-pick" role="status">
             <span>
