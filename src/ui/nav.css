@@ -270,9 +270,9 @@
   font-size: 16px;
   line-height: 1;
 }
-[data-layout="rail"] :is(.nav-rail, .nav-pop) .nav-item[aria-current="page"] { color: var(--e-accent); background: none; }
-[data-layout="rail"] :is(.nav-rail, .nav-pop) .nav-item[aria-current="page"] .nav-label { font-weight: 600; }
-[data-layout="rail"] :is(.nav-rail, .nav-pop) .nav-item[aria-current="page"] .nav-glyph { background: var(--e-tint); }
+[data-layout="rail"] :is(.nav-rail, .nav-pop) .nav-item:is([aria-current="page"], .is-holder) { color: var(--e-accent); background: none; }
+[data-layout="rail"] :is(.nav-rail, .nav-pop) .nav-item:is([aria-current="page"], .is-holder) .nav-label { font-weight: 600; }
+[data-layout="rail"] :is(.nav-rail, .nav-pop) .nav-item:is([aria-current="page"], .is-holder) .nav-glyph { background: var(--e-tint); }
 [data-layout="rail"] :is(.nav-rail, .nav-pop) .nav-item:focus-visible { outline: 2px solid var(--e-accent); outline-offset: -2px; }
 [data-layout="rail"] .nav-rail .nav-handle[aria-expanded="true"] { color: var(--e-accent); }
 
