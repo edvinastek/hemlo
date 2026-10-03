@@ -1,3 +1,4 @@
+import { Link } from 'react-router-dom'
 import { useApp } from '../lib/store'
 import { saveSettings } from '../lib/write'
 import { readSettings, type NavSettings as Nav, type NavStyle } from '../lib/settings'
@@ -11,7 +12,12 @@ const STYLES: { key: NavStyle; label: string }[] = [
   { key: 'three_rows', label: 'Three rows' },
   { key: 'drawer', label: 'Drawer' },
   { key: 'fan', label: 'Fan' },
+  { key: 'hub', label: 'Hub' },
 ]
+
+/** From this many pages besides Today, Plan and More, the hub style is
+ *  suggested: a bar of more than five is a crowd (NAV-20). */
+const HUB_FROM = 5
 
 /** The page bar: its style, which pages it shows and in what order, and
  *  whether a sideways swipe turns the page. Pages come from the modules that
@@ -25,6 +31,8 @@ export function NavSettings() {
 
   const all = pages?.all ?? []
   const hidden = new Set(nav.hidden)
+  const moduleCount = all.filter((p) => p.module).length
+  const hub = nav.style === 'hub'
   // Only the pages between Plan and More move; Today and Plan lead and More
   // closes whatever is stored, so moving them would do nothing.
   const movable = all.filter((p) => !isFixed(p.key))
@@ -49,7 +57,12 @@ export function NavSettings() {
       <div className="setting-row nv-block">
         <div>
           <div className="row-name">Style</div>
-          <div className="row-meta">How the pages sit at the bottom of the screen. Today and Plan always come first.</div>
+          <div className="row-meta">
+            How the pages sit at the bottom of the screen. Today and Plan always come first.
+            {hub
+              ? ' Hub: Today, Plan, up to two pages you pin, Stats, and the Modules page with everything else.'
+              : moduleCount >= HUB_FROM ? ` With ${moduleCount} modules on, Hub keeps the bar short: the rest wait on the Modules page.` : ''}
+          </div>
           <div className="nv-styles" role="radiogroup" aria-label="Page bar style">
             {STYLES.map((s) => (
               <button key={s.key} type="button" role="radio" aria-checked={nav.style === s.key}
@@ -62,6 +75,20 @@ export function NavSettings() {
         </div>
       </div>
 
+      {hub ? (
+        <div className="setting-row">
+          <div>
+            <div className="row-name">Pages</div>
+            <div className="row-meta">
+              {nav.pinned.length
+                ? `Pinned: ${nav.pinned.map((k) => all.find((p) => p.key === k)?.label).filter(Boolean).join(' and ')}. `
+                : 'Nothing pinned yet. '}
+              Hold a module on the Modules page and choose Pin to bar.
+            </div>
+          </div>
+          <Link className="btn" to="/modules">Modules</Link>
+        </div>
+      ) : (
       <div className="setting-row nv-block">
         <div>
           <div className="row-name">Pages</div>
@@ -104,6 +131,7 @@ export function NavSettings() {
           )}
         </div>
       </div>
+      )}
 
       <div className="setting-row">
         <div>
@@ -143,6 +171,11 @@ function Preview({ style }: { style: NavStyle }) {
     rect(6, 8, 44, 18, 'pv-sheet', 3)
     for (let r = 0; r < 2; r++) for (let i = 0; i < 4; i++) rect(10 + i * 10, 12 + r * 7, 6, 4, 'pv-o')
     rect(4, 31, 9, 6, 'pv-p'); rect(15, 31, 9, 6, 'pv-p'); rect(40, 32, 12, 4, 'pv-o')
+  } else if (style === 'hub') {
+    // A short bar, and the grid of the Modules page above it.
+    for (let r = 0; r < 2; r++) for (let i = 0; i < 3; i++) rect(10 + i * 13, 7 + r * 9, 10, 7, 'pv-sheet', 1.5)
+    rect(4, 31, 9, 6, 'pv-p'); rect(15, 31, 9, 6, 'pv-p'); rect(27, 32, 6, 4, 'pv-o'); rect(36, 32, 6, 4, 'pv-o')
+    rect(45, 31, 7, 6, 'pv-c', 1.5)
   } else {
     rect(4, 31, 9, 6, 'pv-p'); rect(15, 31, 9, 6, 'pv-p'); rect(44, 32, 7, 4, 'pv-o')
     dot(33, 32, 4, 'pv-c')

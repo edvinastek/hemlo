@@ -1,0 +1,10 @@
+/* A tip: a tinted card with the accent rule on its left, never a pop-up. */
+.tip {
+  display: grid; gap: var(--space-2); margin: var(--space-3) var(--space-4) 0; padding: var(--space-3);
+  background: var(--e-tint); border-left: 3px solid var(--e-accent); border-radius: var(--radius-md);
+  font-family: var(--font-sans);
+}
+.tip p { margin: 0; font-size: 13px; line-height: 1.45; color: var(--e-ink); }
+.tip-actions { display: flex; flex-wrap: wrap; gap: var(--space-3); justify-content: flex-end; align-items: center; }
+.tip-ok, .tip-go { min-height: 36px; padding: 0 4px; font-size: 13px; color: var(--e-accent); text-decoration: none; display: inline-flex; align-items: center; }
+.tip-ok { font-weight: 600; }

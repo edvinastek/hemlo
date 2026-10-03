@@ -193,3 +193,52 @@ export function tokenIsDead(error: { status?: number; code?: string; message?: s
   if (error.code && /refresh_token|session_not_found|session_expired|invalid_grant/i.test(error.code)) return true
   return error.status === 400 || error.status === 401 || error.status === 403
 }
+
+/* ---------- profiles inside an account (SET-02) ------------------------------ */
+
+export interface ProfileLike { id: string; name: string; is_default: boolean; deleted_at?: string | null }
+
+/** The profile to open: the one open now if it is still there, else the one
+ *  last chosen on this device, else the account's default, else the first.
+ *  A deleted profile is never opened. */
+export function pickProfile<T extends ProfileLike>(list: T[], current: string | null, remembered: string | null): T | null {
+  const live = list.filter((p) => !p.deleted_at)
+  return live.find((p) => p.id === current) ?? live.find((p) => p.id === remembered)
+    ?? live.find((p) => p.is_default) ?? live[0] ?? null
+}
+
+/** What is wrong with a profile's name, or null. */
+export function profileNameProblem(name: string, others: { name: string }[]): string | null {
+  const n = name.trim()
+  if (!n) return 'Give the profile a name.'
+  if (n.length > 40) return 'Keep the name under 40 characters.'
+  if (others.some((o) => o.name.trim().toLowerCase() === n.toLowerCase())) return 'Another profile has that name.'
+  return null
+}
+
+/** A profile can go unless it is the account's own (the default) or the
+ *  only one left. */
+export function profileDeleteProblem(p: ProfileLike, list: ProfileLike[]): string | null {
+  if (p.is_default) return 'This is the account’s own profile; it goes only with the account.'
+  if (list.filter((x) => !x.deleted_at).length <= 1) return 'The last profile cannot go.'
+  return null
+}
+
+/** Where the device remembers the profile chosen last (localStorage). */
+export const PROFILE_MEMORY = 'getit-profile'
+
+/* ---------- signing out (SET-04) ---------------------------------------------- */
+
+/** Signing out wipes this device's copy, so changes not yet sent would be
+ *  lost. With nothing waiting it goes ahead; otherwise it says how many, and
+ *  why they did not go, and asks. */
+export function signOutCheck(s: { pending: number; online: boolean }): Check {
+  if (s.pending <= 0) return { ok: true }
+  const n = s.pending === 1 ? '1 change has' : `${s.pending} changes have`
+  return {
+    ok: false,
+    reason: s.online
+      ? `${n} not reached your account yet, and signing out clears this device. Wait a moment and try again, or sign out and lose ${s.pending === 1 ? 'it' : 'them'}.`
+      : `${n} not been sent: there is no connection, and signing out clears this device. Sign out once you are online, or sign out and lose ${s.pending === 1 ? 'it' : 'them'}.`,
+  }
+}

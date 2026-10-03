@@ -25,3 +25,16 @@
 .acc-saved .section-title { padding-top: 0; }
 
 .switching { max-width: 360px; margin: 0 auto; padding: var(--space-6) var(--space-4); display: grid; gap: var(--space-3); justify-items: start; }
+
+/* Profiles (SET-02): the buttons go under the name, so three of them never
+   push a 360 px row off the screen. */
+.pr-row { grid-template-columns: minmax(0, 1fr); }
+.pr-tools { display: flex; flex-wrap: wrap; gap: var(--space-2); justify-content: flex-start; }
+.pr-chip { margin-left: var(--space-2); font-weight: 400; }
+.pr-edit { display: flex; flex-wrap: wrap; gap: var(--space-2); align-items: center; width: 100%; min-width: 0; }
+.pr-edit input {
+  flex: 1 1 180px; min-width: 0; min-height: 40px; padding: 8px 10px;
+  border: 1px solid var(--e-field-line); border-radius: var(--radius-md); background: var(--e-field); color: var(--e-ink);
+  font-family: var(--font-serif); font-size: 15px;
+}
+.pr-confirm { display: grid; gap: var(--space-2); margin-top: var(--space-2); }

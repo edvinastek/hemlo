@@ -196,3 +196,32 @@ export function isAfter(row: Row, c: Cursor | null, keyCol: string): boolean {
 
 /** One more page is needed only when this one was full. */
 export const morePages = (got: number, page = PAGE) => got >= page
+
+// ---- the merges list, in words (SET-07) -------------------------------------------
+
+/** A value as a person reads it: text in quotes, nothing as "nothing", a
+ *  list or a set of fields spelled out (never "[object Object]"), cut short. */
+export function shownValue(v: unknown, max = 60): string {
+  if (v === null || v === undefined || v === '') return 'nothing'
+  let s: string
+  if (typeof v === 'string') s = `“${v}”`
+  else if (typeof v === 'number' || typeof v === 'boolean') s = String(v)
+  else if (Array.isArray(v)) s = v.map((x) => shownValue(x, 20)).join(', ')
+  else if (typeof v === 'object') {
+    s = Object.entries(v as Record<string, unknown>).filter(([k]) => k !== 'updated_at')
+      .map(([k, x]) => `${k.replace(/_/g, ' ')}: ${shownValue(x, 20)}`).join('; ')
+  } else s = String(v)
+  return s.length > max ? `${s.slice(0, max - 1)}…` : s
+}
+
+/** One line of the merges list. A change the server refused was not kept
+ *  anywhere: it says so, and why. A clash between two devices says which
+ *  value stayed. */
+export function conflictLine(c: { table: string; field: string; kept: string; local_value: unknown; remote_value: unknown }): { head: string; text: string } {
+  const what = `${c.table.replace(/_/g, ' ')} · ${c.field.replace(/_/g, ' ')}`
+  if (c.kept === 'rejected') {
+    const why = typeof c.remote_value === 'string' && c.remote_value.trim() ? c.remote_value.trim() : 'no reason given'
+    return { head: what, text: `Refused by the server, so not saved: ${shownValue(c.local_value)}. The server said: ${why}.` }
+  }
+  return { head: what, text: `Kept this device’s ${shownValue(c.local_value)} over ${shownValue(c.remote_value)} from another device.` }
+}

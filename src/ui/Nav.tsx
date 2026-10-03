@@ -1,6 +1,9 @@
 import { Children, useCallback, useEffect, useLayoutEffect, useRef, useState, type CSSProperties, type ReactNode, type RefObject, type TouchEvent } from 'react'
-import { NavLink, useLocation } from 'react-router-dom'
+import { NavLink, useLocation, useNavigate } from 'react-router-dom'
 import { FIXED_PAGES, noteUse, pageForPath, type PageInfo, type Pages } from '../lib/pages'
+import { useApp } from '../lib/store'
+import { keepZone } from '../lib/timezone'
+import { listenForReminderActions, useReminderRoute } from '../lib/notify'
 import { drawerLayout, fanLayout, fanRows, gridLayout, rowLayout } from '../lib/pages-rules'
 import { useNarrow } from './useNarrow'
 import { useLayout } from './useLayout'
@@ -22,6 +25,19 @@ export function Nav({ pages }: { pages: Pages | undefined }) {
   const bar = pages?.bar ?? FIXED_PAGES
   const style = pages?.nav.style ?? 'row'
   useNavHeight(navRef, narrow && layout === 'bar')
+  // The profile's time zone follows the phone unless one was chosen (GEN-69).
+  // The bar is there whenever a profile is open, so it is checked here.
+  const profileId = useApp((s) => s.profile?.id ?? null)
+  useEffect(() => { if (profileId) void keepZone(profileId) }, [profileId])
+  // A tapped reminder opens its item (REM-03); its buttons tick or snooze.
+  const navigate = useNavigate()
+  const reminderRoute = useReminderRoute((s) => s.route)
+  useEffect(() => { listenForReminderActions() }, [])
+  useEffect(() => {
+    if (!reminderRoute) return
+    navigate(reminderRoute)
+    useReminderRoute.setState({ route: null })
+  }, [reminderRoute, navigate])
   // Each page opened is counted, so the Modules page can put the most used
   // first (NAV-20). Today, Plan and the settings are not modules.
   useEffect(() => {
