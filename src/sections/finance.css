@@ -1,0 +1,22 @@
+/* Finance: the month, the fast entry, categories. */
+.fin-monthnav span { font-family: var(--font-serif); }
+.fin-v { font-size: clamp(14px, 4vw, 20px) !important; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.fin-budget .kit-bar { margin-top: 4px; width: 100%; }
+.fin-share { margin-top: 4px; width: 100%; max-width: 220px; }
+.fin-sub .kit-open { padding-left: var(--space-4); }
+.fin-select { padding: 8px 10px; min-height: 40px; border: 1px solid var(--e-field-line); border-radius: var(--radius-md);
+  background: var(--e-field); color: var(--e-ink); font-family: var(--font-sans); font-size: 15px; }
+.fin-more { margin-top: var(--space-3); }
+
+.fin-quick { display: grid; gap: var(--space-3); min-width: 0; }
+.fin-quick > * { min-width: 0; }
+.fin-quick .kit-seg { justify-self: start; }
+.fin-amount { display: flex; align-items: baseline; gap: var(--space-2); border-bottom: 2px solid var(--e-accent); padding-bottom: 4px; }
+.fin-cur { font-family: var(--font-sans); font-size: 26px; color: var(--e-ink-soft); }
+.fin-amount input { flex: 1; min-width: 0; width: 100%; border: 0; background: transparent; color: var(--e-ink); font-family: var(--font-sans);
+  font-size: 34px; font-weight: 600; font-variant-numeric: tabular-nums; padding: 4px 0; outline: none; }
+.fin-amount:focus-within { border-bottom-color: var(--e-ink); }
+.fin-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(100px, 1fr)); gap: var(--space-2); }
+.fin-grid button { min-height: 48px; padding: 6px 8px; border: 1px solid var(--e-rule); border-radius: var(--radius-md); background: var(--e-tint);
+  font-family: var(--font-sans); font-size: 14px; color: var(--e-ink); overflow-wrap: anywhere; }
+.fin-grid button.is-plain { background: transparent; color: var(--e-ink-soft); }

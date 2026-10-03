@@ -299,11 +299,15 @@ export interface Payment {
   time: string | null
   note: string | null
   active: boolean
+  /** The day it was set up: days due before then are not asked about (a
+   *  payment entered today with a first day in January has not been
+   *  missed all year). */
+  since?: string | null
   deleted_at?: string | null
 }
 
 /** A payment as kept in its module_record's data, read safely. */
-export function readPayment(r: { id: string; data: Record<string, unknown>; deleted_at?: string | null }): Payment {
+export function readPayment(r: { id: string; data: Record<string, unknown>; created_at?: string | null; deleted_at?: string | null }): Payment {
   const d = r.data ?? {}
   const str = (v: unknown, max: number) => (typeof v === 'string' && v.trim() ? v.trim().slice(0, max) : null)
   return {
@@ -319,6 +323,7 @@ export function readPayment(r: { id: string; data: Record<string, unknown>; dele
     time: typeof d.time === 'string' && /^\d{2}:\d{2}/.test(d.time) ? d.time.slice(0, 5) : null,
     note: str(d.note, 500),
     active: d.active !== false,
+    since: typeof r.created_at === 'string' && /^\d{4}-\d{2}-\d{2}/.test(r.created_at) ? r.created_at.slice(0, 10) : null,
     deleted_at: r.deleted_at ?? null,
   }
 }
@@ -326,6 +331,7 @@ export function readPayment(r: { id: string; data: Record<string, unknown>; dele
 /** Is a payment due on a day? A payment without a repeat is due once, on its first day. */
 export function paymentDue(p: Payment, day: string): boolean {
   if (!p.active || p.deleted_at || !p.start_date) return false
+  if (p.since && day < p.since && p.start_date < p.since) return false
   if (!p.rule) return day === p.start_date
   return occursOn({ rule: p.rule, rule_config: p.rule_config, start_date: p.start_date, end_date: p.end_date }, day)
 }

@@ -261,19 +261,23 @@ export const MODULES: ModuleDef[] = [
     key: 'finance',
     name: 'Finance',
     keywords: ['money', 'budget', 'spending', 'expenses', 'finance', 'bills', 'savings'],
-    summary: 'A budget and what was spent against it.',
+    summary: 'Money in and out by category, budgets per month, and payments planned ahead.',
     depth: 'light',
     entities: [
       { name: 'entry', label: 'Entry', fields: [
         { name: 'entry_date', label: 'Date', type: 'date', width: 120 },
+        // Money out or in (FIN-02); entries from before it count by their sign.
+        { name: 'kind', label: 'Type', type: 'select', options: ['expense', 'income'], width: 100 },
+        // One of the categories on the Finance page (a name, so a category
+        // deleted from the list keeps its entries).
         { name: 'category', label: 'Category', type: 'text', width: 160 },
         { name: 'amount', label: 'Amount', type: 'number', width: 110, stats: 'sum' },
         { name: 'note', label: 'Note', type: 'text', width: 240 },
       ]},
     ],
     views: [
-      { key: 'list', name: 'Entries', type: 'table', entity: 'entry', columns: ['entry_date','category','amount','note'] },
-      { key: 'month', name: 'Month', type: 'calendar', entity: 'entry', dateField: 'entry_date' },
+      { key: 'list', name: 'Entries', type: 'table', entity: 'entry', columns: ['entry_date','kind','category','amount','note'] },
+      { key: 'month', name: 'Calendar', type: 'calendar', entity: 'entry', dateField: 'entry_date' },
     ],
     rules: [],
   },

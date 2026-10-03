@@ -11,6 +11,7 @@ import { Stats } from '../sections/Stats'
 import { Training } from '../sections/Training'
 import { Sleep } from '../sections/Sleep'
 import { Projects } from '../sections/Projects'
+import { Finance } from '../sections/Finance'
 import type { ModuleDef, ViewDef } from './types'
 import { PAGE_VIEW_TYPES } from './def-rules'
 import { instanceFor, setModuleEnabled, useModuleDef } from './defs'
@@ -34,6 +35,7 @@ const SECTION_PAGES: Record<string, (p: { profileId: string; day: string }) => J
   training: Training,
   sleep: Sleep,
   projects: Projects,
+  finance: Finance,
 }
 /** Modules with screens of their own, outside the module pages. */
 const OWN_SCREENS: Record<string, { to: string; label: string }> = {
