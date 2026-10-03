@@ -3,7 +3,7 @@ import { supabase } from './supabase'
 import { useApp } from './store'
 import { keepInCatalogue, staleForeign, type SharingRow } from './sharing-rules'
 import {
-  LIVE_ONLY, NATURAL_KEYS, PAGE, REFERENCES, afterFilter, cursorAfter, morePages, naturalKey, readCursor, repointPending, repointRow,
+  LIVE_ONLY, NATURAL_KEYS, PAGE, REFERENCES, afterFilter, cursorAfter, mergeSettings3, morePages, naturalKey, readCursor, repointPending, repointRow,
   type Cursor,
 } from './sync-rules'
 
@@ -167,6 +167,9 @@ async function sendOne(entry: Entry): Promise<'sent' | 'refused' | 'orphan' | 'w
   }
   const { updated_at: _ignored, ...patch } = entry.patch
   if (keyCol !== 'id') delete patch.id
+  // Settings go up merged with what another device saved meanwhile (SYNC-03).
+  const settingsSent = entry.table === 'profile' && 'settings' in patch
+  if (settingsSent) patch.settings = await withServerSettings(entry.id, patch.settings)
   const updated = await supabase.from(entry.table).update(patch).eq(keyCol, entry.id).select(keyCol)
 
   let error = updated.error
@@ -190,6 +193,7 @@ async function sendOne(entry: Entry): Promise<'sent' | 'refused' | 'orphan' | 'w
 
   if (!error) {
     await db.pending.bulkDelete(entry.ids)
+    if (settingsSent) await settingsLanded(entry.id, patch.settings)
     return 'sent'
   }
   if (isPermanent(error.code)) {
@@ -236,6 +240,30 @@ async function resendLostParent(entry: Entry): Promise<boolean> {
     table: 'food', row_id: foodId, op: 'upsert', payload: fields, fields: Object.keys(fields), changed_at: new Date().toISOString(),
   })
   return true
+}
+
+/* ---------- settings, key by key (SYNC-03) --------------------------------- */
+
+/** The server's copy of a profile's settings this device last saw. */
+const settingsBase = (profileId: string) => `settings-base:${profileId}`
+
+/** This device's settings laid over the server's current ones: what this
+ *  device changed since it last saw them wins, everything else is the
+ *  server's (another device's note template, look or switch survives).
+ *  With no answer from the server, this device's settings go as they are. */
+async function withServerSettings(profileId: string, mine: unknown): Promise<unknown> {
+  const { data, error } = await supabase.from('profile').select('settings').eq('id', profileId).maybeSingle()
+  if (error || !data) return mine
+  return mergeSettings3(await getMeta<unknown>(settingsBase(profileId), null), mine, (data as { settings: unknown }).settings)
+}
+
+/** Sent: that is now the server's copy, and this device shows it too. */
+async function settingsLanded(profileId: string, sent: unknown) {
+  await setMeta(settingsBase(profileId), sent)
+  const local = await db.profile.get(profileId)
+  if (local && JSON.stringify(local.settings ?? null) !== JSON.stringify(sent ?? null)) {
+    await db.profile.update(profileId, { settings: sent as never })
+  }
 }
 
 /** The row collided with another on its natural key: the same day's weigh-in
@@ -328,7 +356,7 @@ const same = (a: unknown, b: unknown) =>
  *  updated_at order last stopped, never this device's clock: a phone running
  *  three minutes fast would otherwise skip every row written in those three
  *  minutes. */
-export async function pull(ids: string[]): Promise<number> {
+export async function pull(ids: string[], opts: { light?: boolean } = {}): Promise<number> {
   let profileIds = ids
   const pending = await db.pending.toArray()
   const claimed = new Map<string, Set<string>>()
@@ -356,6 +384,12 @@ export async function pull(ids: string[]): Promise<number> {
       const local = mine?.size ? await db.profile.get(row.id) : undefined
       const merged: Row = { ...row }
       if (local && mine) for (const field of mine) merged[field] = (local as unknown as Row)[field]
+      // Settings changed here and waiting are merged key by key with the
+      // server's (SYNC-03), and the server's copy is noted as the new base.
+      if (local && mine?.has('settings')) {
+        merged.settings = mergeSettings3(await getMeta<unknown>(settingsBase(row.id), null), local.settings, row.settings)
+      }
+      await setMeta(settingsBase(row.id), row.settings ?? null)
       await db.profile.put(merged as never)
     }
     profileIds = remoteProfiles.map((p) => p.id)
@@ -427,9 +461,12 @@ export async function pull(ids: string[]): Promise<number> {
   // Tables are asked for a few at a time rather than one after another: one
   // by one, a sync took seconds on every start. Recipe lines come last, as
   // they are kept only for recipes this device already holds.
-  const first = [...SYNCED, ...CHILDREN, ...CATALOGUE].filter((t) => t !== 'recipe_line')
+  // A light pull (the periodic one) leaves out the catalogue, which is
+  // fetched whole each time and changes rarely; the full sync at start-up,
+  // on reconnecting and on returning to the app still brings it.
+  const first = [...SYNCED, ...CHILDREN, ...(opts.light ? [] : CATALOGUE)].filter((t) => t !== 'recipe_line')
   await inBatches(first, PULL_PARALLEL, pullTable)
-  await pullTable('recipe_line')
+  if (!opts.light) await pullTable('recipe_line')
   return count
 }
 
@@ -515,28 +552,59 @@ async function keepLines(rows: Row[], serverRecipes: Set<string> | null, queued:
 }
 
 /** One round trip: send what is waiting, then take what is new. */
-export async function sync(profileIds: string[]) {
+export async function sync(profileIds: string[], opts: { light?: boolean } = {}) {
   if (!navigator.onLine) return
   const { setSync } = useApp.getState()
   setSync(true)
   try {
     await push()
-    await pull(profileIds)
+    await pull(profileIds, opts)
     setSync(false, new Date().toISOString())
   } catch {
     setSync(false)
   }
 }
 
+/** How often a light pull runs while the app is open and in view (SYNC-02). */
+export const PERIODIC_MS = 2 * 60_000
+/** Coming back to the app pulls at once, but not more often than this. */
+const FOCUS_GAP_MS = 20_000
+
 export function watchConnection(profileIds: () => string[]) {
   const go = () => {
     useApp.getState().setOnline(navigator.onLine)
     if (navigator.onLine) void sync(profileIds())
   }
+  // A light pull every two minutes while GetIt is open and in view, and when
+  // it comes back into view, so a change made on another device appears
+  // without a reload (SYNC-02). Skipped offline, hidden, before sign-in, or
+  // while a sync is already running.
+  let last = 0
+  const light = () => {
+    const ids = profileIds()
+    if (!navigator.onLine || document.visibilityState !== 'visible' || ids.length === 0 || useApp.getState().syncing) return
+    if (!useApp.getState().session) return
+    last = Date.now()
+    void sync(ids, { light: true }).then(refreshAfterPull)
+  }
+  const onFocus = () => { if (Date.now() - last > FOCUS_GAP_MS) light() }
+  const timer = window.setInterval(light, PERIODIC_MS)
   window.addEventListener('online', go)
   window.addEventListener('offline', go)
+  window.addEventListener('focus', onFocus)
+  document.addEventListener('visibilitychange', onFocus)
   return () => {
+    window.clearInterval(timer)
     window.removeEventListener('online', go)
     window.removeEventListener('offline', go)
+    window.removeEventListener('focus', onFocus)
+    document.removeEventListener('visibilitychange', onFocus)
   }
+}
+
+/** After a pull, repeating series another device started are laid out here
+ *  too; the series code is loaded only then. */
+async function refreshAfterPull() {
+  const { refreshPlan } = await import('./lifecycle')
+  await refreshPlan()
 }

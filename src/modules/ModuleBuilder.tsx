@@ -9,9 +9,12 @@ import {
 } from './def-rules'
 import { VIEW_TYPE_NAME, VIEW_TYPE_OPTIONS, ViewSettings } from './ViewSettings'
 import { createBuiltModule, setModuleEnabled, useModuleDefs } from './defs'
-import { PRESETS, presetByKey } from './presets'
+import { PRESETS, combinePresets } from './presets'
+import { saveSettings } from '../lib/write'
+import { db } from '../lib/db'
 import { FieldForm, LOOKUP_OPTIONS, STATS_OPTIONS, describeField } from './FieldForm'
 import { Dropdown } from '../ui/Dropdown'
+import { readDesignFile } from './design-file-rules'
 import './modules.css'
 
 /** More → Modules: the modules the person built, and the button that builds
@@ -45,6 +48,7 @@ export function BuiltModules({ onEdit }: { onEdit: (key: string) => void }) {
       ))}
       <div className="mb-built">
         <button className="btn btn-primary" onClick={() => setBuilding(true)}>Build a module</button>
+        <ImportDesign />
       </div>
       {building && <ModuleBuilder onClose={() => setBuilding(false)} />}
     </>
@@ -64,11 +68,13 @@ const SET_UP_VIEWS: ViewDef['type'][] = ['board', 'grid', 'chart']
 export function ModuleBuilder({ onClose }: { onClose: () => void }) {
   const { profile, session } = useApp()
   const navigate = useNavigate()
+  // Other modules the person built, for a field that links to their records.
+  const builtList = (useModuleDefs() ?? []).filter((e) => e.def.built).map((e) => ({ key: e.def.key, name: e.def.name }))
   const [step, setStep] = useState(0)
   const [name, setName] = useState('')
   const [glyph, setGlyph] = useState('')
   const [summary, setSummary] = useState('')
-  const [presetKey, setPresetKey] = useState('blank')
+  const [presetKeys, setPresetKeys] = useState<string[]>(['blank'])
   const [item, setItem] = useState(PRESETS[0].item)
   const [keywords, setKeywords] = useState('')
   const [fields, setFields] = useState<FieldDef[]>(PRESETS[0].fields.map((f) => ({ ...f })))
@@ -78,13 +84,18 @@ export function ModuleBuilder({ onClose }: { onClose: () => void }) {
   const [error, setError] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
 
-  const preset = presetByKey(presetKey) ?? PRESETS[0]
+  const preset = combinePresets(presetKeys)
 
+  /** Presets combine (MOD-10): tapping one adds it to the others, tapping it
+   *  again takes it out; Blank clears the rest. The fields are merged anew
+   *  each time, so changes made in Fields are made after choosing. */
   function pickPreset(key: string) {
-    const p = presetByKey(key)
-    if (!p) return
-    setPresetKey(key)
-    setFields(p.fields.map((f) => ({ ...f, ...(f.options ? { options: [...f.options] } : {}) })))
+    const next = key === 'blank' ? ['blank']
+      : presetKeys.includes(key) ? presetKeys.filter((k) => k !== key)
+      : [...presetKeys.filter((k) => k !== 'blank'), key]
+    const p = combinePresets(next.length ? next : ['blank'])
+    setPresetKeys(p.keys)
+    setFields(p.fields)
     setViews(p.views.map((v) => ({ ...v })))
     setItem(p.item)
     setKeywords(p.keywords.join(', '))
@@ -92,7 +103,7 @@ export function ModuleBuilder({ onClose }: { onClose: () => void }) {
   }
 
   const draft: ModuleDef = {
-    key: 'u_draft00', name: name.trim(), summary: summary.trim() || (preset.key === 'blank' ? '' : preset.description), built: true, depth: 'light',
+    key: 'u_draft00', name: name.trim(), summary: summary.trim() || (preset.keys.includes('blank') ? '' : preset.description).slice(0, 160), built: true, depth: 'light',
     keywords: cleanKeywords(keywords),
     entities: [{ name: 'item', label: item.trim() || 'Item', fields }],
     views: [], rules,
@@ -145,6 +156,11 @@ export function ModuleBuilder({ onClose }: { onClose: () => void }) {
     setBusy(true)
     try {
       const key = await createBuiltModule(session.user.id, profile.id, draft)
+      // A private preset (period and cycle) starts off the widget and Today.
+      if (preset.show) {
+        const fresh = await db.profile.get(profile.id)
+        if (fresh) await saveSettings(fresh, { module_views: { [key]: preset.show } })
+      }
       onClose()
       navigate(`/m/${key}`)
     } catch (e) {
@@ -191,15 +207,23 @@ export function ModuleBuilder({ onClose }: { onClose: () => void }) {
 
         {step === 1 && (
           <>
-            <p className="mf-hint" style={{ marginBottom: 8 }}>A starting set of fields. You can change every one of them next.</p>
+            <p className="mf-hint" style={{ marginBottom: 8 }}>
+              Pick one or several: their fields are put together. You can change every one of them next.
+            </p>
             <div className="mb-presets" role="group" aria-label="Start from">
               {PRESETS.map((p) => (
-                <button key={p.key} type="button" className="mb-preset" aria-pressed={p.key === presetKey} onClick={() => pickPreset(p.key)}>
+                <button key={p.key} type="button" className="mb-preset" aria-pressed={presetKeys.includes(p.key)} onClick={() => pickPreset(p.key)}>
                   <span className="mb-preset-name">{p.name}</span>
                   <span className="mb-preset-why">{p.description}</span>
                 </button>
               ))}
             </div>
+            <p className="mf-hint" role="status" style={{ marginTop: 8 }}>
+              {preset.keys.length > 1
+                ? `${preset.keys.length} put together: ${fields.length} fields, ${views.length} views.`
+                : `${fields.length} fields, ${views.length} views.`}
+              {preset.note ? ` ${preset.note}` : ''}
+            </p>
           </>
         )}
 
@@ -227,7 +251,7 @@ export function ModuleBuilder({ onClose }: { onClose: () => void }) {
                 <li key={f.name}>
                   {open === i ? (
                     <div style={{ gridColumn: '1 / -1' }}>
-                      <FieldForm field={f} fields={fields} index={i} onCancel={() => setOpen(null)}
+                      <FieldForm field={f} fields={fields} index={i} modules={builtList} onCancel={() => setOpen(null)}
                         onSave={(nf) => { setFields((fs) => fs.map((x, j) => (j === i ? nf : x))); setOpen(null) }} />
                     </div>
                   ) : (
@@ -248,7 +272,7 @@ export function ModuleBuilder({ onClose }: { onClose: () => void }) {
             </ul>
             {open === 'new' ? (
               <div className="me-panel" style={{ marginTop: 12 }}>
-                <FieldForm fields={fields} index={fields.length} onCancel={() => setOpen(null)}
+                <FieldForm fields={fields} index={fields.length} modules={builtList} onCancel={() => setOpen(null)}
                   onSave={(nf) => { setFields((fs) => [...fs, nf]); setOpen(null) }} />
               </div>
             ) : (
@@ -347,6 +371,36 @@ export function ModuleBuilder({ onClose }: { onClose: () => void }) {
             : <button type="button" className="btn btn-primary grow" disabled={busy || !!problem} onClick={() => void create()}>Create</button>}
         </div>
       </div>
+    </>
+  )
+}
+
+/** Build a module from a design file someone shared (MOD-16): its fields,
+ *  views and rules, with no records. It opens as a new module of one's own. */
+export function ImportDesign() {
+  const { profile, session } = useApp()
+  const navigate = useNavigate()
+  const [note, setNote] = useState<string | null>(null)
+  async function read(file: File) {
+    setNote(null)
+    const res = readDesignFile(await file.text())
+    if (!res.ok) { setNote(res.problem); return }
+    if (!profile || !session) { setNote('Sign in again to build a module.'); return }
+    try {
+      const key = await createBuiltModule(session.user.id, profile.id, res.def)
+      navigate(`/m/${key}`)
+    } catch (e) {
+      setNote(e instanceof Error ? e.message : 'The design could not be built.')
+    }
+  }
+  return (
+    <>
+      <label className="btn mb-import">
+        Import a design
+        <input type="file" accept=".json,application/json" hidden
+          onChange={(e) => { const f = e.target.files?.[0]; e.target.value = ''; if (f) void read(f) }} />
+      </label>
+      {note && <p className="mf-error" role="alert">{note}</p>}
     </>
   )
 }

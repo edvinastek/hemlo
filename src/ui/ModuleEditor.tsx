@@ -4,14 +4,17 @@ import { moduleByKey } from '../modules/registry'
 import type { EntityDef, FieldDef, ModuleDef, RuleDef, ViewDef } from '../modules/types'
 import {
   BUILTIN_RULES, LIMITS, RULE_DAY_TASK, RULE_REMIND, cleanKeywords, definitionFor, definitionProblem,
-  glyphProblem, isDateLike, isNumeric, overlayFrom, ruleSupport, viewDefaults, type StatsKind,
+  glyphProblem, isDateLike, isNumeric, overlayFrom, ruleShown, ruleSupport, viewDefaults, type StatsKind,
 } from '../modules/def-rules'
-import { deleteBuiltModule, saveModuleDef, useModuleDef } from '../modules/defs'
+import { deleteBuiltModule, saveModuleDef, useModuleDef, useModuleDefs } from '../modules/defs'
 import { syncModuleTasks } from '../modules/records'
 import { syncMealTasks } from '../lib/meals'
 import { FieldForm, STATS_OPTIONS, describeField } from '../modules/FieldForm'
 import { VIEW_TYPE_NAME, VIEW_TYPE_OPTIONS, ViewSettings } from '../modules/ViewSettings'
 import { Dropdown } from './Dropdown'
+import { ModuleShow } from '../modules/ModuleShow'
+import { designFile, designFileName } from '../modules/design-file-rules'
+import { saveFile } from '../lib/native'
 import '../modules/modules.css'
 
 /** A module as what it is — fields, views, rules and its name — and every
@@ -21,9 +24,10 @@ import '../modules/modules.css'
  *  and its changes are saved as a layer over the app's version, so updates
  *  to the app still reach it. */
 
-type Tab = 'fields' | 'views' | 'rules' | 'settings'
+export type EditorTab = 'fields' | 'views' | 'show' | 'rules' | 'settings'
+type Tab = EditorTab
 const TABS: { key: Tab; label: string }[] = [
-  { key: 'fields', label: 'Fields' }, { key: 'views', label: 'Views' },
+  { key: 'fields', label: 'Fields' }, { key: 'views', label: 'Views' }, { key: 'show', label: 'Show' },
   { key: 'rules', label: 'Rules' }, { key: 'settings', label: 'Settings' },
 ]
 /** Modules whose page is a screen of its own: fields and views are fixed. */
@@ -39,11 +43,11 @@ function stored(def: ModuleDef): string {
   return base ? JSON.stringify(overlayFrom(base, def)) : ''
 }
 
-export function ModuleEditor({ moduleKey, onBack }: { moduleKey: string; onBack: () => void }) {
+export function ModuleEditor({ moduleKey, onBack, tab: firstTab = 'fields' }: { moduleKey: string; onBack: () => void; tab?: EditorTab }) {
   const profile = useApp((s) => s.profile)
   const live = useModuleDef(moduleKey)
   const [draft, setDraft] = useState<ModuleDef | null>(null)
-  const [tab, setTab] = useState<Tab>('fields')
+  const [tab, setTab] = useState<Tab>(firstTab)
   const [note, setNote] = useState<{ text: string; warn?: boolean } | null>(null)
   const [busy, setBusy] = useState(false)
   const [leaving, setLeaving] = useState(false)
@@ -112,6 +116,7 @@ export function ModuleEditor({ moduleKey, onBack }: { moduleKey: string; onBack:
 
       {tab === 'fields' && <FieldsTab draft={draft} base={base} fixed={fixed} change={change} />}
       {tab === 'views' && <ViewsTab draft={draft} base={base} fixed={fixed} change={change} />}
+      {tab === 'show' && <ModuleShow moduleKey={draft.key} name={live.name} />}
       {tab === 'rules' && <RulesTab draft={draft} fixed={fixed} change={change} />}
       {tab === 'settings' && (
         <SettingsTab draft={draft} base={base} change={change} setDraft={(d) => { setDraft(d); setNote(null) }}
@@ -170,19 +175,21 @@ function FieldsTab({ draft, base, fixed, change }: { draft: ModuleDef; base?: Mo
       )}
       {draft.entities.map((e, ei) => (
         <EntityFields key={e.name} entity={e} baseEntity={base?.entities.find((b) => b.name === e.name)}
-          built={!!draft.built} fixed={fixed} showTitle={draft.entities.length > 1 || !!base}
+          built={!!draft.built} fixed={fixed} showTitle={draft.entities.length > 1 || !!base} self={draft.key}
           change={(fn) => change((d) => fn(d.entities[ei], d))} />
       ))}
     </>
   )
 }
 
-function EntityFields({ entity, baseEntity, built, fixed, showTitle, change }: {
-  entity: EntityDef; baseEntity?: EntityDef; built: boolean; fixed: boolean; showTitle: boolean
+function EntityFields({ entity, baseEntity, built, fixed, showTitle, self, change }: {
+  entity: EntityDef; baseEntity?: EntityDef; built: boolean; fixed: boolean; showTitle: boolean; self: string
   change: (fn: (e: EntityDef, d: ModuleDef) => void) => void
 }) {
   const [open, setOpen] = useState<string | null>(null)
   const [adding, setAdding] = useState(false)
+  // Modules the person built (not this one), for a link to their records.
+  const others = (useModuleDefs() ?? []).filter((e) => e.def.built && e.def.key !== self).map((e) => ({ key: e.def.key, name: e.def.name }))
   // Fields can be added where records are module records: every built
   // module, and the light built-in ones.
   const structural = !fixed && (built || !entity.table)
@@ -236,7 +243,7 @@ function EntityFields({ entity, baseEntity, built, fixed, showTitle, change }: {
           )}
           {open === f.name && (
             <div className="me-panel">
-              <FieldForm field={f} fields={entity.fields} index={i} typeLocked={!structural || isBase(f)}
+              <FieldForm field={f} fields={entity.fields} index={i} typeLocked={!structural || isBase(f)} modules={others}
                 onCancel={() => setOpen(null)}
                 onSave={(nf) => { change((e) => { e.fields[i] = nf }); setOpen(null) }} />
             </div>
@@ -247,7 +254,7 @@ function EntityFields({ entity, baseEntity, built, fixed, showTitle, change }: {
         adding ? (
           <div className="me-add">
             <div className="me-panel">
-              <FieldForm fields={entity.fields} index={entity.fields.length} onCancel={() => setAdding(false)}
+              <FieldForm fields={entity.fields} index={entity.fields.length} modules={others} onCancel={() => setAdding(false)}
                 onSave={(nf) => { change((e) => { e.fields.push(nf) }); setAdding(false) }} />
             </div>
           </div>
@@ -391,7 +398,7 @@ function RulesTab({ draft, fixed, change }: { draft: ModuleDef; fixed: boolean; 
           {support === 'switch'
             ? <button type="button" className="switch" role="switch" aria-checked={!r.off} aria-label={r.sentence}
                 onClick={() => change((d) => { const rule = d.rules[i]; if (rule.off) delete rule.off; else rule.off = true })} />
-            : <span className="row-meta">{support === 'always' ? 'Always on' : 'No switch yet'}</span>}
+            : <span className="row-meta">Always on</span>}
         </div>
       )
     }
@@ -427,10 +434,12 @@ function RulesTab({ draft, fixed, change }: { draft: ModuleDef; fixed: boolean; 
     )
   }
 
+  // Rules the app does not carry out yet are not shown (MOD-06).
+  const shown = draft.rules.map((r, i) => ({ r, i })).filter(({ r }) => draft.built || ruleShown(draft.key, r.name))
   return (
     <>
-      {draft.rules.length === 0 && <p className="empty">No rules. This module only holds records.</p>}
-      {draft.rules.map(ruleRow)}
+      {shown.length === 0 && <p className="empty">No rules. This module only holds records and shows them where you choose under Show.</p>}
+      {shown.map(({ r, i }) => ruleRow(r, i))}
       {numericFields.length > 0 && (
         <>
           <p className="section-title">Count in Stats</p>
@@ -449,8 +458,8 @@ function RulesTab({ draft, fixed, change }: { draft: ModuleDef; fixed: boolean; 
           ))}
         </>
       )}
-      {!draft.built && draft.rules.length > 0 && (
-        <p className="mp-note">A switch takes effect once saved and is kept with your module settings. Rules without a switch describe what the module is, or what it will do once the app can.</p>
+      {!draft.built && shown.length > 0 && (
+        <p className="mp-note">A switch takes effect once saved and is kept with your module settings. A rule without a switch is what the module is: switch the module off to stop it.</p>
       )}
     </>
   )
@@ -496,6 +505,15 @@ function SettingsTab({ draft, base, change, setDraft, onDelete }: {
             Go back to the app’s version
           </button>
           <p className="mf-hint" style={{ marginTop: 6 }}>Undoes every change to this module once saved. Records are not touched.</p>
+        </div>
+      )}
+
+      {draft.built && (
+        <div className="me-block">
+          <button type="button" className="btn" onClick={() => void saveFile(designFileName(draft.name), new Blob([JSON.stringify(designFile(draft), null, 1)], { type: 'application/json' }))}>
+            Save the design as a file
+          </button>
+          <p className="mf-hint" style={{ marginTop: 6 }}>Its fields, views and rules, not its records: someone else can build it with Import a design.</p>
         </div>
       )}
 

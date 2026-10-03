@@ -6,6 +6,7 @@ import { readUnits } from './units-rules'
 import { productFoodId } from './products-rules'
 import { productSalt } from './products'
 import { useApp } from './store'
+import { restoredProfile } from './restore-rules'
 
 /** One file that holds everything: profile, plan, logs, recipes and settings.
  *  It is the backup, how a device hands its state to another one, and the
@@ -91,9 +92,6 @@ async function freshId(table: string, r: Row, userId: string): Promise<string> {
   return crypto.randomUUID()
 }
 
-/** Profile fields a restore carries over. Ids, the household and the default
- *  flag belong to the account the file is read into, not the one it came from. */
-const PROFILE_FIELDS = ['name', 'sex', 'birth_date', 'height_cm', 'activity_level', 'goal', 'timezone', 'day_start', 'day_end', 'ai_persona_name'] as const
 
 type Row = { id: string } & Record<string, unknown>
 type Table = { get: (id: string) => Promise<Row | undefined>; put: (r: Row) => Promise<unknown>; toArray: () => Promise<Row[]> }
@@ -142,14 +140,15 @@ export async function importBundle(file: File, profileId: string, userId: string
     return v
   }
 
-  // The profile: its details, onto the profile that is open.
+  // The profile: its details, settings, country and city, onto the profile
+  // that is open (SET-06, DATA-06; restore-rules.ts).
   const source = rows('profile').find((r) => r.id === bundle.profile_id) ?? rows('profile')[0]
   const current = await db.profile.get(profileId)
   if (source && current) {
-    const fields = PROFILE_FIELDS.filter((f) => f in source)
-    const next = { ...current, ...Object.fromEntries(fields.map((f) => [f, source[f]])) }
-    await db.profile.put(next)
-    await queueChange('profile', next, [...fields])
+    const changes = restoredProfile(source, current, remap)
+    const next = { ...current, ...changes }
+    await db.profile.put(next as never)
+    await queueChange('profile', next, Object.keys(changes) as (keyof typeof next & string)[])
     imported++
   }
 

@@ -1,4 +1,5 @@
 import { useEffect, useId, useMemo, useRef, useState, type KeyboardEvent } from 'react'
+import { search } from '../lib/search-rules'
 import './pickers.css'
 
 export interface PickItem {
@@ -8,14 +9,22 @@ export interface PickItem {
   meta?: string
   /** Shown as a small tag: "mine", "recipe". */
   tag?: string
+  /** Other words the search finds it by (brand, aisle, tags), not shown. */
+  extra?: string
+  /** The person's own: ranked ahead of the rest. */
+  mine?: boolean
+  /** Used recently, higher is more recent: ranked ahead too. */
+  recent?: number
 }
 
-/** Type to find: the same quick search as the Foods page, as a picker. Results
- *  filter on every key, best matches first (name starts with the words, then
- *  contains them), at most `limit` shown. Used wherever a food or recipe is
- *  chosen, so picking one feels the same everywhere. */
+/** Type to find, with THE search (search-rules.ts, GEN-10 to GEN-12): every
+ *  word in any order, accents ignored, starts-with first, own and recent
+ *  things first. It updates on every letter, over the whole list; the best
+ *  `limit` (20) are shown, with "Show all" for the rest. Used wherever a
+ *  food, recipe, country or anything else is chosen, so picking one feels
+ *  the same everywhere. */
 export function SearchPick({
-  items, onPick, placeholder = 'Search', label, value, limit = 8, autoFocus, onClear,
+  items, onPick, placeholder = 'Search', label, value, limit = 20, autoFocus, onClear,
 }: {
   items: PickItem[]
   onPick: (item: PickItem) => void
@@ -31,10 +40,13 @@ export function SearchPick({
   const [query, setQuery] = useState('')
   const [open, setOpen] = useState(false)
   const [active, setActive] = useState(0)
+  const [all, setAll] = useState(false)
   const wrap = useRef<HTMLDivElement>(null)
   const id = useId()
 
-  const results = useMemo(() => rank(items, query).slice(0, limit), [items, query, limit])
+  const found = useMemo(() => rank(items, query), [items, query])
+  const results = all ? found : found.slice(0, limit)
+  const more = found.length - results.length
 
   useEffect(() => {
     if (!open) return
@@ -43,7 +55,7 @@ export function SearchPick({
     return () => document.removeEventListener('pointerdown', close)
   }, [open])
 
-  useEffect(() => setActive(0), [query])
+  useEffect(() => { setActive(0); setAll(false) }, [query])
 
   function pick(item: PickItem | undefined) {
     if (!item) return
@@ -92,23 +104,21 @@ export function SearchPick({
               {r.meta && <span className="sp-meta">{r.meta}</span>}
             </li>
           ))}
+          {more > 0 && (
+            <li className="sp-more" role="presentation">
+              <button type="button" onMouseDown={(e) => e.preventDefault()} onClick={() => setAll(true)}>
+                Show all {found.length}
+              </button>
+            </li>
+          )}
         </ul>
       )}
     </div>
   )
 }
 
-/** Every word typed must appear; names that start with the first word come
- *  first, then shorter names (the plain food before its variations). */
-export function rank<T extends { name: string }>(items: T[], query: string): T[] {
-  const words = query.toLowerCase().split(/\s+/).filter(Boolean)
-  if (words.length === 0) return [...items].sort((a, b) => a.name.localeCompare(b.name))
-  const scored: { item: T; score: number }[] = []
-  for (const item of items) {
-    const name = item.name.toLowerCase()
-    if (!words.every((w) => name.includes(w))) continue
-    const score = (name.startsWith(words[0]) ? 0 : name.split(/\W+/).some((p) => p.startsWith(words[0])) ? 1 : 2) * 1000 + name.length
-    scored.push({ item, score })
-  }
-  return scored.sort((a, b) => a.score - b.score || a.item.name.localeCompare(b.item.name)).map((s) => s.item)
+/** The picker's order: THE search (search-rules.ts). Kept under this name
+ *  for code that ranks a list the way the picker does. */
+export function rank<T extends { name: string; extra?: string; mine?: boolean; recent?: number }>(items: T[], query: string): T[] {
+  return search(items, query)
 }

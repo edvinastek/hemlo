@@ -1,0 +1,7 @@
+/* What moved where: a list of was → now, one item per line pair. */
+.wm-lead { margin: 0 0 var(--space-3); font-family: var(--font-sans); font-size: 14px; color: var(--e-ink-soft); }
+.wm-list { margin: 0; display: grid; gap: var(--space-3); }
+.wm-item { display: grid; gap: 2px; padding-bottom: var(--space-3); border-bottom: 1px solid var(--e-rule); }
+.wm-item dt { font-family: var(--font-sans); font-size: 12px; color: var(--e-ink-soft); }
+.wm-item dt::after { content: ' → now'; }
+.wm-item dd { margin: 0; font-family: var(--font-sans); font-size: 14px; line-height: 1.45; color: var(--e-ink); }

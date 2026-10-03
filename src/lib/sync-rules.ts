@@ -196,3 +196,66 @@ export function isAfter(row: Row, c: Cursor | null, keyCol: string): boolean {
 
 /** One more page is needed only when this one was full. */
 export const morePages = (got: number, page = PAGE) => got >= page
+
+// ---- the merges list, in words (SET-07) -------------------------------------------
+
+/** A value as a person reads it: text in quotes, nothing as "nothing", a
+ *  list or a set of fields spelled out (never "[object Object]"), cut short. */
+export function shownValue(v: unknown, max = 60): string {
+  if (v === null || v === undefined || v === '') return 'nothing'
+  let s: string
+  if (typeof v === 'string') s = `“${v}”`
+  else if (typeof v === 'number' || typeof v === 'boolean') s = String(v)
+  else if (Array.isArray(v)) s = v.map((x) => shownValue(x, 20)).join(', ')
+  else if (typeof v === 'object') {
+    s = Object.entries(v as Record<string, unknown>).filter(([k]) => k !== 'updated_at')
+      .map(([k, x]) => `${k.replace(/_/g, ' ')}: ${shownValue(x, 20)}`).join('; ')
+  } else s = String(v)
+  return s.length > max ? `${s.slice(0, max - 1)}…` : s
+}
+
+/** One line of the merges list. A change the server refused was not kept
+ *  anywhere: it says so, and why. A clash between two devices says which
+ *  value stayed. */
+export function conflictLine(c: { table: string; field: string; kept: string; local_value: unknown; remote_value: unknown }): { head: string; text: string } {
+  const what = `${c.table.replace(/_/g, ' ')} · ${c.field.replace(/_/g, ' ')}`
+  if (c.kept === 'rejected') {
+    const why = typeof c.remote_value === 'string' && c.remote_value.trim() ? c.remote_value.trim() : 'no reason given'
+    return { head: what, text: `Refused by the server, so not saved: ${shownValue(c.local_value)}. The server said: ${why}.` }
+  }
+  return { head: what, text: `Kept this device’s ${shownValue(c.local_value)} over ${shownValue(c.remote_value)} from another device.` }
+}
+
+// ---- settings merged key by key (SYNC-03) -------------------------------------------
+
+const plain = (v: unknown): v is Row => !!v && typeof v === 'object' && !Array.isArray(v)
+const sameValue = (a: unknown, b: unknown) => JSON.stringify(a ?? null) === JSON.stringify(b ?? null)
+
+/** A profile's settings hold many separate things (note templates, stats
+ *  views, looks, where each module shows, the page bar…). Two devices that
+ *  change different ones must both keep their change, as two devices that
+ *  change different fields of a row do. So settings merge three ways: for
+ *  each setting, the one this device changed (it differs from `base`, the
+ *  server's copy this device last saw) is this device's; every other is the
+ *  server's. Objects such as the page bar or module_views merge one level
+ *  deeper (one device's bar style, the other's page order); lists are whole.
+ *  Without a base, this device's settings win, as before. */
+export function mergeSettings3(base: unknown, mine: unknown, theirs: unknown): Row {
+  if (!plain(mine)) return plain(theirs) ? { ...theirs } : {}
+  if (!plain(theirs) || !plain(base)) return { ...mine }
+  const out: Row = {}
+  for (const k of new Set([...Object.keys(theirs), ...Object.keys(mine)])) {
+    const m = mine[k]; const t = theirs[k]; const b = base[k]
+    if (sameValue(m, b)) { if (k in theirs) out[k] = t; continue }
+    if (plain(m) && plain(t) && plain(b)) {
+      const inner: Row = {}
+      for (const j of new Set([...Object.keys(t), ...Object.keys(m)])) {
+        if (sameValue(m[j], b[j])) { if (j in t) inner[j] = t[j] } else if (j in m) inner[j] = m[j]
+      }
+      out[k] = inner
+      continue
+    }
+    if (k in mine) out[k] = m
+  }
+  return out
+}

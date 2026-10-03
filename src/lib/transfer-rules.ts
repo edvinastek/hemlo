@@ -1,5 +1,5 @@
 import type { FieldDef, ModuleDef } from '../modules/types.ts'
-import { LIMITS, firstDateField, mainField } from '../modules/def-rules.ts'
+import { LIMITS, coerce, firstDateField, mainField } from '../modules/def-rules.ts'
 import { addDays, weekdayOf } from './series-rules.ts'
 
 /** What can leave the app and come back in: every module's records, tasks,
@@ -560,6 +560,28 @@ export function readCell(f: FieldDef, raw: Cell, ctx: ReadContext = {}, bounds?:
       return hit ? { ok: true, value: hit.id } : { ok: false, problem: `${f.label}: "${shown}" was not found.` }
     }
     case 'formula': return { ok: true, value: undefined }
+    case 'multi': {
+      // "milk; eggs" or "milk, eggs", each matched to an option as a choice is.
+      const parts = String(raw).split(/[;,]/).map((x) => x.trim()).filter(Boolean)
+      const hits = parts.map((p) => (f.options ?? []).find((o) => normOption(o) === normOption(p)))
+      if (hits.some((h) => !h)) return { ok: false, problem: `${f.label}: "${shown}" is not made of ${(f.options ?? []).join(', ')}.` }
+      return { ok: true, value: coerce(f, hits as string[]) ?? null }
+    }
+    case 'rating': case 'percent': case 'money': {
+      const n = readNumber(typeof raw === 'string' ? unguard(raw).replace(/[%€$£]/g, '') : raw)
+      const v = n === null ? undefined : coerce(f, n)
+      return v === undefined || v === null
+        ? bad(f.type === 'rating' ? 'a number of stars from 1 to 5' : f.type === 'percent' ? 'a share from 0 to 100' : 'an amount')
+        : { ok: true, value: v }
+    }
+    case 'note': case 'checklist': {
+      const s2 = unguard(String(raw)).replace(/\r\n?/g, '\n').trim()
+      return s2.length > LIMITS.text ? { ok: false, problem: `${f.label} is longer than ${LIMITS.text} characters.` } : { ok: true, value: s2 }
+    }
+    case 'timespan': {
+      const v = coerce(f, String(raw))
+      return typeof v === 'string' ? { ok: true, value: v } : bad('a start and end time, like 09:00-10:30')
+    }
   }
   return bad('a value')
 }
@@ -666,10 +688,11 @@ export function cellValue(f: FieldDef, v: unknown, names: Partial<Record<string,
   if (v === null || v === undefined || v === '') return null
   switch (f.type) {
     case 'boolean': return !!v
-    case 'number': case 'integer': case 'duration': case 'formula': {
+    case 'number': case 'integer': case 'duration': case 'formula': case 'rating': case 'percent': case 'money': {
       const n = typeof v === 'number' ? v : Number(v)
       return Number.isFinite(n) ? Math.round(n * 1000) / 1000 : null
     }
+    case 'multi': return Array.isArray(v) ? v.join('; ') : String(v)
     case 'datetime': return String(v).slice(0, 16).replace('T', ' ')
     case 'lookup': return (f.lookup && names[f.lookup]?.get(String(v))) ?? String(v)
     default: return typeof v === 'object' ? JSON.stringify(v) : String(v)
@@ -693,7 +716,7 @@ export function statsRows(recs: { module: string; date: string | null; fields: F
   for (const r of recs) {
     if (!r.date) continue
     for (const f of r.fields) {
-      if (!['number', 'integer', 'duration', 'formula'].includes(f.type)) continue
+      if (!['number', 'integer', 'duration', 'formula', 'rating', 'percent', 'money'].includes(f.type)) continue
       const v = r.values[f.name]
       const n = typeof v === 'number' ? v : typeof v === 'string' && v.trim() !== '' ? Number(v) : NaN
       if (!Number.isFinite(n)) continue

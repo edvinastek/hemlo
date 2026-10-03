@@ -73,10 +73,21 @@ export function TableView({ def, entity, view, recs, lookups, profileId, onOpen 
   const byName = new Map(entity.fields.map((f) => [f.name, f]))
   const cols: FieldDef[] = (view.columns?.length ? view.columns.map((c) => byName.get(c)).filter((f): f is FieldDef => !!f) : entity.fields)
     .filter((f) => !f.hidden)
-  const rows = recs.map((r) => ({ id: r.id, ...r.values }))
+  // Kinds a cell cannot edit in place (tags, stars, notes, checklists, a
+  // start and end, a link to another module's record) read as their words
+  // and open in the record's sheet; money and shares edit as numbers.
+  const asText = (f: FieldDef) => ['multi', 'rating', 'checklist', 'note', 'timespan'].includes(f.type) || (f.type === 'lookup' && f.lookup === 'record')
+  const shownCols: FieldDef[] = cols.map((f) => asText(f) ? { ...f, type: 'text' as const }
+    : f.type === 'money' || f.type === 'percent' ? { ...f, type: 'number' as const, unit: f.type === 'percent' ? '%' : f.unit || '€' } : f)
+  const rows = recs.map((r) => {
+    const row: Record<string, unknown> = { id: r.id, ...r.values }
+    for (const f of cols) if (asText(f)) row[f.name] = formatValue(f, r.values[f.name], lookups)
+    return row as { id: string } & Record<string, unknown>
+  })
   const tableLookups: Record<string, LookupOption[]> = {}
   for (const [k, items] of Object.entries(lookups)) tableLookups[k] = (items ?? []).map((i) => ({ id: i.id, label: i.name }))
   const recById = new Map(recs.map((r) => [r.id, r]))
+  const editable = cols.filter((f) => !asText(f)).map((f) => f.name)
 
   async function change(row: { id: string }, field: string, value: unknown) {
     const rec = recById.get(row.id)
@@ -89,7 +100,7 @@ export function TableView({ def, entity, view, recs, lookups, profileId, onOpen 
     <>
       {error && <p className="mp-note is-warn" role="alert">{error}</p>}
       <div className="mp-table">
-      <DataTable fields={cols} rows={rows} lookups={tableLookups} emptyAsNull
+      <DataTable fields={shownCols} rows={rows} lookups={tableLookups} emptyAsNull editable={editable}
         computed={(row, f) => computeFormulas(entity.fields, row)[f.name] ?? null}
         onChange={(row, field, value) => void change(row, field, value)}
         onOpen={(row) => { const r = recById.get(row.id); if (r) onOpen(r) }}

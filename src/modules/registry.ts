@@ -145,7 +145,7 @@ export const MODULES: ModuleDef[] = [
       ]},
     ],
     views: [{ key: 'today', name: 'Today', type: 'list', entity: 'supplement' }],
-    rules: [{ name: 'slot_task', sentence: 'Each slot becomes one task with all of its items.', when: 'day.planned', then: 'task.create' }],
+    rules: [{ name: 'slot_task', sentence: 'Each time slot is one item on Today, with its supplements ticked inside it.', when: 'day.planned', then: 'day.item' }],
     skills: ['tick a supplement'],
   },
   {
@@ -287,7 +287,7 @@ export const MODULES: ModuleDef[] = [
       ]},
     ],
     views: [{ key: 'list', name: 'Chores', type: 'table', entity: 'chore', columns: ['name','schedule','who'] }],
-    rules: [{ name: 'shared', sentence: 'A household chore appears for everyone in the household.', when: 'chore.created', then: 'task.create' }],
+    rules: [{ name: 'shared', sentence: 'A household chore is shared with everyone in the household.', when: 'chore.created', then: 'day.item' }],
   },
   {
     key: 'stats',

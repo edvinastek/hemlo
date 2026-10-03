@@ -92,7 +92,9 @@ Types, then every check that needs nothing but Node. CI runs the same command.
   person and barcode give the same id on every phone, however the barcode was typed); natural keys (a food's barcode
   counts only while the food is live); a food folded into its twin taking its stock, ingredients, food log, records,
   books and waiting edits along; fetching page by page in updated_at and key order, so rows sharing one time are never
-  skipped at a page's edge or fetched twice, and the next sync starts exactly after the last row.
+  skipped at a page's edge or fetched twice, and the next sync starts exactly after the last row; settings merged key by
+  key between two devices (one's theme, the other's note template), what 026 added (shopping list, chores) synced like
+  the rest, and the light pull every two minutes and on coming back.
 - `units` — food counted in units as well as grams (022): a food's units read strictly (at most eight, a name of up to
   24 characters that is not a weight, 0.1 to 5000 g each, each name once), plurals ("2 eggs", "0.5 cup", "2 tbsp"),
   numbers as typed (a comma, ½, 3/4, 1 1/2, 1½ and the fraction slash), an amount in a unit and the grams it comes to,
@@ -111,6 +113,16 @@ Types, then every check that needs nothing but Node. CI runs the same command.
 - `afterdone` — "ask after done" templates: the marker line in a note, what Fill in, Skip and Later leave behind.
 - `repeat` — the one repeat control's choices: the rule each stands for from a first day (the 2nd or last Wednesday,
   the 14th, 14 October), numbers kept and capped, picked days, and every choice reading back as itself.
+- `visibility` — only what is switched on appears: the one rule for which modules are on (a built module must still
+  exist), the five switches per module (Today, Plan, widget, Stats, reminders) and how one is saved, what each template
+  sets (every module's switches, Today's cards only for modules kept on), and which built-in rules the editor shows.
+- `settingsui` — the rules behind Settings: search in settings, profiles (which one opens, names, which can go),
+  signing out with changes waiting, the merges list in words (refused, never "[object Object]"), the time zone
+  following the phone or a chosen one, height emptied as not known, tips shown once and "Make GetIt yours" after
+  three days, what moved where (once, only to people from before), and the Modules page's search.
+- `restore` — a backup brings the profile back whole: body fields, country and city, and the settings (note
+  templates, stats views, looks, Today's cards, where each module shows), with a built module's settings following
+  it to its new key; a restore never sends the person back through setup.
 
 ## Browser checks
 

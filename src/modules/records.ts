@@ -8,9 +8,11 @@ import { supabase } from '../lib/supabase'
 import type { ModuleRecord, Task } from '../lib/types'
 import type { EntityDef, FieldDef, ModuleDef } from './types'
 import {
-  RULE_DAY_TASK, cleanValues, computeFormulas, recordDate, taskChange, taskPlan, type LookupKind,
+  RULE_DAY_TASK, cleanValues, computeFormulas, mainField, readBuiltDefinition, recordDate, taskChange, taskPlan, type LookupKind,
 } from './def-rules'
 import type { PickItem } from '../ui/SearchPick'
+import { REPEAT_KEY } from './repeat-rules'
+import { endRecordRepeat } from './record-repeat'
 
 /** Records of a module's entity, wherever they live. Four built-in entities
  *  have tables of their own; everything else — every built module, and the
@@ -231,6 +233,23 @@ export async function deleteRecord(profileId: string, def: ModuleDef, entity: En
   const current = (await db.module_record.get(rec.id)) ?? (rec.row as unknown as ModuleRecord)
   const next = await edit<ModuleRecord>('module_record', current, { deleted_at: now() })
   await syncRecordTask(profileId, def, entity, next)
+  // A repeat ends with its record; the days already done stay done.
+  await endRecordRepeat(current)
+}
+
+/** A deleted record back, for Undo: its fields and its day task. Its repeat,
+ *  ended when it was deleted, is not started again by itself. */
+export async function restoreRecord(profileId: string, def: ModuleDef, entity: EntityDef, rec: Rec): Promise<void> {
+  if (hasOwnTable(entity)) {
+    const table = tableOf(entity)!
+    const current = (await store(table).get(rec.id)) ?? rec.row
+    await edit(table, current as never, { deleted_at: null } as never)
+    return
+  }
+  const current = (await db.module_record.get(rec.id)) ?? (rec.row as unknown as ModuleRecord)
+  const { [REPEAT_KEY]: _s, ...data } = current.data ?? {}
+  const next = await edit<ModuleRecord>('module_record', current, { deleted_at: null, data })
+  await syncRecordTask(profileId, def, entity, next)
 }
 
 /* ---------- rule: records with a date become tasks ----------------------- */
@@ -245,7 +264,9 @@ async function recordTask(profileId: string, recordId: string): Promise<Task | u
 export async function syncRecordTask(profileId: string, def: ModuleDef, entity: EntityDef, row: ModuleRecord): Promise<void> {
   if (!def.rules.some((r) => r.name === RULE_DAY_TASK)) return
   const task = await recordTask(profileId, row.id)
-  const plan = taskPlan(def, entity.fields, row)
+  // A record that repeats has its days as a series of tasks (record-repeat.ts);
+  // a task of its own on its first day would be the same day twice.
+  const plan = row.data?.[REPEAT_KEY] ? null : taskPlan(def, entity.fields, row)
   const change = taskChange(plan, task ?? null)
   if (change === 'none') return
   if (change === 'delete') { await deleteTask(task!); return }
@@ -289,9 +310,32 @@ export function refreshExercises(): Promise<void> {
   return exerciseFetch
 }
 
-export type Lookups = Partial<Record<LookupKind, PickItem[]>>
+/** What a link field picks from, by lookupKey(): 'food', 'recipe' … and
+ *  'record:<module key>' for a link to another built module's records. */
+export type Lookups = Partial<Record<string, PickItem[]>>
 
-async function lookupItems(profileId: string, kind: LookupKind): Promise<PickItem[]> {
+/** The list a link field picks from. */
+export const lookupKey = (f: Pick<FieldDef, 'lookup' | 'module'>): string =>
+  f.lookup === 'record' ? `record:${f.module ?? ''}` : (f.lookup ?? '')
+
+/** A built module's records as things to pick: each by its title. */
+async function moduleRecordItems(profileId: string, moduleKey: string): Promise<PickItem[]> {
+  const row = await db.module.get(moduleKey)
+  if (!row || row.deleted_at) return []
+  const def = readBuiltDefinition(row)
+  const entity = def.entities[0]
+  if (!entity) return []
+  const main = mainField(entity.fields)
+  const rows = await db.module_record.where('[profile_id+module_key]').equals([profileId, moduleKey]).toArray()
+  return rows.filter((r) => !r.deleted_at && r.entity === entity.name).map((r) => {
+    const v = main ? r.data?.[main.name] : null
+    return { id: r.id, name: typeof v === 'string' && v.trim() ? v.trim() : `${entity.label} ${r.record_date ?? ''}`.trim(), meta: r.record_date ?? undefined }
+  })
+}
+
+async function lookupItems(profileId: string, key: string): Promise<PickItem[]> {
+  if (key.startsWith('record:')) return moduleRecordItems(profileId, key.slice(7))
+  const kind = key as LookupKind
   switch (kind) {
     case 'food': return (await db.food.toArray()).filter((f) => !(f as { deleted_at?: string | null }).deleted_at).map((f) => ({ id: f.id, name: f.name }))
     case 'recipe': return (await db.recipe.toArray()).filter((r) => !(r as { deleted_at?: string | null }).deleted_at).map((r) => ({ id: r.id, name: r.name, tag: 'recipe' }))
@@ -299,12 +343,13 @@ async function lookupItems(profileId: string, kind: LookupKind): Promise<PickIte
     case 'task': return (await db.task.where('profile_id').equals(profileId).toArray()).filter((t) => !t.deleted_at && t.title)
       .map((t) => ({ id: t.id, name: t.title, meta: t.planned_date ?? undefined }))
     case 'exercise': return getMeta<PickItem[]>(EXERCISES, [])
+    default: return []
   }
 }
 
 /** Everything the given fields' lookups can pick from, live. */
 export function useLookups(profileId: string | null | undefined, fields: FieldDef[]): Lookups {
-  const kinds = [...new Set(fields.filter((f) => f.type === 'lookup' && f.lookup).map((f) => f.lookup!))].sort()
+  const kinds = [...new Set(fields.filter((f) => f.type === 'lookup' && f.lookup).map(lookupKey))].sort()
   const wantsExercises = kinds.includes('exercise')
   useEffect(() => { if (wantsExercises) void refreshExercises() }, [wantsExercises])
   return useLiveQuery(async () => {

@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { Dropdown, type Option } from '../ui/Dropdown'
 import type { FieldDef, FieldType } from './types'
-import { LIMITS, fieldNameFrom, fieldProblem, formulaScope, isNumeric, type LookupKind, type StatsKind } from './def-rules'
+import { LIMITS, RATING_MAX, fieldNameFrom, fieldProblem, formulaScope, hasOptions, isNumeric, type LookupKind, type StatsKind } from './def-rules'
 import './modules.css'
 
 /** Adding or changing one field: its name, its kind, and whatever that kind
@@ -17,8 +17,15 @@ export const TYPE_OPTIONS: Option<FieldType>[] = [
   { value: 'date', label: 'Date' },
   { value: 'time', label: 'Time' },
   { value: 'datetime', label: 'Date and time' },
+  { value: 'timespan', label: 'Start and end', hint: 'From one time to another, with the length worked out' },
   { value: 'select', label: 'Choice', hint: 'One of a list you write' },
-  { value: 'lookup', label: 'Link to another module', hint: 'A food, recipe, exercise, task or goal' },
+  { value: 'multi', label: 'Tags', hint: 'Any of a list you write, several at once' },
+  { value: 'rating', label: 'Rating', hint: `1 to ${RATING_MAX} stars` },
+  { value: 'percent', label: 'Percentage', hint: '0 to 100 %' },
+  { value: 'money', label: 'Money', hint: 'An amount, in the currency you set' },
+  { value: 'checklist', label: 'Checklist', hint: 'Lines to tick, kept with the record' },
+  { value: 'note', label: 'Note', hint: 'Longer text, with lists and headings' },
+  { value: 'lookup', label: 'Link to another module', hint: 'A food, recipe, exercise, task, goal or a record of a module you built' },
   { value: 'formula', label: 'Calculated', hint: 'Worked out from other fields' },
 ]
 export const TYPE_NAME = Object.fromEntries(TYPE_OPTIONS.map((o) => [o.value, o.label])) as Record<FieldType, string>
@@ -29,6 +36,7 @@ export const LOOKUP_OPTIONS: Option<LookupKind>[] = [
   { value: 'exercise', label: 'Exercises' },
   { value: 'task', label: 'Tasks' },
   { value: 'goal', label: 'Goals' },
+  { value: 'record', label: 'A module you built' },
 ]
 
 export const STATS_OPTIONS: Option<StatsKind | 'none'>[] = [
@@ -42,15 +50,15 @@ export const STATS_OPTIONS: Option<StatsKind | 'none'>[] = [
 export function describeField(f: FieldDef): string {
   const bits = [TYPE_NAME[f.type] ?? f.type]
   if (f.unit) bits.push(f.unit)
-  if (f.type === 'select') bits.push(`${f.options?.length ?? 0} options`)
-  if (f.type === 'lookup' && f.lookup) bits.push(`picks from ${f.lookup}s`)
+  if (hasOptions(f.type)) bits.push(`${f.options?.length ?? 0} options`)
+  if (f.type === 'lookup' && f.lookup) bits.push(f.lookup === 'record' ? 'picks a record' : `picks from ${f.lookup}s`)
   if (f.type === 'formula' && f.formula) bits.push(f.formula)
   if (f.required) bits.push('needed')
   if (f.stats) bits.push(f.stats === 'sum' ? 'added up in Stats' : f.stats === 'average' ? 'averaged in Stats' : 'counted in Stats')
   return bits.join(' · ')
 }
 
-export function FieldForm({ field, fields, index, onSave, onCancel, typeLocked }: {
+export function FieldForm({ field, fields, index, onSave, onCancel, typeLocked, modules = [] }: {
   /** The field being changed; absent for a new one. */
   field?: FieldDef
   /** Every field of the entity, in order (including this one when changing it). */
@@ -61,6 +69,8 @@ export function FieldForm({ field, fields, index, onSave, onCancel, typeLocked }
   onCancel: () => void
   /** A built-in field: only its label and the Stats flag change. */
   typeLocked?: boolean
+  /** Modules the person built, for a link to one of their records. */
+  modules?: { key: string; name: string }[]
 }) {
   const [label, setLabel] = useState(field?.label ?? '')
   const [type, setType] = useState<FieldType>(field?.type ?? 'text')
@@ -70,18 +80,21 @@ export function FieldForm({ field, fields, index, onSave, onCancel, typeLocked }
   const [required, setRequired] = useState(!!field?.required)
   const [formula, setFormula] = useState(field?.formula ?? '')
   const [lookup, setLookup] = useState<LookupKind>(field?.lookup ?? 'food')
+  const [target, setTarget] = useState(field?.module ?? modules[0]?.key ?? '')
   const [stats, setStats] = useState<StatsKind | 'none'>(field?.stats ?? 'none')
   const [touched, setTouched] = useState(false)
 
   const others = fields.filter((_, i) => i !== (field ? index : -1))
   const name = field?.name ?? fieldNameFrom(label || 'field', others.map((f) => f.name))
   const numeric = isNumeric({ type })
+  // Stars and shares carry their own unit; money's unit is its currency.
+  const ownUnit = numeric && type !== 'rating' && type !== 'percent'
   const candidate: FieldDef = {
     name, label: label.trim(), type,
-    ...(type === 'select' ? { options } : {}),
-    ...(type === 'lookup' ? { lookup } : {}),
+    ...(hasOptions(type) ? { options } : {}),
+    ...(type === 'lookup' ? { lookup, ...(lookup === 'record' ? { module: target } : {}) } : {}),
     ...(type === 'formula' ? { formula: formula.trim() } : {}),
-    ...(unit.trim() && (numeric) ? { unit: unit.trim() } : {}),
+    ...(unit.trim() && ownUnit ? { unit: unit.trim() } : type === 'money' ? { unit: '€' } : {}),
     ...(required && type !== 'formula' && type !== 'boolean' ? { required: true } : {}),
     ...(stats !== 'none' && (numeric || stats === 'count') ? { stats } : {}),
     ...(field?.width ? { width: field.width } : {}),
@@ -111,7 +124,7 @@ export function FieldForm({ field, fields, index, onSave, onCancel, typeLocked }
           <Dropdown label="Kind of field" value={type} options={TYPE_OPTIONS} onChange={setType} />
         </div>
       )}
-      {!typeLocked && type === 'select' && (
+      {!typeLocked && hasOptions(type) && (
         <div className="me-options">
           <span className="mf-hint">Options</span>
           {options.map((o, i) => (
@@ -132,7 +145,15 @@ export function FieldForm({ field, fields, index, onSave, onCancel, typeLocked }
       {!typeLocked && type === 'lookup' && (
         <div className="mf-field">
           <span>Links to</span>
-          <Dropdown label="Links to" value={lookup} options={LOOKUP_OPTIONS} onChange={setLookup} />
+          <Dropdown label="Links to" value={lookup}
+            options={LOOKUP_OPTIONS.filter((o) => o.value !== 'record' || modules.length > 0)} onChange={setLookup} />
+        </div>
+      )}
+      {!typeLocked && type === 'lookup' && lookup === 'record' && (
+        <div className="mf-field">
+          <span>Which module</span>
+          <Dropdown label="Which module" value={target || null} placeholder="Choose a module"
+            options={modules.map((m) => ({ value: m.key, label: m.name }))} onChange={setTarget} />
         </div>
       )}
       {!typeLocked && type === 'formula' && (
@@ -145,12 +166,12 @@ export function FieldForm({ field, fields, index, onSave, onCancel, typeLocked }
           </span>
         </label>
       )}
-      {!typeLocked && numeric && (
-        <label>Unit
-          <input value={unit} maxLength={LIMITS.unit} placeholder={type === 'duration' ? 'min' : 'kg, km, €'} onChange={(e) => setUnit(e.target.value)} />
+      {!typeLocked && ownUnit && (
+        <label>{type === 'money' ? 'Currency' : 'Unit'}
+          <input value={unit} maxLength={LIMITS.unit} placeholder={type === 'duration' ? 'min' : type === 'money' ? '€' : 'kg, km, €'} onChange={(e) => setUnit(e.target.value)} />
         </label>
       )}
-      {(numeric || type === 'text' || type === 'select' || type === 'date') && (
+      {(numeric || type === 'text' || hasOptions(type) || type === 'date' || type === 'checklist' || type === 'timespan') && (
         <div className="mf-field">
           <span>In Stats</span>
           <Dropdown label="In Stats" value={stats}

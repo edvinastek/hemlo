@@ -5,6 +5,10 @@
 export type FieldType =
   | 'text' | 'number' | 'integer' | 'boolean' | 'date' | 'time'
   | 'datetime' | 'select' | 'lookup' | 'formula' | 'duration'
+  // Version 16 (MOD-11, MOD-12): several of a list (tags), stars, a share,
+  // an amount of money, a checklist, a longer note, and a stretch of time
+  // from a start to an end.
+  | 'multi' | 'rating' | 'percent' | 'money' | 'checklist' | 'note' | 'timespan'
 
 export interface FieldDef {
   name: string
@@ -13,8 +17,11 @@ export interface FieldDef {
   /** Spreadsheet-style expression over the record's own fields, e.g.
    *  "grams * kcal / 100". Calculated fields are never stored. */
   formula?: string
-  /** Table a lookup picks from, so a food or an exercise is never typed twice. */
-  lookup?: 'food' | 'recipe' | 'exercise' | 'task' | 'goal'
+  /** Table a lookup picks from, so a food or an exercise is never typed twice.
+   *  'record': a record of another module the person built (`module`). */
+  lookup?: 'food' | 'recipe' | 'exercise' | 'task' | 'goal' | 'record'
+  /** For a 'record' link: the key of the module whose records it picks. */
+  module?: string
   options?: string[]
   required?: boolean
   unit?: string

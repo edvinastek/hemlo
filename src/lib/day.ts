@@ -1,4 +1,7 @@
+import { useLiveQuery } from 'dexie-react-hooks'
 import { db } from './db'
+import { useApp } from './store'
+import { modulesOn } from './module-view-rules'
 import { loadReview } from './review'
 import type { ProfileSettings } from './settings'
 import type { ModuleRow } from './types'
@@ -11,11 +14,29 @@ import { builtinRuleOn } from '../modules/rule-switch'
  *  switches it off. */
 export async function enabledModules(profileId: string, built: ModuleRow[]): Promise<string[]> {
   const rows = await db.module_instance.where('profile_id').equals(profileId).toArray()
-  // The same rule as the page bar (pages.ts): a module is on when its switch
-  // is on, and a built module also has to exist, so a tab never leads to a
-  // page the bar does not have.
-  const live = new Set(built.filter((m) => !m.deleted_at).map((m) => m.key))
-  return rows.filter((r) => r.enabled && (!r.module_key.startsWith('u_') || live.has(r.module_key))).map((r) => r.module_key)
+  // The one rule (module-view-rules.ts), the same the page bar uses: a module
+  // is on when its switch is on, and a built module also has to exist, so a
+  // tab never leads to a page the bar does not have.
+  return [...modulesOn(rows, built)]
+}
+
+/** Whether one module is on for a profile, by the same rule. For code that
+ *  asks about a single module (a figure on Today, a section's own check). */
+export async function isModuleOn(profileId: string, key: string): Promise<boolean> {
+  const built = key.startsWith('u_') ? await db.module.where('key').equals(key).toArray() : []
+  return (await enabledModules(profileId, built)).includes(key)
+}
+
+/** The modules on for the open profile, live: switching one off in More, the
+ *  hub or on another device takes it out of every list that reads this
+ *  within the same moment, with no reload. Undefined while loading. */
+export function useModulesOn(): Set<string> | undefined {
+  const profileId = useApp((s) => s.profile?.id ?? null)
+  return useLiveQuery(async () => {
+    if (!profileId) return new Set<string>()
+    const built = await db.module.toArray()
+    return new Set(await enabledModules(profileId, built))
+  }, [profileId])
 }
 
 /** Everything the tab rules in day-tabs.ts look at, for one day, read from

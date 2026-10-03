@@ -1,4 +1,5 @@
-import type { Nutrient } from './settings.ts'
+import type { Nutrient, TodayCard } from './settings.ts'
+import { templateViews, type ModuleView } from './module-view-rules.ts'
 
 /** Starting layouts for different kinds of days. A template only decides what
  *  is switched on at the start: every module can be turned on or off later,
@@ -24,7 +25,15 @@ export interface Template {
   keywords: string[]
   /** Words that lean towards it (worth 1). */
   hints: string[]
+  /** Where its modules show, where that differs from the default (every
+   *  switch on): a busy module kept off Plan's week, say (ONB-10). */
+  views?: Record<string, Partial<ModuleView>>
+  /** Cards pinned to the top of Today to start with (TOD-20). */
+  cards?: TodayCard[]
 }
+
+/** A small card for a module, shown every day. */
+const card = (key: string, size: TodayCard['size'] = 'small'): TodayCard => ({ kind: 'module', key, size, show: 'always' })
 
 export const TEMPLATES: Template[] = [
   {
@@ -37,6 +46,7 @@ export const TEMPLATES: Template[] = [
     targets: false,
     keywords: ['minimal', 'simple', 'basic', 'to do', 'todo', 'to-do', 'just tasks', 'calendar'],
     hints: ['plan', 'planner', 'tasks', 'organised', 'organized', 'busy'],
+    cards: [],
   },
   {
     key: 'student',
@@ -49,6 +59,8 @@ export const TEMPLATES: Template[] = [
     keywords: ['student', 'study', 'studying', 'school', 'university', 'uni', 'college', 'exam', 'exams',
       'lecture', 'lectures', 'homework', 'thesis', 'course', 'courses', 'class', 'classes', 'revision'],
     hints: ['learn', 'learning', 'reading', 'assignment', 'assignments', 'semester', 'campus'],
+    views: { sleep: { plan: false, widget: false } },
+    cards: [card('learning'), card('habits')],
   },
   {
     key: 'office',
@@ -61,6 +73,7 @@ export const TEMPLATES: Template[] = [
     keywords: ['office', 'desk', '9 to 5', '9-5', 'nine to five', 'meetings', 'hybrid', 'remote',
       'commute', 'commuting', 'colleagues', 'manager'],
     hints: ['work', 'job', 'working', 'weekdays', 'emails', 'admin'],
+    cards: [card('projects')],
   },
   {
     key: 'shift',
@@ -73,6 +86,8 @@ export const TEMPLATES: Template[] = [
     keywords: ['shift', 'shifts', 'night shift', 'nights', 'rota', 'roster', 'rotating', 'early shift',
       'late shift', 'nurse', 'hospital', 'warehouse', 'factory', 'care home'],
     hints: ['logistics', 'driver', 'security', 'weekends', 'overtime', 'sleep'],
+    views: { sleep: { widget: false } },
+    cards: [card('sleep'), card('nutrition')],
   },
   {
     key: 'household',
@@ -85,6 +100,7 @@ export const TEMPLATES: Template[] = [
     keywords: ['parent', 'kids', 'children', 'child', 'family', 'mum', 'mom', 'dad', 'baby', 'toddler',
       'school run', 'household', 'chores', 'housework'],
     hints: ['home', 'house', 'cooking', 'groceries', 'shopping', 'laundry', 'partner'],
+    cards: [card('household', 'large'), card('shopping')],
   },
   {
     key: 'fitness',
@@ -97,6 +113,9 @@ export const TEMPLATES: Template[] = [
     keywords: ['gym', 'fitness', 'training', 'workout', 'workouts', 'lifting', 'bodybuilding', 'macros',
       'protein', 'calories', 'diet', 'cut', 'bulk', 'recomp', 'muscle', 'fat loss', 'lose weight', 'meal prep'],
     hints: ['run', 'running', 'sport', 'health', 'healthy', 'weight', 'nutrition', 'food', 'supplements'],
+    // Supplement slots every day would fill the week view; they stay on Today.
+    views: { supplements: { plan: false }, health: { plan: false } },
+    cards: [card('nutrition', 'large'), card('health'), card('training')],
   },
   {
     key: 'freelance',
@@ -109,6 +128,7 @@ export const TEMPLATES: Template[] = [
     keywords: ['freelance', 'freelancer', 'freelancing', 'self-employed', 'self employed', 'client', 'clients',
       'invoice', 'invoices', 'startup', 'business', 'side project', 'side projects', 'contractor', 'consultant'],
     hints: ['projects', 'project', 'deadline', 'deadlines', 'budget', 'money', 'brand', 'shop'],
+    cards: [card('projects', 'large'), card('finance')],
   },
   {
     key: 'everything',
@@ -121,6 +141,8 @@ export const TEMPLATES: Template[] = [
     targets: true,
     keywords: ['everything', 'all of it', 'all modules', 'full'],
     hints: [],
+    views: { supplements: { plan: false }, health: { plan: false }, sleep: { widget: false } },
+    cards: [card('nutrition'), card('habits')],
   },
 ]
 
@@ -198,4 +220,18 @@ export function suggestTemplate(text: string): Suggestion | null {
 /** The module switches a template starts with, as a set of keys that are on. */
 export function modulesFor(key: string | null | undefined): string[] {
   return [...(templateByKey(key) ?? templateByKey(DEFAULT_TEMPLATE)!).modules]
+}
+
+/** What a template sets besides the module switches (ONB-10): where each
+ *  module shows (every module gets the template's switches, so starting
+ *  again leaves nothing of the old layout behind) and the cards pinned to
+ *  Today, of the modules actually switched on. `on` is the modules the person
+ *  kept, which may differ from the template's own list. */
+export function templateLayout(key: string | null | undefined, on: string[], allKeys: string[]):
+  { module_views: Record<string, Partial<ModuleView>>; today_cards: TodayCard[] } {
+  const tpl = templateByKey(key) ?? templateByKey(DEFAULT_TEMPLATE)!
+  return {
+    module_views: templateViews(allKeys, tpl.views ?? {}),
+    today_cards: (tpl.cards ?? []).filter((c) => c.kind !== 'module' || on.includes(c.key)).map((c) => ({ ...c })),
+  }
 }

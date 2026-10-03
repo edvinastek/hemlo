@@ -5,8 +5,10 @@
 // cursor that neither skips nor repeats rows that share one time.
 import {
   uuidV5, naturalKey, swapId, repointRow, repointPending, readCursor, cursorAfter, afterFilter, isAfter, morePages,
-  NATURAL_KEYS, REFERENCES, PAGE,
+  NATURAL_KEYS, REFERENCES, PAGE, mergeSettings3,
 } from '../lib/sync-rules.ts'
+import { readFileSync } from 'node:fs'
+import { readSettings, mergeSettings } from '../lib/settings.ts'
 import { productFoodId, PRODUCT_NAMESPACE } from '../lib/products-rules.ts'
 
 let fail = 0
@@ -151,6 +153,47 @@ const byTime = (rows, size) => {
 is('(a time alone would have skipped b5, b6 and b7)', byTime(table, 3), ['a1', 'b2', 'b3', 'c8'])
 is('times compare as the server writes them (fewer decimals first)', [isAfter({ updated_at: T1, id: 'x' }, { at: T0, key: 'z' }, 'id'),
   isAfter({ updated_at: T0, id: 'z' }, { at: T1, key: 'a' }, 'id')], [true, false])
+
+// ---------- settings, key by key (SYNC-03) -------------------------------------------
+const base = { looks: { theme: 'notebook', mode: 'system' }, note_templates: [{ id: 'a' }], nav: { style: 'row', order: [] }, books: [] }
+const mineS = { ...base, looks: { theme: 'sage', mode: 'system' } }
+const theirsS = { ...base, note_templates: [{ id: 'a' }, { id: 'b' }], nav: { style: 'row', order: ['m:sleep'] } }
+const merged = mergeSettings3(base, mineS, theirsS)
+is('my theme and their new note template both stay', [merged.looks.theme, merged.note_templates.length], ['sage', 2])
+is('their page order stays where I changed nothing', merged.nav.order, ['m:sleep'])
+const mine2 = { ...base, nav: { style: 'hub', order: [] } }
+is('one device’s bar style and the other’s order merge inside the bar', mergeSettings3(base, mine2, theirsS).nav, { style: 'hub', order: ['m:sleep'] })
+is('a list is whole: my list wins if I changed it', mergeSettings3(base, { ...base, books: [{ id: 'x' }] }, { ...base, books: [{ id: 'y' }] }).books, [{ id: 'x' }])
+is('with no base, this device wins, as before', mergeSettings3(null, mineS, theirsS), mineS)
+is('a key only the server has is kept', mergeSettings3(base, base, { ...base, stats_views: [{ id: 's' }] }).stats_views, [{ id: 's' }])
+is('a key I added is kept', mergeSettings3(base, { ...base, today_cards: [{ kind: 'module', key: 'habits' }] }, base).today_cards.length, 1)
+const mv = mergeSettings3({ module_views: { habits: { plan: true } } }, { module_views: { habits: { plan: false } } }, { module_views: { habits: { plan: true }, sleep: { widget: false } } })
+is('module switches merge per module', mv.module_views, { habits: { plan: false }, sleep: { widget: false } })
+is('the merge reads back as valid settings', readSettings({ settings: merged }).looks.theme, 'sage')
+
+// ---------- what 026 added is synced with the same guarantees (SYNC-03) ---------------
+const syncSrc = readFileSync(new URL('../lib/sync.ts', import.meta.url), 'utf8')
+const writeSrc = readFileSync(new URL('../lib/write.ts', import.meta.url), 'utf8')
+const dbSrc = readFileSync(new URL('../lib/db.ts', import.meta.url), 'utf8')
+const children = /const CHILDREN = \[([^\]]*)\]/.exec(syncSrc)?.[1] ?? ''
+for (const t of ['shopping_entry', 'chore', 'chore_log']) {
+  is(`${t} is pulled and pushed (sync.ts)`, children.includes(`'${t}'`), true)
+  is(`${t} is written through edit() (write.ts)`, writeSrc.includes(`'${t}'`), true)
+  is(`${t} has a table on the device (db.ts)`, new RegExp(`${t}: '`).test(dbSrc), true)
+}
+is('a tick on the shopping list folds into its twin', NATURAL_KEYS.shopping_entry, ['household_id', 'plan_key'])
+is('a chore done twice the same day folds into one', NATURAL_KEYS.chore_log, ['chore_id', 'done_on'])
+is('a food folded into its twin takes the shopping list with it', REFERENCES.food.some((r) => r.table === 'shopping_entry'), true)
+is('settings sent are merged with the server’s first', /withServerSettings\(entry\.id/.test(syncSrc), true)
+is('a waiting settings change is merged on pull', /mergeSettings3\(await getMeta/.test(syncSrc), true)
+// Settings that 026 added travel in the profile row, so they sync with it.
+const s1 = mergeSettings(readSettings({}), { note_templates: readSettings({}).note_templates, stats_views: [], today_cards: [{ kind: 'module', key: 'habits', size: 'small', show: 'always' }] })
+is('new settings keys survive the round trip a sync makes', readSettings(JSON.parse(JSON.stringify({ settings: s1 }))).today_cards.length, 1)
+
+// ---------- the light pull (SYNC-02) ----------------------------------------------------------
+is('a light pull every two minutes while open', /PERIODIC_MS = 2 \* 60_000/.test(syncSrc), true)
+is('it leaves the catalogue out', /opts\.light \? \[\] : CATALOGUE/.test(syncSrc), true)
+is('it also runs on coming back into view', /visibilitychange', onFocus/.test(syncSrc), true)
 
 if (fail) { console.log(`\n${fail} failed`); process.exit(1) }
 console.log('\nall sync checks passed')

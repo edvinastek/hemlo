@@ -12,9 +12,14 @@ import { MODULES } from './registry.ts'
 
 export const FIELD_TYPES: FieldType[] = [
   'text', 'number', 'integer', 'boolean', 'date', 'time', 'datetime', 'select', 'lookup', 'formula', 'duration',
+  'multi', 'rating', 'percent', 'money', 'checklist', 'note', 'timespan',
 ]
 export type LookupKind = NonNullable<FieldDef['lookup']>
-export const LOOKUPS: LookupKind[] = ['food', 'recipe', 'exercise', 'task', 'goal']
+export const LOOKUPS: LookupKind[] = ['food', 'recipe', 'exercise', 'task', 'goal', 'record']
+/** Kinds whose values are picked from the field's own options. */
+export const hasOptions = (t: FieldType) => t === 'select' || t === 'multi'
+/** Stars run from 1 to this. */
+export const RATING_MAX = 5
 export const VIEW_TYPES: ViewDef['type'][] = ['list', 'table', 'calendar', 'board', 'grid', 'chart', 'form']
 /** The view types the generic module page draws: all of them. */
 export const PAGE_VIEW_TYPES: ViewDef['type'][] = ['list', 'table', 'calendar', 'board', 'grid', 'chart', 'form']
@@ -55,8 +60,9 @@ const TIME = /^([01]\d|2[0-3]):[0-5]\d$/
 const DATE = /^\d{4}-\d{2}-\d{2}$/
 const DATETIME = /^\d{4}-\d{2}-\d{2}T([01]\d|2[0-3]):[0-5]\d/
 const LOOKUP_ID = /^[A-Za-z0-9_-]{1,64}$/
+const SPAN = /^([01]\d|2[0-3]):[0-5]\d-([01]\d|2[0-3]):[0-5]\d$/
 
-export const NUMERIC_TYPES: FieldType[] = ['number', 'integer', 'duration', 'formula']
+export const NUMERIC_TYPES: FieldType[] = ['number', 'integer', 'duration', 'formula', 'rating', 'percent', 'money']
 export const isNumeric = (f: Pick<FieldDef, 'type'>) => NUMERIC_TYPES.includes(f.type)
 export const isDateLike = (f: Pick<FieldDef, 'type'>) => f.type === 'date' || f.type === 'datetime'
 
@@ -129,7 +135,7 @@ export function fieldProblem(f: FieldDef, others: FieldDef[], index = others.len
   if (others.some((o, i) => i !== index && o.name === f.name)) return 'Two fields cannot share a name.'
   if (!FIELD_TYPES.includes(f.type)) return 'Pick a kind of field.'
   if (f.unit && f.unit.length > LIMITS.unit) return `Keep the unit under ${LIMITS.unit} characters.`
-  if (f.type === 'select') {
+  if (hasOptions(f.type)) {
     const opts = f.options ?? []
     if (opts.length === 0) return 'A choice field needs at least one option.'
     if (opts.length > LIMITS.options) return `At most ${LIMITS.options} options.`
@@ -137,6 +143,7 @@ export function fieldProblem(f: FieldDef, others: FieldDef[], index = others.len
     if (opts.some((o) => !o.trim() || o.length > LIMITS.option)) return `Options are 1 to ${LIMITS.option} characters.`
   }
   if (f.type === 'lookup' && !LOOKUPS.includes(f.lookup as LookupKind)) return 'Pick what the field links to.'
+  if (f.type === 'lookup' && f.lookup === 'record' && !BUILT_KEY.test(f.module ?? '')) return 'Pick the module whose records it links to.'
   if (f.type === 'formula') {
     const src = (f.formula ?? '').trim()
     if (!src) return 'Write the formula.'
@@ -168,8 +175,13 @@ export function cleanField(raw: unknown, before: FieldDef[] = []): FieldDef | nu
   if (type === 'lookup') {
     if (!LOOKUPS.includes(raw.lookup as LookupKind)) return null
     f.lookup = raw.lookup as LookupKind
+    if (f.lookup === 'record') {
+      const m = str(raw.module, 30)
+      if (!BUILT_KEY.test(m)) return null
+      f.module = m
+    }
   }
-  if (type === 'select') {
+  if (hasOptions(type)) {
     const opts = Array.isArray(raw.options) ? raw.options : []
     const clean: string[] = []
     for (const o of opts) {
@@ -368,8 +380,10 @@ export const ruleOn = (def: Pick<ModuleDef, 'rules'>, name: string) =>
  *  - switch: it acts on it, so switching it off stops it;
  *  - always: it is what the module is, so it has no switch (switch the
  *    module off instead);
- *  - later: nothing in the app acts on it yet, so a switch would do nothing
- *    and none is shown. */
+ *  - later: nothing in the app acts on it yet. Such a rule is not shown at
+ *    all (MOD-06): a rule on screen is a promise, and only rules the app
+ *    keeps are made. When the app learns one, its line here changes and it
+ *    appears. */
 export type RuleSupport = 'switch' | 'always' | 'later'
 
 /** Every rule in the registry, by "module.rule", with a line for the editor
@@ -384,13 +398,13 @@ export const BUILTIN_RULES: Record<string, { support: RuleSupport; note: string 
   'shopping.trip_days': { support: 'later', note: 'Not acted on yet: shopping days are not put on the planner.' },
   'training.session_task': { support: 'later', note: 'Not acted on yet: sessions are logged, not planned ahead.' },
   'habits.daily': { support: 'switch', note: 'Off: habits no longer appear on Today or the widget; the Habits page still has them.' },
-  'supplements.slot_task': { support: 'later', note: 'Not acted on yet: supplements are ticked on Today, not made into tasks.' },
+  'supplements.slot_task': { support: 'always', note: 'This is how supplements reach Today. To keep them off Today, switch Show on Today off under Show.' },
   'health.retarget': { support: 'switch', note: 'Off: a weigh-in is saved and the calorie and protein targets are left as they are.' },
   'learning.soft': { support: 'later', note: 'Not acted on yet: the planner does not move tasks by itself.' },
   'agenda.no_overlap': { support: 'later', note: 'Not acted on yet: the planner does not place tasks by itself.' },
   'sleep.bedtime': { support: 'later', note: 'Not acted on yet: the planner does not place tasks by itself.' },
   'projects.to_goal': { support: 'later', note: 'Not acted on yet: goals have no page of their own to show on.' },
-  'household.shared': { support: 'later', note: 'Not acted on yet: records are kept per person.' },
+  'household.shared': { support: 'always', note: 'Chores belong to the household: everyone in it sees and can tick them. Who does each one is set on the chore.' },
 }
 
 export function ruleSupport(moduleKey: string, ruleName: string): RuleSupport {
@@ -400,6 +414,10 @@ export function ruleSupport(moduleKey: string, ruleName: string): RuleSupport {
 }
 
 export const ruleSwitchable = (moduleKey: string, ruleName: string) => ruleSupport(moduleKey, ruleName) === 'switch'
+
+/** Whether a rule is shown in the editor: every rule of a built module, and
+ *  a built-in module's rules the app carries out (MOD-06). */
+export const ruleShown = (moduleKey: string, ruleName: string) => ruleSupport(moduleKey, ruleName) !== 'later'
 
 /** Whether a built-in module's rule is on for a profile, from the changes
  *  kept in its settings (module_instance.settings.overlay). A rule the app
@@ -814,13 +832,56 @@ export function coerce(f: FieldDef, v: unknown): unknown {
     case 'select': return typeof v === 'string' && (f.options ?? []).includes(v) ? v : undefined
     case 'lookup': return typeof v === 'string' && LOOKUP_ID.test(v) ? v : undefined
     case 'formula': return undefined
+    case 'multi': {
+      // A list, or text with the options separated by commas or semicolons
+      // (as a spreadsheet cell holds them). Kept in the options' own order.
+      const list = Array.isArray(v) ? v : typeof v === 'string' ? v.split(/[;,]/) : null
+      if (!list) return undefined
+      const picked = list.map((x) => (typeof x === 'string' ? x.trim() : '')).filter(Boolean)
+      const opts = f.options ?? []
+      if (picked.some((x) => !opts.includes(x))) return undefined
+      const out = opts.filter((o) => picked.includes(o))
+      return out.length ? out : null
+    }
+    case 'rating': {
+      const n = typeof v === 'number' ? v : Number(String(v).trim())
+      return Number.isInteger(n) && n >= 1 && n <= RATING_MAX ? n : undefined
+    }
+    case 'percent': case 'money': {
+      const n = typeof v === 'number' ? v : Number(String(v).replace('%', '').replace(/[€$£\s]/g, '').replace(',', '.').trim())
+      if (!Number.isFinite(n) || Math.abs(n) > 1e12) return undefined
+      if (f.type === 'percent' && (n < 0 || n > 100)) return undefined
+      return Math.round(n * 100) / 100
+    }
+    case 'note': case 'checklist': return typeof v === 'string' ? v.slice(0, LIMITS.text) : undefined
+    case 'timespan': {
+      const t = typeof v === 'string' ? v.replace(/\s|–|—/g, (c) => (c.trim() ? '-' : '')) : ''
+      return SPAN.test(t) ? t : undefined
+    }
   }
   return undefined
+}
+
+/** A stretch of time "HH:MM-HH:MM" in minutes, across midnight when the
+ *  end is earlier; null when it is not one. */
+export function spanMinutes(v: unknown): number | null {
+  if (typeof v !== 'string' || !SPAN.test(v)) return null
+  const [a, b] = v.split('-').map((t) => Number(t.slice(0, 2)) * 60 + Number(t.slice(3, 5)))
+  return b >= a ? b - a : b + 1440 - a
+}
+
+/** A checklist's lines ticked and in all ("- [x] milk"). */
+export function checklistCount(v: unknown): { done: number; total: number } {
+  const lines = typeof v === 'string' ? v.split('\n').map((l) => l.trim()) : []
+  const items = lines.filter((l) => /^[-*] \[( |x|X)\] /.test(l))
+  return { done: items.filter((l) => /^[-*] \[(x|X)\] /.test(l)).length, total: items.length }
 }
 
 const WHAT: Partial<Record<FieldType, string>> = {
   number: 'a number', integer: 'a whole number', duration: 'minutes', date: 'a date', time: 'a time',
   datetime: 'a date and time', select: 'one of the options', lookup: 'something from the list', text: 'text',
+  multi: 'options from the list', rating: `1 to ${RATING_MAX} stars`, percent: 'a share from 0 to 100',
+  money: 'an amount', note: 'text', checklist: 'text', timespan: 'a start and an end time',
 }
 
 /** Values checked against their fields. With `partial`, only the fields

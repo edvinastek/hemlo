@@ -7,11 +7,12 @@ import { db } from '../lib/db'
 import { queueChange } from '../lib/sync'
 import { mergeSettings, readSettings, type Commute, type WorkHours } from '../lib/settings'
 import { COUNTRIES, cleanCity, cleanCountry, countryName } from '../lib/countries'
-import { DEFAULT_TEMPLATE, TEMPLATES, modulesFor, suggestTemplate, templateByKey } from '../lib/templates'
+import { DEFAULT_TEMPLATE, TEMPLATES, modulesFor, suggestTemplate, templateByKey, templateLayout } from '../lib/templates'
 import { ACTIVITY_LEVELS, nearestActivity } from '../lib/activity'
-import { applyModules } from '../lib/setup'
+import { applyModules, TEMPLATE_MODULE_KEYS } from '../lib/setup'
 import { applyWorkPlan } from '../lib/work'
-import { MODULES } from '../modules/registry'
+import { MODULES, moduleByKey } from '../modules/registry'
+import { suggestModules } from '../modules/def-rules'
 import { Dropdown } from '../ui/Dropdown'
 import { SearchPick } from '../ui/SearchPick'
 import { WorkFields } from '../settings/WorkFields'
@@ -55,6 +56,9 @@ export function Onboarding({ onDone }: { onDone: () => void }) {
   const [modules, setModules] = useState<string[]>(modulesFor(firstTemplate))
   const [showModules, setShowModules] = useState(false)
   const suggestion = suggestTemplate(describe)
+  // Modules whose own keywords appear in the words typed (MOD-07), beyond
+  // what the template already switches on: offered one tap each.
+  const extraModules = suggestModules(describe).filter((k) => k !== 'custom' && !modules.includes(k) && moduleByKey.has(k))
 
   // 4. Body targets
   const [targetsOn, setTargetsOn] = useState(templateByKey(firstTemplate)!.targets)
@@ -93,27 +97,40 @@ export function Onboarding({ onDone }: { onDone: () => void }) {
     if (s && !pickedByHand && s.key !== template) choose(s.key, false)
   }
 
-  async function finish() {
+  /** "Skip": a working planner straight away (ONB-11): Today, Plan and
+   *  tasks, the Minimal planner's layout, no work hours and no body details.
+   *  Everything can be set later in More. */
+  async function skip() {
+    if (busy) return
+    await finish({ skipping: true })
+  }
+
+  async function finish(opts: { skipping?: boolean } = {}) {
     if (busy) return
     setBusy(true)
     try {
+      const chosen = opts.skipping ? templateByKey(DEFAULT_TEMPLATE)! : tpl
+      const on = opts.skipping ? modulesFor(DEFAULT_TEMPLATE) : modules
       const settings = mergeSettings(readSettings(profile), {
-        onboarded: true, template: tpl.key, work, commute,
-        nutrients: [...tpl.nutrients], today_metric: tpl.today_metric,
+        onboarded: true, template: chosen.key,
+        ...(opts.skipping ? {} : { work, commute }),
+        nutrients: [...chosen.nutrients], today_metric: chosen.today_metric,
+        // Where each module shows and the cards pinned to Today (ONB-10).
+        ...templateLayout(chosen.key, on, TEMPLATE_MODULE_KEYS),
       })
 
-      await applyModules(profile!.id, modules)
+      await applyModules(profile!.id, on)
 
       // Body fields, the target and the weigh-in only when targets are wanted:
       // with the switch off, nothing about the body is written anywhere.
-      const body = targetsOn ? {
+      const body = targetsOn && !opts.skipping ? {
         sex, birth_date: birth || null,
         height_cm: Number(height) || null,
         activity_level: activity,
         goal,
       } : {}
 
-      if (targets) {
+      if (targets && !opts.skipping) {
         // The person's own calendar day, not the UTC date, which is still
         // yesterday until 02:00 in the Netherlands in summer.
         const today = format(new Date(), 'yyyy-MM-dd')
@@ -140,7 +157,7 @@ export function Onboarding({ onDone }: { onDone: () => void }) {
         await queueChange('body_log', log, ['profile_id', 'log_date', 'weight_kg'])
       }
 
-      await applyWorkPlan(profile!, settings)
+      if (!opts.skipping) await applyWorkPlan(profile!, settings)
 
       // The profile goes last: marking it onboarded is what swaps this screen
       // for the app, so everything else is already in place when it does.
@@ -208,6 +225,18 @@ export function Onboarding({ onDone }: { onDone: () => void }) {
                     ? <>Suggested: <b>{templateByKey(suggestion.key)!.name}</b>, from “{suggestion.matched.join('”, “')}”.</>
                     : 'No match for those words. Pick the closest below.'}
                 </p>
+              )}
+              {extraModules.length > 0 && (
+                <div className="ob-extra" aria-live="polite">
+                  <span className="ob-note">Those words also point at:</span>
+                  {extraModules.map((k) => (
+                    <button key={k} type="button" className="chip ob-add"
+                      aria-label={`Switch on ${moduleByKey.get(k)!.name}`}
+                      onClick={() => setModules((c) => (c.includes(k) ? c : [...c, k]))}>
+                      + {moduleByKey.get(k)!.name}
+                    </button>
+                  ))}
+                </div>
               )}
             </div>
 
@@ -312,6 +341,10 @@ export function Onboarding({ onDone }: { onDone: () => void }) {
 
         <div className="ob-actions">
           {step > 0 && <button type="button" className="btn" onClick={() => setStep(step - 1)}>Back</button>}
+          {!last && (
+            <button type="button" className="btn ob-skip" disabled={busy} onClick={() => void skip()}
+              title="Start with Today, Plan and tasks; set the rest later in More">Skip</button>
+          )}
           <button
             type="button"
             className="btn btn-primary"

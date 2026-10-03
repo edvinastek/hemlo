@@ -1,7 +1,7 @@
 import { db } from './db'
 import { edit, saveSettings } from './write'
 import { MODULES } from '../modules/registry'
-import { modulesFor, templateByKey } from './templates'
+import { modulesFor, templateByKey, templateLayout } from './templates'
 import type { ModuleInstance, Profile } from './types'
 
 /** Switch modules on and off to match a list. A module the profile has never
@@ -30,12 +30,20 @@ export async function applyModules(profileId: string, on: string[]) {
   }
 }
 
-/** "Start again from a template": its modules, the food figures it tracks,
- *  and the figure Today shows. Work hours, targets and everything entered
- *  stay as they are. */
+/** The built-in modules a template can have an opinion on. */
+export const TEMPLATE_MODULE_KEYS = MODULES.map((m) => m.key).filter((k) => k !== 'custom')
+
+/** "Start again from a template": its modules, where each shows (Today,
+ *  Plan, the widget, Stats, reminders), the cards pinned to Today, the food
+ *  figures it tracks and the figure Today shows. Work hours, targets and
+ *  everything entered stay as they are. */
 export async function applyTemplate(profile: Profile, key: string): Promise<Profile> {
   const tpl = templateByKey(key)
   if (!tpl) return profile
-  await applyModules(profile.id, modulesFor(key))
-  return saveSettings(profile, { template: tpl.key, nutrients: [...tpl.nutrients], today_metric: tpl.today_metric })
+  const on = modulesFor(key)
+  await applyModules(profile.id, on)
+  return saveSettings(profile, {
+    template: tpl.key, nutrients: [...tpl.nutrients], today_metric: tpl.today_metric,
+    ...templateLayout(tpl.key, on, TEMPLATE_MODULE_KEYS),
+  })
 }

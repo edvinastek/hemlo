@@ -49,7 +49,9 @@ is('swipe falls back to on', nav.swipe, true)
 is('an unknown bar style falls back to one row', readSettings({ settings: { nav: { style: 'spiral' } } }).nav.style, 'row')
 const col = readSettings({ settings: { colours: { on: false, modules: { habits: '#3F6B4A', training: 'red', 'x y': '#000000' } } } }).colours
 is('colours: only #rrggbb for real keys, lower-cased', col, { on: false, modules: { habits: '#3f6b4a' } })
-is('changing the bar style keeps the order', mergeSettings(readSettings({ settings: { nav: { order: ['plan'] } } }), { nav: { style: 'drawer' } }).nav, { style: 'drawer', order: ['plan'], hidden: [], swipe: true })
+is('changing the bar style keeps the order', mergeSettings(readSettings({ settings: { nav: { order: ['plan'] } } }), { nav: { style: 'drawer' } }).nav, { style: 'drawer', order: ['plan'], hidden: [], swipe: true, pinned: [] })
+is('the hub is a bar style', readSettings({ settings: { nav: { style: 'hub' } } }).nav.style, 'hub')
+is('pinned pages: page keys only, never Today, Plan or More, the newest two', readSettings({ settings: { nav: { pinned: ['today', 'food', 'm:sleep', 'm:habits', 'x y'] } } }).nav.pinned, ['m:sleep', 'm:habits'])
 
 // Holidays and stats.
 const hol = readSettings({ settings: { holidays: { countries: ['nl', 'DE', 'NL', 'xyz', 5, 'LT', 'BE', 'FR', 'PL', 'GB'], colours: { NL: '#FF6600', DE: 'red', US: '#123456' } } } })

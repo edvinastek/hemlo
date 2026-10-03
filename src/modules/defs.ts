@@ -6,6 +6,7 @@ import { useApp } from '../lib/store'
 import { deleteTask } from '../lib/tasks'
 import type { ModuleInstance, ModuleRow } from '../lib/types'
 import { MODULES, moduleByKey } from './registry'
+import { modulesOn } from '../lib/module-view-rules'
 import type { ModuleDef } from './types'
 import {
   BUILT_KEY, LIMITS, OVERLAY_KEY, applyOverlay, bytes, definitionFor, definitionProblem, moduleKeywords, newModuleKey,
@@ -52,16 +53,19 @@ export interface ModuleEntry { def: ModuleDef; instance?: ModuleInstance; enable
 export async function moduleDefs(profileId: string): Promise<ModuleEntry[]> {
   const instances = await db.module_instance.where('profile_id').equals(profileId).toArray()
   const byKey = new Map(instances.map((i) => [i.module_key, i]))
+  const rows = await db.module.toArray()
+  // The one rule for "on" (module-view-rules.ts), as every screen uses it.
+  const on = modulesOn(instances, rows)
   const out: ModuleEntry[] = MODULES.map((base) => {
     const instance = byKey.get(base.key)
-    return { def: applyOverlay(base, readOverlay(instance?.settings?.[OVERLAY_KEY], base)), instance, enabled: !!instance?.enabled }
+    return { def: applyOverlay(base, readOverlay(instance?.settings?.[OVERLAY_KEY], base)), instance, enabled: on.has(base.key) }
   })
-  const built = (await db.module.toArray()).filter((m) => !m.builtin && !m.deleted_at && isBuiltKey(m.key))
+  const built = rows.filter((m) => !m.builtin && !m.deleted_at && isBuiltKey(m.key))
     .map((row) => readBuiltDefinition(row))
     .sort((a, b) => a.name.localeCompare(b.name))
   for (const def of built) {
     const instance = byKey.get(def.key)
-    out.push({ def, instance, enabled: !!instance?.enabled })
+    out.push({ def, instance, enabled: on.has(def.key) })
   }
   return out
 }

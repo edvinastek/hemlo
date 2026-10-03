@@ -20,11 +20,15 @@ import { More } from './screens/More'
 import { Onboarding } from './screens/Onboarding'
 import { readSettings } from './lib/settings'
 import { ModulePage } from './modules/ModulePage'
+import { Modules } from './screens/Modules'
+import { WhatMoved } from './ui/WhatMoved'
 import { usePages, pageForPath, pageAllowed, neighbour, type Pages } from './lib/pages'
 import { useSwipe } from './ui/useSwipe'
 import { useAccounts, watchAccounts } from './lib/accounts'
 import { Switching } from './screens/Switching'
 import { watchCalendarFollows } from './lib/calendar-links'
+import { pickProfile } from './lib/accounts-rules'
+import { rememberedProfile } from './settings/Profiles'
 
 export default function App() {
   const { session, profile, recovering, setSession, setProfile, setProfiles } = useApp()
@@ -94,14 +98,15 @@ export default function App() {
 
   useEffect(() => {
     if (!localProfiles) return
-    setProfiles(localProfiles)
+    setProfiles(localProfiles.filter((p) => !p.deleted_at))
     // Keep the active profile the live row, not the copy taken when it was
     // chosen: otherwise an edit (height, goal, date of birth) stays invisible
     // to every screen until the app restarts, and the next edit made from the
     // stale copy writes the old values back.
+    // The profile open now, else the one last chosen on this device, else the
+    // account's own (SET-02); never a deleted one.
     const current = useApp.getState().profile
-    const fresh = current ? localProfiles.find((p) => p.id === current.id) : undefined
-    setProfile(fresh ?? localProfiles.find((p) => p.is_default) ?? localProfiles[0] ?? null)
+    setProfile(pickProfile(localProfiles, current?.id ?? null, rememberedProfile(useApp.getState().session?.user.id)))
   }, [localProfiles])
 
   // Network second.
@@ -164,11 +169,13 @@ export default function App() {
         <Route path="/food" element={<Only page="food" pages={pages}><Food /></Only>} />
         <Route path="/shop" element={<Only page="shop" pages={pages}><Shop /></Only>} />
         <Route path="/more" element={<More />} />
+        <Route path="/modules" element={<Modules />} />
         <Route path="/m/:key" element={<ModuleRoute pages={pages} />} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
       <Nav pages={pages} />
       <UndoBar />
+      <WhatMoved />
     </div>
   )
 }

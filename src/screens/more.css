@@ -1,0 +1,22 @@
+/* Settings (More): the search above the tabs, what it finds, the module
+   filter, the small number stepper and the "what moved" list. */
+.more-search, .more-filter { padding-top: var(--space-3); }
+.more-filter { padding: var(--space-3) var(--space-4) 0; }
+.more-search input, .more-filter input {
+  width: 100%; min-width: 0; min-height: 44px; padding: 8px 12px; box-sizing: border-box;
+  border: 1px solid var(--e-field-line); border-radius: var(--radius-md);
+  background: var(--e-field); color: var(--e-ink); font-family: var(--font-sans); font-size: 15px;
+}
+.more-found { list-style: none; margin: 0; padding: var(--space-2) 0; }
+.more-found button {
+  display: grid; gap: 2px; width: 100%; min-height: 52px; text-align: left;
+  padding: var(--space-2) var(--space-4); border-bottom: 1px solid var(--e-rule);
+}
+.more-stepper { gap: 4px; }
+.more-stepper .btn { min-width: 40px; min-height: 40px; padding: 4px 8px; text-align: center; }
+.more-stepper input.btn { width: 52px; font-family: var(--font-sans); }
+.more-moved { padding: 0 var(--space-4) var(--space-4); }
+/* A row whose controls are wide (two times): they go under its name. */
+.setting-row.more-stack { grid-template-columns: minmax(0, 1fr); }
+.more-times { flex-wrap: wrap; }
+.more-times input { min-width: 0; flex: 1 1 120px; }
