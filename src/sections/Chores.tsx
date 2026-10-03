@@ -180,7 +180,7 @@ function ChoreRow({ chore: c, state: st, logs, day, today, held, nameOf, open, o
   const last = [...logs].filter((l) => !l.deleted_at && l.done_on <= day).sort((a, b) => b.done_on.localeCompare(a.done_on))[0]
   const who = choreAssignee(c, day, logs).map(nameOf).filter(Boolean)
   const meta = [
-    c.room, choreScheduleText(c, today), who.length ? (c.rotation !== 'none' && c.assignees.length > 1 ? `${who.join(', ')}’s turn` : who.join(', ')) : null,
+    c.room, choreScheduleText({ ...c, paused: false }, today), who.length ? (c.rotation !== 'none' && c.assignees.length > 1 ? `${who.join(', ')}’s turn` : who.join(', ')) : null,
     c.minutes ? `${c.minutes} min` : null,
   ].filter(Boolean).join(' · ')
 

@@ -21,5 +21,7 @@ Notes and templates, habits, household chores, supplements.
 - Supplements page + slots + SupplementSheet; day-items feed (slots, chore prefs, member names, day part) — committed.
 - Chores page + ChoreSheet + packs + holiday/light days + names + old records; ModulePage line — committed.
 
+- e2e tracking updated; screenshots in scratchpad/shots/b; tsc, check, build pass.
+
 ## Left
-- full npm run check, vite build, e2e tracking file, screenshots, report.
+- report to lead.
