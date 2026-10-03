@@ -12,8 +12,9 @@ import org.json.JSONArray;
 import java.lang.ref.WeakReference;
 
 /**
- * The app's side of the widget (src/lib/widget.ts): write the snapshot, collect
- * the ticks made on the widget, and clear both on sign-out.
+ * The app's side of the widgets (src/lib/widget.ts): write the Today and stats
+ * snapshots and the theme, collect the ticks made on the Today widget, and
+ * clear the data on sign-out.
  */
 @CapacitorPlugin(name = "GetItWidget")
 public class WidgetPlugin extends Plugin {
@@ -59,6 +60,35 @@ public class WidgetPlugin extends Plugin {
     public void clear(PluginCall call) {
         WidgetStore.clear(getContext());
         TodayWidget.refreshAll(getContext());
+        StatsWidget.refreshAll(getContext());
+        call.resolve();
+    }
+
+    /** The app's theme, both shades and the mode (WidgetLooks): every widget
+     *  redraws in it at once. */
+    @PluginMethod
+    public void setLooks(PluginCall call) {
+        String looks = call.getString("looks");
+        if (looks == null) {
+            call.reject("looks is required");
+            return;
+        }
+        WidgetStore.putLooks(getContext(), looks);
+        TodayWidget.refreshAll(getContext());
+        StatsWidget.refreshAll(getContext());
+        call.resolve();
+    }
+
+    /** Every saved stats view, worked out (StatsWidgetSnapshot). */
+    @PluginMethod
+    public void updateStats(PluginCall call) {
+        String snapshot = call.getString("snapshot");
+        if (snapshot == null) {
+            call.reject("snapshot is required");
+            return;
+        }
+        WidgetStore.putStats(getContext(), snapshot);
+        StatsWidget.refreshAll(getContext());
         call.resolve();
     }
 }

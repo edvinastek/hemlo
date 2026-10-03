@@ -23,8 +23,8 @@ import app.getit.planner.R;
 
 /**
  * GetIt · Today on the home screen. Draws from the snapshot the app wrote
- * (WidgetStore); ticks go to TickReceiver, which is not exported, so no other
- * app can tick anything here.
+ * (WidgetStore), in the app's theme (WidgetColours); ticks go to TickReceiver,
+ * which is not exported, so no other app can tick anything here.
  */
 public class TodayWidget extends AppWidgetProvider {
 
@@ -80,7 +80,15 @@ public class TodayWidget extends AppWidgetProvider {
     static RemoteViews render(Context context, int heightDp, int widthDp, Date now) {
         String day = dayOf(now);
         WidgetModel model = WidgetModel.build(WidgetStore.snapshot(context), day, slotsFor(heightDp));
+        WidgetColours col = WidgetColours.load(context);
         RemoteViews v = new RemoteViews(context.getPackageName(), R.layout.widget_today);
+
+        // The app's theme over the layout's default colours (LOOK-09).
+        col.set(v, R.id.bg, "setColorFilter", p -> p.paper);
+        col.set(v, R.id.date, "setTextColor", p -> p.ink);
+        col.set(v, R.id.summary, "setTextColor", p -> p.soft);
+        col.set(v, R.id.rule, "setBackgroundColor", p -> p.rule);
+        col.set(v, R.id.message, "setTextColor", p -> p.soft);
 
         // The app is English throughout, so the date is too.
         String pattern = widthDp > 0 && widthDp < 240 ? "EEE d MMM" : "EEEE d MMMM";
@@ -104,13 +112,19 @@ public class TodayWidget extends AppWidgetProvider {
             WidgetModel.Row r = model.rows.get(i);
             v.setViewVisibility(ROW[i], View.VISIBLE);
             v.setOnClickPendingIntent(ROW[i], openApp(context));
-            boolean item = r.kind == WidgetModel.Kind.TASK || r.kind == WidgetModel.Kind.HABIT;
+            boolean item = r.kind != WidgetModel.Kind.LABEL && r.kind != WidgetModel.Kind.NOTE;
+            boolean timed = item && r.kind != WidgetModel.Kind.HABIT;
 
             v.setViewVisibility(LABEL[i], r.kind == WidgetModel.Kind.LABEL ? View.VISIBLE : View.GONE);
             v.setViewVisibility(TICK[i], item ? View.VISIBLE : View.GONE);
-            v.setViewVisibility(TIME[i], r.kind == WidgetModel.Kind.TASK ? View.VISIBLE : View.GONE);
+            v.setViewVisibility(TIME[i], timed ? View.VISIBLE : View.GONE);
             v.setViewVisibility(TEXT[i], (item && !r.done) || r.kind == WidgetModel.Kind.NOTE ? View.VISIBLE : View.GONE);
             v.setViewVisibility(DONE[i], item && r.done ? View.VISIBLE : View.GONE);
+            col.set(v, LABEL[i], "setTextColor", p -> p.soft);
+            col.set(v, TIME[i], "setTextColor", p -> p.soft);
+            col.set(v, DONE[i], "setTextColor", p -> p.soft);
+            // A chore waiting past its day reads in the warning colour.
+            col.set(v, TEXT[i], "setTextColor", r.late ? (p -> p.warn) : r.kind == WidgetModel.Kind.NOTE ? (p -> p.soft) : (p -> p.ink));
 
             if (r.kind == WidgetModel.Kind.LABEL) {
                 v.setTextViewText(LABEL[i], r.text);
@@ -128,7 +142,17 @@ public class TodayWidget extends AppWidgetProvider {
             } else {
                 v.setTextViewText(TEXT[i], r.text);
             }
+            if (!r.tickable()) {
+                // An event or a record: a mark in the tick's place, nothing to tick.
+                v.setImageViewResource(TICK[i], R.drawable.widget_mark);
+                col.set(v, TICK[i], "setColorFilter", p -> p.soft);
+                v.setContentDescription(TICK[i], r.kind == WidgetModel.Kind.EVENT ? "Event" : "Entry");
+                v.setOnClickPendingIntent(TICK[i], openApp(context));
+                continue;
+            }
             v.setImageViewResource(TICK[i], r.done ? R.drawable.widget_tick_on : R.drawable.widget_tick_off);
+            // An open box in the labels' colour, so it reads at 3:1 or more on every theme.
+            col.set(v, TICK[i], "setColorFilter", r.done ? (p -> p.accent) : (p -> p.soft));
             v.setContentDescription(TICK[i], (r.done ? "Untick " : "Tick ") + r.text);
             v.setOnClickPendingIntent(TICK[i], tick(context, r, day));
         }
@@ -144,7 +168,7 @@ public class TodayWidget extends AppWidgetProvider {
     /** One PendingIntent per row and state: the data URI keeps them apart, so
      *  ticking one row can never send another row's intent. */
     private static PendingIntent tick(Context context, WidgetModel.Row r, String day) {
-        String kind = r.kind == WidgetModel.Kind.TASK ? "task" : "habit";
+        String kind = r.tickKind();
         Intent intent = new Intent(context, TickReceiver.class)
             .setAction(TickReceiver.ACTION)
             .setData(new Uri.Builder().scheme("getit-widget").authority(kind)

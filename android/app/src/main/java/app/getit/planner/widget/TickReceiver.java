@@ -21,7 +21,7 @@ public class TickReceiver extends BroadcastReceiver {
         if (data == null) return;
         String kind = data.getAuthority();
         List<String> path = data.getPathSegments();
-        if (path.size() != 3 || !("task".equals(kind) || "habit".equals(kind))) return;
+        if (path.size() != 3 || !WidgetModel.TICK_KINDS.contains(kind)) return;
 
         WidgetStore.tick(context, kind, path.get(0), path.get(1), "do".equals(path.get(2)));
         TodayWidget.refreshAll(context);

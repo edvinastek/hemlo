@@ -1,61 +1,75 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!-- GetIt · Today. Eight identical row slots (row_0 to row_7), filled or hidden
-     by TodayWidget from WidgetModel; a change to one slot goes to all eight. -->
-<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+     by TodayWidget from WidgetModel; a change to one slot goes to all eight.
+     The colours here are the default theme's; TodayWidget paints the chosen
+     theme over them (WidgetColours), the page through the bg image. -->
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:id="@+id/widget_root"
     android:layout_width="match_parent"
-    android:layout_height="match_parent"
-    android:background="@drawable/widget_bg"
-    android:orientation="vertical"
-    android:paddingStart="12dp"
-    android:paddingTop="10dp"
-    android:paddingEnd="14dp"
-    android:paddingBottom="8dp">
+    android:layout_height="match_parent">
+
+    <ImageView
+        android:id="@+id/bg"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:importantForAccessibility="no"
+        android:scaleType="fitXY"
+        android:src="@drawable/widget_bg" />
 
     <LinearLayout
-        android:id="@+id/header"
         android:layout_width="match_parent"
-        android:layout_height="36dp"
-        android:gravity="center_vertical"
-        android:orientation="horizontal"
-        android:paddingStart="4dp">
-        <TextView
-            android:id="@+id/date"
-            android:layout_width="0dp"
-            android:layout_height="wrap_content"
-            android:layout_weight="1"
-            android:ellipsize="end"
-            android:fontFamily="serif"
-            android:maxLines="1"
-            android:text=""
-            android:textColor="@color/widget_ink"
-            android:textSize="18sp" />
-        <TextView
-            android:id="@+id/summary"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:fontFamily="sans-serif"
-            android:text=""
-            android:textColor="@color/widget_ink_soft"
-            android:textSize="13sp" />
-    </LinearLayout>
-
-    <FrameLayout
-        android:layout_width="match_parent"
-        android:layout_height="1dp"
-        android:layout_marginBottom="2dp"
-        android:background="@color/widget_rule" />
-
-    <TextView
-        android:id="@+id/message"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:paddingStart="4dp"
+        android:layout_height="match_parent"
+        android:orientation="vertical"
+        android:paddingStart="12dp"
         android:paddingTop="10dp"
-        android:fontFamily="sans-serif"
-        android:textColor="@color/widget_ink_soft"
-        android:textSize="14sp"
-        android:visibility="gone" />
+        android:paddingEnd="14dp"
+        android:paddingBottom="8dp">
+
+        <LinearLayout
+            android:id="@+id/header"
+            android:layout_width="match_parent"
+            android:layout_height="36dp"
+            android:gravity="center_vertical"
+            android:orientation="horizontal"
+            android:paddingStart="4dp">
+            <TextView
+                android:id="@+id/date"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:ellipsize="end"
+                android:fontFamily="serif"
+                android:maxLines="1"
+                android:text=""
+                android:textColor="@color/widget_ink"
+                android:textSize="18sp" />
+            <TextView
+                android:id="@+id/summary"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:fontFamily="sans-serif"
+                android:text=""
+                android:textColor="@color/widget_ink_soft"
+                android:textSize="13sp" />
+        </LinearLayout>
+
+        <FrameLayout
+            android:id="@+id/rule"
+            android:layout_width="match_parent"
+            android:layout_height="1dp"
+            android:layout_marginBottom="2dp"
+            android:background="@color/widget_rule" />
+
+        <TextView
+            android:id="@+id/message"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:paddingStart="4dp"
+            android:paddingTop="10dp"
+            android:fontFamily="sans-serif"
+            android:textColor="@color/widget_ink_soft"
+            android:textSize="14sp"
+            android:visibility="gone" />
 
         <LinearLayout
             android:id="@+id/row_0"
@@ -521,4 +535,5 @@
                 android:textSize="11sp"
                 android:visibility="gone" />
         </LinearLayout>
-</LinearLayout>
+    </LinearLayout>
+</FrameLayout>

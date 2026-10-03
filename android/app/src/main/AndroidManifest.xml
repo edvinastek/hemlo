@@ -180,6 +180,34 @@
             android:exported="false" />
 
         <!--
+          The stats widgets (as many as the person places): each shows one saved
+          stats view from the copy the app keeps on the phone. The settings
+          screen picks the view when one is placed and again from the widget's
+          own settings; only the launcher can start it (it is the widget host
+          that holds the configure action).
+        -->
+        <receiver
+            android:name=".widget.StatsWidget"
+            android:label="@string/widget_stats_name"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data android:name="android.appwidget.provider" android:resource="@xml/widget_stats_info" />
+        </receiver>
+        <activity
+            android:name=".widget.StatsWidgetConfigure"
+            android:label="@string/widget_stats_choose"
+            android:theme="@android:style/Theme.DeviceDefault.NoActionBar"
+            android:excludeFromRecents="true"
+            android:taskAffinity=""
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_CONFIGURE" />
+            </intent-filter>
+        </activity>
+
+        <!--
           Barcodes are read by Google's code scanner in Play services, which
           opens its own camera screen and hands back only the number. Asking
           for it here has Google Play fetch the scanner with the app, so the
