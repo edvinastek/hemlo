@@ -3,6 +3,7 @@
 import {
   toGrams, formatGrams, inUnit, unitFor, stepFor, nudge, applyDelta, mealNeeds, takeOut, putBack,
   boughtGrams, sortStock, filterStock, cleanNote, stockStep, MAX_GRAMS,
+  cleanPlace, placesFrom, daysUntil, dateText, expiringSoon, readDate, belowMin, cleanMin, groupKey, sortByPlace, stockCover,
 } from '../lib/stock-rules.ts'
 
 let fail = 0
@@ -108,6 +109,37 @@ is('a food not here moves by grams', stockStep(1210, 'egg', null, 1), 1300)
 is('− by grams too', stockStep(600, 'egg', null, -1), nudge(600, -1))
 is('a unit the food lost moves by grams', stockStep(430, 'slice', eggUnits, 1), nudge(430, 1))
 is('no unit, grams', stockStep(430, null, eggUnits, 1), 450)
+
+// Where it is kept and until when (STK-03).
+is('a place is tidied with a capital', cleanPlace('  cellar  shelf '), 'Cellar shelf')
+is('no place is none', cleanPlace('  '), null)
+is('the usual places first, then the person\'s own, each once', placesFrom(['cellar', 'Fridge', 'Balcony', 'Cellar', null]), ['Fridge', 'Freezer', 'Cupboard', 'Balcony', 'Cellar'])
+is('days until a date', [daysUntil('2026-10-05', '2026-10-03'), daysUntil('2026-10-01', '2026-10-03')], [2, -2])
+is('a date in words', ['2026-10-01', '2026-10-02', '2026-10-03', '2026-10-04', '2026-10-06', '2026-10-14'].map((d) => dateText(d, '2026-10-03')),
+  ['2 days past its date', '1 day past its date', 'use today', 'use by tomorrow', '3 days left', 'until 14 Oct'])
+const dated = [
+  { name: 'Milk', grams: 1000, best_before: '2026-10-04' }, { name: 'Yoghurt', grams: 500, best_before: '2026-10-02' },
+  { name: 'Rice', grams: 900, best_before: '2027-05-01' }, { name: 'Ham', grams: 0, best_before: '2026-10-03' }, { name: 'Salt', grams: 500 },
+]
+is('use soon: dated within three days or past it, soonest first, not what is out', expiringSoon(dated, '2026-10-03').map((r) => r.name), ['Yoghurt', 'Milk'])
+is('a quick date: day and month', readDate('1410', '2026-10-03'), '2026-10-14')
+is('a day and month gone by is next year', readDate('0210', '2026-10-03'), '2027-10-02')
+is('day, month and year', [readDate('14-10-26', '2026-10-03'), readDate('14.10.2026', '2026-10-03'), readDate('2026-10-14', '2026-10-03')],
+  ['2026-10-14', '2026-10-14', '2026-10-14'])
+is('not a day', [readDate('3102', '2026-10-03'), readDate('soon', '2026-10-03'), readDate('2026-02-30', '2026-10-03')], [null, null, null])
+
+// The minimum kept (STK-04).
+is('below the minimum', [belowMin({ grams: 100, min_grams: 250 }), belowMin({ grams: 250, min_grams: 250 }), belowMin({ grams: 0, min_grams: null })], [true, false, false])
+is('a minimum as stored', [cleanMin(250.04), cleanMin(0), cleanMin(null), cleanMin(5e6)], [250, null, null, MAX_GRAMS])
+is('grouped by place, or by aisle', [groupKey({ place: 'fridge', section: 'Dairy' }, 'place'), groupKey({ place: null, section: 'Dairy' }, 'place'), groupKey({ place: 'Fridge', section: 'Dairy' }, 'aisle')],
+  ['Fridge', 'No place set', 'Dairy'])
+is('places in the offered order, none last', sortByPlace([
+  { name: 'b', place: null, section: '' }, { name: 'a', place: 'Cellar', section: '' }, { name: 'c', place: 'Freezer', section: '' }, { name: 'd', place: 'fridge', section: '' },
+], placesFrom(['Cellar'])).map((r) => r.name), ['d', 'c', 'a', 'b'])
+
+// Cooking from what is here (STK-06).
+is('how much of a recipe is in stock', stockCover(new Map([['rice', 100], ['egg', 100]]), new Map([['rice', 300], ['egg', 50]])), { share: 0.75, missing: ['egg'] })
+is('nothing needed covers nothing', stockCover(new Map(), new Map()).share, 0)
 
 console.log(fail ? `\n${fail} check(s) failed` : '\nall checks passed')
 process.exit(fail ? 1 : 0)
