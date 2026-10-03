@@ -8,7 +8,7 @@ import { saveSettings } from '../lib/write'
 import { readSettings, type TodayCard } from '../lib/settings'
 import { usePages, useUses, type PageInfo } from '../lib/pages'
 import { orderByUse, pinPage, unpinPage } from '../lib/pages-rules'
-import { hubSearch, recordName, recordWords, type HubModule, type HubRecord } from '../lib/hub-rules'
+import { foodRoute, hubSearch, recordName, recordRoute, recordWords, type HubModule, type HubRecord } from '../lib/hub-rules'
 import { describeView, moduleView } from '../lib/module-view-rules'
 import { setModuleEnabled, useModuleDefs, type ModuleEntry } from '../modules/defs'
 import { ModuleBuilder } from '../modules/ModuleBuilder'
@@ -321,6 +321,7 @@ const dayText = (d: string | null | undefined) => { try { return d ? format(pars
  *  things offline too. */
 function useHubRecords(active: boolean, entries: ModuleEntry[] | undefined): HubRecord[] | undefined {
   const profile = useApp((s) => s.profile)
+  const userId = useApp((s) => s.session?.user.id ?? null)
   return useLiveQuery(async () => {
     if (!active || !profile || !entries) return []
     const name = new Map(entries.map((e) => [e.def.key, e.def.name]))
@@ -330,7 +331,7 @@ function useHubRecords(active: boolean, entries: ModuleEntry[] | undefined): Hub
       if (r.deleted_at) continue
       out.push({
         id: r.id, module: r.module_key, name: recordName(r.data, name.get(r.module_key) ?? r.module_key), extra: recordWords(r.data),
-        route: `/m/${r.module_key}?open=${r.id}`, meta: [name.get(r.module_key), dayText(r.record_date)].filter(Boolean).join(' · '),
+        route: recordRoute(r.module_key, r.id), meta: [name.get(r.module_key), dayText(r.record_date)].filter(Boolean).join(' · '),
         recent: stamp(r.updated_at),
       })
     }
@@ -350,10 +351,21 @@ function useHubRecords(active: boolean, entries: ModuleEntry[] | undefined): Hub
       if (e.deleted_at || e.subscription_id) continue
       out.push({ id: e.id, module: 'agenda', name: e.title, extra: e.location ?? '', route: `/m/agenda?open=${e.id}`, meta: ['Agenda', dayText(e.starts_at)].join(' · '), recent: stamp(e.updated_at) })
     }
+    // Recipes and the person's own foods open on the Food page.
+    for (const r of await db.recipe.toArray()) {
+      if (r.deleted_at) continue
+      out.push({ id: r.id, module: 'nutrition', name: r.name, extra: r.role ?? '', route: foodRoute('recipe', r.id), meta: 'Recipe' })
+    }
+    if (userId) {
+      for (const f of await db.food.where('owner_id').equals(userId).toArray()) {
+        if (f.deleted_at) continue
+        out.push({ id: f.id, module: 'nutrition', name: f.name, extra: f.name_nl ?? '', route: foodRoute('food', f.id), meta: 'Your food' })
+      }
+    }
     for (const g of await db.goal.where('profile_id').equals(profile.id).toArray()) {
       if (g.deleted_at) continue
       out.push({ id: g.id, module: 'projects', name: g.title, extra: '', route: '/m/projects', meta: 'Goal', recent: stamp(g.updated_at) })
     }
     return out
-  }, [active, profile?.id, profile?.household_id, entries])
+  }, [active, profile?.id, profile?.household_id, entries, userId])
 }

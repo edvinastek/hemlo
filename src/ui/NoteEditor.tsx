@@ -11,6 +11,7 @@ import { saveSettings } from '../lib/write'
 import { addTemplate, applyNoteTemplate, FILLS, type FillContext, type NoteTemplate } from '../lib/template-rules'
 import { blockChanged, recipeBlocks, replaceBlock, type RecipeBlock } from '../lib/recipe-note-rules'
 import { figuresOf, loadRecipes, recipeBlockText } from '../lib/recipe-note'
+import { foodRoute } from '../lib/hub-rules'
 import { TemplatePicker } from './TemplatePicker'
 import { RecipeInsert } from './RecipeInsert'
 import { offerUndo } from './Undo'
@@ -305,5 +306,5 @@ export function RecipeLinks({ note, onChange }: { note: string; onChange: (next:
 
 function OpenRecipe({ id }: { id: string }) {
   const navigate = useNavigate()
-  return <button type="button" className="ne-link" onClick={() => navigate(`/food?recipe=${id}`)}>Open recipe</button>
+  return <button type="button" className="ne-link" onClick={() => navigate(foodRoute('recipe', id))}>Open recipe</button>
 }

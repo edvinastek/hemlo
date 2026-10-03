@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { db } from '../lib/db'
 import { useApp } from '../lib/store'
@@ -33,6 +33,17 @@ import type { Food as FoodRow, Recipe, RecipeLine } from '../lib/types'
 
 const live = (r: object) => !(r as { deleted_at?: string | null }).deleted_at
 
+/** A recipe or food asked for by the page's address (/food?recipe=<id>):
+ *  read straight from the local copy, so it opens as soon as it is found.
+ *  Undefined while it is read; null when it is not there (or deleted). */
+function useAsked<T extends { deleted_at?: string | null }>(id: string | null | undefined, read: (id: string) => Promise<T | undefined>): T | null | undefined {
+  return useLiveQuery(async () => {
+    if (!id) return null
+    const row = await read(id)
+    return row && !row.deleted_at ? row : null
+  }, [id])
+}
+
 function useFoodData() {
   const foods = useLiveQuery(() => db.food.toArray(), [], [] as FoodRow[])
   const recipes = useLiveQuery(() => db.recipe.toArray(), [], [] as Recipe[])
@@ -45,7 +56,7 @@ function useFoodData() {
  *  recipes and the ways to add some, then every recipe (ready meals too), in
  *  books, found by the one search over names, ingredients and what each is
  *  for, and sorted as the person chooses. Tapping a recipe opens it in full. */
-export function RecipesTab() {
+export function RecipesTab({ openId, onOpened }: { openId?: string | null; onOpened?: () => void } = {}) {
   const profile = useApp((s) => s.profile)
   const userId = useApp((s) => s.session?.user.id ?? null)
   const settings = readSettings(profile)
@@ -55,6 +66,17 @@ export function RecipesTab() {
   const [sort, setSort] = useState<RecipeSort>('name')
   const [open, setOpen] = useState<Recipe | null>(null)
   const [editing, setEditing] = useState<{ recipe: Recipe | null; start?: RecipeDraft } | null>(null)
+  // A recipe asked for by the address (a note's "Open recipe", the hub's
+  // search) opens on its page; the address is then cleared so Back and a
+  // reload do not open it again.
+  const asked = useAsked(openId, (id) => db.recipe.get(id))
+  const [gone, setGone] = useState(false)
+  useEffect(() => {
+    if (!openId || asked === undefined) return
+    if (asked) { setOpen(asked); setEditing(null) }
+    setGone(!asked)
+    onOpened?.()
+  }, [openId, asked, onOpened])
   const logs = useLiveQuery(async () => (profile ? db.food_log.where('profile_id').equals(profile.id).toArray() : []), [profile?.id], [])
   const slots = useLiveQuery(async () => (profile ? db.meal_plan_slot.where('profile_id').equals(profile.id).toArray() : []), [profile?.id], [])
   const use = useMemo(() => usage(logs, slots), [logs, slots])
@@ -119,6 +141,7 @@ export function RecipesTab() {
 
   return (
     <>
+      {gone && <p className="empty" role="status">That recipe is no longer here. It may have been deleted.</p>}
       <MyRecipes userId={userId} recipes={liveRecipes} lines={lines} foods={foodMap} onOpen={setOpen} onNew={() => setEditing({ recipe: null })} />
       <div className="rt-tools">
         <input className="ft-search" type="search" placeholder="Search recipes and ingredients" aria-label="Search recipes"
@@ -162,7 +185,7 @@ export function RecipesTab() {
 /** Food's Foods tab (FOOD-14): find products in shops, add a food by hand,
  *  and every food, in books: sorted by name, found by the one search (the
  *  Dutch name and synonyms too), with the figures the person chose. */
-export function FoodsTab() {
+export function FoodsTab({ openId, onOpened }: { openId?: string | null; onOpened?: () => void } = {}) {
   const profile = useApp((s) => s.profile)
   const userId = useApp((s) => s.session?.user.id ?? null)
   const settings = readSettings(profile)
@@ -172,6 +195,15 @@ export function FoodsTab() {
   const [openFood, setOpenFood] = useState<FoodRow | null>(null)
   const [adding, setAdding] = useState(false)
   const [choosing, setChoosing] = useState(false)
+  // A food asked for by the address (/food?food=<id>, the hub's search).
+  const asked = useAsked(openId, (id) => db.food.get(id))
+  const [gone, setGone] = useState(false)
+  useEffect(() => {
+    if (!openId || asked === undefined) return
+    if (asked) setOpenFood(asked)
+    setGone(!asked)
+    onOpened?.()
+  }, [openId, asked, onOpened])
   const liveFoods = useMemo(() => foods.filter(live), [foods])
   const figures = shownFigures(shownNutrients(settings).filter((k) => k !== 'kcal'), prefs.label.figures)
   // A food's row as the table shows it: salt worked out from published
@@ -192,6 +224,7 @@ export function FoodsTab() {
   const narrowColumns = ['name', ...figures.slice(0, 2)]
   return (
     <>
+      {gone && <p className="empty" role="status">That food is no longer here. It may have been deleted.</p>}
       <FindProducts onShow={setSearch} />
       <div className="ft-tools">
         <input className="ft-search" type="search" placeholder="Search, in English or Dutch" aria-label="Search foods, in English or Dutch"

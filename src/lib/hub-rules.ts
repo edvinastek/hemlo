@@ -65,3 +65,30 @@ export function recordWords(data: Record<string, unknown> | null | undefined): s
     .join(' ')
     .slice(0, 400)
 }
+
+/* ---------- where a found thing opens ---------------------------------------- */
+
+/** Modules whose records live on a screen of their own, not on /m/<key>. */
+const OWN_SCREEN: Record<string, string> = { nutrition: '/food', shopping: '/shop' }
+
+/** Where a module's record opens: /m/<key>?open=<id> (the module page
+ *  opens it in its sheet), or the module's own screen for Food and
+ *  Shopping, which keep their records elsewhere. */
+export function recordRoute(moduleKey: string, id: string): string {
+  return OWN_SCREEN[moduleKey] ?? `/m/${moduleKey}?open=${encodeURIComponent(id)}`
+}
+
+/** A recipe or a food on the Food page: /food?recipe=<id>, /food?food=<id>.
+ *  The note's "Open recipe" and the hub's search both link this way. */
+export const foodRoute = (kind: 'recipe' | 'food', id: string) => `/food?${kind}=${encodeURIComponent(id)}`
+
+/** What the Food page's address asks for: a tab, and a recipe or a food to
+ *  open on it. Anything else is the Day tab. */
+export function readFoodAddress(params: { get: (k: string) => string | null }): { section: 'Day' | 'Recipes' | 'Foods'; recipe: string | null; food: string | null } {
+  const recipe = params.get('recipe')
+  const food = params.get('food')
+  if (recipe) return { section: 'Recipes', recipe, food: null }
+  if (food) return { section: 'Foods', recipe: null, food }
+  const tab = params.get('tab')
+  return { section: tab === 'recipes' ? 'Recipes' : tab === 'foods' ? 'Foods' : 'Day', recipe: null, food: null }
+}

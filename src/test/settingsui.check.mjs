@@ -8,7 +8,7 @@ import { conflictLine, shownValue } from '../lib/sync-rules.ts'
 import { cleanZone, readZoneChoice, zoneToStore, zoneLabel } from '../lib/timezone-rules.ts'
 import { heightFrom } from '../lib/profile-fields-rules.ts'
 import { TIPS, readTipState, tipShows, dismissTip, noteFirstDay, resetTips, movedShows, readMoved, MOVED_VERSION, NO_TIPS } from '../lib/tips-rules.ts'
-import { hubSearch, recordName, recordWords } from '../lib/hub-rules.ts'
+import { hubSearch, recordName, recordWords, recordRoute, foodRoute, readFoodAddress } from '../lib/hub-rules.ts'
 
 let fail = 0
 const is = (label, got, want) => {
@@ -110,6 +110,13 @@ is('records of modules that are on, by any word', hubSearch(mods, recs, 'water')
 is('records of modules that are off stay hidden', hubSearch(mods, recs, 'fern').hits.map((h) => h.item.name), ['Fern'])
 is('modules before records', hubSearch(mods, recs, 'plants').hits.map((h) => h.kind), ['module'])
 is('nothing typed, nothing found', hubSearch(mods, recs, '').hits, [])
+is('a record opens in its module page', recordRoute('plants', 'r1'), '/m/plants?open=r1')
+is('Food and Shopping records open their own screens', [recordRoute('nutrition', 'r1'), recordRoute('shopping', 'r2')], ['/food', '/shop'])
+is('a recipe and a food on the Food page', [foodRoute('recipe', 'a'), foodRoute('food', 'b')], ['/food?recipe=a', '/food?food=b'])
+const addr = (q) => readFoodAddress(new URLSearchParams(q))
+is('the Food page opens a recipe on Recipes', addr('recipe=a'), { section: 'Recipes', recipe: 'a', food: null })
+is('a food on Foods', addr('food=b'), { section: 'Foods', recipe: null, food: 'b' })
+is('a tab by name, else Day', [addr('tab=foods').section, addr('').section, addr('tab=nope').section], ['Foods', 'Day', 'Day'])
 is('a cap with a count of the rest', hubSearch(mods, recs, 'water', 1).more, 1)
 is('a record named by its first text', recordName({ day: '2026-10-03', plant: 'Fern', _series: 'abc' }, 'Plants'), 'Fern')
 is('…or its module', recordName({ day: '2026-10-03' }, 'Plants'), 'Plants')
