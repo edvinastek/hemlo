@@ -8,7 +8,7 @@ import {
   sourceText, copiedFromNevo,
 } from '../lib/eu-label-rules'
 import {
-  addUnit, foodWord, readUnitForm, readUnits, removeUnit, unitLine, MAX_UNITS, UNIT_NAME_MAX, type FoodUnit,
+  addUnit, foodWord, readUnitForm, readUnits, removeUnit, unitLine, withOverlay, MAX_UNITS, UNIT_NAME_MAX, type FoodUnit,
 } from '../lib/units-rules'
 import { saveLabelChoice, saveOwnUnits, useNutritionPrefs } from '../lib/nutrition-prefs'
 import { format } from 'date-fns'
@@ -61,7 +61,12 @@ export function FoodUnitsSheet({ food: given, onClose }: { food: Food; onClose: 
   const check = energyCheck(food)
   const sodium = sodiumOf(food)
   const kind = sourceKind(food)
-  const units = readUnits(food.units)
+  // A shared food's own units come from Nutrition's settings, read live
+  // here: the food row itself does not change when one is added, so the
+  // list would otherwise wait for the page to be opened again.
+  const units = shared
+    ? withOverlay(readUnits(food.units).filter((u) => u.source !== 'mine'), prefs.overlay[food.id] ?? [])
+    : readUnits(food.units)
   const isEgg = food.food_group === 'Eggs' || /\begg\b/i.test(food.name) && units.some((u) => /egg/.test(u.name))
   const additions = kind === 'nevo' && (units.length > 0 || !!food.cook_yield || food.name !== food.name_en)
 
