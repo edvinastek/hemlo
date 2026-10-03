@@ -66,6 +66,10 @@ export async function exportBundle(profileId: string): Promise<Blob> {
   records.module = (await db.module.toArray()).filter((m) => !m.builtin && !m.deleted_at)
   const household = (await db.profile.get(profileId))?.household_id
   records.stock = household ? await db.stock.where('household_id').equals(household).toArray() : []
+  // The shopping list and the prices noted are the household's too: the
+  // items on it, what was bought (the recently bought tiles) and the prices.
+  records.shopping_entry = household ? await db.shopping_entry.where('household_id').equals(household).toArray() : []
+  records.shop_price = household ? (await db.shop_price.where('household_id').equals(household).toArray()).filter((r) => !r.deleted_at) : []
 
   const bundle: Bundle = {
     format: 'getit.bundle',
@@ -203,6 +207,16 @@ export async function importBundle(file: File, profileId: string, userId: string
   // the shared key they would remove what this household has now.
   if (current) {
     for (const r of rows('stock').filter((x) => !x.deleted_at)) await put('stock', r, { household_id: current.household_id })
+    // The list joins this household's list the same way: a planned item's
+    // tick is one per food (NATURAL_KEYS.shopping_entry), a price one per
+    // item per shop. Removed items come along only as things bought, for
+    // the recently bought tiles; anything else removed is left out.
+    for (const r of rows('shopping_entry').filter((x) => !x.deleted_at || x.bought_at)) {
+      await put('shopping_entry', r, { household_id: current.household_id, added_by: profileId })
+    }
+    for (const r of rows('shop_price').filter((x) => !x.deleted_at)) {
+      await put('shop_price', r, { household_id: current.household_id, added_by: profileId })
+    }
   }
   // Built modules before their switches and records point at them.
   for (const r of rows('module')) await put('module', r, { created_by: userId, builtin: false })
