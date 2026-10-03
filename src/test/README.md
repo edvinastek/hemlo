@@ -88,11 +88,13 @@ Types, then every check that needs nothing but Node. CI runs the same command.
   the pack size from grams, millilitres or "6 x 50 g", shop names tidied ("Ah" is Albert Heijn), the food row it
   becomes and finding one already kept (or deleted) with that barcode, packs into grams for stock, shared prices
   (the latest per shop, per kilo, the day, offers), and the limiter and cache that keep under Open Food Facts' limits.
-- `sync` — (also: settings merged key by key between devices, what 026 added synced like the rest, the light pull) — name-based ids (UUID version 5) against the standard's own examples; a scanned product's fixed id (the same
+- `sync` — name-based ids (UUID version 5) against the standard's own examples; a scanned product's fixed id (the same
   person and barcode give the same id on every phone, however the barcode was typed); natural keys (a food's barcode
   counts only while the food is live); a food folded into its twin taking its stock, ingredients, food log, records,
   books and waiting edits along; fetching page by page in updated_at and key order, so rows sharing one time are never
-  skipped at a page's edge or fetched twice, and the next sync starts exactly after the last row.
+  skipped at a page's edge or fetched twice, and the next sync starts exactly after the last row; settings merged key by
+  key between two devices (one's theme, the other's note template), what 026 added (shopping list, chores) synced like
+  the rest, and the light pull every two minutes and on coming back.
 - `units` — food counted in units as well as grams (022): a food's units read strictly (at most eight, a name of up to
   24 characters that is not a weight, 0.1 to 5000 g each, each name once), plurals ("2 eggs", "0.5 cup", "2 tbsp"),
   numbers as typed (a comma, ½, 3/4, 1 1/2, 1½ and the fraction slash), an amount in a unit and the grams it comes to,
