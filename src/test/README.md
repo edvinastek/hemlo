@@ -129,6 +129,13 @@ Types, then every check that needs nothing but Node. CI runs the same command.
   its tasks and milestones; a goal's progress from a number kept by hand, from the tasks, projects and milestones linked
   to it, or from the body weight (losing or gaining); days left; what a goal may not be; and what the Year view lists
   (goals touching the year, open ones, dated projects while Projects is on).
+- `finance` — Finance: the stored list read strictly (one level of categories, unique names, euros unless chosen),
+  amounts as people type them (12,50 · 1.234,56 · 1,234.56), money written the British way, income and expense (old
+  entries by their sign), a month's totals per category and per top-level one, budgets (a month's own winning, a
+  top-level one counting what is under it, over marked), the fast entry's categories (most recent first), renaming,
+  adding and dropping categories, planned payments (due days, one-offs, paused, the entry marking one paid makes), and
+  their place on the day list: "Rent due" on its day, ticked once paid without its entry shown twice, nowhere while
+  Finance is off or not shown there.
 ## Browser checks
 
 They need the app built and served (`npm run build`, then

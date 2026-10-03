@@ -6,8 +6,9 @@
 import { habitDay, habitSchedule, choreState, choreAssignee, describeChore, describeSchedule, occursOn, type HabitDay } from './schedule-rules.ts'
 import { moduleView, type ModuleView } from './module-view-rules.ts'
 import type { Task, Habit, HabitLog, Chore, ChoreLog, Supplement, SupplementLog, CalendarEvent, ModuleRecord } from './types'
+import { paymentDue, type Payment } from './finance-rules.ts'
 
-export type DayItemKind = 'task' | 'habit' | 'chore' | 'supplements' | 'event' | 'record'
+export type DayItemKind = 'task' | 'habit' | 'chore' | 'supplements' | 'event' | 'record' | 'payment'
 
 export interface DayItem {
   /** Unique within a range: kind, id and day. */
@@ -66,7 +67,16 @@ export interface DayItemSources {
   recordTitle?: (r: ModuleRecord) => string
   /** Household member id to their name, for chores. */
   memberName?: (id: string) => string
+  /* ---- Planned payments (FIN-04, GEN-40; engineer H) ---- */
+  /** Finance's planned payments (rent, subscriptions), each with its line
+   *  under the title already written ("€950.00 · Rent · monthly"). */
+  payments?: PaymentSource[]
+  /** Days already marked paid: payment id and the day it was due. */
+  paidPayments?: { payment_id: string; due_date: string; entry_id: string }[]
 }
+
+/** A planned payment as the day list needs it (finance.ts writes these). */
+export interface PaymentSource extends Payment { meta: string }
 
 /** Section to module, the same mapping the colours use. */
 const SECTION_MODULE: Record<string, string> = {
@@ -203,8 +213,27 @@ export function dayItems(days: string[], where: Where, s: DayItemSources): DayIt
         ref: { table: 'module_record', id: r.id }, readonly: false,
       })
     }
+
+    // ---- Planned payments (FIN-04, GEN-40; engineer H) -------------------
+    // "Rent due" on the days a payment is due, while Finance is on and shown
+    // here; ticking it marks it paid, which writes the entry (finance.ts,
+    // togglePaid). The entry that paid it is not listed again as a record.
+    if (s.payments?.length && shows('finance', where, s)) {
+      for (const p of s.payments) {
+        if (!paymentDue(p, day)) continue
+        const paid = s.paidPayments?.find((x) => x.payment_id === p.id && x.due_date === day)
+        out.push({
+          key: `payment:${p.id}:${day}`, kind: 'payment', day, time: p.time, minutes: null,
+          title: `${p.name} ${p.kind === 'income' ? 'expected' : 'due'}`, module_key: 'finance', done: !!paid, state: null,
+          meta: paid ? `${p.meta} · paid` : p.meta, ref: { table: 'module_record', id: p.id }, readonly: false,
+        })
+      }
+    }
   }
-  const kindOrder: Record<DayItemKind, number> = { event: 0, task: 1, habit: 2, chore: 3, supplements: 4, record: 5 }
+  const kindOrder: Record<DayItemKind, number> = { event: 0, task: 1, habit: 2, chore: 3, supplements: 4, record: 5, payment: 4.5 }
+  // Planned payments (engineer H): the entry that paid one is not shown again as a record.
+  const paidEntries = new Set((s.paidPayments ?? []).map((x) => x.entry_id))
+  if (paidEntries.size) for (let i = out.length - 1; i >= 0; i--) if (out[i].kind === 'record' && paidEntries.has(out[i].ref.id)) out.splice(i, 1)
   return out.sort((a, b) => a.day.localeCompare(b.day)
     || (a.time ?? '99:99').localeCompare(b.time ?? '99:99')
     || kindOrder[a.kind] - kindOrder[b.kind]
