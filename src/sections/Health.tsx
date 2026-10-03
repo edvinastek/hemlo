@@ -3,6 +3,7 @@ import { useLiveQuery } from 'dexie-react-hooks'
 import { format, parseISO } from 'date-fns'
 import { db } from '../lib/db'
 import { weighIns } from '../lib/body'
+import { formatChange } from '../lib/body-rules'
 import { addDays } from '../lib/schedule-rules'
 import {
   chartScale, describeRate, goalDate, lastDays, readGoalWeight, trendLine, weeklyRate, type TrendPoint,
@@ -102,9 +103,9 @@ export function Health({ profileId }: { profileId: string; day: string }) {
               <button type="button" className="hlt-another" onClick={() => setOtherDay(true)}>Another day</button>
             )}
           </div>
-          <WeighIn key={day} profileId={profileId} day={day} />
+          <WeighIn key={day} profileId={profileId} day={day} history={false} />
 
-          {line.length > 8 && <AllWeighIns line={line} onPick={pick} />}
+          {line.length > 0 && <AllWeighIns line={line} onPick={pick} />}
           <div className="kit-gap" />
         </>
       )}
@@ -144,11 +145,11 @@ function AllWeighIns({ line, onPick }: { line: TrendPoint[]; onPick: (d: string)
     <>
       <h2 className="section-title">Every weigh-in</h2>
       <ul className="kit-list" aria-label="Every weigh-in, newest first">
-        {list.slice(0, shown).map((p) => (
+        {list.slice(0, shown).map((p, i) => (
           <li key={p.day} className="kit-row">
             <button type="button" className="kit-open" onClick={() => onPick(p.day)} aria-label={`Change the weigh-in of ${dayLabel(p.day)}`}>
               <span className="row-name">{dayLabel(p.day)}</span>
-              <span className="row-meta">trend {kg(p.trend)}</span>
+              <span className="row-meta">{formatChange(list[i + 1] ? p.weight - list[i + 1].weight : null)} · trend {kg(p.trend)}</span>
             </button>
             <span className="kit-right kit-num">{kg(p.weight)}</span>
           </li>
