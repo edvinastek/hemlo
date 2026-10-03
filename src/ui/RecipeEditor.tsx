@@ -200,11 +200,10 @@ export function RecipeEditor({ recipe, lines, foods, userId, onClose, start, onS
   }
   if (sub?.kind === 'find') {
     return (
-      <ProductFinder start="search" purpose="foods" onClose={() => setSub(null)}
-        onShow={(name) => {
-          const f = [...allFoods.values()].filter((x) => x.owner_id === userId && !x.deleted_at && x.name === name).pop()
-          if (f) addFood(f)
-        }} />
+      // A product found in a shop goes straight into the recipe (kept in the
+      // person's foods first), with words that say so.
+      <ProductFinder start="search" purpose="pick" pickLabel="Add to the recipe" onClose={() => setSub(null)}
+        onPick={(f) => { addFood(f); setSub(null) }} />
     )
   }
   if (sub?.kind === 'scan') {

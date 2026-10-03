@@ -8,7 +8,7 @@
     <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
     <title>GetIt</title>
     <!-- The chosen theme before the first paint, from what src/lib/looks.ts kept. -->
-    <script>try{var l=JSON.parse(localStorage.getItem('getit.looks'));if(l){var d=l.mode==='system'?matchMedia('(prefers-color-scheme: dark)').matches:l.mode!=='light',v=d?l.dark:l.light,r=document.documentElement;for(var k in v)r.style.setProperty(k,v[k]);r.dataset.theme=d?'dark':'light';if(l.zoom)r.style.zoom=l.zoom;document.querySelector('meta[name="theme-color"]').content=v['--e-paper']}}catch(e){}</script>
+    <script>try{var l=JSON.parse(localStorage.getItem('getit.looks'));if(l){var d=l.mode==='system'?matchMedia('(prefers-color-scheme: dark)').matches:l.mode!=='light',v=d?l.dark:l.light,r=document.documentElement;for(var k in v)r.style.setProperty(k,v[k]);r.dataset.theme=d?'dark':'light';if(l.zoom)r.style.zoom=l.zoom;document.querySelector('meta[name="theme-color"]').content=v['--e-paper']}else if(matchMedia('(prefers-color-scheme: dark)').matches){document.documentElement.dataset.theme='dark';document.querySelector('meta[name="theme-color"]').content='#15141b'}else{document.documentElement.dataset.theme='light'}}catch(e){}</script>
   </head>
   <body>
     <div id="root"></div>

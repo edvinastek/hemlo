@@ -120,7 +120,7 @@ export interface ShoppingSettings {
 
 export type ThemeMode = 'system' | 'light' | 'dark' | 'black'
 export interface LookSettings {
-  /** A theme key from looks-rules.ts, or 'custom' (built from `seed`). */
+  /** A theme key from theme-rules.ts, or 'custom' (built from `seed`). */
   theme: string
   mode: ThemeMode
   seed: string | null

@@ -23,15 +23,9 @@ if ('serviceWorker' in navigator && import.meta.env.PROD) {
   })
 }
 
-// Follow the phone's light or dark setting. The design kit defines both
-// palettes; the browser bar colour follows along.
-const dark = window.matchMedia('(prefers-color-scheme: dark)')
-const applyTheme = () => {
-  document.documentElement.dataset.theme = dark.matches ? 'dark' : 'light'
-  document.querySelector('meta[name="theme-color"]')?.setAttribute('content', dark.matches ? '#15141b' : '#f8f4ed')
-}
-applyTheme()
-dark.addEventListener('change', applyTheme)
+// Light, dark or black, the theme and the text size are src/lib/looks.ts's
+// (started in App); index.html paints the last ones, or the phone's light or
+// dark, before the app loads.
 
 createRoot(document.getElementById('root')!).render(
   <React.StrictMode>
