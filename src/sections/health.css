@@ -1,0 +1,24 @@
+/* Health: the trend, the chart, a weigh-in for any day. */
+.hlt-v { font-size: clamp(15px, 4.6vw, 20px) !important; white-space: nowrap; }
+.hlt-goal { text-align: left; border: 0; color: inherit; font: inherit; }
+.hlt-goal .v { color: var(--e-accent); }
+
+.hlt-chart { margin: var(--space-2) var(--space-4) 0; }
+.hlt-chart svg { width: 100%; height: auto; display: block; overflow: visible; }
+.hlt-dot { fill: var(--e-ink-soft); opacity: 0.55; }
+.hlt-trend { fill: none; stroke: var(--e-accent); stroke-width: 2.2; stroke-linejoin: round; stroke-linecap: round; vector-effect: non-scaling-stroke; }
+.hlt-goalline { stroke: var(--e-done); stroke-width: 1.5; stroke-dasharray: 5 4; vector-effect: non-scaling-stroke; }
+.hlt-legend { display: flex; flex-wrap: wrap; gap: var(--space-1) var(--space-3); margin-top: var(--space-2);
+  font-family: var(--font-sans); font-size: 12px; color: var(--e-ink-soft); }
+.hlt-range { margin-left: auto; }
+.hlt-key { display: inline-block; vertical-align: middle; margin-right: 4px; }
+.hlt-key.is-dot { width: 7px; height: 7px; border-radius: var(--radius-pill); background: var(--e-ink-soft); opacity: 0.6; }
+.hlt-key.is-line { width: 16px; height: 3px; border-radius: 2px; background: var(--e-accent); }
+.hlt-key.is-goal { width: 16px; height: 0; border-top: 2px dashed var(--e-done); }
+
+.hlt-day { display: flex; align-items: center; gap: var(--space-2); padding: var(--space-4) var(--space-4) 0; scroll-margin-top: var(--space-4); }
+.hlt-day .btn { min-width: 44px; min-height: 44px; }
+.hlt-day .btn:disabled { opacity: 0.35; }
+.hlt-daypick { flex: 1; min-width: 0; }
+.hlt-daypick input { width: 100%; box-sizing: border-box; padding: 9px 10px; min-height: 44px; border: 1px solid var(--e-field-line);
+  border-radius: var(--radius-md); background: var(--e-field); color: var(--e-ink); font-family: var(--font-sans); font-size: 15px; }

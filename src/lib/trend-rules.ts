@@ -111,3 +111,13 @@ export function chartScale(points: TrendPoint[], w: number, h: number, goal: num
   const line = points.map((p, i) => `${i ? 'L' : 'M'}${points.length === 1 ? w / 2 : X(p.day)},${Y(p.trend)}`).join(' ')
   return { dots, line, min: r2(min), max: r2(max), goalY: goal != null && goal >= min && goal <= max ? Y(goal) : null }
 }
+
+/** The goal weight kept in Health's settings, or null (30 to 300 kg). */
+export function readGoalWeight(raw: Record<string, unknown> | null | undefined): number | null {
+  const n = Number(raw?.goal_weight_kg)
+  return raw?.goal_weight_kg != null && Number.isFinite(n) && n >= 30 && n <= 300 ? Math.round(n * 10) / 10 : null
+}
+
+/** Only the weigh-ins from `days` days before `today` on (null: all). */
+export const lastDays = (points: TrendPoint[], today: string, days: number | null) =>
+  days == null ? points : points.filter((p) => dayNum(p.day) > dayNum(today) - days && dayNum(p.day) <= dayNum(today))

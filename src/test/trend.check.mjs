@@ -1,6 +1,6 @@
 // Checks trend weight: the time-weighted moving average, the weekly rate,
 // the estimated goal date, and the chart's scaling.
-import { trendLine, weeklyRate, goalDate, describeRate, chartScale } from '../lib/trend-rules.ts'
+import { trendLine, weeklyRate, goalDate, describeRate, chartScale, readGoalWeight, lastDays } from '../lib/trend-rules.ts'
 
 let fail = 0
 const eq = (label, got, want) => {
@@ -58,6 +58,11 @@ eq('the heavier day sits higher', c.dots[0].y < c.dots[1].y, true)
 eq('a line through the trend', c.line.startsWith('M0,') && c.line.includes(' L100,'), true)
 eq('a goal inside the range gets a line', chartScale(trendLine([{ log_date: '2026-10-01', weight_kg: 80 }, { log_date: '2026-10-11', weight_kg: 79 }]), 100, 50, 78).goalY !== null, true)
 eq('one weigh-in sits in the middle', chartScale(trendLine([{ log_date: '2026-10-01', weight_kg: 80 }]), 100, 50).dots[0].x, 50)
+
+// Settings and ranges.
+eq('a goal weight is read safely', [readGoalWeight({ goal_weight_kg: 78.04 }), readGoalWeight({ goal_weight_kg: 5 }), readGoalWeight(null)], [78, null, null])
+eq('the last 30 days only', lastDays(line, '2026-10-03', 30).length, 30)
+eq('all of them', lastDays(line, '2026-10-03', null).length, 60)
 
 if (fail) { console.log(`\n${fail} failed`); process.exit(1) }
 console.log('\nall trend checks passed')
