@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { version } from '../../package.json'
-import { NEVO_ATTRIBUTION } from '../lib/eu-label-rules'
+import { NEVO_ATTRIBUTION, PORTIE_ATTRIBUTION } from '../lib/eu-label-rules'
 import { Privacy } from '../screens/Privacy'
 
 /** Settings → About (v17, CALM-13): the version, where the shared data
@@ -26,6 +26,12 @@ export function AboutSettings() {
           <div className="row-name">Shared foods</div>
           {/* RIVM asks for this sentence word for word wherever NEVO figures are used. */}
           <div className="row-meta">{NEVO_ATTRIBUTION}. A few foods are kept from a USDA list.</div>
+        </div>
+      </div>
+      <div className="setting-row">
+        <div>
+          <div className="row-name">Portion and unit weights</div>
+          <div className="row-meta">{PORTIE_ATTRIBUTION}.</div>
         </div>
       </div>
       <div className="setting-row">

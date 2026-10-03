@@ -12,5 +12,5 @@ export function useInboxCount(): number {
     if (!profileId) return 0
     const rows = await db.task.where('profile_id').equals(profileId).filter((t) => !t.planned_date).toArray()
     return inbox(rows).length
-  }, [profileId], 0)
+  }, [profileId], 0) ?? 0
 }

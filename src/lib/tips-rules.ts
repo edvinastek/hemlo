@@ -135,7 +135,7 @@ export function meetProfile(s: TipState, version: string, id: string, setUp: boo
 export const MOVED_VERSION = '17'
 /** Accounts made on or after this day started with this version: nothing
  *  moved for them, whichever device they open it on. Set to the release day. */
-export const MOVED_SINCE = '2026-10-03'
+export const MOVED_SINCE = '2026-10-04'
 
 /** Every function version 17 moved, and where it is now (CALM-18). */
 export const WHAT_MOVED: { was: string; now: string }[] = [
@@ -152,6 +152,31 @@ export const WHAT_MOVED: { was: string; now: string }[] = [
   { was: 'Tips as cards with Got it', now: 'One slim line with ×, at most one at a time. Settings → Reminders and tips → Show tips again.' },
   { was: 'Export on a note page', now: 'The page’s ⋮ → Export.' },
   { was: 'How many tasks wait in the Inbox', now: 'A small count on Plan in the page bar.' },
+  { was: 'Push 15 / 30 / 60 on every task', now: 'Open the task (hold it) or its ⋮ → Push…. Today’s ⋮ → Show push buttons on rows brings them back.' },
+  { was: 'Copy to…, Duplicate, Open note as page, Delete on an open task', now: 'More… in the open task, and its ⋮.' },
+  { was: 'Today’s Inbox and Other days buttons', now: 'The Inbox count is on Plan in the page bar and in Today’s ⋮; other days are Plan.' },
+  { was: 'Timeline / Parts of day, and Export on Today and Plan', now: 'The page’s ⋮ at the top right.' },
+  { was: 'Carry-over: Pick a day, Inbox, Done, Drop and the All of them buttons', now: 'Each task’s ⋮ and the card’s ⋮; Today and Tomorrow stay as buttons.' },
+  { was: 'Plan: the ‹ Today › bar, 7 days, Select, copying and templates', now: 'The week strip and date picker move between days; the rest is in Plan’s ⋮.' },
+  { was: 'Plan’s colour legends and hints', now: 'One Key ▾ under each view.' },
+  { was: 'The + on Plan’s Year and Inbox', now: 'Year: Plan’s ⋮ → Add a task. Inbox: the line at the top adds.' },
+  { was: 'Task sheet: Until, Section, Project, Goal, Fixed, Locked, Start from a saved task', now: 'More options in the sheet (open by itself when something is set). Copy to…, Duplicate and Save as template are in the sheet’s ⋮.' },
+  { was: 'The note editor’s buttons', now: 'They show while you write; Insert ▾ holds templates and recipes.' },
+  { was: 'Food: + Add food, Copy day to… and a meal’s eaten tick', now: 'The round + adds food; Copy day to… and Export are in the page’s ⋮; tick a meal’s items or use its ⋮ → Mark all eaten.' },
+  { was: 'Recipes: Your recipes list, New, Import, Export, Sort, New book, Select', now: 'One list (the Mine chip shows your own); New recipe is the round +; the rest is in the page’s ⋮, or hold a recipe to select.' },
+  { was: 'Foods: Find in stores, Scan, Figures, New food, New book, Select', now: 'Scan is the icon in the search field, New food the round +, the rest the page’s ⋮; a search that finds nothing offers the shops.' },
+  { was: 'The add-food sheet’s first step and its tabs', now: 'It opens on the food with its guess (Change for meal and time); Recent and Search; Just the numbers is a link; Copy from another day is in its ⋮.' },
+  { was: 'Buttons under a recipe or a food', now: 'The ⋮ by its name; Plan as a meal / Add to a meal stay at the foot.' },
+  { was: 'Edit module, Export, the summary and extra view tabs on module pages', now: 'The ⋮ at the top right of each module page: Views…, Export…, Edit module, About this module.' },
+  { was: 'Add a habit, chore or supplement rows', now: 'The round + on each page.' },
+  { was: 'Chores: By room, Starter packs, Holiday and light days, Names; Supplements: Time slots', now: 'The page’s ⋮.' },
+  { was: 'Stats: New view, Ready-made, Show switched-off modules, the second figure', now: 'The Stats page’s ⋮; a card’s second figure shows when you tap it.' },
+  { was: 'Training: Log a session without a routine; Edit goal, Mark reached, Edit project', now: 'The page’s ⋮, or the ⋮ beside the name.' },
+  { was: 'Health: the weigh-in day arrows; Learning and reading', now: 'Another day above the weigh-in; the module is now called Learning.' },
+  { was: 'Shop: subtitles, the round +, Scan, From recipes, New list, Export', now: 'The field at the top adds; Scan is the icon in it; the rest is in the page’s ⋮.' },
+  { was: 'Shop: the figures under the list', now: 'One line, “5 to get · €12.40 + 2 unpriced”; tap it for the rest.' },
+  { was: 'Stock: Scan, filter, grouping, take from stock when eating', now: 'Scan is in the field; the filter shows from 16 items; grouping and the switch are in the page’s ⋮.' },
+  { was: 'Stores: thirteen shop buttons', now: 'Four, and More shops; each shop has Offers ↗.' },
 ]
 
 /** Whether the note shows: once, for the version whose moves it lists, and
