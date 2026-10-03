@@ -118,12 +118,12 @@ function Routines({ profileId, today, onStart }: { profileId: string; today: str
               const n = counts.get(r.id) ?? 0
               const when = r.rule
                 ? `${describeSchedule({ rule: r.rule as RuleKind, rule_config: r.rule_config ?? {}, start_date: r.start_date ?? today, end_date: r.end_date })}${r.time_of_day ? ` at ${r.time_of_day.slice(0, 5)}` : ''}`
-                : 'Not planned: start it when you like'
+                : 'Not planned'
               return (
                 <li key={r.id} className="kit-row">
                   <button type="button" className="kit-open" onClick={() => void open(r)} aria-label={`Edit ${r.name}`}>
                     <span className="row-name">{r.name}</span>
-                    <span className="row-meta">{n} {n === 1 ? 'exercise' : 'exercises'} · {when}{r.minutes ? ` · ${r.minutes} min` : ''}</span>
+                    <span className="row-meta">{[n ? `${n} ${n === 1 ? 'exercise' : 'exercises'}` : null, when, r.minutes ? `${r.minutes} min` : null].filter(Boolean).join(' · ')}</span>
                   </button>
                   <div className="kit-right">
                     <button type="button" className="btn btn-primary" onClick={() => onStart(r.id)}>Start</button>

@@ -114,7 +114,7 @@ export function Chores({ profileId, day }: { profileId: string; day: string }) {
         <ModuleMenu items={[
           chores.length > 0 && { label: view === 'when' ? 'Group by room' : 'Group by when', onSelect: () => group(view === 'when' ? 'room' : 'when') },
           chores.length > 0 && { label: 'Starter packs…', onSelect: () => setFold('packs') },
-          { label: 'Holiday, light days and a limit…', onSelect: () => setFold('holiday') },
+          { label: 'Holiday and light days…', onSelect: () => setFold('holiday') },
           { label: 'Names in the household…', onSelect: () => setFold('names') },
         ]} />
       )}
@@ -156,7 +156,7 @@ export function Chores({ profileId, day }: { profileId: string; day: string }) {
         <PlainSheet title="Starter packs" onClose={closeFold}><Packs householdId={householdId} chores={chores} onAdded={closeFold} /></PlainSheet>
       )}
       {fold === 'holiday' && (
-        <PlainSheet title="Holiday, light days and a limit" onClose={closeFold}><HolidayFold profileId={profileId} chores={chores} prefs={prefs} today={today} /></PlainSheet>
+        <PlainSheet title="Holiday, light days and a daily limit" onClose={closeFold}><HolidayFold profileId={profileId} chores={chores} prefs={prefs} today={today} /></PlainSheet>
       )}
       {fold === 'names' && (
         <PlainSheet title="Names in the household" onClose={closeFold}>

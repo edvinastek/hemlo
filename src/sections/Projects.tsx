@@ -48,7 +48,7 @@ export function Projects({ profileId }: { profileId: string; day: string }) {
   return (
     <>
       <ModuleMenu views={views} active={active} onView={setTab} />
-      <ModuleTabs tabs={tabs} active={active} onTab={(k) => { if (goalId) setParams({ goal: null }); setTab(k) }} />
+      {!goalId && <ModuleTabs tabs={tabs} active={active} onTab={setTab} />}
       {active === 'overview' && <Overview profileId={profileId} onOpen={(id) => setParams({ project: id })} />}
       {active === 'goals' && <Goals profileId={profileId} />}
       {active.startsWith('view:') && def && <DefView def={def} viewKey={active.slice(5)} profileId={profileId} onClose={() => setTab('overview')} />}
