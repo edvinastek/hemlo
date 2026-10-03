@@ -3,7 +3,7 @@ import { useLiveQuery } from 'dexie-react-hooks'
 import { db } from '../lib/db'
 import { useApp } from '../lib/store'
 import {
-  addItem, addRecent, addRecipesToList, changeItem, clearBasket, foodChoices, loadShopping, matchTyped, notePrice,
+  addItem, addRecent, addRecipesToList, changeItem, clearBasket, foodChoices, loadShopping, matchTyped, notePriceUndoable,
   putInStock, removeItem, removePrice, saveModuleSettings, setOrder, tick, today, type ShoppingView,
 } from '../lib/shopping'
 import {
@@ -114,7 +114,6 @@ export function ShopList({ profile, menuSlot }: { profile: Profile; menuSlot: HT
     `Meals from ${windowText(view.window.from, view.window.to)}`,
     view.covered > 0 && !listOn ? `${view.covered} covered by stock` : '',
     elsewhere > 0 ? `${elsewhere} for other shops` : '',
-    total.priced > 0 ? `${total.priced} of ${total.count} priced` : '',
   ].filter(Boolean)
 
   const isFolded = (name: string) => folded.includes(name)
@@ -315,7 +314,8 @@ export function ShopList({ profile, menuSlot }: { profile: Profile; menuSlot: HT
 /** "Add an item": type it the way it would be written on paper; Enter or
  *  Add puts it on the list. The scan icon sits in the field while it is
  *  empty. What it reads (and the aisle it goes in) shows as it is typed;
- *  recently bought shows while the field has the focus and nothing typed. */
+ *  recently bought shows once the field has had the focus, while nothing
+ *  is typed. */
 function AddBox({ profile, view, list, addRef, onScan }: {
   profile: Profile; view: ShoppingView; list: string | null; addRef: React.RefObject<HTMLInputElement>
   onScan: () => void
@@ -361,9 +361,10 @@ function AddBox({ profile, view, list, addRef, onScan }: {
 
   return (
     <form className="shop-add" onSubmit={submit}
-      // Focus anywhere in the box (the field or a tile) keeps the tiles out.
-      onFocus={() => setFocused(true)}
-      onBlur={(e) => { if (!e.currentTarget.contains(e.relatedTarget as Node | null)) setFocused(false) }}>
+      // The tiles come out with the first focus and stay for this visit:
+      // hiding them again on blur would move the page under a finger
+      // already on its way to something below.
+      onFocus={() => setFocused(true)}>
       <div className="shop-add-row">
         <input ref={addRef} type="text" value={text} onChange={(e) => setText(e.target.value)} maxLength={NAME_MAX + 20}
           placeholder="Add an item: 2 kg apples" aria-label="Add an item" autoComplete="off" enterKeyHint="done" />
@@ -550,13 +551,9 @@ function PriceBody({ profile, view, item, filter, shown, code, perMl, onSaved }:
   async function save(e: FormEvent) {
     e.preventDefault()
     if (!read || !shop) return
-    await notePrice(profile, shop, { food_id: item.food_id, name: item.name }, read.price, read.amount_g)
+    const undo = await notePriceUndoable(profile, shop, { food_id: item.food_id, name: item.name }, read.price, read.amount_g)
     setLast(shop)
-    offerUndo(`Price at ${shop} noted`, async () => {
-      const now = (await db.shop_price.where('household_id').equals(profile.household_id).toArray())
-        .find((p) => !p.deleted_at && p.item_key === key && sameShop(p.shop, shop))
-      if (now) await removePrice(now)
-    })
+    offerUndo(`Price at ${shop} noted`, undo)
     onSaved()
   }
 
