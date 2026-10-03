@@ -36,7 +36,7 @@ export function ModuleShow({ moduleKey, name }: { moduleKey: string; name: strin
 
   return (
     <section aria-label={`Where ${name} shows`}>
-      <p className="mp-note">{describeView(v)}. Switching one off hides {name}’s items there and keeps them; its page stays.</p>
+      <p className="mp-note">{describeView(v)}. Switching one off hides its items there and keeps them; its page stays.</p>
       {VIEW_SWITCHES.map((s) => (
         <div key={s.key} className="me-row ms-row">
           <div>

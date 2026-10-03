@@ -15,7 +15,7 @@ import { ModuleBuilder } from '../modules/ModuleBuilder'
 import { ModuleEditor } from '../ui/ModuleEditor'
 import { EmptyState } from '../ui/EmptyState'
 import { offerUndo } from '../ui/Undo'
-import { Tip } from '../ui/Tip'
+import { FirstTip } from '../ui/Tip'
 import './modules-hub.css'
 
 /** The Modules page (NAV-20 to NAV-22): every module that is on, as a grid,
@@ -88,8 +88,7 @@ export function Modules() {
               </EmptyState>
             ) : (
               <>
-              <Tip id="make-yours" />
-              <Tip id="hub-hold" />
+              <FirstTip ids={['hub-hold', 'make-yours']} />
               <ul className="hub-grid" aria-label="Modules that are on">
                 {modulePages.map((p) => (
                   <Tile key={p.key} page={p} entry={byModule.get(p.module!)}
@@ -121,7 +120,7 @@ export function Modules() {
         )}
       </div>
       {menu && (
-        <TileMenu page={menu} entry={byModule.get(menu.module!)} onClose={() => setMenu(null)}
+        <TileMenu page={menu} onClose={() => setMenu(null)}
           onSettings={() => { setEditing(menu.module); setMenu(null) }} />
       )}
       {building && <ModuleBuilder onClose={() => setParams({})} />}
@@ -183,8 +182,8 @@ function Tile({ page, entry, pinned, carded, onMenu }: {
 
 /* ---------- the menu ---------------------------------------------------------- */
 
-function TileMenu({ page, entry, onClose, onSettings }: {
-  page: PageInfo; entry?: ModuleEntry; onClose: () => void; onSettings: () => void
+function TileMenu({ page, onClose, onSettings }: {
+  page: PageInfo; onClose: () => void; onSettings: () => void
 }) {
   const profile = useApp((s) => s.profile)
   const pages = usePages()
@@ -265,7 +264,6 @@ function TileMenu({ page, entry, onClose, onSettings }: {
             </div>
           </div>
         )}
-        {entry?.def.built && !confirmHide && <p className="mp-note">Built by you.</p>}
         {!confirmHide && <div className="sheet-actions"><button type="button" className="btn grow" onClick={onClose}>Close</button></div>}
       </div>
     </>

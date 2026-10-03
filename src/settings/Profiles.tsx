@@ -125,7 +125,7 @@ export function Profiles() {
                     <button type="button" className="btn" onClick={() => setDeleting(p.id)} aria-label={`Delete ${p.name}`}>Delete</button>
                   )}
                   <button type="button" className={current ? 'btn btn-primary' : 'btn'} aria-pressed={current}
-                    disabled={current} onClick={() => open(p)}>{current ? 'Open' : 'Switch'}</button>
+                    disabled={current} onClick={() => open(p)}>{current ? 'Open now' : 'Switch'}</button>
                 </div>
               </>
             )}

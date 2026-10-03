@@ -10,6 +10,7 @@ import { MODULES } from '../modules/registry'
 import { setModuleEnabled } from '../modules/defs'
 import { Privacy } from './Privacy'
 import { readSettings } from '../lib/settings'
+import './more.css'
 import { ModuleEditor } from '../ui/ModuleEditor'
 import { BuiltModules } from '../modules/ModuleBuilder'
 import { Dropdown } from '../ui/Dropdown'
@@ -268,7 +269,7 @@ function RemindersPanel() {
       <p className="section-title">Reminders on this device</p>
       <div className="setting-row">
         <div>
-          <div className="row-name">Remind me at each task’s time</div>
+          <div className="row-name">Remind me at each item’s time</div>
           <div className="row-meta">
             Within a few minutes of the time, for the next three days, even with GetIt closed.
             On a locked phone the text is hidden. This setting is for this device only.
@@ -277,14 +278,14 @@ function RemindersPanel() {
         <button className="switch" role="switch" aria-checked={settings.on}
           aria-label="Reminders" onClick={() => void update({ ...settings, on: !settings.on })} />
       </div>
-      <div className="setting-row">
+      <div className="setting-row more-stack">
         <div>
           <div className="row-name">Quiet hours</div>
           <div className="row-meta">{settings.quietDelay
             ? 'A reminder that falls in these hours arrives when they end.'
             : 'Nothing arrives between these times.'}</div>
         </div>
-        <div className="row-right">
+        <div className="row-right more-times">
           <input className="btn" type="time" value={settings.quietFrom}
             onChange={(e) => void update({ ...settings, quietFrom: e.target.value })} />
           <span className="row-meta">to</span>

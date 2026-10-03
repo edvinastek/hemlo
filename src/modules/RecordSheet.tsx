@@ -39,13 +39,13 @@ export function formatValue(f: FieldDef, value: unknown, lookups: Lookups = {}):
       const n = Math.max(0, Math.min(RATING_MAX, Number(value) || 0))
       return '★'.repeat(n) + '☆'.repeat(RATING_MAX - n)
     }
-    case 'percent': return `${value} %`
+    case 'percent': return `${value}\u00a0%`
     case 'money': {
       const n = Number(value)
       const amount = Number.isFinite(n) ? n.toFixed(2) : String(value)
       const cur = f.unit || '€'
       // A sign goes in front (€ 12.50); a code goes after (12.50 CHF).
-      return /^[A-Za-z]{2,}$/.test(cur) ? `${amount} ${cur}` : `${cur} ${amount}`
+      return /^[A-Za-z]{2,}$/.test(cur) ? `${amount}\u00a0${cur}` : `${cur}\u00a0${amount}`
     }
     case 'checklist': {
       const c = checklistCount(value)

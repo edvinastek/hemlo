@@ -21,3 +21,12 @@ export function Tip({ id }: { id: string }) {
     </aside>
   )
 }
+
+/** Of several tips, the first that is still to be seen: one at a time, so
+ *  a page never opens under a pile of them. */
+export function FirstTip({ ids }: { ids: string[] }) {
+  const s = useTipState()
+  const today = format(new Date(), 'yyyy-MM-dd')
+  const id = ids.find((x) => tipShows(x, s, today))
+  return id ? <Tip id={id} /> : null
+}

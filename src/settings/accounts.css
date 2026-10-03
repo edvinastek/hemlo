@@ -28,7 +28,7 @@
 
 /* Profiles (SET-02): the buttons go under the name, so three of them never
    push a 360 px row off the screen. */
-.pr-row { grid-template-columns: minmax(0, 1fr); }
+.setting-row.pr-row { grid-template-columns: minmax(0, 1fr); }
 .pr-tools { display: flex; flex-wrap: wrap; gap: var(--space-2); justify-content: flex-start; }
 .pr-chip { margin-left: var(--space-2); font-weight: 400; }
 .pr-edit { display: flex; flex-wrap: wrap; gap: var(--space-2); align-items: center; width: 100%; min-width: 0; }
