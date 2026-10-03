@@ -248,12 +248,17 @@ export function dayText(iso: string | null): string {
   return `${+m[3]} ${MONTHS[+m[2] - 1]} ${m[1]}`
 }
 
-/** What a price is for: "a pack of 500 g", "a kg", "each". */
+/** A size in grams, or in millilitres for a drink: "500 g", "1 kg", "750 ml", "1 l". */
+export function sizeText(amountG: number, perMl = false): string {
+  const g = gramsLabel(amountG)
+  return perMl ? g.replace(' kg', ' l').replace(' g', ' ml') : g
+}
+
+/** What a price is for: "for 500 g", "a kg", "each". */
 export function basisText(amountG: number | null, perMl = false): string {
   if (!amountG) return 'each'
   if (amountG === 1000) return perMl ? 'a litre' : 'a kg'
-  const g = gramsLabel(amountG)
-  return `for ${perMl ? g.replace(' kg', ' l').replace(' g', ' ml') : g}`
+  return `for ${sizeText(amountG, perMl)}`
 }
 
 /** The price detail's line (PRICE-03): where the figure comes from. */

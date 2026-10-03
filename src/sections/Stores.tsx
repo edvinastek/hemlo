@@ -8,18 +8,26 @@ import {
   addAisle, AISLE_MAX, currencyFor, DEFAULT_AISLES, moveInList, OTHER, priceLabel, readAisles, removeAisle, renameAisle,
   sameShop, shopAisles, type AisleSettings,
 } from '../lib/shopping-rules'
-import { cleanShopName, suggestShops } from '../lib/shops-rules'
+import { cleanShopName, offersUrl, suggestShops } from '../lib/shops-rules'
 import { countryName } from '../lib/countries'
 import { offerUndo } from '../ui/Undo'
-import { RowMenu, Sheet } from './shop-ui'
+import { RowMenu, Sheet, TabMenu } from './shop-ui'
 import type { Profile } from '../lib/types'
+
+/** How many chains show before "More shops": the most common of the
+ *  person's country. */
+const FIRST_CHAINS = 4
 
 /** Shop → Stores (SHOP-32 to SHOP-36): the shops the person uses, picked
  *  from the chains of their country (or typed), each with its own aisle
  *  order and the prices noted there; and the aisles themselves, in the
  *  order of a walk round the shop. Nothing here comes from a shop's
- *  catalogue: no shop shares its offers openly, so none are shown. */
-export function Stores({ profile, addRef }: { profile: Profile; addRef: React.RefObject<HTMLInputElement> }) {
+ *  catalogue: each shop links out to the chain's own weekly offers page
+ *  (PRICE-06), opened in the browser; nothing of it is copied.
+ *
+ *  Calm (v17): four chains and "More shops", no paragraphs; the aisles wait
+ *  under a fold until there is a shop to walk. */
+export function Stores({ profile, menuSlot }: { profile: Profile; menuSlot: HTMLElement | null }) {
   const settings = readSettings(profile).shopping
   const shops = settings.shops
   const module = useLiveQuery(() => moduleSettings(profile.id), [profile.id, profile.updated_at])
@@ -27,6 +35,7 @@ export function Stores({ profile, addRef }: { profile: Profile; addRef: React.Re
     [profile.household_id], [])
   const [query, setQuery] = useState('')
   const [more, setMore] = useState(false)
+  const [aislesOpen, setAislesOpen] = useState(false)
   const [open, setOpen] = useState<string | null>(null)
   const [renaming, setRenaming] = useState<Shop | null>(null)
   const currency = currencyFor(profile.country)
@@ -65,43 +74,43 @@ export function Stores({ profile, addRef }: { profile: Profile; addRef: React.Re
     }
   }
 
+  const tiles = more || query ? suggestions.slice(0, 40) : suggestions.slice(0, FIRST_CHAINS)
+
   return (
     <>
+      <TabMenu slot={menuSlot} items={[
+        shops.length > 0 && { label: aislesOpen ? 'Hide your aisles' : 'Your aisles…', onSelect: () => setAislesOpen((o) => !o) },
+      ]} />
       <form className="shop-add" onSubmit={(e: FormEvent) => { e.preventDefault(); void add(query) }}>
         <div className="shop-add-row">
-          <input ref={addRef} type="search" value={query} onChange={(e) => setQuery(e.target.value)} maxLength={60}
-            placeholder="Add a shop: pick below or type its name" aria-label="Add a shop" autoComplete="off" />
-          <button type="submit" className="btn btn-primary" disabled={!cleanShopName(query) || shops.length >= 20}>Add</button>
+          <input type="search" value={query} onChange={(e) => setQuery(e.target.value)} maxLength={60}
+            placeholder="Add a shop" aria-label="Add a shop" autoComplete="off" />
+          {cleanShopName(query) && <button type="submit" className="btn btn-primary" disabled={shops.length >= 20}>Add</button>}
         </div>
         {suggestions.length > 0 && (
-          <div className="shop-tiles" aria-label={home ? `Shops in ${home} first` : 'Shops'}>
-            {(more || query ? suggestions : suggestions.filter((s, i) => s.home || i < 8)).slice(0, more || query ? 40 : 14).map((s) => (
+          <div className="shop-tiles" role="group" aria-label={home ? `Shops in ${home} first` : 'Shops'}>
+            {tiles.map((s) => (
               <button key={s.name} type="button" className="shop-tile" onClick={() => void add(s.name)} aria-label={`Add ${s.name}`}>
                 <span aria-hidden="true">+</span> {s.name}{s.online ? ' (delivers)' : ''}
               </button>
             ))}
-            {!more && !query && suggestions.length > 14 && (
+            {!more && !query && suggestions.length > FIRST_CHAINS && (
               <button type="button" className="shop-tile is-quiet" onClick={() => setMore(true)}>More shops</button>
             )}
           </div>
         )}
-        <p className="stock-hint">
-          {home ? `Shops in ${home} come first. ` : 'Set your country in More to see its shops first. '}
-          Weekly offers are not shown: no supermarket shares them openly yet.
-        </p>
       </form>
 
-      {shops.length === 0 && (
-        <p className="empty">No shops yet. Add the ones you use: the list can then be filtered by shop and walked in each shop's aisle order.</p>
-      )}
+      {shops.length === 0 && <p className="empty">No shops yet; add the ones you use.</p>}
 
       <ul className="shop-stores">
         {shops.map((shop, i) => {
           const here = prices.filter((p) => sameShop(p.shop, shop.name)).sort((a, b) => (a.name ?? '').localeCompare(b.name ?? ''))
           const isOpen = open === shop.name
+          const offers = offersUrl(shop.name, profile.country)
           return (
             <li key={shop.name} className="shop-store">
-              <div className="shop-store-head">
+              <div className={`shop-store-head${offers ? ' has-offers' : ''}`}>
                 <button type="button" className="shop-what" aria-expanded={isOpen} onClick={() => setOpen(isOpen ? null : shop.name)}>
                   <span className="shop-name">{shop.name}</span>
                   <span className="shop-meta">
@@ -109,8 +118,13 @@ export function Stores({ profile, addRef }: { profile: Profile; addRef: React.Re
                       shop.aisles.length ? 'its own aisle order' : 'your usual aisle order'].join(' · ')}
                   </span>
                 </button>
+                {offers && (
+                  <a className="shop-offers" href={offers} target="_blank" rel="noopener noreferrer"
+                    aria-label={`This week's offers at ${shop.name}, on the ${shop.name} website`}>Offers ↗</a>
+                )}
                 <RowMenu label={`More for ${shop.name}`} items={[
                   { label: isOpen ? 'Close' : 'Aisles and prices', onSelect: () => setOpen(isOpen ? null : shop.name) },
+                  ...(offers ? [{ label: 'This week’s offers ↗', onSelect: () => { window.open(offers, '_blank', 'noopener,noreferrer') } }] : []),
                   { label: 'Move up', disabled: i === 0, onSelect: () => void saveShops(moveInList(shops, i, -1)) },
                   { label: 'Move down', disabled: i === shops.length - 1, onSelect: () => void saveShops(moveInList(shops, i, 1)) },
                   { label: 'Rename…', onSelect: () => setRenaming(shop) },
@@ -129,7 +143,7 @@ export function Stores({ profile, addRef }: { profile: Profile; addRef: React.Re
                   )}
                   <p className="shop-label">Prices noted at {shop.name}</p>
                   {here.length === 0
-                    ? <p className="stock-hint">None yet. Note a price from an item on the list (tap it).</p>
+                    ? <p className="stock-hint">None yet.</p>
                     : (
                       <ul className="shop-price-list">
                         {here.map((p) => (
@@ -149,7 +163,17 @@ export function Stores({ profile, addRef }: { profile: Profile; addRef: React.Re
         })}
       </ul>
 
-      {module && <AisleSettingsCard profile={profile} aisles={module.aisles} />}
+      {module && shops.length > 0 && (
+        <section className="shop-aisles" aria-label="Aisles">
+          <h3 className="shop-aisle">
+            <button type="button" aria-expanded={aislesOpen} onClick={() => setAislesOpen((o) => !o)}>
+              <span>Your aisles</span>
+              <span className="shop-caret" aria-hidden="true">{aislesOpen ? '▾' : '▸'}</span>
+            </button>
+          </h3>
+          {aislesOpen && <AisleSettingsCard profile={profile} aisles={module.aisles} />}
+        </section>
+      )}
 
       {renaming && (
         <Sheet title={`Rename ${renaming.name}`} onClose={() => setRenaming(null)}>
@@ -172,12 +196,7 @@ function AisleSettingsCard({ profile, aisles }: { profile: Profile; aisles: Aisl
   }
   const isDefault = JSON.stringify(aisles.aisles) === JSON.stringify(DEFAULT_AISLES) && !Object.keys(aisles.renamed).length
   return (
-    <section className="shop-aisles" aria-label="Aisles">
-      <p className="section-title">Aisles</p>
-      <p className="stock-hint shop-pad">
-        The list is grouped by these, in this order, with Any shop. Each shop starts from it and can have its own.
-        Items find their aisle from their name; change one from the item.
-      </p>
+    <div className="shop-aisles-body">
       <AisleOrder order={aisles.aisles} onOrder={(order) => void save({ ...aisles, aisles: order })}
         extra={(a) => a === OTHER ? [] : [
           { label: 'Rename…', onSelect: () => setRenaming(a) },
@@ -207,7 +226,7 @@ function AisleSettingsCard({ profile, aisles }: { profile: Profile; aisles: Aisl
           }} />
         </Sheet>
       )}
-    </section>
+    </div>
   )
 }
 

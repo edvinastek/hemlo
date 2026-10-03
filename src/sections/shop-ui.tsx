@@ -1,6 +1,9 @@
 import { useEffect, useId, useLayoutEffect, useRef, useState, type ReactNode } from 'react'
+import { createPortal } from 'react-dom'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { getMeta, setMeta } from '../lib/db'
+import { PageMenu } from '../ui/PageMenu'
+import type { MenuItem as PageMenuItem } from '../ui/MoreMenu'
 import './shop.css'
 
 /** Small pieces the Shop page's tabs share: a choice remembered on this
@@ -13,6 +16,21 @@ export function useDeviceChoice<T>(key: string, fallback: T): [T, (v: T) => void
   const [local, setLocal] = useState<T | undefined>(undefined)
   const value = local !== undefined ? local : stored !== undefined ? stored : fallback
   return [value, (v: T) => { setLocal(v); void setMeta(key, v) }]
+}
+
+/** The open tab's items in the page's one ⋮, by the title (CALM-03). */
+export function TabMenu({ slot, items }: { slot: HTMLElement | null; items: (PageMenuItem | null | false)[] }) {
+  return slot ? createPortal(<PageMenu label="More for Shopping" items={items} />, slot) : null
+}
+
+/** A barcode, drawn: the scan button inside an add field. */
+export function ScanIcon() {
+  return (
+    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" aria-hidden="true" focusable="false">
+      <path d="M3 7V4h3M21 7V4h-3M3 17v3h3M21 17v3h-3" />
+      <path d="M7 8v8M10 8v8M13 8v8M15.5 8v8M18 8v8" />
+    </svg>
+  )
 }
 
 export interface MenuItem { label: string; onSelect: () => void; disabled?: boolean; warn?: boolean }

@@ -5,7 +5,7 @@
 // the official offers pages in Stores. No network: answers are made up here.
 import {
   readOpenPrices, packGrams, chainMatches, median, daysBetween, choosePrice, rowPrice, listTotal, summaryText, detailText,
-  basisText, dayText, readPriceInput, priceShop, cacheFresh, codesToAsk, openPricesUrl, PRICE_ATTRIBUTION, OPEN_PRICES_AGENT,
+  basisText, sizeText, dayText, readPriceInput, priceShop, cacheFresh, codesToAsk, openPricesUrl, PRICE_ATTRIBUTION, OPEN_PRICES_AGENT,
   ASK_AT_ONCE, CACHE_DAYS,
 } from '../lib/price-rules.ts'
 import { offersUrl } from '../lib/shops-rules.ts'
@@ -104,6 +104,7 @@ is('summary with none priced', summaryText({ count: 5, total: 0, priced: 0, unpr
 
 // ---- the detail line ------------------------------------------------------------------------------
 is('day text', [dayText('2026-08-12'), dayText(null)], ['12 Aug 2026', ''])
+is('sizes', [sizeText(500), sizeText(1000), sizeText(1000, true), sizeText(330, true)], ['500 g', '1 kg', '1 l', '330 ml'])
 is('basis', [basisText(null), basisText(1000), basisText(1000, true), basisText(500), basisText(750, true)], ['each', 'a kg', 'a litre', 'for 500 g', 'for 750 ml'])
 is('own detail', detailText({ source: 'own', price: 1.39, amount_g: null, shop: 'Albert Heijn', date: '2026-09-01', count: 1, how: 'shop' }, 'EUR'),
   '€1.39 each at Albert Heijn, noted 1 Sep 2026')
