@@ -1,4 +1,4 @@
-import { need, sql, checks, open, signIn, profileOf, drained, APP } from './e2e.mjs'
+import { need, sql, checks, open, signIn, profileOf, drained, APP, todayParts } from './e2e.mjs'
 
 // Board, grid and chart views, and a built-in rule's switch acted on, as a
 // tester would use them at 360 px: build a module from the Expenses preset
@@ -146,40 +146,44 @@ await settle(p)
 await p.goto(`${APP}m/habits`, { waitUntil: 'networkidle' })
 if (!(await p.getByText('E2E Stretch').count())) {
   await p.getByRole('button', { name: /Add a habit/ }).click()
-  await p.getByLabel('Habit name').fill('E2E Stretch')
-  await p.getByRole('button', exact('Add')).click()
+  await p.getByRole('textbox', exact('Name')).fill('E2E Stretch')
+  await p.locator('.track-sheet button[type=submit]').click()
   await settle(p)
 }
 await p.goto(APP, { waitUntil: 'networkidle' })
-await p.getByRole('tab', exact('Habits')).waitFor({ timeout: 10000 }).catch(() => {})
-is('with the rule on, Today has a Habits tab', await p.getByRole('tab', exact('Habits')).count(), 1)
+const habitsPart = async () => {
+  for (let i = 0; i < 20 && !(await todayParts(p)).includes('Habits'); i++) await p.waitForTimeout(500)
+  return (await todayParts(p)).includes('Habits')
+}
+is('with Show on Today on, Today has a Habits tab', await habitsPart(), true)
 
-const rule = 'A daily habit appears on every day until it is turned off.'
-async function setRule(on) {
+// Since version 16 (HAB-23) where habits show is the module's own Show on
+// Today switch, which replaced the rule "a daily habit appears on every
+// day"; switched off, habits leave Today and are kept.
+async function showOnToday(on) {
   await p.goto(`${APP}m/habits`, { waitUntil: 'networkidle' })
   await pageMenu('Edit module')
-  await p.getByRole('tab', exact('Rules')).click()
-  const sw = p.getByRole('switch', exact(rule))
+  await p.getByRole('tab', exact('Show')).click()
+  const sw = p.getByRole('switch', exact('Show on Today'))
   if ((await sw.getAttribute('aria-checked')) !== String(on)) await sw.click()
-  await p.getByRole('button', exact('Save')).click()
   await settle(p)
 }
-await setRule(false)
-r = await one(`select settings->'overlay'->'rulesOff' o from public.module_instance where ${mine} and module_key = 'habits'`)
-is('the switch is kept in the module’s settings', JSON.stringify(r.o), '["daily"]')
+await showOnToday(false)
+r = await one(`select settings->'module_views'->'habits'->>'today' v from public.profile where id = ${profileOf(email)}`)
+is('the switch is kept in the person’s settings', r.v, 'false')
 await p.goto(APP, { waitUntil: 'networkidle' })
 await p.waitForTimeout(1500)
-is('with the rule off, the Habits tab leaves Today', await p.getByRole('tab', exact('Habits')).count(), 0)
-await setRule(true)
+is('with Show on Today off, the Habits tab leaves Today', (await todayParts(p)).includes('Habits'), false)
+await showOnToday(true)
 await p.goto(APP, { waitUntil: 'networkidle' })
-await p.getByRole('tab', exact('Habits')).waitFor({ timeout: 10000 }).catch(() => {})
-is('switched back on, it comes back', await p.getByRole('tab', exact('Habits')).count(), 1)
+is('switched back on, it comes back', await habitsPart(), true)
 
-// Sleep's bedtime rule is not acted on yet, so it has no switch.
+// Sleep's bedtime rule is acted on since version 16, so it has its switch
+// (rules not acted on yet have none: the moduledefs node check).
 await p.goto(`${APP}m/sleep`, { waitUntil: 'networkidle' })
 await pageMenu('Edit module')
 await p.getByRole('tab', exact('Rules')).click()
-is('Sleep’s bedtime rule shows no switch', await p.getByRole('switch', { name: /Bedtime is locked/ }).count(), 0)
+is('Sleep’s bedtime rule has its switch', await p.getByRole('switch', { name: /Bedtime is locked/ }).count(), 1)
 await p.getByRole('button', exact('Back')).click()
 
 // Tidy up: the module goes (its records stay until the account is deleted).

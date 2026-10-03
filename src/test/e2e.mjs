@@ -219,3 +219,16 @@ export async function moduleHere(p, key, timeout = 30000) {
   }
   throw new Error(`module ${key} did not come down`)
 }
+
+/** The parts Today offers (v17, CALM-05): its tabs, or the choices in its
+ *  one "Show" list when there are more than three (Today is All there). */
+export async function todayParts(p) {
+  const show = p.getByRole('button', { name: 'Show part of today' })
+  if (await show.count()) {
+    await show.click()
+    const names = (await p.getByRole('option').allTextContents()).map((s) => s.trim())
+    await p.keyboard.press('Escape')
+    return names.map((n) => (n === 'All' ? 'Today' : n))
+  }
+  return (await p.getByRole('tab').allTextContents()).map((s) => s.trim())
+}
