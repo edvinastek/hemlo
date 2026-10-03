@@ -26,7 +26,7 @@ export const CHART_NAMES: Record<ChartType, string> = {
   number: 'One figure', ring: 'Ring', table: 'Table', heat: 'Heat grid',
 }
 const SORTS = [
-  { value: 'label', label: 'In order (days, or A to Z)' },
+  { value: 'label', label: 'In order' },
   { value: 'value_desc', label: 'Highest first' },
   { value: 'value_asc', label: 'Lowest first' },
 ]
@@ -150,7 +150,8 @@ export function StatsBuilder({ profileId, today, start, onClose }: {
   }
 
   const series = measures.length && draft.columns === 'none'
-    ? draft.measures.map((m, i) => ({ key: `m${i}`, label: m.label ?? byKey.get(m.source)?.label ?? m.source }))
+    ? [...draft.measures.map((m, i) => ({ key: `m${i}`, label: m.label ?? byKey.get(m.source)?.label ?? m.source })),
+      ...(draft.compare && !draft.compare.shade ? [{ key: 'cmp', label: byKey.get(draft.compare.source)?.label ?? 'Comparison' }] : [])]
     : (preview?.result.columns ?? []).slice(0, SPLIT_COLOURS.length).map((c) => ({ key: `c:${c.key}`, label: c.label }))
   const hidden = new Set(draft.chart.hidden ?? [])
 
@@ -219,15 +220,16 @@ export function StatsBuilder({ profileId, today, start, onClose }: {
         <fieldset className="sb-group">
           <legend>Layout</legend>
           <div className="sb-row">
-            <label className="sb-field"><span>Group by (down the side)</span>
+            <label className="sb-field"><span>Group by</span>
               <Dropdown label="Group by" value={draft.rows} options={groupings.map((g) => ({ value: g.key, label: g.label }))} onChange={(v) => set({ rows: v })} />
             </label>
-            <label className="sb-field"><span>Split by (across)</span>
+            <label className="sb-field"><span>Split by</span>
               <Dropdown label="Split by" value={draft.columns}
                 options={[{ value: 'none', label: 'No split' }, ...groupings.filter((g) => g.key !== 'none' && g.key !== draft.rows).map((g) => ({ value: g.key, label: g.label }))]}
                 onChange={(v) => set({ columns: v })} />
             </label>
           </div>
+          <p className="sb-hint">Groups go down the side of the table and along the chart; a split goes across, as a series each.</p>
           {draft.columns !== 'none' && draft.measures.length > 1 && <p className="sb-hint">With a split, the chart draws the first measure for each {groupName(draft.columns, measures).toLowerCase()}; the table shows them all.</p>}
         </fieldset>
 
@@ -321,9 +323,11 @@ export function StatsBuilder({ profileId, today, start, onClose }: {
               <p className="sb-label">Series</p>
               {series.map((s, i) => {
                 const isMeasure = s.key.startsWith('m')
+                const isCmp = s.key === 'cmp'
                 const mi = isMeasure ? Number(s.key.slice(1)) : -1
-                const fallback = isMeasure ? colourOf(byKey.get(draft.measures[mi]?.source ?? '')?.module ?? 'tasks') : SPLIT_COLOURS[i]
-                const current = isMeasure ? draft.measures[mi]?.colour : draft.chart.colours?.[s.key]
+                const fallback = isMeasure ? colourOf(byKey.get(draft.measures[mi]?.source ?? '')?.module ?? 'tasks')
+                  : isCmp ? colourOf(byKey.get(draft.compare?.source ?? '')?.module ?? 'tasks') : SPLIT_COLOURS[i]
+                const current = isMeasure ? draft.measures[mi]?.colour : isCmp ? draft.compare?.colour : draft.chart.colours?.[s.key]
                 return (
                   <div key={s.key} className="sb-serie">
                     <label className="sb-check">
@@ -333,6 +337,7 @@ export function StatsBuilder({ profileId, today, start, onClose }: {
                     </label>
                     {paletteFor(s.key, current, (hex) => {
                       if (isMeasure) setMeasure(mi, { colour: hex })
+                      else if (isCmp) set({ compare: { ...draft.compare!, colour: hex } })
                       else {
                         const colours = { ...(draft.chart.colours ?? {}) }
                         if (hex) colours[s.key] = hex; else delete colours[s.key]

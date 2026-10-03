@@ -77,8 +77,8 @@ const built = recordMeasures([{ name: 'log', label: 'Entry', fields: [
   { name: 'score', label: 'Score', type: 'integer', stats: 'average' }, { name: 'km', label: 'Distance', type: 'number', unit: 'km' },
   { name: 'rest', label: 'Rest day', type: 'boolean' }, { name: 'secret', label: 'Hidden', type: 'number', hidden: true },
 ] }, { name: 'idea', label: 'Idea', fields: [{ name: 'title', label: 'Title', type: 'text' }] }])
-is('a built module: counts, every number, yes/no, and undated records added', built.map((m) => m.name), ['log:count', 'log:score', 'log:km', 'log:rest', 'idea:added'])
-is('an averaged field is a mean of logged records', [built[1].combine, built[1].known, built[1].summary], ['mean', 'logged', 'avg'])
+is('a built module: fields marked for Stats first, then counts, every number, yes/no, and undated records added', built.map((m) => m.name), ['log:score', 'log:count', 'log:km', 'log:rest', 'idea:added'])
+is('an averaged field is a mean of logged records', [built[0].combine, built[0].known, built[0].summary], ['mean', 'logged', 'avg'])
 is('a summed field counts every day', [built[2].combine, built[2].known, built[2].unit], ['sum', 'all', 'km'])
 is('choice fields become groupings', built[0].dimNames, { item: 'Name', 'field:mood': 'Mood' })
 is('plurals', [plural('Entry'), plural('Block'), plural('Box')], ['Entries', 'Blocks', 'Boxes'])
@@ -191,7 +191,7 @@ const nutCat = measureCatalogue([{ key: 'nutrition', name: 'Nutrition' }], ['kca
 nutCat.find((m) => m.key === 'nutrition:protein_g').targets = { [today]: 140 }
 const base = { day: today, today, catalogue: nutCat, items: [], name: 'Nutrition' }
 const protein = [{ measure: 'nutrition:protein_g', day: today, value: 50, module: 'nutrition' }, { measure: 'nutrition:protein_g', day: today, value: 32.4, module: 'nutrition' }]
-is('protein against the target', cardText({ ...base, moduleKey: 'nutrition', nutrient: 'protein_g', facts: protein }), { label: 'Protein eaten', headline: '82 / 140 g', sub: '58 g to go', progress: 82.4 / 140 })
+is('protein against the target', cardText({ ...base, moduleKey: 'nutrition', nutrient: 'protein_g', facts: protein }), { label: 'Protein', headline: '82 / 140 g', sub: '58 g to go', progress: 82.4 / 140 })
 is('nothing eaten yet is not 0 g', cardText({ ...base, moduleKey: 'nutrition', nutrient: 'protein_g', facts: [] }).headline, 'Nothing yet')
 is('chores due', cardText({ ...base, moduleKey: 'household', name: 'Household', facts: [], items: [{ kind: 'chore', module_key: 'household', done: false, title: 'Bins', time: null }, { kind: 'chore', module_key: 'household', done: false, title: 'Dust', time: null }, { kind: 'chore', module_key: 'household', done: true, title: 'Mop', time: null }, { kind: 'chore', module_key: 'household', done: false, title: 'Bath', time: null }] }).headline, '3 chores due')
 is('sleep last night', cardText({ ...base, moduleKey: 'sleep', name: 'Sleep', facts: [{ measure: 'sleep:hours', day: today, value: 7.25, module: 'sleep' }] }).headline, '7.3 h')
@@ -206,6 +206,8 @@ is('short numbers for an axis', [shortNumber(12500), shortNumber(1250), shortNum
 is('an axis from zero in round steps', niceScale([3, 142]), { min: 0, max: 150, ticks: [0, 50, 100, 150] })
 is('an axis the person fixed', niceScale([3, 142], { min: 50, max: 200 }).ticks[0], 50)
 is('an axis across zero', niceScale([-30, 70]).ticks, [-50, -25, 0, 25, 50, 75])
+is('a count steps in whole numbers', niceScale([0, 1], { whole: true }).ticks, [0, 1])
+is('a larger count too', niceScale([0, 7], { whole: true }).ticks, [0, 2, 4, 6, 8])
 is('an axis with nothing in it', niceScale([]).ticks, [0, 0.25, 0.5, 0.75, 1])
 is('a pale colour made readable on the light page', contrast(readable('#f0e68c', PAPER.light), PAPER.light) >= 3, true)
 is('a dark colour made readable on the dark page', contrast(readable('#202040', PAPER.dark), PAPER.dark) >= 3, true)

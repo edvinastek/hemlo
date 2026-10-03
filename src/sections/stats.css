@@ -147,7 +147,7 @@
 .sb-check { display: flex; align-items: center; gap: 10px; min-height: 44px; font-family: var(--font-sans); font-size: 14px; color: var(--e-ink); }
 .sb-check input { width: 18px; height: 18px; margin: 0; accent-color: var(--e-accent); flex: none; }
 .sb-colours { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
-.sb-swatch { width: 30px; height: 30px; border-radius: var(--radius-pill); border: 2px solid var(--e-paper); outline: 1px solid var(--e-rule); }
+.sb-swatch { width: 36px; height: 36px; border-radius: var(--radius-pill); border: 2px solid var(--e-paper); outline: 1px solid var(--e-rule); }
 .sb-swatch[aria-checked="true"] { outline: 2px solid var(--e-ink); outline-offset: 1px; }
 .sb-swatch.is-auto { position: relative; }
 .sb-swatch.is-auto::after { content: "A"; position: absolute; inset: 0; display: grid; place-items: center; font-family: var(--font-sans); font-size: 12px; font-weight: 600; color: #fff; }

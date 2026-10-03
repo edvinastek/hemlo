@@ -145,7 +145,8 @@ function Panel({ series, data, type, width, height, last, x, slot, step, picked,
   // Times of day and weights read best near their values, not from zero.
   // Bars always grow from zero; a line of weights or times reads best near its values.
   const fromZero = type === 'bar' || type === 'stacked' || type === 'area' || !['time', 'kg', 'cm', 'h'].includes(unit)
-  const scale = niceScale(values, { min: yMin, max: yMax, zero: fromZero ? true : values.length === 0 })
+  const whole = unit === '' || unit === 'days' || unit === 'entries' ? values.every((v) => Number.isInteger(v)) : false
+  const scale = niceScale(values, { min: yMin, max: yMax, zero: fromZero ? true : values.length === 0, whole })
   const y = (v: number) => PAD.top + (height - PAD.top) * (1 - (Math.min(scale.max, Math.max(scale.min, v)) - scale.min) / (scale.max - scale.min || 1))
   const base = y(Math.max(scale.min, Math.min(scale.max, 0)))
   const barW = Math.max(1, Math.min(24, (slot - 4) / (stacked || type !== 'bar' ? 1 : series.length) - (stacked || type !== 'bar' ? 0 : 2)))

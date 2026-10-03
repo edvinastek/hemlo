@@ -17,6 +17,7 @@ import { choreFacts, clockHours, habitFacts, sleepHours, type Range } from './st
 import { measureCatalogue, NUTRIENT_NAMES, viewModules, viewSpec, type Measure, type ModuleInput } from './stats-builder-rules'
 import { addDays } from './schedule-rules'
 import { loadDayItems } from './day-items'
+import { enabledModules } from './day'
 import { daysWith, pivot, spanDays, type Fact, type PivotResult } from './pivot-rules'
 import type { StatsView } from './stats-view-rules'
 
@@ -619,6 +620,8 @@ export function useTodayCardData(profileId: string | undefined, day: string, tod
     const span = { start: addDays(day, -6), end: day }
     const { catalogue, modules } = await loadCatalogue(profileId, settings, false, span, true)
     const on = modules.filter((m) => m.on)
+    const built = (await db.module.toArray()).filter((m) => !m.builtin && !m.deleted_at)
+    const switchedOn = await enabledModules(profileId, built)
     const need = on.filter((m) => wanted.includes(m.key))
     const facts = wanted.length ? await loadFacts(profileId, span, today, need, ['tasks', ...need.map((m) => m.key)]) : []
     const items = wanted.some((k) => ['habits', 'household', 'supplements', 'agenda'].includes(k))
@@ -635,7 +638,7 @@ export function useTodayCardData(profileId: string | undefined, day: string, tod
       }
     }
     return {
-      enabled: new Set(on.map((m) => m.key)),
+      enabled: new Set(switchedOn),
       names: new Map(on.map((m) => [m.key, m.name])),
       facts, catalogue, items, listCount, weight,
       nutrient: settings.nutrients.includes('protein_g') ? 'protein_g' : settings.nutrients[0] ?? 'kcal',

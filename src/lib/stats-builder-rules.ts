@@ -165,23 +165,26 @@ export function recordMeasures(entities: EntityDef[]): Base[] {
     const dims = fieldDims(e)
     const kind = many ? plural(e.label) : 'Records'
     if (!isDated(e)) {
-      out.push({ ...COUNT(`${plural(e.label)} added`, `${plural(e.label)} added, on the day they were added (they have no date field).`, dims, true), name: `${e.name}:added` })
+      out.push({ ...COUNT(`${plural(e.label)} added`, `${plural(e.label)} added, on the day they were added (they have no date field).`, dims), name: `${e.name}:added` })
       continue
     }
-    out.push({ ...COUNT(many ? kind : plural(e.label), `${plural(e.label)} on each day, by their date.`, dims, true), name: `${e.name}:count` })
+    // The figures the person marked for Stats lead the card; the count follows.
+    const count: Base = { ...COUNT(many ? kind : plural(e.label), `${plural(e.label)} on each day, by their date.`, dims, true), name: `${e.name}:count` }
+    const fields: Base[] = []
     for (const f of e.fields as FieldDef[]) {
       if (f.hidden) continue
       if (NUMERIC.has(f.type)) {
         const mean = f.stats === 'average'
-        out.push({
+        fields.push({
           ...COUNT(f.label, mean ? `${f.label}, averaged over the records that have it.` : `${f.label}, added up over the records.`, dims, !!f.stats),
           name: `${e.name}:${f.name}`, unit: f.unit ?? '', decimals: f.type === 'integer' ? 0 : 1,
           combine: mean ? 'mean' : 'sum', known: mean ? 'logged' : 'all', summary: mean ? 'avg' : 'sum',
         })
       } else if (f.type === 'boolean') {
-        out.push({ ...COUNT(`${f.label}: yes`, `Records with ${f.label} ticked.`, dims), name: `${e.name}:${f.name}` })
+        fields.push({ ...COUNT(`${f.label}: yes`, `Records with ${f.label} ticked.`, dims), name: `${e.name}:${f.name}` })
       }
     }
+    out.push(...fields.filter((x) => x.card), count, ...fields.filter((x) => !x.card))
   }
   return out
 }
@@ -637,12 +640,14 @@ export function cardText(c: CardInput): CardText {
   if (c.measureKey) {
     const m = c.catalogue.find((x) => x.key === c.measureKey)
     if (!m) return { label: c.name, headline: '–', sub: 'No longer kept', progress: null }
+    // "Protein" says it on a small card; "Protein eaten" does not fit.
+    const label = m.module === 'nutrition' && NUTRIENT_NAMES[m.key.slice(10)] ? NUTRIENT_NAMES[m.key.slice(10)].label : m.label
     const v = cellValue(m, { measure: m.key, summary: m.ratio || m.combine !== 'sum' ? (m.summary === 'sum' ? 'avg' : m.summary) : 'sum' }, c.facts, [c.day], c.today)
     const target = m.targets?.[c.day] ?? null
     const unit = m.unit === '%' ? '%' : m.unit && m.unit !== 'time' ? ` ${m.unit}` : ''
-    if (v == null) return { label: m.label, headline: 'Nothing yet', sub: target != null ? `Target ${fmt(target)}${unit}` : null, progress: target ? 0 : null }
+    if (v == null) return { label, headline: 'Nothing yet', sub: target != null ? `Target ${fmt(target)}${unit}` : null, progress: target ? 0 : null }
     return {
-      label: m.label,
+      label,
       headline: target != null ? `${fmt(v, m.decimals)} / ${fmt(target)}${unit}` : `${fmt(v, m.decimals)}${unit}`,
       sub: target != null ? (v >= target ? 'Target reached' : `${fmt(target - v)}${unit} to go`) : null,
       progress: target ? Math.min(1, v / target) : null,

@@ -44,7 +44,7 @@ export interface Scale { min: number; max: number; ticks: number[] }
 
 /** Round numbers for an axis that holds every value: steps of 1, 2, 2.5 or 5
  *  times a power of ten, from zero unless every value is far from it. */
-export function niceScale(values: number[], opts: { min?: number | null; max?: number | null; count?: number; zero?: boolean } = {}): Scale {
+export function niceScale(values: number[], opts: { min?: number | null; max?: number | null; count?: number; zero?: boolean; whole?: boolean } = {}): Scale {
   const count = opts.count ?? 4
   const finite = values.filter((v) => Number.isFinite(v))
   let lo = finite.length ? Math.min(...finite) : 0
@@ -55,7 +55,9 @@ export function niceScale(values: number[], opts: { min?: number | null; max?: n
   if (hi <= lo) hi = lo + 1
   const raw = (hi - lo) / count
   const pow = 10 ** Math.floor(Math.log10(raw))
-  const step = [1, 2, 2.5, 5, 10].map((m) => m * pow).find((s) => s >= raw) ?? 10 * pow
+  let step = [1, 2, 2.5, 5, 10].map((m) => m * pow).find((s) => s >= raw) ?? 10 * pow
+  // Counts step in whole numbers: no 0.3 of a task on the axis.
+  if (opts.whole) step = Math.max(1, step === 2.5 ? 2 : Math.round(step))
   const min = opts.min != null ? opts.min : Math.floor(lo / step) * step
   const max = opts.max != null ? opts.max : Math.ceil(hi / step) * step
   const ticks: number[] = []

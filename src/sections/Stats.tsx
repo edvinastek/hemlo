@@ -205,7 +205,8 @@ function ModuleCard({ moduleKey, name, off, period, cur, prev, today, facts, cat
   const { all, shown } = cardMeasures(catalogue, moduleKey, picked)
   const mine = facts.filter((f) => f.module === moduleKey)
   const figures = shown.map((m) => cardFigure(m, mine, cur, prev, today))
-  const any = figures.some((f) => f.value != null && !(f.value === 0 && f.delta == null))
+  // Nothing at all in the period: say what to log, not a row of noughts.
+  const any = mine.some((f) => f.day >= cur.start && f.day <= cur.end)
   const onToday = settings.today_cards.some((c) => c.kind === 'module' && c.key === moduleKey)
   const first = shown[0]
   const chart = useMemo(() => {
@@ -245,7 +246,7 @@ function ModuleCard({ moduleKey, name, off, period, cur, prev, today, facts, cat
           <dl className="st-figures">
             {figures.map((x) => <Figure key={x.key} x={x} period={period} />)}
           </dl>
-          {chart && <XYChart data={chart} type="bar" labels={false} height={72} hint={false} summary={`${first!.label} for each ${period === 'year' ? 'month' : 'day'}`} />}
+          {chart && <XYChart data={chart} type={first!.combine === 'sum' || first!.ratio ? 'bar' : 'line'} labels={false} height={72} hint={false} summary={`${first!.label} for each ${period === 'year' ? 'month' : 'day'}`} />}
         </>
       )}
       <button type="button" className="st-more" aria-expanded={open} onClick={() => setOpen((o) => !o)}>

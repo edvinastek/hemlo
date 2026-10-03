@@ -122,7 +122,7 @@ export function ViewBody({ view, outcome, compact = false, showTable }: { view: 
     chart = <HeatGrid grid={heatGrid(series, span, outcome.today)} colour={colour} unit={v0.info.unit} decimals={v0.info.decimals} label={`${view.name}: ${summary}`} />
   } else if (type !== 'table') {
     chart = <XYChart data={data} type={type} yMin={view.chart.y_min} yMax={view.chart.y_max} labels={view.chart.labels !== false}
-      summary={summary} height={compact ? 110 : 150} shadeName={view.compare?.shade ? (view.compare.label ?? catalogue.find((c) => c.key === view.compare!.source)?.label) : null} />
+      summary={summary} height={compact ? 110 : 150} hint={!compact} shadeName={view.compare?.shade ? (view.compare.label ?? catalogue.find((c) => c.key === view.compare!.source)?.label) : null} />
   }
 
   // Days when something happened, against days it did not (STA-11, STA-30).
