@@ -95,14 +95,6 @@
 }
 .stock-row.is-out .stock-qty { color: var(--e-warn); }
 
-/* A finished trip goes into the cupboard from the foot of the list. */
-.trip-foot {
-  display: grid;
-  gap: var(--space-2);
-  justify-items: start;
-  padding: var(--space-3) var(--space-4);
-}
-
 /* ---- places, dates and minimums (version 16) -------------------------------- */
 .stock-what { display: grid; gap: 1px; min-width: 0; text-align: left; padding: 2px 0; }
 .stock-row .stock-what { min-height: 40px; align-content: center; }
@@ -114,14 +106,6 @@
 .stock-date-row input { min-height: 40px; padding: 6px 10px; font-size: 15px; min-width: 0; }
 .stock-label { font-family: var(--font-sans); font-size: 13px; color: var(--e-ink-soft); }
 .stock-min { display: grid; gap: var(--space-1); }
-.stock-filter { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: var(--space-2); align-items: center; }
-.stock-by { display: flex; border: 1px solid var(--e-field-line); border-radius: var(--radius-md); overflow: hidden; }
-.stock-by button { min-height: 40px; padding: 0 var(--space-3); font-size: 13px; color: var(--e-ink-soft); }
-.stock-by button + button { border-left: 1px solid var(--e-field-line); }
-.stock-by button[aria-pressed="true"] { background: var(--e-tint); color: var(--e-ink); font-weight: 600; }
-@media (max-width: 380px) {
-  .stock-filter { grid-template-columns: 1fr; }
-}
 
 .stock-soon ul, .stock-ideas { list-style: none; margin: 0; padding: 0; }
 .stock-soon-row {
@@ -134,4 +118,3 @@
    food's name stays in the serif, the app's words about it in the sans. */
 .stock-what .stock-name, .stock-soon-row .stock-name, .stock-ideas .stock-name { font-family: var(--font-serif); }
 .stock-what .stock-note, .stock-soon-row .stock-note, .stock-ideas .stock-note { font-family: var(--font-sans); }
-.stock-by { justify-self: start; }

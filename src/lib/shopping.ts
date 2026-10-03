@@ -481,6 +481,23 @@ export async function removePrice(row: ShopPrice): Promise<Undo> {
   }
 }
 
+/** Note a price, with an Undo that puts back what was there: the price it
+ *  replaced, or none at all (v17's quick price sheet). */
+export async function notePriceUndoable(profile: Profile, shop: string, item: { food_id: string | null; name: string }, price: number, amountG: number | null): Promise<Undo> {
+  const key = itemKey(item)
+  const before = (await db.shop_price.where('household_id').equals(profile.household_id).toArray())
+    .find((r) => !r.deleted_at && r.item_key === key && sameShop(r.shop, shop)) ?? null
+  const row = await notePrice(profile, shop, item, price, amountG)
+  return async () => {
+    const now = await db.shop_price.get(row.id)
+    if (!now) return
+    if (!before) { await removePrice(now); return }
+    const back = { ...now, price: before.price, amount_g: before.amount_g, noted_on: before.noted_on, name: before.name, updated_at: new Date().toISOString() }
+    await db.shop_price.put(back)
+    await queueChange('shop_price', back, ['price', 'amount_g', 'noted_on', 'name'])
+  }
+}
+
 /** A shop renamed in Stores: its prices follow it. */
 export async function renameShopPrices(householdId: string, from: string, to: string): Promise<void> {
   for (const r of await db.shop_price.where('household_id').equals(householdId).toArray()) {

@@ -15,11 +15,11 @@ import {
 } from '../lib/units-rules'
 import { matches, words } from '../lib/search-rules'
 import { SearchPick, type PickItem } from '../ui/SearchPick'
-import { ScanToStock } from '../ui/ProductSearch'
+import { ProductFinder } from '../ui/ProductSearch'
 import { AmountInput } from '../ui/AmountInput'
 import { offerUndo } from '../ui/Undo'
-import { ExportLink } from '../ui/ExportLink'
-import { RowMenu, useDeviceChoice } from './shop-ui'
+import { useExport } from '../ui/ExportLink'
+import { RowMenu, ScanIcon, TabMenu, useDeviceChoice } from './shop-ui'
 import type { Food, Profile, Recipe, RecipeLine, Stock } from '../lib/types'
 import './stock.css'
 
@@ -38,12 +38,19 @@ const amountOf = (item: Pick<Item, 'grams' | 'unit'>) =>
 const minOf = (item: Pick<Item, 'min_grams' | 'unit'>) =>
   item.min_grams ? (item.unit ? formatCount(countIn(item.min_grams, item.unit), item.unit) : formatGrams(item.min_grams)) : ''
 
+/** More than this many things in stock and the filter field shows. */
+const FILTER_FROM = 16
+
 /** Shopping's Stock tab: what is in the household's cupboard, fridge and
  *  freezer, typed in by hand and adjusted whenever someone looks. Every list
  *  is worked out against it, so it never says to buy rice that is already
  *  there; a minimum puts a food on the list when it runs low; a date puts it
- *  under "Use soon". */
-export function StockPanel({ profile }: { profile: Profile }) {
+ *  under "Use soon".
+ *
+ *  Calm (v17): one "Add to stock" field with scan in it; amount, place, date
+ *  and note appear once a food is picked. The filter shows only for a long
+ *  cupboard; grouping, the eaten-meals switch and Export are in the ⋮. */
+export function StockPanel({ profile, menuSlot }: { profile: Profile; menuSlot: HTMLElement | null }) {
   const householdId = profile.household_id
   const day = today()
   const foods = useLiveQuery(() => db.food.toArray(), [], [] as Food[])
@@ -74,11 +81,25 @@ export function StockPanel({ profile }: { profile: Profile }) {
   const out = items.filter((i) => i.grams <= 0).length
   const low = items.filter((i) => belowMin(i)).length
   const soon = expiringSoon(items, day, 3)
+  const exporter = useExport({ dataset: 'stock' })
+
+  async function toggleAuto() {
+    await saveSettings(profile, { stock_auto: !auto })
+    offerUndo(auto ? 'Eaten meals no longer take from stock' : 'Eaten meals now take from stock', async () => {
+      const fresh = await db.profile.get(profile.id)
+      if (fresh) await saveSettings(fresh, { stock_auto: auto })
+    })
+  }
 
   return (
     <>
+      <TabMenu slot={menuSlot} items={[
+        items.length > 0 && { label: by === 'place' ? 'Group by aisle' : 'Group by place', onSelect: () => setGroupBy(by === 'place' ? 'aisle' : 'place') },
+        { label: auto ? 'Stop taking from stock when meals are eaten' : 'Take from stock when meals are eaten', onSelect: () => void toggleAuto() },
+        exporter.item,
+      ]} />
+      {exporter.sheet}
       <StockAdd householdId={householdId} foods={foods} items={items} places={places} />
-      <ScanToStock householdId={householdId} />
 
       {soon.length > 0 && (
         <section className="stock-soon" aria-label="Use soon">
@@ -99,14 +120,12 @@ export function StockPanel({ profile }: { profile: Profile }) {
 
       {items.length > 0 && (
         <>
-          <div className="stock-filter">
-            <input type="search" value={query} onChange={(e) => setQuery(e.target.value)}
-              placeholder="Filter stock" aria-label="Filter stock" autoComplete="off" />
-            <div className="stock-by" role="group" aria-label="Group by">
-              <button type="button" aria-pressed={by === 'place'} onClick={() => setGroupBy('place')}>By place</button>
-              <button type="button" aria-pressed={by === 'aisle'} onClick={() => setGroupBy('aisle')}>By aisle</button>
+          {(items.length >= FILTER_FROM || query) && (
+            <div className="stock-filter">
+              <input type="search" value={query} onChange={(e) => setQuery(e.target.value)}
+                placeholder="Filter stock" aria-label="Filter stock" autoComplete="off" />
             </div>
-          </div>
+          )}
           <div className="totals">
             <span><b>{items.length}</b> {items.length === 1 ? 'item' : 'items'}</span>
             {out > 0 && <span><b>{out}</b> out</span>}
@@ -116,9 +135,7 @@ export function StockPanel({ profile }: { profile: Profile }) {
       )}
 
       {rows && items.length === 0 && (
-        <p className="empty">
-          Nothing in stock yet. Add what is in the cupboard, fridge and freezer, and every list takes it off.
-        </p>
+        <p className="empty">Nothing in stock yet; every list takes off what is here.</p>
       )}
       {items.length > 0 && shown.length === 0 && <p className="empty">Nothing in stock matches that.</p>}
 
@@ -137,21 +154,6 @@ export function StockPanel({ profile }: { profile: Profile }) {
       </div>
 
       {items.length >= 3 && <FromStock profile={profile} have={new Map(items.map((i) => [i.food_id, i.grams]))} />}
-
-      <p className="section-title">When meals are eaten</p>
-      <div className="setting-row">
-        <div>
-          <div className="row-name">Take ingredients out of stock when a meal is eaten</div>
-          <div className="row-meta">
-            Ticking a planned meal eaten takes its ingredients (times the portions), or the food of a one-food meal,
-            off what is here; unticking puts them back. Meals typed as plain numbers change nothing. Off unless you want it.
-          </div>
-        </div>
-        <button className="switch" role="switch" aria-checked={auto}
-          aria-label="Take ingredients out of stock when a meal is eaten"
-          onClick={() => void saveSettings(profile, { stock_auto: !auto })} />
-      </div>
-      <ExportLink source={{ dataset: 'stock' }} />
     </>
   )
 }
@@ -219,6 +221,7 @@ function StockAdd({ householdId, foods, items, places }: {
   const [place, setPlace] = useState<string | null>(null)
   const [date, setDate] = useState('')
   const [said, setSaid] = useState<string | null>(null)
+  const [scanning, setScanning] = useState(false)
 
   const userId = useApp((s) => s.session?.user.id ?? null)
   const inStock = useMemo(() => new Map(items.map((i) => [i.food_id, i])), [items])
@@ -273,31 +276,45 @@ function StockAdd({ householdId, foods, items, places }: {
   }
 
   return (
-    <form className="stock-form stock-add" onSubmit={submit}>
-      <SearchPick items={pick} onPick={choose} label="Food to add to stock"
-        placeholder="Add to stock: search foods" value={food?.name ?? null}
-        onClear={() => setFood(null)} />
-      <div className="stock-fields">
-        <AmountInput text={amount} choice={choice.key} choices={choices} onText={setAmount} onChoice={setUnit}
-          label="Amount" groupClass="stock-units" input={{ placeholder: 'Amount' }} />
-        <button type="submit" className="btn btn-primary" disabled={!food || grams === null || grams <= 0 || (!!date && !best)}>Add</button>
-      </div>
-      {food && (
-        <>
-          <PlacePick value={place} places={places} onChange={setPlace} />
-          <div className="stock-date-row">
-            <label className="stock-label" htmlFor="stock-add-date">Best before</label>
-            <input id="stock-add-date" type="date" value={best ?? date} onChange={(e) => setDate(e.target.value)} />
-          </div>
-        </>
+    <>
+      <form className="stock-form stock-add" onSubmit={submit}>
+        <div className="stock-add-field">
+          <SearchPick items={pick} onPick={choose} label="Add to stock"
+            placeholder="Add to stock" value={food?.name ?? null}
+            onClear={() => setFood(null)} />
+          {!food && (
+            <button type="button" className="shop-scan" onClick={() => { setSaid(null); setScanning(true) }} aria-label="Scan a barcode to add to stock">
+              <ScanIcon />
+            </button>
+          )}
+        </div>
+        {food && (
+          <>
+            <div className="stock-fields">
+              <AmountInput text={amount} choice={choice.key} choices={choices} onText={setAmount} onChoice={setUnit}
+                label="Amount" groupClass="stock-units" input={{ placeholder: 'Amount', autoFocus: true }} />
+              <button type="submit" className="btn btn-primary" disabled={grams === null || grams <= 0 || (!!date && !best)}>Add</button>
+            </div>
+            {choice.unit && read && <p className="stock-hint">{amountHint(amount, choice)}</p>}
+            {already && <p className="stock-hint">{amountOf(already)} already here; this adds to it.</p>}
+            {amount.trim() !== '' && grams === null && <p className="stock-hint is-warn">That is not an amount.</p>}
+            <PlacePick value={place} places={places} onChange={setPlace} />
+            <div className="stock-date-row">
+              <label className="stock-label" htmlFor="stock-add-date">Best before</label>
+              <input id="stock-add-date" type="date" value={best ?? date} onChange={(e) => setDate(e.target.value)} />
+            </div>
+            <input className="stock-note-input" value={note} onChange={(e) => setNote(e.target.value)} maxLength={NOTE_MAX}
+              placeholder="Note, if any: opened, the big bag" aria-label="Note" />
+          </>
+        )}
+        {said && !food && <p className="stock-hint" role="status">{said}</p>}
+      </form>
+      {/* The finder has forms of its own, so it sits beside this one, not in it. */}
+      {scanning && (
+        <ProductFinder start="scan" purpose="stock" householdId={householdId} onClose={() => setScanning(false)}
+          onStocked={(text) => { setSaid(text); setScanning(false) }} />
       )}
-      <input className="stock-note-input" value={note} onChange={(e) => setNote(e.target.value)} maxLength={NOTE_MAX}
-        placeholder="Note, if any: opened, the big bag" aria-label="Note" />
-      {choice.unit && read && <p className="stock-hint">{amountHint(amount, choice)}</p>}
-      {already && <p className="stock-hint">{amountOf(already)} already here; this adds to it.</p>}
-      {amount.trim() !== '' && grams === null && <p className="stock-hint is-warn">That is not an amount.</p>}
-      {said && !food && <p className="stock-hint" role="status">{said}</p>}
-    </form>
+    </>
   )
 }
 

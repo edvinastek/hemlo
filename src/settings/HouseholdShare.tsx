@@ -76,7 +76,7 @@ export function HouseholdShare() {
       <div className="setting-row ss-block">
         <div>
           <div className="row-name">Shared with</div>
-          <div className="row-meta">The cupboard, the list, prices and chores. Health and plans stay your own.</div>
+          <div className="row-meta">The cupboard, the list, prices and chores are shared; health, food logs and plans are not.</div>
           {!online && <p className="ss-note">Who is in the household shows once the phone is online.</p>}
           {online && members && (
             <ul className="ss-members">
@@ -99,7 +99,7 @@ export function HouseholdShare() {
         <div className="setting-row ss-block">
           <div>
             <div className="row-name">Your name in the household</div>
-            <div className="row-meta">{myName ? `“${myName}”. ` : 'Not given yet. '}It is changed on the Chores page, beside the chores you do.</div>
+            <div className="row-meta">{myName ? `“${myName}”, changed on the Chores page.` : 'Not given yet; it is set on the Chores page.'}</div>
           </div>
           <button type="button" className="btn" onClick={() => navigate('/m/household?fold=names')}>Change it</button>
         </div>
@@ -142,7 +142,7 @@ export function HouseholdShare() {
         <div className="setting-row ss-block">
           <div>
             <div className="row-name">Leave this household</div>
-            <div className="row-meta">You go back to your own household, with the cupboard and list you had there.</div>
+            <div className="row-meta">You go back to your own household and its list.</div>
             {asking === 'leave' ? (
               <div className="ss-inline">
                 <button type="button" className="btn shop-warn" disabled={busy} onClick={() => void run(async () => { await leaveHousehold(householdId); setNote({ text: 'You are back in your own household.' }); setRound((n) => n + 1) })}>Leave</button>
@@ -159,7 +159,7 @@ export function HouseholdShare() {
         <div className="setting-row ss-block" role="alertdialog" aria-label="Take someone out">
           <div>
             <div className="row-name">Take {label(asking.remove)} out of the household?</div>
-            <div className="row-meta">They go back to a household of their own. What they added here stays here.</div>
+            <div className="row-meta">They get a household of their own; what they added stays here.</div>
             <div className="ss-inline">
               <button type="button" className="btn shop-warn" disabled={busy}
                 onClick={() => void run(async () => { await removeMember(householdId, asking.remove.user_id); setRound((n) => n + 1) })}>Take out</button>
@@ -182,7 +182,7 @@ export function HouseholdShare() {
       }}>
         <div>
           <label className="row-name" htmlFor="ss-join">Join a household</label>
-          <div className="row-meta">Type the code someone in it gave you.</div>
+          <div className="row-meta">Type the code you were given.</div>
           <div className="ss-inline">
             <input id="ss-join" value={code} onChange={(e) => { setCode(e.target.value.toUpperCase()); if (asking === 'join') setAsking(null) }}
               maxLength={14} placeholder="ABCDE-FGHJK" autoComplete="off" autoCapitalize="characters" spellCheck={false} className="ss-code-input" />
@@ -191,9 +191,7 @@ export function HouseholdShare() {
             </button>
           </div>
           {asking === 'join' && (
-            <p className="ss-note">
-              Your own cupboard and list stay in your own household; leaving brings you back to them. Join?
-            </p>
+            <p className="ss-note">Your own cupboard and list wait for you if you ever leave. Join?</p>
           )}
           {!online && <p className="ss-note">Joining needs a connection.</p>}
         </div>

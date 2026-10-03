@@ -3,24 +3,30 @@ import { useLiveQuery } from 'dexie-react-hooks'
 import { db } from '../lib/db'
 import { useApp } from '../lib/store'
 import {
-  addItem, addRecent, addRecipesToList, changeItem, clearBasket, foodChoices, loadShopping, matchTyped, notePrice,
+  addItem, addRecent, addRecipesToList, changeItem, clearBasket, foodChoices, loadShopping, matchTyped, notePriceUndoable,
   putInStock, removeItem, removePrice, saveModuleSettings, setOrder, tick, today, type ShoppingView,
 } from '../lib/shopping'
 import {
   amountText, cleanLabel, currencyFor, forShop, formatMoney, groupList, guessAisle, itemKey, LIST_MAX, NOTE_MAX, NAME_MAX,
-  itemCost, onList, parseAmount, parseItem, pickPrice, priceLabel, readPrice, reorderWithin, resolveAisle, sameShop, shopAisles,
-  tripTotal, windowText, addSuggestions, type AddChoice, type ListItem,
+  onList, parseAmount, parseItem, priceLabel, reorderWithin, resolveAisle, sameShop, shopAisles,
+  windowText, addSuggestions, type AddChoice, type ListItem,
 } from '../lib/shopping-rules'
+import {
+  choosePrice, dayText, detailText, listTotal, openPricesPage, priceShop, PRICE_ATTRIBUTION, readPriceInput, rowPrice,
+  sizeText, summaryText, type ShownPrice,
+} from '../lib/price-rules'
+import { suggestShops } from '../lib/shops-rules'
+import { useOpenPrices, useOpenPricesFor } from '../lib/prices'
 import { search } from '../lib/search-rules'
-import { gramsLabel } from '../lib/units-rules'
 import { foodByBarcode, addProduct, productByBarcode, whereFor, ProductProblem } from '../lib/products'
 import { displayName } from '../lib/products-rules'
 import { offerUndo } from '../ui/Undo'
 import { Dropdown } from '../ui/Dropdown'
+import { MoreOptions } from '../ui/MoreOptions'
 import { SearchPick, type PickItem } from '../ui/SearchPick'
 import { BarcodeScan } from '../ui/BarcodeScan'
-import { ExportLink } from '../ui/ExportLink'
-import { RowMenu, Sheet, useDeviceChoice } from './shop-ui'
+import { useExport } from '../ui/ExportLink'
+import { RowMenu, ScanIcon, Sheet, TabMenu, useDeviceChoice } from './shop-ui'
 import type { FieldDef } from '../modules/types'
 import type { Food, Profile, Recipe } from '../lib/types'
 
@@ -40,22 +46,47 @@ const LIST_FIELDS: FieldDef[] = [
  *  (less the cupboard) and what anyone in the household added, by aisle in
  *  the order of the shop chosen, ticked as things go in the basket; then
  *  home, into the cupboard. Works with no signal; ticks reach the others
- *  with the next sync. */
-export function ShopList({ profile, addRef }: { profile: Profile; addRef: React.RefObject<HTMLInputElement> }) {
+ *  with the next sync.
+ *
+ *  Calm (v17): the add field is the main action (no round +), with scan as
+ *  an icon inside it; recently bought shows while the field has the focus;
+ *  "From recipes", "New list" and Export sit in the page's ⋮; one summary
+ *  line ("5 to get · €12.40 + 2 unpriced") that opens to the rest. Prices
+ *  are quiet on the right of a row: the household's own, else "≈" one from
+ *  Open Prices (price-rules.ts); unknown shows nothing. */
+export function ShopList({ profile, menuSlot }: { profile: Profile; menuSlot: HTMLElement | null }) {
   const day = today()
   const view = useLiveQuery(() => loadShopping(profile, day), [profile.id, profile.household_id, profile.updated_at, day])
   const [shop, setShop] = useDeviceChoice<string | null>('shop:filter', null)
   const [list, setList] = useDeviceChoice<string | null>('shop:list', null)
   const [folded, setFolded] = useDeviceChoice<string[]>('shop:folded', [])
   const [editing, setEditing] = useState<string | null>(null)
+  const [pricing, setPricing] = useState<string | null>(null)
   const [sheet, setSheet] = useState<null | 'scan' | 'recipes' | 'list'>(null)
   const [said, setSaid] = useState<string | null>(null)
+  const [more, setMore] = useState(false)
+  const addRef = useRef<HTMLInputElement>(null)
 
   // A shopping trip ticked off today, with things still in the basket: the
   // list offers to put them away (SHOP-22).
   const tripDone = useLiveQuery(async () => (await db.task.where('[profile_id+planned_date]').equals([profile.id, day]).toArray())
     .some((t) => t.source === 'shopping' && !t.deleted_at && t.status === 'done'), [profile.id, day], false)
-  if (!view) return <p className="empty">Reading the list…</p>
+  // Shared prices for the products with a barcode, from the device's copy (PRICE-01).
+  const codes = view ? view.items.map((i) => (i.food_id ? view.foods.get(i.food_id)?.barcode ?? null : null)).filter((c): c is string => !!c) : []
+  const shared = useOpenPrices(codes)
+  const exportRows = view ? view.items.map((i) => ({
+    name: i.name, amount: i.amount, aisle: i.aisle, shop: i.shop ?? '', list: i.list ?? '', why: i.why, note: i.note ?? '', checked: i.checked,
+  })) : null
+  const exporter = useExport(exportRows ? { label: 'Shopping list', rows: exportRows, fields: LIST_FIELDS } : null)
+
+  const menu = (
+    <TabMenu slot={menuSlot} items={[
+      { label: 'Add from recipes…', onSelect: () => setSheet('recipes') },
+      { label: 'New list…', onSelect: () => setSheet('list') },
+      exporter.item,
+    ]} />
+  )
+  if (!view) return <>{menu}<p className="empty">Reading the list…</p></>
   const shops = view.shops
   // A shop or list that has gone (renamed, removed on another phone) falls back to all.
   const shopOn = shop && shops.some((s) => sameShop(s.name, shop)) ? shop : null
@@ -67,9 +98,23 @@ export function ShopList({ profile, addRef }: { profile: Profile; addRef: React.
   const elsewhere = onThisList.length - shown.length
   const { aisles, basket } = groupList(shown, order)
   const open = shown.filter((i) => !i.checked)
-  const priceOf = (i: ListItem) => pickPrice(view.prices.filter((p) => p.item_key === itemKey(i)), shopOn)
-  const total = tripTotal(open, priceOf)
   const editingItem = editing ? view.items.find((i) => i.key === editing) ?? null : null
+  const pricingItem = pricing ? view.items.find((i) => i.key === pricing) ?? null : null
+
+  const codeOf = (i: ListItem) => (i.food_id ? view.foods.get(i.food_id)?.barcode ?? null : null)
+  const perMlOf = (i: ListItem) => !!(i.food_id && view.foods.get(i.food_id)?.per_ml)
+  const shownPrice = (i: ListItem): ShownPrice | null => choosePrice({
+    own: view.prices.filter((p) => p.item_key === itemKey(i)),
+    open: shared.get(codeOf(i) ?? '') ?? [],
+    shop: shopOn ?? i.shop, country: profile.country ?? null, currency, today: day,
+  })
+  const priced = new Map(shown.map((i) => [i.key, rowPrice(i, shownPrice(i), currency, perMlOf(i))]))
+  const total = listTotal(open, (k) => priced.get(k)?.cost ?? null)
+  const details = [
+    `Meals from ${windowText(view.window.from, view.window.to)}`,
+    view.covered > 0 && !listOn ? `${view.covered} covered by stock` : '',
+    elsewhere > 0 ? `${elsewhere} for other shops` : '',
+  ].filter(Boolean)
 
   const isFolded = (name: string) => folded.includes(name)
   const fold = (name: string) => setFolded(isFolded(name) ? folded.filter((f) => f !== name) : [...folded, name])
@@ -114,6 +159,7 @@ export function ShopList({ profile, addRef }: { profile: Profile; addRef: React.
     return [
       { label: item.checked ? 'Take out of the basket' : 'In the basket', onSelect: () => void doTick(item, !item.checked) },
       { label: 'Change…', onSelect: () => setEditing(item.key) },
+      { label: priced.get(item.key) ? 'Price…' : 'Add price…', onSelect: () => setPricing(item.key) },
       ...(group ? [
         { label: 'Move up', disabled: at <= 0, onSelect: () => void move(item, -1) },
         { label: 'Move down', disabled: at < 0 || at >= group.length - 1, onSelect: () => void move(item, 1) },
@@ -128,15 +174,12 @@ export function ShopList({ profile, addRef }: { profile: Profile; addRef: React.
   }
 
   const row = (item: ListItem, group: ListItem[] | null) => {
-    const price = priceOf(item)
+    const price = priced.get(item.key) ?? null
     const where = item.shop ? `at ${item.shop}` : item.sold_at.length ? `sold at ${item.sold_at.slice(0, 2).join(', ')}` : ''
-    // What it will cost when that can be worked out, else the price as noted.
-    const cost = price ? itemCost(item, price) : null
-    const meta = [item.why, where, item.note,
-      price ? (cost !== null ? formatMoney(cost, currency) : `${formatMoney(Number(price.price), currency)}${price.amount_g ? '' : ' each'}`) : '']
-      .filter(Boolean).join(' · ')
+    const meta = [item.why, where, item.note].filter(Boolean).join(' · ')
+    const from = price?.text.startsWith('≈') ? ', from Open Prices' : ''
     return (
-      <li key={item.key} className={`shop-row${item.checked ? ' is-ticked' : ''}`}>
+      <li key={item.key} className={`shop-row${item.checked ? ' is-ticked' : ''}${price ? ' has-price' : ''}`}>
         <button type="button" className="shop-tick" role="checkbox" aria-checked={item.checked}
           aria-label={`${item.name}${item.amount ? `, ${item.amount}` : ''}: in the basket`} onClick={() => void doTick(item, !item.checked)}>
           <span className="shop-box" aria-hidden="true" />
@@ -148,51 +191,35 @@ export function ShopList({ profile, addRef }: { profile: Profile; addRef: React.
           </span>
           {meta && <span className="shop-meta">{meta}</span>}
         </button>
+        {price && (
+          <button type="button" className={`shop-price-btn${from ? ' is-shared' : ''}`} onClick={() => setPricing(item.key)}
+            aria-label={`${item.name}: ${price.text.replace('≈', 'about')}${from}. Price details`}>{price.text}</button>
+        )}
         <RowMenu label={`More for ${item.name}`} items={menuFor(item, group)} />
       </li>
     )
   }
 
-  const exportRows = view.items.map((i) => ({
-    name: i.name, amount: i.amount, aisle: i.aisle, shop: i.shop ?? '', list: i.list ?? '', why: i.why, note: i.note ?? '', checked: i.checked,
-  }))
-
   return (
     <>
-      <AddBox profile={profile} view={view} list={listOn} addRef={addRef} onScan={() => setSheet('scan')} onRecipes={() => setSheet('recipes')} />
-
-      {view.recents.length > 0 && (
-        <section className="shop-recent" aria-label="Recently bought">
-          <p className="shop-recent-title">Recently bought</p>
-          <div className="shop-tiles">
-            {view.recents.map((t) => (
-              <button key={t.key} type="button" className="shop-tile" aria-label={`Add ${t.name}${t.qty ? `, ${amountText(t)}` : ''}`}
-                onClick={async () => {
-                  const r = await addRecent(profile, t, listOn)
-                  offerUndo(r.merged ? `More ${t.name} on the list` : `${t.name} on the list`, r.undo)
-                }}>
-                <span aria-hidden="true">+</span> {t.name}
-              </button>
-            ))}
-          </div>
-        </section>
-      )}
+      {menu}
+      {exporter.sheet}
+      <AddBox profile={profile} view={view} list={listOn} addRef={addRef} onScan={() => setSheet('scan')} />
 
       {(view.lists.length > 0 || shops.length > 0) && (
         <div className="shop-filters">
+          {shops.length > 0 && (
+            <Dropdown<string> className="shop-filter" label="Shop" value={shopOn ?? ''}
+              options={[{ value: '', label: 'Any shop' }, ...shops.map((s) => ({ value: s.name, label: s.name }))]}
+              onChange={(v) => setShop(v || null)} />
+          )}
           {view.lists.length > 0 && (
             <div className="shop-lists" role="group" aria-label="Which list">
               {[null, ...view.lists].map((l) => (
                 <button key={l ?? 'main'} type="button" className="shop-chip" aria-pressed={(l ?? null) === listOn}
                   onClick={() => setList(l)}>{l ?? 'Main list'}</button>
               ))}
-              <button type="button" className="shop-chip" onClick={() => setSheet('list')}>+ List</button>
             </div>
-          )}
-          {shops.length > 0 && (
-            <Dropdown<string> className="shop-filter" label="Shop" value={shopOn ?? ''}
-              options={[{ value: '', label: 'Any shop' }, ...shops.map((s) => ({ value: s.name, label: s.name }))]}
-              onChange={(v) => setShop(v || null)} />
           )}
         </div>
       )}
@@ -207,22 +234,23 @@ export function ShopList({ profile, addRef }: { profile: Profile; addRef: React.
         </div>
       )}
 
-      <div className="totals" aria-live="polite">
-        <span>Meals from {windowText(view.window.from, view.window.to)}</span>
-        <span><b>{open.length}</b> to get</span>
-        {basket.length > 0 && <span><b>{basket.length}</b> in the basket</span>}
-        {view.covered > 0 && !listOn && <span><b>{view.covered}</b> covered by stock</span>}
-        {elsewhere > 0 && <span><b>{elsewhere}</b> for other shops</span>}
-        {total.priced > 0 && <span><b>{formatMoney(total.total, currency)}</b> for {total.priced} of {total.of} priced</span>}
-      </div>
+      {shown.length > 0 && (
+        <div className="shop-summary">
+          <button type="button" className="shop-summary-btn" aria-expanded={more} onClick={() => setMore((m) => !m)}>
+            <span aria-live="polite">{summaryText(total, currency)}</span>
+            <span className="shop-caret" aria-hidden="true">{more ? '▴' : '▾'}</span>
+          </button>
+          {more && <p className="shop-summary-more">{details.join(' · ')}</p>}
+        </div>
+      )}
 
       {shown.length === 0 && (
         <p className="empty">
           {onThisList.length > 0
-            ? 'Nothing on this list is for this shop. Choose Any shop to see the rest.'
+            ? 'Nothing on this list is for this shop.'
             : listOn
-              ? `Nothing on ${listOn} yet. Add something above.`
-              : 'The list is empty. Add what you need above; planned meals add their ingredients by themselves.'}
+              ? `Nothing on ${listOn} yet.`
+              : 'Nothing to get. Planned meals add their ingredients here by themselves.'}
         </p>
       )}
 
@@ -253,19 +281,22 @@ export function ShopList({ profile, addRef }: { profile: Profile; addRef: React.
             <div className="shop-foot">
               <button type="button" className="btn btn-primary" onClick={() => void stockBasket()}>Put in stock</button>
               <button type="button" className="btn" onClick={() => void clear()}>Bought, clear the basket</button>
-              <p className="stock-hint">
-                Put in stock adds what was bought to the cupboard: whole packs where the pack size is known, else the
-                amount on the list. Things that are not food just come off the list.
-              </p>
             </div>
           </section>
         )}
         {said && <p className="stock-hint shop-said" role="status">{said}</p>}
       </div>
 
-      <ExportLink source={{ label: 'Shopping list', rows: exportRows, fields: LIST_FIELDS }} />
-
-      {editingItem && <ItemSheet profile={profile} view={view} item={editingItem} shop={shopOn} onClose={() => setEditing(null)} />}
+      {editingItem && (
+        <ItemSheet profile={profile} view={view} item={editingItem} shown={shownPrice(editingItem)} onClose={() => setEditing(null)}
+          onPrice={() => { setEditing(null); setPricing(editingItem.key) }} />
+      )}
+      {pricingItem && (
+        <Sheet title={pricingItem.name} onClose={() => setPricing(null)}>
+          <PriceBody profile={profile} view={view} item={pricingItem} filter={shopOn} shown={shownPrice(pricingItem)}
+            code={codeOf(pricingItem)} perMl={perMlOf(pricingItem)} onSaved={() => setPricing(null)} />
+        </Sheet>
+      )}
       {sheet === 'scan' && <ScanSheet profile={profile} list={listOn} onClose={() => setSheet(null)} />}
       {sheet === 'recipes' && <RecipesSheet profile={profile} list={listOn} onClose={() => setSheet(null)} />}
       {sheet === 'list' && (
@@ -280,14 +311,18 @@ export function ShopList({ profile, addRef }: { profile: Profile; addRef: React.
   )
 }
 
-/** "+ Add item": type it the way it would be written on paper. What it
- *  reads (and the aisle it goes in) shows as it is typed. */
-function AddBox({ profile, view, list, addRef, onScan, onRecipes }: {
+/** "Add an item": type it the way it would be written on paper; Enter or
+ *  Add puts it on the list. The scan icon sits in the field while it is
+ *  empty. What it reads (and the aisle it goes in) shows as it is typed;
+ *  recently bought shows once the field has had the focus, while nothing
+ *  is typed. */
+function AddBox({ profile, view, list, addRef, onScan }: {
   profile: Profile; view: ShoppingView; list: string | null; addRef: React.RefObject<HTMLInputElement>
-  onScan: () => void; onRecipes: () => void
+  onScan: () => void
 }) {
   const [text, setText] = useState('')
   const [busy, setBusy] = useState(false)
+  const [focused, setFocused] = useState(false)
   const userId = useApp((s) => s.session?.user.id ?? null)
   const parsed = parseItem(text)
   const aisle = parsed ? resolveAisle(guessAisle(parsed.name), view.module.aisles) : null
@@ -325,11 +360,17 @@ function AddBox({ profile, view, list, addRef, onScan, onRecipes }: {
   }
 
   return (
-    <form className="shop-add" onSubmit={submit}>
+    <form className="shop-add" onSubmit={submit}
+      // The tiles come out with the first focus and stay for this visit:
+      // hiding them again on blur would move the page under a finger
+      // already on its way to something below.
+      onFocus={() => setFocused(true)}>
       <div className="shop-add-row">
         <input ref={addRef} type="text" value={text} onChange={(e) => setText(e.target.value)} maxLength={NAME_MAX + 20}
-          placeholder="Add an item: 2 kg apples, 6 eggs" aria-label="Add an item" autoComplete="off" enterKeyHint="done" />
-        <button type="submit" className="btn btn-primary" disabled={!parsed || busy}>Add</button>
+          placeholder="Add an item: 2 kg apples" aria-label="Add an item" autoComplete="off" enterKeyHint="done" />
+        {text.trim()
+          ? <button type="submit" className="btn btn-primary" disabled={!parsed || busy}>Add</button>
+          : <button type="button" className="shop-scan" onClick={onScan} aria-label="Scan a barcode to add"><ScanIcon /></button>}
       </div>
       {suggestions.length > 0 && (
         <ul className="shop-suggest" aria-label="Suggestions">
@@ -343,23 +384,39 @@ function AddBox({ profile, view, list, addRef, onScan, onRecipes }: {
           ))}
         </ul>
       )}
-      <p className="stock-hint shop-add-read" aria-live="polite">
-        {parsed
-          ? [parsed.name, parsed.qty !== null ? amountText(parsed) : '', aisle && aisle !== 'Other' ? aisle : ''].filter(Boolean).join(' · ')
-          : 'An amount first or last is understood: "2 kg apples", "milk x2", "toilet paper".'}
-      </p>
-      <div className="shop-add-more">
-        <button type="button" className="btn" onClick={onScan}>Scan</button>
-        <button type="button" className="btn" onClick={onRecipes}>From recipes</button>
-      </div>
+      {parsed && (
+        <p className="stock-hint shop-add-read" aria-live="polite">
+          {[parsed.name, parsed.qty !== null ? amountText(parsed) : '', aisle && aisle !== 'Other' ? aisle : ''].filter(Boolean).join(' · ')}
+        </p>
+      )}
+      {focused && !text && view.recents.length > 0 && (
+        <section className="shop-recent" aria-label="Recently bought">
+          <p className="shop-recent-title">Recently bought</p>
+          <div className="shop-tiles">
+            {view.recents.slice(0, 8).map((t) => (
+              <button key={t.key} type="button" className="shop-tile" aria-label={`Add ${t.name}${t.qty ? `, ${amountText(t)}` : ''}`}
+                // The field keeps the focus, so the tiles stay for the next one.
+                onMouseDown={(e) => e.preventDefault()}
+                onClick={async () => {
+                  const r = await addRecent(profile, t, list)
+                  offerUndo(r.merged ? `More ${t.name} on the list` : `${t.name} on the list`, r.undo)
+                }}>
+                <span aria-hidden="true">+</span> {t.name}
+              </button>
+            ))}
+          </div>
+        </section>
+      )}
     </form>
   )
 }
 
 /** Changing one item: how much, which food it is, aisle, shop, list, note,
  *  and the price at a shop. A planned item's amount comes from the plan. */
-function ItemSheet({ profile, view, item, shop, onClose }: {
-  profile: Profile; view: ShoppingView; item: ListItem; shop: string | null; onClose: () => void
+function ItemSheet({ profile, view, item, shown, onClose, onPrice }: {
+  profile: Profile; view: ShoppingView; item: ListItem; shown: ShownPrice | null; onClose: () => void
+  /** Opens the price sheet in this one's place (never a sheet on a sheet). */
+  onPrice: () => void
 }) {
   const e = item.entry
   const manual = item.kind === 'manual'
@@ -412,39 +469,49 @@ function ItemSheet({ profile, view, item, shop, onClose }: {
               <input value={amount} onChange={(ev) => setAmount(ev.target.value)} placeholder="2 kg, 6, 2 packs, or leave empty" inputMode="text" />
             </label>
             {!read && <p className="stock-hint is-warn">That is not an amount. Try "2 kg", "6" or "2 packs".</p>}
-            <div className="shop-field">
-              <span className="shop-label">Which food it is (optional)</span>
-              <SearchPick items={pick} label="Food" placeholder="Search foods" value={chosenFood?.name ?? null}
-                onPick={(p) => setFoodId(p.id)} onClear={() => setFoodId(null)} />
-              <span className="stock-hint">Linked to a food, it can go in stock and count its packs.</span>
-            </div>
           </>
         ) : (
           <p className="stock-hint">From the meal plan: {[item.amount, item.why].filter(Boolean).join(', ')}. Change the meals to change how much.</p>
         )}
-        <div className="two">
-          <div className="shop-field">
-            <span className="shop-label">Aisle</span>
-            <Dropdown<string> label="Aisle" value={aisle} options={aisleOptions} onChange={setAisle} />
-          </div>
-          {view.shops.length > 0 && (
+        <MoreOptions open={!!(foodId || e?.aisle || item.shop || item.list || item.note)}
+          summary={[chosenFood?.name, e?.aisle ? aisle : '', itemShop, list, note.trim() ? 'note' : ''].filter(Boolean).join(' · ') || null}>
+          {manual && (
             <div className="shop-field">
-              <span className="shop-label">Shop</span>
-              <Dropdown<string> label="Shop" value={itemShop} onChange={setItemShop}
-                options={[{ value: '', label: 'Any shop' }, ...view.shops.map((s) => ({ value: s.name, label: s.name }))]} />
+              <span className="shop-label">Which food it is</span>
+              <SearchPick items={pick} label="Food" placeholder="Search foods" value={chosenFood?.name ?? null}
+                onPick={(p) => setFoodId(p.id)} onClear={() => setFoodId(null)} />
             </div>
           )}
-        </div>
-        {manual && view.lists.length > 0 && (
-          <div className="shop-field">
-            <span className="shop-label">List</span>
-            <Dropdown<string> label="List" value={list} onChange={setList}
-              options={[{ value: '', label: 'Main list' }, ...view.lists.map((l) => ({ value: l, label: l }))]} />
+          <div className="two">
+            <div className="shop-field">
+              <span className="shop-label">Aisle</span>
+              <Dropdown<string> label="Aisle" value={aisle} options={aisleOptions} onChange={setAisle} />
+            </div>
+            {view.shops.length > 0 && (
+              <div className="shop-field">
+                <span className="shop-label">Shop</span>
+                <Dropdown<string> label="Shop" value={itemShop} onChange={setItemShop}
+                  options={[{ value: '', label: 'Any shop' }, ...view.shops.map((s) => ({ value: s.name, label: s.name }))]} />
+              </div>
+            )}
           </div>
-        )}
-        <label>Note
-          <input value={note} onChange={(ev) => setNote(ev.target.value)} maxLength={NOTE_MAX} placeholder="The big bag, the one with the blue lid" className="shop-serif" />
-        </label>
+          {manual && view.lists.length > 0 && (
+            <div className="shop-field">
+              <span className="shop-label">List</span>
+              <Dropdown<string> label="List" value={list} onChange={setList}
+                options={[{ value: '', label: 'Main list' }, ...view.lists.map((l) => ({ value: l, label: l }))]} />
+            </div>
+          )}
+          <label>Note
+            <input value={note} onChange={(ev) => setNote(ev.target.value)} maxLength={NOTE_MAX} placeholder="The big bag, the one with the blue lid" className="shop-serif" />
+          </label>
+        </MoreOptions>
+        <div className="shop-field">
+          <span className="shop-label">Price</span>
+          <button type="button" className="shop-price-line" onClick={onPrice}>
+            {shown ? detailText(shown, currencyFor(profile.country), !!chosenFood?.per_ml) : 'Add price'}
+          </button>
+        </div>
         <div className="sheet-actions">
           <button type="button" className="btn shop-warn" onClick={async () => {
             const undo = await removeItem(profile, item, view.window.to)
@@ -454,59 +521,81 @@ function ItemSheet({ profile, view, item, shop, onClose }: {
           <button type="submit" className="btn btn-primary grow" disabled={!read}>Save</button>
         </div>
       </form>
-      {view.shops.length > 0 && <PriceBlock profile={profile} view={view} item={{ ...item, food_id: manual ? foodId : item.food_id }} startShop={shop ?? item.shop} perMl={!!chosenFood?.per_ml} />}
     </Sheet>
   )
 }
 
-/** Prices for an item, one per shop, typed when seen on the shelf. */
-function PriceBlock({ profile, view, item, startShop, perMl }: {
-  profile: Profile; view: ShoppingView; item: ListItem; startShop: string | null; perMl: boolean
+/** An item's price (PRICE-03, PRICE-04): where the price on its row comes
+ *  from, the prices the household noted per shop, and a quick way to note
+ *  one: type it, say whether it is for the pack or a kilo, Save. The shop
+ *  is the list's shop filter, else the one used last. */
+function PriceBody({ profile, view, item, filter, shown, code, perMl, onSaved }: {
+  profile: Profile; view: ShoppingView; item: ListItem; filter: string | null; shown: ShownPrice | null
+  code: string | null; perMl: boolean; onSaved: () => void
 }) {
   const key = itemKey(item)
   const rows = view.prices.filter((p) => p.item_key === key)
-  const [shop, setShop] = useState(startShop && view.shops.some((s) => sameShop(s.name, startShop)) ? view.shops.find((s) => sameShop(s.name, startShop))!.name : view.shops[0].name)
-  const [price, setPrice] = useState('')
-  const [per, setPer] = useState(item.line?.pack_size_g ? gramsLabel(item.line.pack_size_g) : '')
   const currency = currencyFor(profile.country)
-  const p = readPrice(price)
-  const amt = parseAmount(per)
-  const amountG = amt && amt.grams ? amt.grams : null
-  const ok = p !== null && amt !== null && (amt.qty === null || amt.grams !== null || amt.unit !== null || amt.qty === 1)
+  // With no shops kept yet, the country's chains stand in.
+  const shopNames = view.shops.length ? view.shops.map((s) => s.name) : suggestShops(profile.country, [], '').filter((s) => !s.online).slice(0, 8).map((s) => s.name)
+  const [last, setLast] = useDeviceChoice<string | null>('shop:price-shop', null)
+  const [picked, setPicked] = useState<string | null>(null)
+  const shop = picked ?? priceShop(filter ?? item.shop, last, shopNames)
+  const packG = item.line?.pack_size_g ?? (item.food_id ? view.foods.get(item.food_id)?.pack_size_g ?? null : null)
+  // Loose things bought by weight ("2 kg apples") are priced by the kilo.
+  const [per, setPer] = useState<'pack' | 'kg'>(!packG && item.grams && !item.pieces ? 'kg' : 'pack')
+  const [text, setText] = useState('')
+  const read = readPriceInput(text, per, packG)
+  const sharedCopy = useOpenPricesFor(code)
 
   async function save(e: FormEvent) {
     e.preventDefault()
-    if (p === null || !ok) return
-    await notePrice(profile, shop, { food_id: item.food_id, name: item.name }, p, amountG)
-    setPrice('')
+    if (!read || !shop) return
+    const undo = await notePriceUndoable(profile, shop, { food_id: item.food_id, name: item.name }, read.price, read.amount_g)
+    setLast(shop)
+    offerUndo(`Price at ${shop} noted`, undo)
+    onSaved()
   }
 
   return (
     <section className="shop-prices" aria-label="Prices">
-      <p className="section-title shop-prices-title">Prices</p>
-      {rows.length === 0 && <p className="stock-hint">No price noted yet. Type one when you see it on the shelf.</p>}
-      <ul>
-        {rows.map((r) => (
-          <li key={r.id}>
-            <span className="shop-price-shop">{r.shop}</span>
-            <span className="shop-price">{priceLabel(r, currency, perMl)}</span>
-            <button type="button" className="shop-x" aria-label={`Remove the price at ${r.shop}`}
-              onClick={async () => offerUndo(`Price at ${r.shop} removed`, await removePrice(r))}>×</button>
-          </li>
-        ))}
-      </ul>
+      {shown && <p className="shop-price-now">{detailText(shown, currency, perMl)}</p>}
+      {!shown && code && sharedCopy?.fetched_at && <p className="stock-hint">No shared price for this product here yet.</p>}
       <form className="shop-price-form" onSubmit={save}>
-        <Dropdown<string> label="Shop for the price" value={shop} onChange={setShop} options={view.shops.map((s) => ({ value: s.name, label: s.name }))} />
         <label className="shop-field"><span className="shop-label">Price</span>
-          <input value={price} onChange={(e) => setPrice(e.target.value)} inputMode="decimal" placeholder={formatMoney(1.99, currency)} />
+          <input value={text} onChange={(e) => setText(e.target.value)} inputMode="decimal" placeholder={formatMoney(1.99, currency)}
+            data-autofocus aria-label={`Price of ${item.name}`} />
         </label>
-        <label className="shop-field"><span className="shop-label">For</span>
-          <input value={per} onChange={(e) => setPer(e.target.value)} placeholder="1 kg, or empty: each" />
-        </label>
-        <button type="submit" className="btn" disabled={p === null || !ok}>Note price</button>
+        <div className="shop-field">
+          <span className="shop-label" id={`per-${key}`}>For</span>
+          <div className="stock-units shop-per" role="group" aria-labelledby={`per-${key}`}>
+            <button type="button" aria-pressed={per === 'pack'} onClick={() => setPer('pack')}>{packG ? `${sizeText(packG, perMl)} pack` : 'each'}</button>
+            <button type="button" aria-pressed={per === 'kg'} onClick={() => setPer('kg')}>{perMl ? 'a litre' : 'a kg'}</button>
+          </div>
+        </div>
+        {shopNames.length > 0 && (
+          <Dropdown<string> label="Shop for the price" value={shop} onChange={setPicked} options={shopNames.map((n) => ({ value: n, label: n }))} />
+        )}
+        <button type="submit" className="btn btn-primary" disabled={!read || !shop}>Save price</button>
       </form>
-      {price.trim() !== '' && p === null && <p className="stock-hint is-warn">That is not a price.</p>}
-      {per.trim() !== '' && !amt && <p className="stock-hint is-warn">Say what it is for as an amount: "1 kg", "500 g", "1 l".</p>}
+      {text.trim() !== '' && !read && <p className="stock-hint is-warn">That is not a price.</p>}
+      {rows.length > 0 && (
+        <ul>
+          {rows.map((r) => (
+            <li key={r.id}>
+              <span className="shop-price-shop">{r.shop}</span>
+              <span className="shop-price">{priceLabel(r, currency, perMl)}{r.noted_on ? ` · ${dayText(r.noted_on)}` : ''}</span>
+              <button type="button" className="shop-x" aria-label={`Remove the price at ${r.shop}`}
+                onClick={async () => offerUndo(`Price at ${r.shop} removed`, await removePrice(r))}>×</button>
+            </li>
+          ))}
+        </ul>
+      )}
+      {code && (
+        <p className="pf-credit">
+          {PRICE_ATTRIBUTION}. <a href={openPricesPage(code)} target="_blank" rel="noopener noreferrer">See the reports</a>
+        </p>
+      )}
     </section>
   )
 }
@@ -626,10 +715,7 @@ function ListSheet({ view, onClose, onMade }: { view: ShoppingView; onClose: () 
         <label>Name
           <input ref={field} value={name} onChange={(e) => setName(e.target.value)} maxLength={LIST_MAX} placeholder="Me, Party, Chemist" />
         </label>
-        <p className="stock-hint">
-          {taken ? 'There is a list with that name already.'
-            : 'Planned meals stay on the main list. Items can be moved between lists from their ⋮ menu.'}
-        </p>
+        {taken && <p className="stock-hint is-warn">There is a list with that name already.</p>}
         <div className="sheet-actions">
           <button type="submit" className="btn btn-primary grow" disabled={!n || taken}>Make the list</button>
         </div>

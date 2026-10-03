@@ -19,8 +19,6 @@
 }
 .shop-suggest button > span:first-child { min-width: 0; overflow-wrap: anywhere; }
 .shop-suggest-why { flex: none; font-family: var(--font-sans); font-size: 12px; color: var(--e-ink-soft); }
-.shop-add-more { display: flex; flex-wrap: wrap; gap: var(--space-2); }
-.shop-add-more .btn { min-height: 40px; }
 
 /* ---- recently bought, chips ---------------------------------------------- */
 .shop-recent { padding: var(--space-3) var(--space-4) 0; }
@@ -161,3 +159,64 @@
 .shop-trip-done { margin: var(--space-3) var(--space-4) 0; padding: var(--space-3) var(--space-3) 0; background: var(--e-tint); border-radius: var(--radius-md); }
 .shop-trip-done p { margin: 0; font-family: var(--font-sans); font-size: 14px; }
 .shop-trip-done .shop-foot { padding: var(--space-3) 0; }
+
+/* ---- version 17: calm ---------------------------------------------------------- */
+/* The title and the page's one ⋮, which the open tab fills. */
+.shop-title { display: flex; align-items: center; gap: var(--space-2); min-width: 0; min-height: 48px; }
+.shop-menu-slot { margin-left: auto; display: flex; align-items: center; }
+
+/* Scan sits inside the add field while nothing is typed; Add takes its
+   place once something is. */
+.shop-scan {
+  width: 44px; height: 44px; display: grid; place-items: center; flex: none;
+  color: var(--e-ink-soft); border-radius: var(--radius-md);
+}
+.shop-scan:hover, .shop-scan:focus-visible { color: var(--e-ink); background: var(--e-tint); }
+.shop-add-row:not(:has(> .btn)) { grid-template-columns: minmax(0, 1fr); }
+.shop-add-row:has(> .shop-scan) { position: relative; }
+.shop-add-row:has(> .shop-scan) input { padding-right: 48px; }
+.shop-add-row > .shop-scan { position: absolute; right: 0; top: 50%; transform: translateY(-50%); }
+.stock-add-field { position: relative; min-width: 0; }
+.stock-add-field:has(> .shop-scan) .sp-field input { padding-right: 48px; }
+.stock-add-field > .shop-scan { position: absolute; right: 0; top: 0; height: 40px; }
+.shop-add .shop-recent { padding: 0; }
+
+/* A row with a price: the price sits quiet on the right, before the ⋮. */
+.shop-row.has-price { grid-template-columns: 48px minmax(0, 1fr) auto 44px; }
+.shop-price-btn {
+  min-height: 44px; padding: 0 var(--space-1); white-space: nowrap;
+  font-family: var(--font-sans); font-size: 13px; color: var(--e-ink-soft); border-radius: var(--radius-md);
+}
+.shop-price-btn:hover, .shop-price-btn:focus-visible { color: var(--e-ink); background: var(--e-tint); }
+.shop-row.is-ticked .shop-price-btn { text-decoration: line-through; text-decoration-thickness: 1px; }
+
+/* The one summary line, which opens to the rest. */
+.shop-summary { padding: var(--space-2) var(--space-4) 0; }
+.shop-summary-btn {
+  display: flex; align-items: center; gap: var(--space-2); min-height: 44px; max-width: 100%;
+  font-family: var(--font-sans); font-size: 14px; color: var(--e-ink); text-align: left;
+}
+.shop-summary-btn .shop-caret { margin-left: 0; color: var(--e-ink-soft); }
+.shop-summary-more { margin: 0 0 var(--space-2); font-family: var(--font-sans); font-size: 13px; color: var(--e-ink-soft); }
+
+/* The price sheet. */
+.shop-price-now { margin: 0 0 var(--space-3); font-family: var(--font-sans); font-size: 14px; color: var(--e-ink); }
+.shop-prices > .shop-price-now:first-child { margin-top: 0; }
+.shop-sheet > .shop-prices { margin-top: 0; border-top: 0; }
+.shop-price-form .shop-per { min-height: 44px; }
+.shop-price-form .shop-per button { flex: 1; min-height: 42px; }
+.shop-prices ul { margin-top: var(--space-3); }
+.shop-price-line {
+  min-height: 44px; padding: 8px 10px; text-align: left; width: 100%;
+  font-family: var(--font-sans); font-size: 14px; color: var(--e-ink);
+  background: var(--e-field); border: 1px solid var(--e-field-line); border-radius: var(--radius-md);
+}
+
+/* Stores: a link out to the chain's own offers page. */
+.shop-store-head.has-offers { grid-template-columns: minmax(0, 1fr) auto 44px; }
+.shop-offers {
+  display: flex; align-items: center; min-height: 44px; padding: 0 var(--space-2);
+  font-family: var(--font-sans); font-size: 13px; color: var(--e-accent); white-space: nowrap; text-decoration: none;
+}
+.shop-offers:hover, .shop-offers:focus-visible { text-decoration: underline; }
+.shop-aisles-body { padding-bottom: var(--space-3); }

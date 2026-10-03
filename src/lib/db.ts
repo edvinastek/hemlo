@@ -9,6 +9,7 @@ import type {
 import type { Exercise, Routine, RoutineLine } from './training-types'
 import type { Milestone } from './projects-types'
 import type { ShopPrice } from './shopping-types'
+import type { PriceCacheRow } from './price-rules'
 
 /** The local copy. Every device holds the whole account, so the app works
  *  with no connection at all and merges when one comes back. */
@@ -45,6 +46,7 @@ class GetItDB extends Dexie {
   routine_line!: Table<RoutineLine, string>
   milestone!: Table<Milestone, string>
   shop_price!: Table<ShopPrice, string>
+  price_cache!: Table<PriceCacheRow, string>
   pending!: Table<PendingChange, number>
   conflicts!: Table<ConflictEntry, number>
   meta!: Table<{ key: string; value: unknown }, string>
@@ -130,6 +132,11 @@ class GetItDB extends Dexie {
       routine_line: 'id, routine_id',
       milestone: 'id, profile_id, goal_id, project_id',
       workout_log: 'id, profile_id, log_date, routine_id',
+    })
+    // Version 13 (v17): prices people shared on Open Prices, by barcode, kept
+    // on this device for a week. Never synced: anyone can ask for them again.
+    this.version(13).stores({
+      price_cache: 'code',
     })
   }
 }

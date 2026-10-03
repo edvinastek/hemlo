@@ -38,6 +38,11 @@ Types, then every check that needs nothing but Node. CI runs the same command.
   dealt with; the shop filter, several lists, grouping by aisle and the basket, reordering, merging amounts; the recently
   bought tiles; prices per kilo, an item's cost and the trip's total; the window of meals; the shopping trip on the plan
   (made, counted, moved, removed, one per day); the chains offered in Stores, the person's country first.
+- `price` — prices on the list (v17): reading Open Prices answers (offers at their normal price, pack sizes, per kilo),
+  matching a shared price to the person's chain, the middle of the country's last 90 days on one footing, own prices
+  first, what a row and the summary say ("5 to get · €12.40 + 2 unpriced"), typing a price per pack or per kilo, the
+  shop a new price is for, the device's 7-day cache and how many products are asked about at once, and the chains'
+  official weekly offers pages. No network.
 - `pages` — which pages the bar has for which modules, their order, hidden pages, where a swipe lands, which addresses go to Today, and how each bar style shares the pages out.
 - `daytabs` — which tabs Today shows for a day (only what is on and has something that day), their order, the fallback to Today.
 - `colours` — module colours: the palette at 3:1 or more on both the light and the dark page, defaults, a task's module, choosing and resetting.
