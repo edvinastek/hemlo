@@ -159,6 +159,8 @@ export interface RecipeLine extends UnitAmount {
   raw_text: string | null
   grams_per_portion: number | null
   state: string | null
+  /** A short note on the line: "finely chopped" (003). */
+  note?: string | null
   sort_order: number
 }
 

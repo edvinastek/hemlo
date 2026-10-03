@@ -166,6 +166,7 @@ const plan = planImport(preview, {
 
 is('food already there is skipped, case-insensitive', plan.foodsExisting, 1)
 is('new food added as the user\'s own', plan.foods.map((f) => [f.name, f.owner_id, f.state]), [['Skyr', 'user-1', 'raw']])
+is('a workbook food’s carbohydrate is put on the EU basis (fibre taken out)', [plan.foods[0].carbs_g, plan.foods[0].carb_basis], [4, 'eu'])
 is('recipe already there is skipped', plan.recipesExisting, 1)
 is('one recipe added', plan.recipes.map((r) => [r.recipe.name, r.recipe.owner_id, r.recipe.kcal]), [['Skyr bowl', 'user-1', 200]])
 const planned = plan.recipes[0].lines

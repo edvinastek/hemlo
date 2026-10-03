@@ -324,6 +324,7 @@ export function parseIngredients(text: string): ParsedLine[] {
 export interface FoodRowPlan {
   id: string; owner_id: string; name: string
   kcal: number | null; carbs_g: number | null; fiber_g: number | null; fat_g: number | null; protein_g: number | null
+  carb_basis: 'eu'
   state: 'raw'; cook_yield: null; pack_size_g: null; store_section: null
   source: 'import'; updated_at: string; deleted_at: null
 }
@@ -398,9 +399,14 @@ export function planImport(
 
   for (const f of preview.foods) {
     if (matcher.has(f.name)) { plan.foodsExisting++; continue }
+    // The workbook's figures come from the same US list the old catalogue
+    // did: carbohydrate there includes fibre. It is kept on the EU basis, as
+    // every food is since 026 (FOOD-03).
+    const m = macros(f)
     const row: FoodRowPlan = {
       id: newId(), owner_id: ownerId, name: f.name.trim(),
-      ...macros(f),
+      ...m, carbs_g: m.carbs_g === null ? null : Math.max(0, Math.round((m.carbs_g - (m.fiber_g ?? 0)) * 100) / 100),
+      carb_basis: 'eu',
       state: 'raw', cook_yield: null, pack_size_g: null, store_section: null,
       source: 'import', updated_at: now, deleted_at: null,
     }
