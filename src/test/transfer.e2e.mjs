@@ -5,7 +5,7 @@ import { need, open, signIn, modulesOn, checks, drained, sql, profileOf, APP } f
 
 // Import and export end to end: a Finance entry exported as CSV from its
 // module page (the link clear of the add button), read back in, as a new row,
-// through More → Data → Import and export and found locally and in Postgres,
+// through Settings → Data and account → Import and export and found locally and in Postgres,
 // a second read of the same file adding nothing; then a small calendar file read
 // into Tasks, a weekly repeat included. Needs TEST_FEAT_EMAIL, TEST_PASSWORD, SB.
 need('TEST_FEAT_EMAIL', 'TEST_PASSWORD', 'SB')
@@ -45,8 +45,7 @@ await p.getByRole('button', { name: 'Close' }).click()
 // 3. The file, with its note changed so it is a new row, read back in through Settings.
 const again = `${note}-back`
 writeFileSync(csvPath, csv.replace(note, again))
-await p.goto(new URL('more', APP).href, { waitUntil: 'domcontentloaded' })
-await p.locator('.page [role=tab]', { hasText: 'Data' }).click()
+await p.goto(new URL('more?page=data', APP).href, { waitUntil: 'domcontentloaded' })
 await p.locator('.dd-button').first().click()
 await p.getByRole('option', { name: /^Finance/ }).click()
 await p.locator('.tx input[type=file]').setInputFiles(csvPath)

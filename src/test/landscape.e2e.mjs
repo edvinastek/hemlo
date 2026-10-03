@@ -134,14 +134,15 @@ for (const screen of SCREENS) {
 
   // The drawer on its side: its pages open in a box beside the rail.
   if (screen.width === 740) {
+    // Settings → Page bar (v17), opened by address.
     const toModules = async () => {
-      await p.goto(`${APP}more`, { waitUntil: 'domcontentloaded' })
+      await p.goto(`${APP}more?page=bar`, { waitUntil: 'domcontentloaded' })
       await p.locator('.bottom-nav').waitFor({ timeout: 20000 })
-      await p.click('.tabs button:has-text("Modules")')
       await p.waitForTimeout(400)
     }
     await toModules()
     const was = (await p.locator('.nv-style[aria-checked="true"] span').last().textContent())?.trim()
+    const picked = (await p.locator('button:has-text("Let GetIt pick")').count()) === 0
     await p.click('.nv-style:has-text("Drawer")')
     await p.waitForTimeout(800)
     await p.click('.nav-rail .nav-handle')
@@ -163,7 +164,8 @@ for (const screen of SCREENS) {
     await p.waitForTimeout(200)
     // Put the style back.
     await toModules()
-    if (was) await p.click(`.nv-style:has-text("${was}")`)
+    if (picked) await p.click('button:has-text("Let GetIt pick")')
+    else if (was) await p.click(`.nv-style:has-text("${was}")`)
     await p.waitForTimeout(800)
   }
 

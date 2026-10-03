@@ -1,5 +1,6 @@
-/* Settings (More): the search above the tabs, what it finds, the module
-   filter, the small number stepper and the "what moved" list. */
+/* Settings: the search, what it finds, the list of pages, a page's way
+   back, the module filter, the small number stepper and the "what moved"
+   list. */
 .more-search, .more-filter { padding-top: var(--space-3); }
 .more-filter { padding: var(--space-3) var(--space-4) 0; }
 .more-search input, .more-filter input {
@@ -8,10 +9,28 @@
   background: var(--e-field); color: var(--e-ink); font-family: var(--font-sans); font-size: 15px;
 }
 .more-found { list-style: none; margin: 0; padding: var(--space-2) 0; }
-.more-found button {
-  display: grid; gap: 2px; width: 100%; min-height: 52px; text-align: left;
+.more-found a {
+  display: grid; gap: 2px; width: 100%; min-height: 52px; text-align: left; box-sizing: border-box;
   padding: var(--space-2) var(--space-4); border-bottom: 1px solid var(--e-rule);
+  color: inherit; text-decoration: none;
 }
+/* The list of pages: a name, a few quiet words, and a chevron. */
+.more-pages { list-style: none; margin: var(--space-3) 0 0; padding: 0; border-top: 1px solid var(--e-rule); }
+.more-pages a {
+  display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: var(--space-3);
+  min-height: 56px; padding: var(--space-2) var(--space-4); box-sizing: border-box;
+  border-bottom: 1px solid var(--e-rule); color: inherit; text-decoration: none;
+}
+.more-pages a:focus-visible, .more-found a:focus-visible { outline: 2px solid var(--e-accent); outline-offset: -2px; }
+.more-page-text { display: grid; gap: 2px; min-width: 0; }
+.more-pages .row-meta { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.more-chev { font-family: var(--font-sans); font-size: 20px; color: var(--e-ink-soft); }
+/* A page's way back to the list, above its title. */
+.more-back {
+  display: inline-flex; align-items: center; gap: 4px; min-height: 40px; margin: 0 0 2px -4px; padding: 0 4px;
+  font-family: var(--font-sans); font-size: 14px; color: var(--e-accent);
+}
+.more-back span { font-size: 20px; line-height: 1; }
 .more-stepper { gap: 4px; }
 .more-stepper .btn { min-width: 40px; min-height: 40px; padding: 4px 8px; text-align: center; }
 .more-stepper input.btn { width: 52px; font-family: var(--font-sans); }
@@ -20,3 +39,7 @@
 .setting-row.more-stack { grid-template-columns: minmax(0, 1fr); }
 .more-times { flex-wrap: wrap; }
 .more-times input { min-width: 0; flex: 1 1 120px; }
+/* A source named in a quiet line links in the accent, not browser blue. */
+.setting-row .row-meta a { color: var(--e-accent); }
+/* A link drawn as a button reads as one: no underline, no browser blue. */
+.setting-row a.btn { color: var(--e-ink); text-decoration: none; display: inline-flex; align-items: center; }

@@ -1,20 +1,24 @@
-import { Children, useCallback, useEffect, useLayoutEffect, useRef, useState, type CSSProperties, type ReactNode, type RefObject, type TouchEvent } from 'react'
+import { Children, createContext, useCallback, useContext, useEffect, useLayoutEffect, useRef, useState, type CSSProperties, type ReactNode, type RefObject, type TouchEvent } from 'react'
 import { NavLink, useLocation, useNavigate } from 'react-router-dom'
 import { FIXED_PAGES, noteUse, pageForPath, type PageInfo, type Pages } from '../lib/pages'
 import { useApp } from '../lib/store'
 import { keepZone } from '../lib/timezone'
 import { listenForReminderActions, useReminderRoute } from '../lib/notify'
-import { drawerLayout, fanLayout, fanRows, gridLayout, rowLayout } from '../lib/pages-rules'
+import { drawerLayout, fanLayout, fanRows, gridLayout, holderOf, rowLayout } from '../lib/pages-rules'
+import { useInboxCount } from '../lib/inbox-count'
 import { useNarrow } from './useNarrow'
 import { useLayout } from './useLayout'
 import './nav.css'
 
 /** The page bar. Which pages it holds comes from the modules that are on
  *  (src/lib/pages.ts); how it holds them is the person's choice of style in
- *  More: one row, two or three rows, a drawer, or a fan. On a desktop it is
- *  the sidebar whatever the style, since the styles exist to fit a phone.
- *  A phone turned sideways gets a slim rail down the left instead (see
- *  useLayout.ts). Onboarding is the only screen without it. */
+ *  Settings (one row, two or three rows, a drawer, a fan or the hub), or,
+ *  until they choose, the row or the hub by how many pages there are. On a
+ *  phone it never scrolls sideways (CALM-04): what does not fit waits on the
+ *  Modules page. On a desktop it is the sidebar whatever the style, since
+ *  the styles exist to fit a phone. A phone turned sideways gets a slim rail
+ *  down the left instead (see useLayout.ts). Onboarding is the only screen
+ *  without it. */
 export function Nav({ pages }: { pages: Pages | undefined }) {
   const navRef = useRef<HTMLElement>(null)
   const narrow = useNarrow(899)
@@ -23,7 +27,7 @@ export function Nav({ pages }: { pages: Pages | undefined }) {
   const current = pageForPath(pathname)
   // Before the modules have loaded, the three pages that always exist.
   const bar = pages?.bar ?? FIXED_PAGES
-  const style = pages?.nav.style ?? 'row'
+  const style = pages?.style ?? 'row'
   useNavHeight(navRef, narrow && layout === 'bar')
   // The profile's time zone follows the phone unless one was chosen (GEN-69).
   // The bar is there whenever a profile is open, so it is checked here.
@@ -44,6 +48,13 @@ export function Nav({ pages }: { pages: Pages | undefined }) {
     if (current && current !== 'today' && current !== 'plan' && current !== 'more' && current !== 'modules') noteUse(current)
   }, [current])
 
+  return (
+    <Holder.Provider value={current}>
+      {pickBar()}
+    </Holder.Provider>
+  )
+
+  function pickBar() {
   if (layout === 'rail') {
     // The drawer keeps its idea (a few pages, the rest behind a button); the
     // other styles are all ways of fitting a row, so on the rail they become
@@ -58,13 +69,18 @@ export function Nav({ pages }: { pages: Pages | undefined }) {
       </nav>
     )
   }
-  if (style === 'two_rows' || style === 'three_rows') return <GridBar navRef={navRef} bar={bar} rows={style === 'two_rows' ? 2 : 3} current={current} />
+  if (style === 'two_rows' || style === 'three_rows') return <GridBar navRef={navRef} bar={bar} rows={style === 'two_rows' ? 2 : 3} />
   if (style === 'drawer') return <DrawerBar navRef={navRef} bar={bar} current={current} pathname={pathname} />
   if (style === 'fan') return <FanBar navRef={navRef} bar={bar} current={current} pathname={pathname} />
   // The hub style (NAV-20) is a short row: its bar already holds only Today,
-  // Plan, the pinned pages, Stats and the Modules page.
-  return <RowBar navRef={navRef} bar={bar} current={current} />
+  // Plan, up to two pinned pages and the Modules page.
+  return <RowBar navRef={navRef} bar={bar} />
+  }
 }
+
+/** The page open now, for the links: a page that is not on the bar marks
+ *  the Modules link, which holds it, so the bar always says where you are. */
+const Holder = createContext<string | null>(null)
 
 /** The bar's height, as --nav-h on the root, for whatever floats above it
  *  (the add button). Two or three rows make the bar taller than the fixed
@@ -83,19 +99,42 @@ function useNavHeight(ref: RefObject<HTMLElement>, narrow: boolean) {
   })
 }
 
-function PageLink({ page, className, onClick, style }: {
+/** One page on the bar. Only the page open now is drawn as chosen; Today
+ *  and Plan are told apart by colour and weight alone (CALM-04). A long name
+ *  is set a size smaller, and the longest wrap to a second line, so a label
+ *  is never cut off. */
+function PageLink({ page, className, onClick, style, bar }: {
   page: PageInfo; className?: string; onClick?: () => void; style?: CSSProperties
+  /** The pages beside this one, when it sits on a bar that may hold the open page's holder. */
+  bar?: PageInfo[]
 }) {
+  const current = useContext(Holder)
+  const holds = !!bar && holderOf(bar, current) === page.key
+  const size = page.label.length > 12 ? 'is-longest' : page.label.length > 9 ? 'is-long' : ''
   return (
     <NavLink to={page.route} end onClick={onClick} style={style}
-      className={['nav-item', page.primary ? 'is-primary' : '', className ?? ''].filter(Boolean).join(' ')}>
+      className={['nav-item', page.primary ? 'is-primary' : '', holds ? 'is-holder' : '', className ?? ''].filter(Boolean).join(' ')}>
       <span className="nav-glyph" aria-hidden="true">{page.glyph}</span>
-      <span className="nav-label">{page.label}</span>
+      <span className={`nav-label${size ? ` ${size}` : ''}`}>{page.label}</span>
+      {page.key === 'plan' && <InboxBadge />}
     </NavLink>
   )
 }
 
-const columns = (pages: PageInfo[]) => pages.map((p) => (p.primary ? '1.25fr' : '1fr')).join(' ')
+/** The Inbox's count on Plan: tasks waiting for a day (it replaces Today's
+ *  Inbox link). Nothing is drawn while the Inbox is empty. */
+function InboxBadge() {
+  const n = useInboxCount()
+  if (!n) return null
+  return (
+    <>
+      <span className="nav-badge" aria-hidden="true">{n > 99 ? '99+' : n}</span>
+      <span className="sr-only">, {n} in the Inbox</span>
+    </>
+  )
+}
+
+const columns = (pages: PageInfo[]) => pages.map(() => '1fr').join(' ')
 const reducedMotion = () => window.matchMedia('(prefers-reduced-motion: reduce)').matches
 
 /** A strip that scrolls (sideways on the bar, up and down on the rail),
@@ -154,42 +193,33 @@ function Scroller({ children, className, style, current, axis = 'x' }: {
 
 /* ---------- one row -------------------------------------------------------- */
 
-function RowBar({ navRef, bar, current }: { navRef: RefObject<HTMLElement>; bar: PageInfo[]; current: string | null }) {
-  const split = rowLayout(bar)
-  if (!split) {
-    return (
-      <nav ref={navRef} className="bottom-nav nav nav-row" aria-label="Pages" style={{ gridTemplateColumns: columns(bar) }}>
-        {bar.map((p) => <PageLink key={p.key} page={p} />)}
-      </nav>
-    )
-  }
-  // More than five: Today and Plan hold the left, More the right, and the
-  // modules scroll between them, so the three ways home never scroll away.
+/** Up to five pages side by side, each the same width. More than five
+ *  (someone who chose the row and has many modules): Today, Plan, the first
+ *  two in their order and the Modules page, which holds the rest. */
+function RowBar({ navRef, bar }: { navRef: RefObject<HTMLElement>; bar: PageInfo[] }) {
+  const row = rowLayout(bar)
   return (
-    <nav ref={navRef} className="bottom-nav nav nav-row nav-row-split" aria-label="Pages">
-      {split.fixedLeft.map((p) => <PageLink key={p.key} page={p} />)}
-      <Scroller className="nav-row-scroll" current={current}>
-        {split.scroll.map((p) => <PageLink key={p.key} page={p} />)}
-      </Scroller>
-      {split.fixedRight.map((p) => <PageLink key={p.key} page={p} />)}
+    <nav ref={navRef} className="bottom-nav nav nav-row" aria-label="Pages" style={{ gridTemplateColumns: columns(row) }}>
+      {row.map((p) => <PageLink key={p.key} page={p} bar={row} />)}
     </nav>
   )
 }
 
 /* ---------- two or three rows --------------------------------------------- */
 
-function GridBar({ navRef, bar, rows, current }: { navRef: RefObject<HTMLElement>; bar: PageInfo[]; rows: 2 | 3; current: string | null }) {
+function GridBar({ navRef, bar, rows }: { navRef: RefObject<HTMLElement>; bar: PageInfo[]; rows: 2 | 3 }) {
   const g = gridLayout(bar, rows)
+  const shown = [...g.primary, ...g.rest]
   return (
     <nav ref={navRef} className="bottom-nav nav nav-grid" aria-label="Pages"
       style={{ ['--rows' as string]: g.rows } as CSSProperties}>
       <div className="nav-grid-prim" style={{ gridTemplateColumns: `repeat(${g.primary.length}, 1fr)` }}>
         {g.primary.map((p) => <PageLink key={p.key} page={p} />)}
       </div>
-      <Scroller className="nav-grid-rest" current={current}
-        style={{ gridTemplateColumns: `repeat(${g.cols}, minmax(54px, 1fr))`, gridTemplateRows: `repeat(${g.rows}, auto)` }}>
-        {g.rest.map((p) => <PageLink key={p.key} page={p} />)}
-      </Scroller>
+      <div className="nav-grid-rest"
+        style={{ gridTemplateColumns: `repeat(${g.cols}, minmax(0, 1fr))`, gridTemplateRows: `repeat(${g.rows}, auto)` }}>
+        {g.rest.map((p) => <PageLink key={p.key} page={p} bar={shown} />)}
+      </div>
     </nav>
   )
 }
@@ -210,7 +240,7 @@ function RailBar({ navRef, bar, current }: { navRef: RefObject<HTMLElement>; bar
       <Scroller className="nav-rail-scroll" current={current} axis="y">
         {rest.map((p) => <PageLink key={p.key} page={p} />)}
       </Scroller>
-      {foot.map((p) => <PageLink key={p.key} page={p} />)}
+      {foot.map((p) => <PageLink key={p.key} page={p} bar={bar} />)}
     </nav>
   )
 }

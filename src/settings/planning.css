@@ -46,7 +46,7 @@
 
 .wf-note { margin: 0; font-family: var(--font-sans); font-size: 12px; color: var(--e-ink-soft); }
 
-/* More → Profile: the planning block. */
+/* Settings → Profile, Planning and Modules: where you are, work, the starting layout. */
 .pl-block { display: grid; gap: var(--space-3); padding: var(--space-2) var(--space-4) var(--space-3); }
 .pl-note { margin: 0; font-family: var(--font-sans); font-size: 12px; color: var(--e-ink-soft); }
 .pl-actions { display: flex; flex-wrap: wrap; gap: var(--space-2); align-items: center; }

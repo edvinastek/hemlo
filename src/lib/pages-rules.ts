@@ -1,4 +1,4 @@
-import type { NavSettings } from './settings'
+import type { NavSettings, NavStyle } from './settings'
 import { modulesOn } from './module-view-rules.ts'
 
 /** Which pages a profile has, in which order, and where the page bar puts
@@ -49,7 +49,9 @@ const NO_PAGE = new Set(['core', 'custom', 'nutrition', 'shopping'])
 
 export const TODAY: PageInfo = { key: 'today', label: 'Today', route: '/', glyph: '◉', primary: true, module: null }
 export const PLAN: PageInfo = { key: 'plan', label: 'Plan', route: '/plan', glyph: '▤', primary: true, module: null }
-export const MORE: PageInfo = { key: 'more', label: 'More', route: '/more', glyph: '⋯', primary: false, module: null }
+/** Settings: one name everywhere (v17), on the bar, as the Modules page's
+ *  link and as the page's own title. The address stays /more. */
+export const MORE: PageInfo = { key: 'more', label: 'Settings', route: '/more', glyph: '⚙\uFE0E', primary: false, module: null }
 export const FOOD: PageInfo = { key: 'food', label: 'Food', route: '/food', glyph: '◍', primary: false, module: 'nutrition' }
 export const SHOP: PageInfo = { key: 'shop', label: 'Shop', route: '/shop', glyph: '⛬', primary: false, module: 'shopping' }
 /** The Modules page (NAV-20): every module that is on, as a grid, with the
@@ -126,31 +128,70 @@ export interface PageList {
   all: PageInfo[]
   /** The pages on the bar, in order; swiping walks this list. */
   bar: PageInfo[]
+  /** The style the bar is drawn in: the person's, or the one the app picked. */
+  style: NavStyle
+}
+
+/** The most destinations a bar holds side by side (CALM-04): five fit a
+ *  360 px phone with every label whole, and the bar never scrolls. */
+export const BAR_MAX = 5
+
+/** The style the bar uses. Someone who picked one keeps it; until then the
+ *  app picks: the row while every page fits on it, the hub beyond that, so
+ *  a new person with many modules never meets a crowded, scrolling bar. */
+export function effectiveStyle(nav: Partial<Pick<NavSettings, 'style' | 'chosen'>>, shown: number): NavStyle {
+  if (nav.chosen !== false && nav.style) return nav.style
+  return shown > BAR_MAX ? 'hub' : 'row'
 }
 
 export function pageList(instances: InstanceLike[], built: BuiltLike[],
-  nav: Pick<NavSettings, 'order' | 'hidden'> & Partial<Pick<NavSettings, 'style' | 'pinned'>>): PageList {
+  nav: Pick<NavSettings, 'order' | 'hidden'> & Partial<Pick<NavSettings, 'style' | 'pinned' | 'chosen'>>): PageList {
   const all = orderPages(availablePages(instances, built), nav.order)
-  if (nav.style === 'hub') return { all, bar: hubBar(all, nav.pinned ?? []) }
   const hidden = new Set(nav.hidden.filter((k) => !isFixed(k)))
-  return { all, bar: all.filter((p) => !hidden.has(p.key)) }
+  const shown = all.filter((p) => !hidden.has(p.key))
+  const style = effectiveStyle(nav, shown.length)
+  if (style === 'hub') return { all, bar: hubBar(all, nav.pinned ?? []), style }
+  return { all, bar: shown, style }
 }
 
-/** The hub style's bar (NAV-20): Today, Plan, the pages pinned from the
- *  Modules page, Stats when it is on, and the Modules page, which holds
- *  everything else, More included. Pins of pages that have gone (a module
- *  switched off) are passed over. */
+/** The hub style's bar (NAV-20, CALM-04): Today, Plan, up to two pages
+ *  pinned from the Modules page, and the Modules page, which holds
+ *  everything else, Settings included. Stats takes a pin's place while one
+ *  is free, as it did before pins existed. Pins of pages that have gone (a
+ *  module switched off) are passed over. At most five, so it never scrolls. */
 export function hubBar(all: PageInfo[], pinned: string[]): PageInfo[] {
   const byKey = new Map(all.map((p) => [p.key, p]))
   const out: PageInfo[] = all.filter((p) => p.primary)
+  const pins: PageInfo[] = []
   for (const k of pinned) {
     const p = byKey.get(k)
-    if (p && !isFixed(k) && !out.includes(p)) out.push(p)
+    if (p && !isFixed(k) && !pins.includes(p)) pins.push(p)
   }
+  out.push(...pins.slice(-2))
   const stats = byKey.get('m:stats')
-  if (stats && !out.includes(stats)) out.push(stats)
+  if (stats && pins.length < 2 && !out.includes(stats)) out.push(stats)
   out.push(MODULES_PAGE)
   return out
+}
+
+/** A bar of more pages than fit (BAR_MAX) in a style that lays them side by
+ *  side: Today, Plan, the first pages in the person's order, and the Modules
+ *  page in the last place, which holds the rest. Nothing scrolls sideways
+ *  (CALM-04), and no page is lost: each is on the Modules page. A bar that
+ *  fits is left as it is. */
+export function fitBar(bar: PageInfo[], max = BAR_MAX): PageInfo[] {
+  if (bar.length <= max) return bar
+  const primary = bar.filter((p) => p.primary)
+  const others = bar.filter((p) => !p.primary && p.key !== 'more' && p.key !== 'modules')
+  return [...primary, ...others.slice(0, Math.max(0, max - primary.length - 1)), MODULES_PAGE]
+}
+
+/** The bar item to mark as where the person is when the page open now is
+ *  not on the bar itself: the Modules page, which holds it. Null when the
+ *  open page is on the bar (it marks itself) or is not a page at all. */
+export function holderOf(bar: PageInfo[], current: string | null): string | null {
+  if (!current || bar.some((p) => p.key === current)) return null
+  return bar.some((p) => p.key === 'modules') ? 'modules' : null
 }
 
 /** Pin a page to the bar (NAV-21): it joins the pinned pages (at most two,
@@ -226,25 +267,23 @@ export function neighbour(list: PageList, current: string | null, dir: 1 | -1): 
 
 /* ---------- layouts ---------------------------------------------------------- */
 
-/** The row style: up to five pages share the row; with more, Today and Plan
- *  stay at the left, More at the right, and the rest scroll between them. */
-export function rowLayout(bar: PageInfo[]): { fixedLeft: PageInfo[]; scroll: PageInfo[]; fixedRight: PageInfo[] } | null {
-  if (bar.length <= 5) return null
-  // The way to everything else (More, or the hub's Modules page) holds the right.
-  const end = (p: PageInfo) => p.key === 'more' || p.key === 'modules'
-  return {
-    fixedLeft: bar.filter((p) => p.primary),
-    scroll: bar.filter((p) => !p.primary && !end(p)),
-    fixedRight: bar.filter(end),
-  }
-}
+/** The row style: up to five pages share the row; with more, the row is
+ *  fitted (fitBar), so it never scrolls. */
+export const rowLayout = (bar: PageInfo[]): PageInfo[] => fitBar(bar)
+
+/** At most this many small tiles per row in the two- and three-row styles:
+ *  four fit beside Today and Plan on a 360 px phone with whole labels. */
+export const GRID_COLS = 4
 
 /** Two or three rows: Today and Plan are tall tiles at the left, spanning the
- *  rows; the rest fill a grid row by row. Fewer pages than rows use fewer
- *  rows, so one other page never sits alone in a three-row block. */
+ *  rows; the rest fill a grid row by row, at most four across. Fewer pages
+ *  than rows use fewer rows, so one other page never sits alone in a
+ *  three-row block. More than fit: the last tile is the Modules page. */
 export function gridLayout(bar: PageInfo[], rows: 2 | 3): { primary: PageInfo[]; rest: PageInfo[]; rows: number; cols: number } {
   const primary = bar.filter((p) => p.primary)
-  const rest = bar.filter((p) => !p.primary)
+  let rest = bar.filter((p) => !p.primary)
+  const room = rows * GRID_COLS
+  if (rest.length > room) rest = [...rest.filter((p) => p.key !== 'more' && p.key !== 'modules').slice(0, room - 1), MODULES_PAGE]
   const r = Math.max(1, Math.min(rows, rest.length))
   return { primary, rest, rows: r, cols: Math.max(1, Math.ceil(rest.length / r)) }
 }

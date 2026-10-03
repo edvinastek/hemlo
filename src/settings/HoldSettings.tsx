@@ -6,7 +6,7 @@ import { cleanHold, DEFAULT_HOLD, HOLD_LIMITS, seconds, type HoldTimes } from '.
 import { useLongPress } from '../ui/useLongPress'
 import './hold-settings.css'
 
-/** More → Hold times (TOD-10): how long a row is held before it can be
+/** Settings → Planning → Hold times (TOD-10): how long a row is held before it can be
  *  dragged, and before it opens in place. Both apply to every list that is
  *  held. A row to try them on, so the person feels the change before
  *  leaving. Kept in profile settings (hold), so every device follows. */
@@ -33,9 +33,6 @@ export function HoldSettings() {
   return (
     <section className="hs" aria-labelledby="hs-title">
       <p className="section-title" id="hs-title">Hold times</p>
-      <p className="hs-why">
-        A tap opens a task. Hold it a moment and move to drag it; hold it still a little longer to open it in place.
-      </p>
       <label className="hs-row">
         <span className="hs-label">Ready to drag after <b>{seconds(times.drag_ms)}</b></span>
         <input type="range" min={HOLD_LIMITS.drag[0]} max={1000} step={50} value={times.drag_ms}
@@ -46,7 +43,6 @@ export function HoldSettings() {
         <input type="range" min={times.drag_ms + HOLD_LIMITS.gap} max={2000} step={50} value={times.expand_ms}
           aria-valuetext={seconds(times.expand_ms)} onChange={(e) => change({ expand_ms: Number(e.target.value) })} />
       </label>
-      <p className="hs-note">Opening always takes at least 0.2 s longer than dragging, so a drag can begin.</p>
       <TryIt times={times} />
       {!isDefault && (
         <div className="hs-actions">

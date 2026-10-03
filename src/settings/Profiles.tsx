@@ -22,7 +22,7 @@ export function rememberedProfile(_userId?: string | undefined): string | null {
   try { return localStorage.getItem(PROFILE_MEMORY) } catch { return null }
 }
 
-/** More → Profile → Profiles (SET-02): the account's profiles, each with its
+/** Settings → Profile → Profiles (SET-02): the account's profiles, each with its
  *  own modules and data. Switch (remembered on this device), rename, add,
  *  and delete one that is not the account's own. A new profile starts with
  *  only the planner on and goes through the first-run setup. */
@@ -145,7 +145,7 @@ export function Profiles() {
         <div className="setting-row">
           <div>
             <div className="row-name">Another profile</div>
-            <div className="row-meta">Its own modules, plan and logs in the same account: someone you plan for, or a second life.</div>
+            <div className="row-meta">Its own modules, plan and logs: someone you plan for.</div>
           </div>
           <button type="button" className="btn" onClick={() => { setAdding(true); setNote(null) }}>Add</button>
         </div>
@@ -182,7 +182,7 @@ function TimeZone({ profileId, stored }: { profileId: string; stored: string | n
             {choice.follow
               ? `Follows this phone: ${phone ? zoneLabel(phone) : 'unknown'}.`
               : `Set to ${choice.zone ? zoneLabel(choice.zone) : 'none'}${phone && phone !== choice.zone ? `; this phone is on ${zoneLabel(phone)}` : ''}.`}
-            {' '}Used for the link that shows GetIt in Google Calendar. The app shows the phone’s own clock.
+            {' '}Used for the calendar link.
           </div>
         </div>
         <button type="button" className="switch" role="switch" aria-checked={choice.follow} aria-label="Time zone follows this phone"

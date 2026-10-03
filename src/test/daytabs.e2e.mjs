@@ -1,4 +1,4 @@
-import { need, open, signIn, sql, profileOf, today, checks, drained } from './e2e.mjs'
+import { need, open, signIn, sql, profileOf, today, checks, drained, openSettings, toPage } from './e2e.mjs'
 
 // Today's tabs follow the day, and module colours. At 360 px, light theme.
 // A Minimal planner shows no tab row; turning Habits on and having a habit
@@ -29,7 +29,7 @@ await sql(reset)
 const { b, p, errors } = await open({ viewport: { width: 360, height: 740 }, colorScheme: 'light' })
 await signIn(p, email)
 
-const go = async (href) => { await p.click(`.bottom-nav a[href="${href}"]`); await p.waitForTimeout(1200) }
+const go = async (href) => { await toPage(p, href); await p.waitForTimeout(1200) }
 const tabs = async () => (await p.locator('.page-head [role=tab]').allTextContents()).map((s) => s.trim())
 const selected = async () => (await p.locator('.page-head [role=tab][aria-selected=true]').textContent().catch(() => null))?.trim() ?? null
 const reload = async () => { await p.reload({ waitUntil: 'domcontentloaded' }); await p.waitForSelector('.bottom-nav', { timeout: 20000 }); await p.waitForTimeout(3000) }
@@ -46,8 +46,7 @@ is('a Minimal planner shows no tab row', (await tabs()).length, 0)
 is('and the row itself is not drawn', await p.locator('.page-head .tabs').isVisible(), false)
 
 // 2. Habits on, but no habit yet: still nothing to show.
-await go('/more')
-await p.click('[role=tab]:has-text("Modules")')
+await openSettings(p, 'modules')
 await p.click('button[role=switch][aria-label="Turn Habits on"]')
 await p.waitForTimeout(900)
 await go('/')
@@ -92,16 +91,14 @@ is('with colours on the row has a marker', await probe.evaluate((el) => el.class
 is('in the Work colour', await probe.evaluate((el) => el.style.getPropertyValue('--row-mod')), '#0a7ca6')
 is('nothing runs off a 360 px screen on Today', (await overflow()).join(', '), '')
 
-await go('/more')
-await p.click('[role=tab]:has-text("Profile")')
+await openSettings(p, 'looks')
 await p.click('button[role=switch][aria-label="Colour by module"]')
 await p.waitForTimeout(900)
 await go('/')
 is('with colours off the marker goes', await probe.evaluate((el) => el.classList.contains('has-mod')), false)
 
-// 6. Colours back on, and Work changed to Brick in More → Profile.
-await go('/more')
-await p.click('[role=tab]:has-text("Profile")')
+// 6. Colours back on, and Work changed to Brick in Settings → Looks.
+await openSettings(p, 'looks')
 await p.click('button[role=switch][aria-label="Colour by module"]')
 await p.locator('.cs-head[aria-label^="Work:"]').click()
 is('the palette opens with 16 swatches', await p.locator('.cs-grid .cs-pick').count(), 16)
@@ -117,9 +114,8 @@ const [row] = await sql(`select settings->'colours'->>'on' as on, settings->'col
   from public.profile where id = ${me}`)
 is('the colour reached profile.settings', row ? `${row.on} ${row.work}` : 'missing', 'true #c43f3e')
 
-// 7. Reset in More puts the default back, in Postgres too.
-await go('/more')
-await p.click('[role=tab]:has-text("Profile")')
+// 7. Reset in Settings → Looks puts the default back, in Postgres too.
+await openSettings(p, 'looks')
 await p.locator('.cs-head[aria-label^="Work:"]').click()
 await p.click('.cs-custom button:has-text("Reset")')
 await p.waitForTimeout(900)

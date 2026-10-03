@@ -1,6 +1,6 @@
 import { saveFile } from '../lib/native'
 import { useEffect, useState } from 'react'
-import { Link, useSearchParams } from 'react-router-dom'
+import { Link, useLocation, useNavigate, useSearchParams } from 'react-router-dom'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { db, resetLocal } from '../lib/db'
 import { useApp } from '../lib/store'
@@ -8,12 +8,10 @@ import { supabase } from '../lib/supabase'
 import { edit } from '../lib/write'
 import { MODULES } from '../modules/registry'
 import { setModuleEnabled } from '../modules/defs'
-import { Privacy } from './Privacy'
-import { readSettings } from '../lib/settings'
 import './more.css'
 import { ModuleEditor } from '../ui/ModuleEditor'
 import { BuiltModules } from '../modules/ModuleBuilder'
-import { PlanningSettings } from '../settings/PlanningSettings'
+import { StartingLayout, WhereYouAre, WorkSettings } from '../settings/PlanningSettings'
 import { HoldSettings } from '../settings/HoldSettings'
 import { TodayCardsSettings } from '../settings/TodayCardsSettings'
 import { FoodSettings } from '../settings/FoodSettings'
@@ -30,7 +28,8 @@ import { RecipeReview } from '../settings/RecipeReview'
 import { Accounts } from '../settings/Accounts'
 import { Profiles } from '../settings/Profiles'
 import { SignOut } from '../settings/SignOut'
-import { findSettings, SETTINGS_INDEX, SETTINGS_SECTIONS, type SettingEntry } from '../lib/settings-index-rules'
+import { AboutSettings } from '../settings/About'
+import { findSettings, pageForAddress, pageInfo, SETTINGS_INDEX, SETTINGS_PAGES, type SettingEntry, type SettingsPage } from '../lib/settings-index-rules'
 import { conflictLine } from '../lib/sync-rules'
 import { search } from '../lib/search-rules'
 import { Tip } from '../ui/Tip'
@@ -47,31 +46,25 @@ import type { ModuleInstance } from '../lib/types'
 import type { ImportPreview } from '../lib/excel'
 import type { ImportPlan, ImportSummary } from '../lib/import'
 
-/** The tabs (SET-01): Modules, Profile, Looks, Reminders, Data. */
-const SECTIONS: string[] = SETTINGS_SECTIONS
-
+/** Settings (SET-01, v17): a short list of pages, each opening on its own
+ *  (CALM-12), with one search over every setting that jumps into its page.
+ *  The address says which page is open (/more?page=looks), so Back returns
+ *  to the list and other screens can link straight to a page; the old
+ *  ?section= and ?find= addresses still land in the right place. */
 export function More() {
-  // ?section=Profile opens that tab (a followed event's "Open subscription
-  // settings", the "Make GetIt yours" tip's "Open Looks").
   const [params] = useSearchParams()
-  const asked = SECTIONS.find((s) => s === params.get('section'))
-  const [section, setSection] = useState(() => asked ?? 'Modules')
-  useEffect(() => { if (asked) setSection(asked) }, [asked])
-  const [editing, setEditing] = useState<string | null>(null)
-  // In the hub style the page is reached from the Modules page as Settings (NAV-23).
-  const hubStyle = useApp((s) => readSettings(s.profile).nav.style === 'hub')
-  const [query, setQuery] = useState('')
-  const [jump, setJump] = useState<SettingEntry | null>(null)
-  const found = findSettings(query)
-  // ?find=<title> opens that setting's tab and scrolls to it (the Chores
-  // page's "Invite someone" opens Household).
+  const { hash } = useLocation()
   const findAsked = params.get('find')
+  const page = pageForAddress({ page: params.get('page'), section: params.get('section'), find: findAsked, hash })
+  const [jump, setJump] = useState<SettingEntry | null>(null)
+  // ?find=<title> opens that setting's page and scrolls to it (the Chores
+  // page's "Invite someone" opens Household).
   useEffect(() => {
     const e = SETTINGS_INDEX.find((x) => x.title === findAsked)
-    if (e) { setSection(e.section); setEditing(null); setJump(e) }
+    if (e) setJump(e)
   }, [findAsked])
 
-  // After a search result opens its tab, scroll to its heading or row.
+  // After a search result opens its page, scroll to its heading or row.
   // Panels read their data first and draw a moment later, so the heading is
   // looked for a few times, and once found it is kept in view for a little
   // while as the panels above it fill in and push it down.
@@ -88,50 +81,93 @@ export function More() {
       if (seen >= 8 || ticks >= 25) { window.clearInterval(id); setJump(null) }
     }, 80)
     return () => window.clearInterval(id)
-  }, [jump, section])
+  }, [jump, page])
 
   return (
     <div className="page">
       <div className="page-inner">
-        <header className="page-head">
-          <h1 className="page-date">{hubStyle ? 'Settings' : 'More'}</h1>
-          <p className="page-sub">What the app is made of, and what it knows about you.</p>
-          <div className="more-search">
-            <input type="search" value={query} onChange={(e) => setQuery(e.target.value)}
-              placeholder="Find a setting" aria-label="Find a setting" />
-          </div>
-          {!query.trim() && (
-            <div className="tabs" role="tablist">
-              {SECTIONS.map((s) => (
-                <button key={s} role="tab" aria-selected={s === section}
-                  onClick={() => { setSection(s); setEditing(null) }}>{s}</button>
-              ))}
-            </div>
-          )}
-        </header>
-        {query.trim() && (
-          <ul className="more-found" aria-label="Settings found">
-            {found.length === 0 && <li className="mp-note">No setting has all of “{query.trim()}”.</li>}
-            {found.map((f) => (
-              <li key={f.section + f.title}>
-                <button type="button" onClick={() => { setSection(f.section); setEditing(null); setQuery(''); setJump(f) }}>
-                  <span className="row-name">{f.title}</span>
-                  <span className="row-meta">{f.section}</span>
-                </button>
+        {page ? <SettingsPageView page={page} /> : <SettingsHome />}
+      </div>
+    </div>
+  )
+}
+
+/** The Settings list: the search, then one row per page. */
+function SettingsHome() {
+  const [query, setQuery] = useState('')
+  const found = findSettings(query)
+  const to = (page: SettingsPage, find?: string) => `/more?page=${page}${find ? `&find=${encodeURIComponent(find)}` : ''}`
+  return (
+    <>
+      <header className="page-head">
+        <h1 className="page-date">Settings</h1>
+        <div className="more-search">
+          <input type="search" value={query} onChange={(e) => setQuery(e.target.value)}
+            placeholder="Find a setting" aria-label="Find a setting" />
+        </div>
+      </header>
+      {query.trim() ? (
+        <ul className="more-found" aria-label="Settings found">
+          {found.length === 0 && <li className="mp-note">No setting has all of “{query.trim()}”.</li>}
+          {found.map((f) => (
+            <li key={f.page + f.title}>
+              <Link to={to(f.page, f.title)}>
+                <span className="row-name">{f.title}</span>
+                <span className="row-meta">{pageInfo(f.page)?.title}</span>
+              </Link>
+            </li>
+          ))}
+        </ul>
+      ) : (
+        <>
+          <Tip id="make-yours" />
+          <ul className="more-pages" aria-label="Settings">
+            {SETTINGS_PAGES.map((p) => (
+              <li key={p.key}>
+                <Link to={to(p.key)}>
+                  <span className="more-page-text">
+                    <span className="row-name">{p.title}</span>
+                    <span className="row-meta">{p.line}</span>
+                  </span>
+                  <span className="more-chev" aria-hidden="true">›</span>
+                </Link>
               </li>
             ))}
           </ul>
-        )}
+        </>
+      )}
+    </>
+  )
+}
 
-        {!query.trim() && section === 'Modules' && (editing
-          ? <ModuleEditor moduleKey={editing} onBack={() => setEditing(null)} />
-          : <Modules onEdit={setEditing} />)}
-        {!query.trim() && section === 'Profile' && <ProfilePanel />}
-        {!query.trim() && section === 'Looks' && <LooksPanel />}
-        {!query.trim() && section === 'Reminders' && <RemindersPanel />}
-        {!query.trim() && section === 'Data' && <DataPanel />}
-      </div>
-    </div>
+/** One Settings page: a way back to the list, its title, and its panels. */
+function SettingsPageView({ page }: { page: SettingsPage }) {
+  const navigate = useNavigate()
+  const info = pageInfo(page)!
+  const [editing, setEditing] = useState<string | null>(null)
+  if (page === 'modules' && editing) {
+    return <ModuleEditor moduleKey={editing} onBack={() => setEditing(null)} />
+  }
+  return (
+    <>
+      <header className="page-head more-sub-head">
+        <button type="button" className="more-back" onClick={() => navigate('/more')}>
+          <span aria-hidden="true">‹</span> Settings
+        </button>
+        <h1 className="page-date">{info.title}</h1>
+      </header>
+      {page === 'profile' && <ProfilePanel />}
+      {page === 'looks' && <><LooksSettings /><ColourSettings /></>}
+      {page === 'bar' && <NavSettings />}
+      {page === 'modules' && <><Modules onEdit={setEditing} /><StartingLayout /></>}
+      {page === 'planning' && <PlanningPanel />}
+      {page === 'food' && <><FoodSettings /><BodySettings /></>}
+      {page === 'shopping' && <><ShoppingSettings /><HouseholdShare /></>}
+      {page === 'calendars' && <><CalendarLinks /><HolidaySettings /></>}
+      {page === 'reminders' && <RemindersPanel />}
+      {page === 'data' && <DataPanel />}
+      {page === 'about' && <AboutSettings />}
+    </>
   )
 }
 
@@ -163,12 +199,10 @@ function Modules({ onEdit }: { onEdit: (key: string) => void }) {
 
   return (
     <>
-      <Tip id="make-yours" />
-      <NavSettings />
       <div className="setting-row">
         <div>
           <div className="row-name">Modules page</div>
-          <div className="row-meta">Every module that is on, most used first, with one search over what they hold.</div>
+          <div className="row-meta">Every module that is on, with search.</div>
         </div>
         <Link className="btn" to="/modules">Open</Link>
       </div>
@@ -208,7 +242,7 @@ function Row({ name, summary, depth, instance, onToggle, onCreate, onEdit }: {
         </div>
       </div>
       <div className="row-right">
-        <button className="btn" onClick={onEdit}>Edit</button>
+        <button className="btn" onClick={onEdit} aria-label={`Edit ${name}`}>Edit</button>
         <button
           className="switch"
           role="switch"
@@ -224,21 +258,24 @@ function Row({ name, summary, depth, instance, onToggle, onCreate, onEdit }: {
 function ProfilePanel() {
   const { profile } = useApp()
   if (!profile) return <p className="empty">No profile yet.</p>
-
   return (
     <>
       <Profiles />
+      <WhereYouAre />
+    </>
+  )
+}
 
-      <PlanningSettings />
+/** Settings → Planning: the work week, how a hold behaves, Today's cards,
+ *  note templates and the evening review. */
+function PlanningPanel() {
+  return (
+    <>
+      <WorkSettings />
       <HoldSettings />
       <TodayCardsSettings />
-      <HolidaySettings />
-      <CalendarLinks />
       <NoteTemplates />
-      <BodySettings />
-      <FoodSettings />
-      <ShoppingSettings />
-      <HouseholdShare />
+      <ReviewSettings />
     </>
   )
 }
@@ -262,17 +299,14 @@ function RemindersPanel() {
     <>
       <p className="section-title">Who reminds you</p>
       <Field label="Name" value={profile.ai_persona_name ?? ''}
-        hint="The name reminders arrive under. Leave it empty and they come from GetIt."
+        hint="Left empty, reminders come from GetIt."
         onSave={(v) => edit('profile', profile, { ai_persona_name: v || null })} />
 
       <p className="section-title">Reminders on this device</p>
       <div className="setting-row">
         <div>
           <div className="row-name">Remind me at each item’s time</div>
-          <div className="row-meta">
-            Within a few minutes of the time, for the next three days, even with GetIt closed.
-            On a locked phone the text is hidden. This setting is for this device only.
-          </div>
+          <div className="row-meta">Even with GetIt closed; the text is hidden on a locked phone.</div>
         </div>
         <button className="switch" role="switch" aria-checked={settings.on}
           aria-label="Reminders" onClick={() => void update({ ...settings, on: !settings.on })} />
@@ -285,28 +319,30 @@ function RemindersPanel() {
             : 'Nothing arrives between these times.'}</div>
         </div>
         <div className="row-right more-times">
-          <input className="btn" type="time" value={settings.quietFrom}
+          <input className="btn" type="time" value={settings.quietFrom} aria-label="Quiet hours from"
             onChange={(e) => void update({ ...settings, quietFrom: e.target.value })} />
           <span className="row-meta">to</span>
-          <input className="btn" type="time" value={settings.quietTo}
+          <input className="btn" type="time" value={settings.quietTo} aria-label="Quiet hours to"
             onChange={(e) => void update({ ...settings, quietTo: e.target.value })} />
         </div>
       </div>
       <div className="setting-row">
         <div>
           <div className="row-name">Hold them until quiet hours end</div>
-          <div className="row-meta">Off: a reminder in quiet hours is dropped. On: it arrives when they end.</div>
+          <div className="row-meta">Off: a reminder in quiet hours is dropped.</div>
         </div>
         <button className="switch" role="switch" aria-checked={settings.quietDelay}
           aria-label="Hold reminders until quiet hours end" onClick={() => void update({ ...settings, quietDelay: !settings.quietDelay })} />
       </div>
-      <p className="mp-note">
-        Each module decides whether it reminds you: Edit module → Show → Send reminders. Habits, chores, events and
-        records with a time remind you like tasks do.
-      </p>
+      <div className="setting-row">
+        <div>
+          <div className="row-name">Which modules remind you</div>
+          <div className="row-meta">Each module’s Settings → Show → Send reminders.</div>
+        </div>
+        <Link className="btn" to="/modules">Modules</Link>
+      </div>
       {note && <p className="empty" style={{ color: 'var(--e-warn)' }}>{note}</p>}
 
-      <ReviewSettings />
       <TipsSettings />
     </>
   )
@@ -330,7 +366,7 @@ function ReviewSettings() {
       <div className="setting-row">
         <div>
           <div className="row-name">Review time</div>
-          <div className="row-meta">From this time, what is left of the day is offered for a new day. This device only.</div>
+          <div className="row-meta">From then, what is left of the day is offered for another. This device only.</div>
         </div>
         <input className="btn" type="time" value={review.time} aria-label="Review time"
           onChange={(e) => e.target.value && void setReviewTime(e.target.value)} />
@@ -338,7 +374,7 @@ function ReviewSettings() {
       <div className="setting-row">
         <div>
           <div className="row-name">Moved this many times, it is flagged</div>
-          <div className="row-meta">A task pushed to another day this often is marked, and its reminder asks for a new time. This device only.</div>
+          <div className="row-meta">Its reminder then asks for a new time. This device only.</div>
         </div>
         <div className="row-right more-stepper">
           <button type="button" className="btn" aria-label="One fewer" disabled={review.limit <= 1}
@@ -354,7 +390,8 @@ function ReviewSettings() {
   )
 }
 
-/** Tips shown once (ONB-13), again on request, and what moved where (NAV-26). */
+/** Tips shown once (ONB-13, CALM-14), again on request, and what moved
+ *  where (NAV-26). */
 function TipsSettings() {
   const [shown, setShown] = useState(false)
   const [done, setDone] = useState(false)
@@ -364,14 +401,14 @@ function TipsSettings() {
       <div className="setting-row">
         <div>
           <div className="row-name">Show tips again</div>
-          <div className="row-meta">Each tip appears once, where it helps. This shows every one again on this device.</div>
+          <div className="row-meta">Each tip shows once.</div>
         </div>
         <button className="btn" disabled={done} onClick={() => { saveTipState(resetTips(tipState())); setDone(true) }}>{done ? 'Done' : 'Show again'}</button>
       </div>
       <div className="setting-row">
         <div>
           <div className="row-name">What moved where</div>
-          <div className="row-meta">Where each thing went in this version. Nothing was taken away.</div>
+          <div className="row-meta">Where things went in this version.</div>
         </div>
         <button className="btn" aria-expanded={shown} onClick={() => setShown((v) => !v)}>{shown ? 'Hide' : 'Read'}</button>
       </div>
@@ -388,10 +425,6 @@ function DataPanel() {
   const [saving, setSaving] = useState(false)
   const conflicts = useLiveQuery(() => db.conflicts.reverse().limit(20).toArray(), [], [])
   const pending = useLiveQuery(() => db.pending.count(), [], 0)
-  const [policy, setPolicy] = useState(false)
-
-  if (policy) return <Privacy onBack={() => setPolicy(false)} />
-
   async function doExport() {
     if (!profile) return
     const blob = await exportBundle(profile.id)
@@ -443,16 +476,14 @@ function DataPanel() {
       <div className="setting-row">
         <div>
           <div className="row-name">Waiting to send</div>
-          <div className="row-meta">
-            Changes made while offline sit here and go up the moment there is a connection.
-          </div>
+          <div className="row-meta">Changes made offline go up the moment there is a connection.</div>
         </div>
         <span className="chip">{pending} queued</span>
       </div>
 
       <p className="section-title">Merges the app had to resolve</p>
       {conflicts.length === 0
-        ? <p className="empty">None. When two devices change the same field, what happened is listed here rather than decided silently.</p>
+        ? <p className="empty">None so far.</p>
         : conflicts.map((c) => {
           // Refused changes say so, and every value reads as words (SET-07).
           const line = conflictLine(c)
@@ -470,14 +501,14 @@ function DataPanel() {
       <div className="setting-row">
         <div>
           <div className="row-name">Export</div>
-          <div className="row-meta">Everything in one file: profile, plan, logs, recipes, settings.</div>
+          <div className="row-meta">Everything, in one file.</div>
         </div>
         <button className="btn" onClick={doExport}>Export</button>
       </div>
       <div className="setting-row">
         <div>
           <div className="row-name">Import</div>
-          <div className="row-meta">An export from another device, or your Excel workbook.</div>
+          <div className="row-meta">A GetIt export, or your Excel workbook.</div>
         </div>
         <label className="btn" style={{ cursor: 'pointer' }}>
           Choose file
@@ -585,15 +616,6 @@ function DataPanel() {
       {note && <p className="empty">{note}</p>}
       <TransferSettings />
 
-      <p className="section-title">Privacy</p>
-      <div className="setting-row">
-        <div>
-          <div className="row-name">Privacy policy</div>
-          <div className="row-meta">What GetIt stores, why, where, and how to get it back or delete it.</div>
-        </div>
-        <button className="btn" onClick={() => setPolicy(true)}>Read</button>
-      </div>
-
       <p className="section-title">Account</p>
       <Accounts />
       <SignOut />
@@ -667,13 +689,13 @@ function DeleteAccount() {
     <div className="setting-row" style={{ alignItems: 'start' }}>
       <div>
         <div className="row-name">Delete account</div>
-        <div className="row-meta">
-          Removes your account, your profiles, plan, logs, recipes and settings from the server
-          and from this device. A household you share passes to the other member.
-          This cannot be undone.
-        </div>
+        <div className="row-meta">Everything, from the server and this device. It cannot be undone.</div>
         {open && (
           <div style={{ marginTop: 'var(--space-3)', display: 'grid', gap: 'var(--space-2)' }}>
+            <p className="row-meta">
+              Your account, profiles, plan, logs, recipes and settings go. A household you share passes to
+              the other member. Export first if you want a copy.
+            </p>
             <label className="row-meta">
               Type <b>delete</b> to confirm
               <input className="btn" style={{ display: 'block', marginTop: 4, width: 200 }}
@@ -692,16 +714,5 @@ function DeleteAccount() {
               onClick={() => void remove()}>{busy ? 'Deleting…' : 'Delete for good'}</button>
           </div>}
     </div>
-  )
-}
-
-/** Settings → Looks (SET-01). The colours of the modules live here; the
- *  themes, mode, text size and app icon join them (LOOK-01 to LOOK-10). */
-function LooksPanel() {
-  return (
-    <>
-      <LooksSettings />
-      <ColourSettings />
-    </>
   )
 }

@@ -18,7 +18,7 @@ const GOALS: { value: Goal; label: string }[] = [
 ]
 const SEXES = [{ value: 'female' as const, label: 'Female' }, { value: 'male' as const, label: 'Male' }]
 
-/** More → Profile → Body and goal: what the calorie budget rests on (sex,
+/** Settings → Food and body → Body and goal: what the calorie budget rests on (sex,
  *  height, date of birth, goal, activity) and the numbers behind it (BODY-03).
  *  Any change works the targets out again from the latest weigh-in, starting
  *  today, and says so (BODY-04). The activity is the same picker onboarding
@@ -52,9 +52,6 @@ export function BodySettings() {
   return (
     <>
       <p className="section-title">Body and goal</p>
-      <p className="empty" style={{ padding: '0 var(--space-4) var(--space-2)' }}>
-        Optional. Used only for the calorie and protein budget; nothing here is needed to plan.
-      </p>
       <div className="setting-row">
         <div className="row-name">Sex</div>
         <div style={{ width: 170 }}>

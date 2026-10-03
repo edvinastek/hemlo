@@ -1,32 +1,43 @@
+import { useEffect, useState } from 'react'
 import { format } from 'date-fns'
 import { Link } from 'react-router-dom'
 import { dismissTip, tipById, tipShows } from '../lib/tips-rules'
-import { saveTipState, useTipState } from '../lib/tips'
+import { claimTip, saveTipState, tipPlaceFree, tipState, useTipState } from '../lib/tips'
 import './tip.css'
 
-/** A tip shown once, where it is useful (ONB-13): `<Tip id="first-hold" />`.
- *  It goes for good with "Got it"; Settings → Reminders → Tips brings them
- *  all back. Anyone may place one; ids are in tips-rules.ts. */
+const today = () => format(new Date(), 'yyyy-MM-dd')
+
+/** A tip (ONB-13, CALM-14): one slim line with ×, where it helps:
+ *  `<Tip id="first-hold" />`. At most one shows in a session, app-wide, and
+ *  once it has shown it never comes back; Settings → Reminders and tips →
+ *  Show tips again brings them all back. Ids are in tips-rules.ts. */
 export function Tip({ id }: { id: string }) {
   const s = useTipState()
   const tip = tipById(id)
-  if (!tip || !tipShows(id, s, format(new Date(), 'yyyy-MM-dd'))) return null
+  // Decided once, when the tip first draws: it keeps its place while it is
+  // on screen even though it counts as seen from that moment.
+  const [mine] = useState(() => !!tip && tipShows(id, s, today()) && claimTip(id))
+  const [closed, setClosed] = useState(false)
+  useEffect(() => { if (mine) saveTipState(dismissTip(tipState(), id)) }, [mine, id])
+  if (!mine || closed || !tip) return null
   return (
     <aside className="tip" aria-label="Tip" role="note">
-      <p>{tip.text}</p>
-      <div className="tip-actions">
-        {id === 'make-yours' && <Link className="tip-go" to="/more?section=Looks" onClick={() => saveTipState(dismissTip(s, id))}>Open Looks</Link>}
-        <button type="button" className="tip-ok" onClick={() => saveTipState(dismissTip(s, id))}>Got it</button>
-      </div>
+      <p>
+        {tip.text}
+        {id === 'make-yours' && <> <Link className="tip-go" to="/more?page=looks" onClick={() => setClosed(true)}>Open Looks</Link></>}
+      </p>
+      <button type="button" className="tip-close" aria-label="Close tip" onClick={() => setClosed(true)}>×</button>
     </aside>
   )
 }
 
-/** Of several tips, the first that is still to be seen: one at a time, so
- *  a page never opens under a pile of them. */
+/** Of several tips, the first that is still to be seen and may show now.
+ *  The choice is kept, so the tip does not change under the person once
+ *  the first one counts as seen. */
 export function FirstTip({ ids }: { ids: string[] }) {
   const s = useTipState()
-  const today = format(new Date(), 'yyyy-MM-dd')
-  const id = ids.find((x) => tipShows(x, s, today))
-  return id ? <Tip id={id} /> : null
+  const [chosen, setChosen] = useState<string | null>(null)
+  const candidate = ids.find((x) => tipShows(x, s, today()) && tipPlaceFree(x)) ?? null
+  useEffect(() => { if (!chosen && candidate) setChosen(candidate) }, [chosen, candidate])
+  return chosen ? <Tip id={chosen} /> : null
 }

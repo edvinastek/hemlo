@@ -1,4 +1,4 @@
-import { need, open, signIn, sql, profileOf, checks, drained, modulesOn } from './e2e.mjs'
+import { need, open, signIn, sql, profileOf, checks, drained, modulesOn, toPage } from './e2e.mjs'
 
 // Food counted in units (migration 022), at 360 px: an own food "E2E eggs" is
 // given the unit egg of 50 g on its page; a recipe written as "2 eggs" saves
@@ -37,7 +37,7 @@ const overflow = () => p.evaluate(() => {
 })
 
 // 1. The food's page: add the unit egg, 50 g.
-await p.click('.bottom-nav a[href="/food"]')
+await toPage(p, '/food')
 await p.click('.tabs button:has-text("Foods")')
 await p.fill('input[aria-label="Search foods, in English or Dutch"]', food)
 await p.locator(`button[aria-label="Open ${food}"]`).first().click({ timeout: 20000 })
@@ -101,7 +101,7 @@ is('the ingredient list counts eggs', JSON.stringify(copied), JSON.stringify(`${
 await p.locator('.sb-bar button:has-text("Done")').click()
 
 // 4. Twelve eggs in stock.
-await p.click('.bottom-nav a[href="/shop"]')
+await toPage(p, '/shop')
 await p.click('.tabs button:has-text("Stock")')
 await p.fill('input[aria-label="Food to add to stock"]', food)
 await p.locator('.sp-list li', { has: p.locator('.sp-name', { hasText: food }) }).first().click()

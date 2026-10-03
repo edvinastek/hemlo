@@ -4,7 +4,7 @@
 import {
   availablePages, orderPages, pageList, pageForPath, pageAllowed, neighbour,
   rowLayout, gridLayout, drawerLayout, fanLayout, fanRows, isFixed,
-  hubBar, pinPage, unpinPage, orderByUse, countUse,
+  hubBar, pinPage, unpinPage, orderByUse, countUse, effectiveStyle, fitBar, holderOf, BAR_MAX,
 } from '../lib/pages-rules.ts'
 
 let fail = 0
@@ -16,10 +16,13 @@ const is = (label, got, want) => {
 
 const on = (...keys) => keys.map((k, i) => ({ module_key: k, enabled: true, sort_order: i }))
 const keys = (pages) => pages.map((p) => p.key)
-const nav = (order = [], hidden = []) => ({ order, hidden })
+const nav = (order = [], hidden = []) => ({ order, hidden, style: 'row', chosen: true })
+/** Nobody has picked a style: the app picks (CALM-04). */
+const auto = (order = [], hidden = []) => ({ order, hidden, style: 'row', chosen: false })
 
 /* ---------- which pages exist ---------- */
-is('no modules: Today, Plan, More', keys(availablePages([], [])), ['today', 'plan', 'more'])
+is('no modules: Today, Plan, Settings', keys(availablePages([], [])), ['today', 'plan', 'more'])
+is('Settings is one name, on the bar too', availablePages([], []).find((p) => p.key === 'more').label, 'Settings')
 is('nutrition gives Food, shopping gives Shop', keys(availablePages(on('shopping', 'nutrition'), [])), ['today', 'plan', 'food', 'shop', 'more'])
 is('a switched-off module has no page',
   keys(availablePages([{ module_key: 'nutrition', enabled: false }, ...on('habits')], [])), ['today', 'plan', 'm:habits', 'more'])
@@ -79,14 +82,23 @@ is('no wrapping at either end', [neighbour(list, 'today', -1), neighbour(list, '
 is('no swipe from a page that is not there', neighbour(list, 'm:training', 1), null)
 
 /* ---------- layouts ---------- */
-const many = pageList(on('nutrition', 'shopping', 'habits', 'sleep', 'finance', 'agenda'), [], nav())
-is('five or fewer share one row', rowLayout(pageList(on('nutrition', 'shopping'), [], nav()).bar), null)
+const chosenRow = { order: [], hidden: [], style: 'row', chosen: true }
+const many = pageList(on('nutrition', 'shopping', 'habits', 'sleep', 'finance', 'agenda'), [], chosenRow)
+const few = pageList(on('nutrition', 'shopping'), [], auto())
+is('five or fewer share one row as they are', keys(rowLayout(few.bar)), ['today', 'plan', 'food', 'shop', 'more'])
 const row = rowLayout(many.bar)
-is('more than five: Today and Plan left, More right, the rest scroll',
-  [keys(row.fixedLeft), keys(row.scroll), keys(row.fixedRight)],
-  [['today', 'plan'], ['food', 'shop', 'm:habits', 'm:agenda', 'm:sleep', 'm:finance'], ['more']])
+is('more than five on a chosen row: Today, Plan, the first two, and Modules; nothing scrolls',
+  keys(row), ['today', 'plan', 'food', 'shop', 'modules'])
+is('a fitted bar never passes five', [3, 6, 9, 14].every((n) => fitBar(availablePages(on(...['nutrition', 'shopping', 'training', 'habits', 'supplements', 'health', 'learning', 'agenda', 'sleep', 'projects', 'finance', 'household', 'stats'].slice(0, n)), [])).length <= BAR_MAX), true)
+is('the Modules link marks a page that is not on the bar', holderOf(row, 'm:finance'), 'modules')
+is('…but not one that is', holderOf(row, 'food'), null)
+is('…nor a bar without the Modules link', holderOf(few.bar, 'm:finance'), null)
 const g2 = gridLayout(many.bar, 2)
 is('two rows: seven others in four columns', [keys(g2.primary), g2.rest.length, g2.rows, g2.cols], [['today', 'plan'], 7, 2, 4])
+const lots = pageList(on('nutrition', 'shopping', 'training', 'habits', 'supplements', 'health', 'learning', 'agenda', 'sleep', 'projects', 'finance', 'household', 'stats'), [], { ...chosenRow, style: 'two_rows' })
+const g2b = gridLayout(lots.bar, 2)
+is('two rows with too many: eight tiles, the last the Modules page, never wider than four',
+  [g2b.rest.length, g2b.cols, g2b.rest[g2b.rest.length - 1].key], [8, 4, 'modules'])
 const g3 = gridLayout(pageList(on('habits'), [], nav()).bar, 3)
 is('three rows with two others uses two rows', [g3.rows, g3.cols], [2, 1])
 const d1 = drawerLayout(many.bar, 'today')
@@ -101,16 +113,28 @@ is('nothing to fan, no rows', fanRows(0, 4), [])
 
 /* ---------- the hub style and the Modules page (NAV-20 to NAV-22) ---------- */
 const hubMods = on('nutrition', 'shopping', 'training', 'habits', 'sleep', 'stats')
-const hub = (pinned = [], hidden = []) => pageList(hubMods, [], { order: [], hidden, style: 'hub', pinned })
+const hub = (pinned = [], hidden = []) => pageList(hubMods, [], { order: [], hidden, style: 'hub', pinned, chosen: true })
 is('hub: Today, Plan, Stats and Modules', keys(hub().bar), ['today', 'plan', 'm:stats', 'modules'])
-is('hub: pinned pages after Plan, in pin order', keys(hub(['m:sleep', 'food']).bar), ['today', 'plan', 'm:sleep', 'food', 'm:stats', 'modules'])
+is('hub: two pins take the places, Stats gives way: five at most', keys(hub(['m:sleep', 'food']).bar), ['today', 'plan', 'm:sleep', 'food', 'modules'])
+is('hub: one pin and Stats', keys(hub(['m:sleep']).bar), ['today', 'plan', 'm:sleep', 'm:stats', 'modules'])
 is('hub: a pin of a page that has gone is passed over', keys(hub(['m:finance']).bar), ['today', 'plan', 'm:stats', 'modules'])
 is('hub: a pin wins over hiding', keys(hub(['food'], ['food']).bar), ['today', 'plan', 'food', 'm:stats', 'modules'])
+is('hub: never more than five', keys(hubBar(hub().all, ['food', 'shop', 'm:sleep'])).length, 5)
+
+/* ---------- which style, when nobody chose (CALM-04) ---------- */
+is('not chosen, five pages or fewer: the row', effectiveStyle({ style: 'row', chosen: false }, 5), 'row')
+is('not chosen, more than five: the hub', effectiveStyle({ style: 'row', chosen: false }, 6), 'hub')
+is('chosen: kept, however many', [effectiveStyle({ style: 'row', chosen: true }, 14), effectiveStyle({ style: 'fan', chosen: true }, 3)], ['row', 'fan'])
+is('a new profile with many modules gets the hub bar',
+  [pageList(hubMods, [], auto()).style, keys(pageList(hubMods, [], auto()).bar)], ['hub', ['today', 'plan', 'm:stats', 'modules']])
+is('a few modules keep the row', [few.style, keys(few.bar)], ['row', ['today', 'plan', 'food', 'shop', 'more']])
+is('hidden pages count out: hiding enough keeps the row',
+  pageList(hubMods, [], auto([], ['food', 'shop', 'm:training', 'm:habits'])).style, 'row')
 is('hub: without Stats on, no Stats', keys(hubBar(availablePages(on('habits'), []), [])), ['today', 'plan', 'modules'])
 is('hub: every page still opens', pageAllowed('m:training', hub().all), true)
 is('the Modules page has an address', pageForPath('/modules'), 'modules')
 is('the Modules page is fixed', isFixed('modules'), true)
-is('other styles keep the bar as it was', keys(pageList(hubMods, [], { order: [], hidden: [], style: 'row', pinned: ['m:sleep'] }).bar).includes('modules'), false)
+is('other styles keep the bar as it was', keys(pageList(hubMods, [], { order: [], hidden: [], style: 'row', pinned: ['m:sleep'], chosen: true }).bar).includes('modules'), false)
 is('a swipe walks the hub’s bar, Modules last', neighbour(hub(['food']), 'm:stats', 1)?.key, 'modules')
 is('…and back from Modules', neighbour(hub(['food']), 'modules', -1)?.key, 'm:stats')
 is('…and no further', neighbour(hub(), 'modules', 1), null)

@@ -51,9 +51,7 @@ function Looks({ profile }: { profile: Profile }) {
 
   return (
     <div className="lk">
-      <p className="section-title">Looks</p>
       <div className="lk-intro">
-        <p className="row-meta">How GetIt looks on your screens. Your plan and everything in it stay the same. Every theme and icon is free.</p>
         <div className="lk-previews">
           <Preview theme={light} label={`${light.name}, light`} here={shade === 'light'} />
           <Preview theme={dark} label={`${dark.name}, ${darkShade}`} here={shade !== 'light'} />
@@ -92,8 +90,9 @@ function Looks({ profile }: { profile: Profile }) {
               onClick={() => save({ mode: m.key })}>{m.label}</button>
           ))}
         </div>
-        <p className="row-meta">Black is the dark mode on pure black, which saves power on OLED screens.
-          {looks.mode === 'system' && ` The phone is set to ${live.systemDark ? 'dark' : 'light'} now.`}</p>
+        <p className="row-meta">
+          {looks.mode === 'system' ? `The phone is set to ${live.systemDark ? 'dark' : 'light'} now.` : 'Black: dark on pure black, kind to OLED screens.'}
+        </p>
       </div>
 
       <div className="lk-block">
@@ -211,7 +210,7 @@ function IconPicker({ chosen, onSaved }: { chosen: string; onSaved: (key: string
       </div>
       <p className="row-meta">
         {native
-          ? 'The new icon appears once you leave the app. The launcher may take a few seconds to show it, and home-screen shortcuts to GetIt may need adding again. With themed icons on, Android 13 and later draws every icon in the wallpaper’s colours.'
+          ? 'It shows once you leave the app; shortcuts to GetIt may need adding again.'
           : 'The icon can be changed in the Android app.'}
       </p>
       {device?.pending && device.pending !== device.key && (

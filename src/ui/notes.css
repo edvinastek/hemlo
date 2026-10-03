@@ -42,6 +42,8 @@
 .np-back, .np-mode { font-family: var(--font-sans); font-size: 15px; padding: 8px 0; }
 .np-back { color: var(--e-ink); }
 .np-mode { margin-left: auto; color: var(--e-accent); font-weight: 600; }
+/* The note's ⋮ (Export) sits right after Edit or View. */
+.np-head .page-menu { margin-left: var(--space-2); }
 .np-progress { font-family: var(--font-sans); font-size: 13px; color: var(--e-ink-soft); white-space: nowrap; }
 .np-title { font-family: var(--font-serif); font-size: 22px; line-height: 1.25; margin: 0 0 var(--space-3); overflow-wrap: anywhere; }
 

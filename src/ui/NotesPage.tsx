@@ -5,7 +5,8 @@ import {
   toEditable, toggleCheck, type Item, type Span,
 } from '../lib/notes'
 import { NoteEditor, RecipeLinks } from './NoteEditor'
-import { ExportLink } from './ExportLink'
+import { useExport } from './ExportLink'
+import { PageMenu } from './PageMenu'
 import { noteText } from '../lib/transfer-rules'
 import { removeMarkers } from '../lib/after-done-rules'
 import { useApp } from '../lib/store'
@@ -184,6 +185,9 @@ export function NotesPage({ title, notes, onKeep, onClose, context, afterDone = 
     )
   }
 
+  // Export lives in the page's ⋮ (CALM-03), offered once there is a note.
+  const exporter = useExport(hasNote(text) ? { text: noteText(title, null, toEditable(text).text), label: title.trim() || 'Note' } : null)
+
   return (
     <div className="np" role="dialog" aria-modal="true" aria-label={`Note: ${title || 'task'}`}>
       <div className="np-inner">
@@ -193,6 +197,7 @@ export function NotesPage({ title, notes, onKeep, onClose, context, afterDone = 
           <button type="button" className="np-mode" onClick={toggleMode}>
             {editing ? 'View' : 'Edit'}
           </button>
+          <PageMenu label="More for this note" items={[exporter.item]} sheets={exporter.sheet} />
         </header>
         <h1 className="np-title">{title.trim() || emptyTitle}</h1>
 
@@ -245,7 +250,6 @@ export function NotesPage({ title, notes, onKeep, onClose, context, afterDone = 
             )}
           </div>
         )}
-        {hasNote(text) && <ExportLink source={{ text: noteText(title, null, toEditable(text).text), label: title.trim() || 'Note' }} />}
       </div>
     </div>
   )

@@ -1,10 +1,12 @@
-import { need, checks, open, signIn, APP } from './e2e.mjs'
+import { need, checks, open, signIn, APP, openSettings } from './e2e.mjs'
 
 // The page bar and swiping, clicked and swiped through on a 360 px phone:
 // a module switched off leaves the bar and its address goes to Today; one
-// switched on joins it and opens at /m/<key>; each style (drawer, fan, two
-// rows) opens a page; a swipe from Today reaches Plan; a swipe on the week
-// strip changes the week and not the page; nothing runs off the screen.
+// switched on opens at /m/<key>; each style (drawer, fan, two rows) opens a
+// page; a swipe from Today reaches Plan; a swipe on the week strip changes
+// the week and not the page; nothing runs off the screen. v17 (CALM-04):
+// the bar never scrolls and holds at most five, and until a style is
+// picked the app picks one.
 //
 // Needs TEST_EMAIL and TEST_PASSWORD. Everything it changes (Sleep on or
 // off, the bar's style) is put back at the end.
@@ -16,15 +18,9 @@ const cdp = await ctx.newCDPSession(p)
 
 const path = () => new URL(p.url()).pathname
 const go = async (href) => { await p.click(`.bottom-nav a[href="${href}"]`); await p.waitForTimeout(800) }
-const toMore = async () => {
-  // In the drawer style More sits in the sheet, not on the bar: open it by address.
-  if (path() !== '/more') {
-    if (await p.locator('.bottom-nav a[href="/more"]').count()) await go('/more')
-    else { await p.goto(`${APP}more`, { waitUntil: 'networkidle' }); await p.waitForSelector('.bottom-nav') }
-  }
-  await p.click('.tabs button:has-text("Modules")')
-  await p.waitForTimeout(300)
-}
+// Settings is not always on the bar (the hub holds it): open its pages in place.
+const toMore = () => openSettings(p, 'modules')
+const toBar = () => openSettings(p, 'bar')
 const sleepOn = async () => (await p.locator('button[role=switch][aria-label="Turn Sleep off"]').count()) > 0
 const setSleep = async (on) => {
   await toMore()
@@ -34,7 +30,7 @@ const setSleep = async (on) => {
   }
 }
 const setStyle = async (label) => {
-  await toMore()
+  await toBar()
   await p.click(`.nv-style:has-text("${label}")`)
   await p.waitForTimeout(600)
 }
@@ -70,7 +66,13 @@ const offScreen = () => p.evaluate(() => {
 
 await toMore()
 const hadSleep = await sleepOn()
-is('the page bar settings are in More', await p.locator('.nv-styles .nv-style').count(), 5)
+await toBar()
+is('the page bar settings are in Settings → Page bar, six styles', await p.locator('.nv-styles .nv-style').count(), 6)
+const hadChosen = (await p.locator('button:has-text("Let GetIt pick")').count()) > 0
+const hadStyle = (await p.locator('.nv-style[aria-checked="true"] span').last().textContent())?.trim()
+/** Anything in the bar that scrolls sideways: none, ever (CALM-04). */
+const scrolls = () => p.evaluate(() => [...document.querySelectorAll('.bottom-nav, .bottom-nav *')]
+  .filter((el) => ['auto', 'scroll'].includes(getComputedStyle(el).overflowX) && el.scrollWidth > el.clientWidth + 1).length)
 
 // 1. Off: the page leaves the bar, and its address leads to Today.
 await setSleep(false)
@@ -81,8 +83,8 @@ is('Sleep off: its address goes to Today', path(), '/')
 
 // 2. On: the page joins the bar and opens at /m/sleep.
 await setSleep(true)
-is('Sleep on: a Sleep page on the bar', await p.locator('.bottom-nav a[href="/m/sleep"]').count(), 1)
-await go('/m/sleep')
+await p.goto(`${APP}m/sleep`, { waitUntil: 'networkidle' })
+await p.waitForTimeout(1500)
 is('Sleep opens at /m/sleep', path(), '/m/sleep')
 is('one row: nothing off screen', JSON.stringify(await offScreen()), '[]')
 
@@ -116,8 +118,12 @@ is('fan: the centre button says where you are', (await p.locator('.nav-fan-btn .
 await setStyle('Two rows')
 is('two rows: the bar is a grid', await p.locator('.bottom-nav.nav-grid').count(), 1)
 is('two rows: nothing off screen', JSON.stringify(await offScreen()), '[]')
-await go('/m/sleep')
-is('two rows: Sleep opens from the grid', path(), '/m/sleep')
+// Eight tiles at most; past that the last is the Modules page.
+is('two rows: at most four across', await p.evaluate(() => getComputedStyle(document.querySelector('.nav-grid-rest')).gridTemplateColumns.split(' ').length <= 4), true)
+is('two rows: nothing scrolls', await scrolls(), 0)
+if (await p.locator('.bottom-nav a[href="/m/sleep"]').count()) await go('/m/sleep')
+else { await go('/modules'); await p.click('.hub-open:has-text("Sleep")'); await p.waitForTimeout(600) }
+is('two rows: Sleep opens', path(), '/m/sleep')
 await go('/')
 const fabGap = await p.evaluate(() => {
   const fab = document.querySelector('.fab')
@@ -148,7 +154,17 @@ is('a swipe left on Today reaches Plan', path(), '/plan')
 await drag(60, 520, 300, 530)
 is('a swipe right goes back to Today', path(), '/')
 
+// 5. Nobody's choice: the app picks; with many pages the hub, five at most.
+await toBar()
+await p.click('button:has-text("Let GetIt pick")')
+await p.waitForTimeout(800)
+is('picked by the app: at most five on the bar', (await p.locator('.bottom-nav .nav-item').count()) <= 5, true)
+is('picked by the app: nothing scrolls', await scrolls(), 0)
+is('only the open page (or the Modules page holding it) is marked',
+  await p.locator('.bottom-nav .nav-item:is([aria-current="page"], .is-holder)').count(), 1)
+
 // Put things back.
+if (hadChosen && hadStyle) await setStyle(hadStyle)
 if (!hadSleep) await setSleep(false)
 is('no page errors', JSON.stringify(errors), '[]')
 await b.close()

@@ -28,7 +28,7 @@ export function SignOut() {
     <div className="setting-row" style={{ alignItems: 'start' }}>
       <div>
         <div className="row-name">Sign out</div>
-        <div className="row-meta">Changes waiting are sent first. Signing out also clears everything GetIt stored on this device.</div>
+        <div className="row-meta">Waiting changes go first; then this device’s copy is cleared.</div>
         {warning && (
           <div className="pr-confirm" role="alertdialog" aria-label="Changes not sent">
             <p className="row-meta" style={{ color: 'var(--e-warn)' }}>{warning}</p>

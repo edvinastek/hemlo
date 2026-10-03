@@ -1,8 +1,8 @@
-/* The page bar in its five styles, the drawer sheet and the fan.
+/* The page bar in its six styles, the drawer sheet and the fan.
    Held to the kit: 1px e-rule separators, no shadows, sans for the labels.
-   Today and Plan are the two pages everything starts from, so in every style
-   they are a size up and sit on their own tint (--e-primary-nav*). The page
-   open now is always in the accent. */
+   Today and Plan are the two pages everything starts from, so they are in
+   their own colour and weight (--e-primary-nav), but only the page open now
+   is drawn as chosen (v17, CALM-04): in the accent, on a tint. */
 
 :root, [data-theme="light"] { --e-primary-nav: #8e3521; --e-primary-nav-bg: #f0dfd3; }
 [data-theme="dark"] { --e-primary-nav: #ec9479; --e-primary-nav-bg: #33221f; }
@@ -18,6 +18,7 @@
 
   /* :is() lifts these over app.css's `.bottom-nav a`, which is loaded later. */
   :is(.bottom-nav, .nav-sheet, .fan-layer) .nav-item {
+    position: relative;
     display: grid;
     justify-items: center;
     align-content: center;
@@ -47,25 +48,35 @@
     font-size: 16px;
     line-height: 1;
   }
-  :is(.bottom-nav, .nav-sheet, .fan-layer) .nav-item[aria-current="page"] { color: var(--e-accent); }
-  :is(.bottom-nav, .nav-sheet, .fan-layer) .nav-item[aria-current="page"] .nav-label { font-weight: 600; }
-  :is(.bottom-nav, .nav-sheet) .nav-item[aria-current="page"] .nav-glyph { background: var(--e-tint); }
+  /* A long name a size down; the longest on two lines: never cut off. */
+  :is(.bottom-nav, .nav-sheet, .fan-layer) .nav-label.is-long { font-size: 10px; letter-spacing: 0; }
+  :is(.bottom-nav, .nav-sheet, .fan-layer) .nav-label.is-longest {
+    font-size: 10px; letter-spacing: 0; line-height: 1.1;
+    white-space: normal; overflow-wrap: anywhere; text-align: center;
+    display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical;
+  }
+  /* The page open now, or the Modules page when it holds the page open now. */
+  :is(.bottom-nav, .nav-sheet, .fan-layer) .nav-item:is([aria-current="page"], .is-holder) { color: var(--e-accent); }
+  :is(.bottom-nav, .nav-sheet, .fan-layer) .nav-item:is([aria-current="page"], .is-holder) .nav-label { font-weight: 600; }
+  :is(.bottom-nav, .nav-sheet) .nav-item:is([aria-current="page"], .is-holder) .nav-glyph { background: var(--e-tint); }
+  /* Plan's count of tasks in the Inbox: small and quiet, on the glyph's corner. */
+  .bottom-nav .nav-badge {
+    position: absolute; top: 3px; left: calc(50% + 10px);
+    min-width: 16px; height: 16px; padding: 0 4px;
+    border-radius: var(--radius-pill);
+    background: var(--e-ink-soft); color: var(--e-paper);
+    font-size: 10px; font-weight: 600; line-height: 16px; text-align: center; letter-spacing: 0;
+  }
   :is(.bottom-nav, .nav-sheet, .fan-layer) .nav-item:focus-visible {
     outline: 2px solid var(--e-accent);
     outline-offset: -2px;
     border-radius: var(--radius-md);
   }
 
-  /* Today and Plan: bigger, and in their own colour. */
-  .bottom-nav .nav-item.is-primary { color: var(--e-primary-nav); font-size: 12px; font-weight: 500; }
-  .bottom-nav .is-primary .nav-glyph {
-    width: 50px;
-    height: 28px;
-    font-size: 19px;
-    background: var(--e-primary-nav-bg);
-  }
+  /* Today and Plan: their own colour and weight, no fill unless open. */
+  .bottom-nav .nav-item.is-primary { color: var(--e-primary-nav); font-weight: 500; }
+  .bottom-nav .is-primary .nav-glyph { font-size: 18px; }
   .bottom-nav .is-primary[aria-current="page"] { color: var(--e-accent); }
-  .bottom-nav .is-primary[aria-current="page"] .nav-glyph { background: var(--e-accent); color: var(--e-paper); }
 
   /* ---------- sideways strips (row overflow, grid overflow) ---------------- */
   .nav-scroll {
@@ -92,25 +103,19 @@
     mask-image: linear-gradient(to right, transparent, #000 28px, #000 calc(100% - 28px), transparent);
   }
 
-  /* ---------- one row --------------------------------------------------- */
-  .nav-row-split { grid-template-columns: 66px 66px minmax(0, 1fr) 54px; }
-  .nav-row-scroll { display: flex; }
-  .nav-row-scroll .nav-item { flex: 0 0 64px; scroll-snap-align: start; }
-
   /* ---------- two or three rows ----------------------------------------- */
   .nav-grid { grid-template-columns: auto minmax(0, 1fr); padding-top: 4px; }
   .nav-grid-prim { display: grid; gap: 4px; padding: 0 4px 6px; }
   .nav-grid-prim .nav-item {
     width: 58px;
     border-radius: var(--radius-md);
-    background: var(--e-primary-nav-bg);
     gap: 4px;
   }
   .nav-grid-prim .nav-item .nav-glyph { background: none; font-size: 22px; height: 26px; }
-  .nav-grid-prim .nav-item[aria-current="page"] { background: var(--e-accent); color: var(--e-paper); }
+  .nav-grid-prim .nav-item[aria-current="page"] { background: var(--e-tint); }
   .nav-grid-prim .nav-item[aria-current="page"] .nav-glyph { background: none; color: inherit; }
-  .nav-grid-rest { display: grid; align-content: stretch; }
-  .nav-grid-rest .nav-item { padding: 3px 2px 4px; gap: 1px; scroll-snap-align: start; }
+  .nav-grid-rest { display: grid; align-content: stretch; min-width: 0; }
+  .nav-grid-rest .nav-item { padding: 3px 2px 4px; gap: 1px; }
   .nav-grid-rest .nav-glyph { width: 36px; height: 20px; font-size: 14px; }
   .nav-grid-rest .nav-label { font-size: 10px; }
 
@@ -198,6 +203,8 @@
   .nav-side .is-primary { color: var(--e-primary-nav); font-size: 15px; font-weight: 600; }
   .nav-side .is-primary .nav-glyph { font-size: 18px; }
   .nav-side .nav-label { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .nav-side .nav-item { grid-template-columns: 20px 1fr auto; }
+  .nav-side .nav-badge { font-size: 12px; color: var(--e-ink-soft); }
 }
 
 /* ---------- the rail: a phone on its side --------------------------------------- */
@@ -263,19 +270,24 @@
   font-size: 16px;
   line-height: 1;
 }
-[data-layout="rail"] :is(.nav-rail, .nav-pop) .nav-item[aria-current="page"] { color: var(--e-accent); background: none; }
-[data-layout="rail"] :is(.nav-rail, .nav-pop) .nav-item[aria-current="page"] .nav-label { font-weight: 600; }
-[data-layout="rail"] :is(.nav-rail, .nav-pop) .nav-item[aria-current="page"] .nav-glyph { background: var(--e-tint); }
+[data-layout="rail"] :is(.nav-rail, .nav-pop) .nav-item:is([aria-current="page"], .is-holder) { color: var(--e-accent); background: none; }
+[data-layout="rail"] :is(.nav-rail, .nav-pop) .nav-item:is([aria-current="page"], .is-holder) .nav-label { font-weight: 600; }
+[data-layout="rail"] :is(.nav-rail, .nav-pop) .nav-item:is([aria-current="page"], .is-holder) .nav-glyph { background: var(--e-tint); }
 [data-layout="rail"] :is(.nav-rail, .nav-pop) .nav-item:focus-visible { outline: 2px solid var(--e-accent); outline-offset: -2px; }
 [data-layout="rail"] .nav-rail .nav-handle[aria-expanded="true"] { color: var(--e-accent); }
 
 /* Today and Plan: a size up and in their own colour, as on the bar. */
 [data-layout="rail"] .nav-rail .nav-item.is-primary { color: var(--e-primary-nav); font-size: 12px; font-weight: 500; padding: 6px 4px 7px; }
-[data-layout="rail"] .nav-rail .nav-item.is-primary .nav-glyph {
-  width: 50px; height: 28px; font-size: 19px; background: var(--e-primary-nav-bg);
-}
+[data-layout="rail"] .nav-rail .nav-item.is-primary .nav-glyph { font-size: 18px; }
 [data-layout="rail"] .nav-rail .nav-item.is-primary[aria-current="page"] { color: var(--e-accent); }
-[data-layout="rail"] .nav-rail .nav-item.is-primary[aria-current="page"] .nav-glyph { background: var(--e-accent); color: var(--e-paper); }
+[data-layout="rail"] .nav-rail .nav-item.is-primary[aria-current="page"] .nav-glyph { background: var(--e-tint); }
+[data-layout="rail"] .nav-rail .nav-badge {
+  position: absolute; top: 2px; left: calc(50% + 10px);
+  min-width: 16px; height: 16px; padding: 0 4px; border-radius: var(--radius-pill);
+  background: var(--e-ink-soft); color: var(--e-paper);
+  font-size: 10px; font-weight: 600; line-height: 16px; text-align: center;
+}
+[data-layout="rail"] .nav-rail .nav-item { position: relative; }
 
 /* The pages between Plan and More scroll up and down, fading at whichever
    end has more behind it (Nav.tsx sets data-fade to t, b or tb). */
@@ -347,6 +359,12 @@
   width: 48px; height: 36px; font-size: 19px; border: 1px solid var(--e-rule); border-radius: var(--radius-md);
 }
 [data-layout="rail"] .nav-pop .nav-sheet-grid .nav-item[aria-current="page"] .nav-glyph { border-color: var(--e-accent); }
+
+/* Read out, not shown: the Inbox count's words on Plan. */
+.sr-only {
+  position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px;
+  overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0;
+}
 
 /* ---------- swiping between pages --------------------------------------------- */
 /* A browser treats a sideways swipe with nothing to scroll as Back or

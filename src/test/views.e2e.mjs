@@ -40,7 +40,7 @@ const overflow = () => p.evaluate(() => {
 })
 
 // 1. Build a module with Board, Grid and Chart views.
-await p.goto(`${APP}more`, { waitUntil: 'networkidle' })
+await p.goto(`${APP}more?page=modules`, { waitUntil: 'networkidle' })
 await p.getByRole('button', exact('Build a module')).click()
 await p.getByRole('dialog', { name: 'Build a module' }).getByLabel('Name').first().fill('E2E Views')
 await p.getByRole('button', exact('Next')).click()
@@ -136,7 +136,7 @@ is('the bars take the page’s accent, not a fixed colour', await p.locator('svg
   .evaluate((el) => !['none', 'rgb(0, 0, 0)'].includes(getComputedStyle(el).fill)), true)
 
 // 6. A built-in rule switched off stops what it does.
-await p.goto(`${APP}more`, { waitUntil: 'networkidle' })
+await p.goto(`${APP}more?page=modules`, { waitUntil: 'networkidle' })
 const habitsSwitch = p.getByRole('switch', { name: /Turn Habits (on|off)/ })
 if ((await habitsSwitch.getAttribute('aria-checked')) !== 'true') await habitsSwitch.click()
 await settle(p)

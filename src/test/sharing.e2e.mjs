@@ -1,9 +1,9 @@
-import { need, open, signIn, sql, checks, drained, modulesOn, localCount } from './e2e.mjs'
+import { need, open, signIn, sql, checks, drained, modulesOn, localCount, openSettings, toPage } from './e2e.mjs'
 
 // A recipe proposed to everyone, end to end, at 360 px. The author (the NEW
 // account) writes one in the recipe editor and proposes it; the other account
 // cannot read it; that account is then made a reviewer for this run, finds it
-// in More → Data → Recipes to review (never among its own recipes) and
+// in Settings → Data and account → Recipes to review (never among its own recipes) and
 // approves it; now it can read it, and the author sees "Shared with
 // everyone". Needs TEST_FEAT_EMAIL, TEST_ONBOARD_EMAIL, TEST_PASSWORD and SB
 // (migration 019 applied). The reviewer row and the recipe are removed at
@@ -42,7 +42,7 @@ const overflow = (p) => p.evaluate(() => {
     .map((el) => `${el.tagName.toLowerCase()}.${[...el.classList].join('.')}`).slice(0, 5)
 })
 const recipesTab = async (p) => {
-  await p.click('.bottom-nav a[href="/food"]'); await p.waitForTimeout(800)
+  await toPage(p, '/food'); await p.waitForTimeout(800)
   await p.click('.tabs button:has-text("Recipes")'); await p.waitForTimeout(1200)
 }
 const localRecipe = (p) => p.evaluate(async (n) => {
@@ -86,8 +86,7 @@ try {
   await signIn(two.p, reviewer)
   await recipesTab(two.p)
   is('it is not among the reviewer’s recipes', await localRecipe(two.p), 0)
-  await two.p.click('.bottom-nav a[href="/more"]'); await two.p.waitForTimeout(600)
-  await two.p.locator('.page [role=tab]', { hasText: 'Data' }).click()
+  await openSettings(two.p, 'data')
   await two.p.getByText(/^Recipes to review \(\d+\)$/).waitFor({ timeout: 10000 })
   const card = two.p.locator('.rv-card', { hasText: name })
   is('the queue shows it', await card.count(), 1)

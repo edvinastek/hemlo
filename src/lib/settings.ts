@@ -39,7 +39,7 @@ export interface Commute {
 }
 
 /** How the page bar at the bottom is laid out. 'hub' (NAV-20): Today, Plan,
- *  the pinned pages, Stats and the Modules page, which holds the rest. */
+ *  up to two pinned pages and the Modules page, which holds the rest. */
 export type NavStyle = 'row' | 'two_rows' | 'three_rows' | 'drawer' | 'fan' | 'hub'
 export const NAV_STYLES: NavStyle[] = ['row', 'two_rows', 'three_rows', 'drawer', 'fan', 'hub']
 
@@ -56,6 +56,9 @@ export interface NavSettings {
   /** Pages pinned to the bar from the Modules page (NAV-21), at most two,
    *  newest last: in the hub style they are the bar's own pages. */
   pinned: string[]
+  /** Whether the person picked the style themselves. Until they do, the app
+   *  picks (v17, CALM-04): the row while five pages fit, the hub beyond. */
+  chosen: boolean
 }
 
 export interface ColourSettings {
@@ -78,7 +81,7 @@ export interface StatsSettings {
   show_disabled: boolean
 }
 
-/** Calendar links (More → Profile → Calendar links). */
+/** Calendar links (Settings → Calendars → Calendar links). */
 export interface CalendarSettings {
   /** Put task notes in the feed link Google Calendar reads. Off by default:
    *  a link passed on by mistake would show them to whoever has it. */
@@ -180,7 +183,7 @@ export const DEFAULT_SETTINGS: ProfileSettings = {
   today_metric: 'kcal',
   meal_times: {},
   stock_auto: false,
-  nav: { style: 'row', order: [], hidden: [], swipe: true, pinned: [] },
+  nav: { style: 'row', order: [], hidden: [], swipe: true, pinned: [], chosen: false },
   colours: { on: true, modules: {} },
   holidays: { countries: [], colours: {} },
   stats: { show_disabled: false },
@@ -381,13 +384,17 @@ const pageKeys = (v: unknown): string[] =>
 
 function readNav(v: unknown, d: NavSettings): NavSettings {
   const n = (v ?? {}) as Partial<NavSettings>
+  const style = NAV_STYLES.includes(n.style as NavStyle) ? (n.style as NavStyle) : d.style
   return {
-    style: NAV_STYLES.includes(n.style as NavStyle) ? (n.style as NavStyle) : d.style,
+    style,
     order: pageKeys(n.order),
     // Today, Plan and More can never be hidden: without them there is no way back.
     hidden: pageKeys(n.hidden).filter((k) => k !== 'today' && k !== 'plan' && k !== 'more'),
     swipe: bool(n.swipe, d.swipe),
     pinned: pageKeys(n.pinned).filter((k) => k !== 'today' && k !== 'plan' && k !== 'more').slice(-2),
+    // Before v17 every saved profile stored 'row', chosen or not, so only a
+    // style other than the row says for certain that someone picked it.
+    chosen: bool(n.chosen, false) || style !== 'row',
   }
 }
 

@@ -13,7 +13,7 @@ import type { Profile } from '../lib/types'
 import '../ui/notes.css'
 import './note-templates.css'
 
-/** More → Note templates (NOT-11, NOT-12, NOT-17): the person's templates,
+/** Settings → Planning → Note templates (NOT-11, NOT-12, NOT-17): the person's templates,
  *  searched with the one search, made, edited, renamed, ordered and
  *  deleted (with Undo). They live in the profile's settings, so they sync
  *  and go into the backup. Fill-ins show as labelled chips, never as code. */
@@ -49,10 +49,6 @@ function TemplateList({ profile }: { profile: Profile }) {
   return (
     <>
       <p className="section-title">Note templates</p>
-      <p className="nt-intro">
-        Notes to start from: a recipe, a packing list, a reading reflection. Insert one from any note’s Insert menu,
-        or save any note as a template. Fill-ins such as date and title are filled in when the template is used.
-      </p>
       {list.length > 4 && (
         <div className="nt-search">
           <input type="search" value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Search templates" aria-label="Search templates" />

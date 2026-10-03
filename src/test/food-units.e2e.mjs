@@ -1,4 +1,4 @@
-import { need, open, signIn, sql, profileOf, checks, drained, modulesOn } from './e2e.mjs'
+import { need, open, signIn, sql, profileOf, checks, drained, modulesOn, toPage } from './e2e.mjs'
 
 // A shared NEVO food's page (migration 027), at 360 px: found by its Dutch
 // name, it shows the EU label per 100 g, %RI on request, its Portie-online
@@ -37,7 +37,7 @@ const overflow = () => p.evaluate(() => {
 })
 
 // 1. Found by its Dutch name.
-await p.click('.bottom-nav a[href="/food"]')
+await toPage(p, '/food')
 await p.click('.tabs button:has-text("Foods")')
 await p.fill('input[aria-label="Search foods, in English or Dutch"]', 'ui rauw')
 await p.locator(`button[aria-label="Open ${onion}"]`).first().click({ timeout: 20000 })

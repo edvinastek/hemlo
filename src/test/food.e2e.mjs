@@ -1,4 +1,4 @@
-import { need, open, signIn, sql, profileOf, today, checks, drained, modulesOn } from './e2e.mjs'
+import { need, open, signIn, sql, profileOf, today, checks, drained, modulesOn, openSettings, toPage } from './e2e.mjs'
 
 // Food logging with no fixed meals (v16): the add-food sheet's two steps, a
 // recipe planned under a meal named on the spot, a time given on the day,
@@ -34,7 +34,7 @@ const overflow = () => p.evaluate(() => {
 })
 const meal = (name) => p.locator(`section.fd-meal[aria-label="${name}"]`)
 const row = (text) => p.locator('.row', { hasText: text })
-const go = async (href) => { await p.click(`.bottom-nav a[href="${href}"]`); await p.waitForTimeout(1200) }
+const go = async (href) => { await toPage(p, href); await p.waitForTimeout(1200) }
 
 // 1. No meals of one's own: an empty day says what it is for; no cards.
 await go('/food')
@@ -130,8 +130,7 @@ await meal('Snack').locator('.fd-head input[type=checkbox]').click()
 await drained(p)
 
 // 7. One's own meals: a set to start from; then each is a card, even empty.
-await go('/more')
-await p.click('.tabs button:has-text("Profile")')
+await openSettings(p, 'food')
 await p.click('.fs-presets button:has-text("Breakfast, lunch, dinner")')
 await p.waitForTimeout(800)
 is('the meals are listed', await p.locator('.fs-meal').count(), 3)
@@ -141,8 +140,7 @@ is('an empty card for breakfast', await meal('Breakfast').locator('.fd-nothing')
 is('lunch takes its own meal’s place', await meal('Lunch').count(), 1)
 
 // 8. Choosing protein, then nothing, for Today's figure.
-await go('/more')
-await p.click('.tabs button:has-text("Profile")')
+await openSettings(p, 'food')
 await p.locator('.fs-check', { hasText: 'Protein' }).locator('input').click()
 await p.waitForTimeout(600)
 await p.click('button[aria-label="Figure on Today"]')
@@ -150,8 +148,7 @@ await p.locator('.dd-list li', { hasText: 'Protein (g)' }).click()
 await p.waitForTimeout(600)
 await go('/')
 is('Today shows protein when chosen', /^Protein \d+( \/ \d+)? g$/.test((await p.locator('.page-sub').first().textContent()) ?? ''), true)
-await go('/more')
-await p.click('.tabs button:has-text("Profile")')
+await openSettings(p, 'food')
 await p.click('button[aria-label="Figure on Today"]')
 await p.locator('.dd-list li', { hasText: 'Nothing' }).click()
 await p.waitForTimeout(600)
