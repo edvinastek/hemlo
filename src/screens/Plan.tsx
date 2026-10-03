@@ -36,7 +36,7 @@ import type { CalendarEvent, Task } from '../lib/types'
 import { TaskSheet } from '../ui/TaskSheet'
 import { CopySheet, type CopyWhat } from '../ui/CopySheet'
 import { DayRail } from '../ui/DayRail'
-import { PlannedDay } from '../ui/PlannedDay'
+import { AddFab } from '../ui/AddMenu'
 import { MoreMenu } from '../ui/MoreMenu'
 import { Dropdown } from '../ui/Dropdown'
 import { DayPickSheet } from '../ui/DayPickSheet'
@@ -245,8 +245,9 @@ export function Plan() {
                 { label: 'See its week', onSelect: () => go(date, 'week', true) },
               ]} />
             </div>
+            {/* The one merged rail of the day (it lists the repeats to come
+                past the eight weeks too, so Plan adds nothing under it). */}
             <DayRail day={date} where="plan" />
-            {profile && <PlannedDay profileId={profile.id} day={date} />}
           </>
         )}
 
@@ -450,10 +451,12 @@ export function Plan() {
         )}
       </div>
 
-      {!selecting && (
-        <button type="button" className="fab" aria-label={view === 'inbox' ? 'Add to the Inbox' : `Add a task on ${dayLabel(date)}`}
-          onClick={() => addOn(view === 'inbox' ? null : date)}>+</button>
-      )}
+      {/* The same + as Today (GEN-50): a task on the day in view, a task to
+          the Inbox, food, an event, or any module's add. On the Inbox the
+          day is today, and the capture line at the top still adds straight
+          to the Inbox. */}
+      {!selecting && <AddFab day={view === 'inbox' ? today : date}
+        label={view === 'inbox' ? 'Add: a task to the Inbox or something else' : `Add something on ${dayLabel(date)}`} />}
       {editing && <TaskSheet key={editing.task.id} task={editing.task} isNew={editing.isNew} onClose={() => setEditing(null)} />}
       {copying && <CopySheet what={copying} onClose={() => setCopying(null)} onDone={() => setChosen(new Set())} />}
       {saving && <SaveTemplateSheet kind={saving.kind} first={saving.first} onClose={() => setSaving(null)} />}
