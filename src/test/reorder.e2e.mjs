@@ -129,7 +129,7 @@ is('an untimed task never gains a time by dragging', (await got('Reorder z')).t,
 // 5. The ⋮ menu, for anyone who does not drag.
 await item('Reorder x').locator('.row-more').click()
 is('the menu has Move up and Move down', await p.locator('.move-menu [role=menuitem]', { hasText: /^Move (up|down)$/ }).count(), 2)
-is('and the row\'s other actions', await p.locator('.move-menu [role=menuitem]', { hasText: /^(Open here|Edit|Copy to…|Duplicate|Move to…|Skip|Open note as page|Delete)$/ }).count(), 8)
+is('and the row\'s other actions', await p.locator('.move-menu [role=menuitem]', { hasText: /^(Open here|Edit|Push…|Copy to…|Duplicate|Move to…|Skip|Open note as page|Delete)$/ }).count(), 9)
 await p.click('.move-menu button:has-text("Move down")')
 await settle(p, 1200)
 is('Move down moved it down one', (await order()).filter((t) => /Reorder [xyz]$/.test(t)).join(', '),
@@ -150,7 +150,8 @@ is('nothing on the rows runs off a 360 px screen', off, 0)
   await p.mouse.up()
   await p.waitForTimeout(300)
   is('a long still hold opens the row in place', await loc.locator('.ir.is-open').count(), 1)
-  is('with its quick actions', await loc.locator('.ir-actions button').count() >= 7, true)
+  // v17: Edit, the pushes, Move to… and Skip in sight; the rest under More….
+  is('with its quick actions', await loc.locator('.ir-actions button, .ir-push button').count() >= 7, true)
   is('and nothing moved', (await order()).filter((t) => /Reorder [xyz]$/.test(t)).join(', '), 'Reorder z, Reorder y, Reorder x')
   await loc.locator('.row-name button').click()
   is('a tap on the name closes it', await p.locator('.ir.is-open').count(), 0)

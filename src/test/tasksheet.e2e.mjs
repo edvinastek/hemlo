@@ -20,7 +20,8 @@ await sql(`delete from public.task where ${mine} and title like 'Sheet %'`)
 const A = await open({ viewport: { width: 360, height: 640 } })
 const p = A.p
 await signIn(p, email)
-await p.click('.tabs button:has-text("Today")')
+// Today shows its tabs only while there are three or fewer (v17).
+if (await p.locator('.tabs button:has-text("Today")').count()) await p.click('.tabs button:has-text("Today")')
 
 /** Anything inside the open sheet that runs past the right edge of the screen. */
 const offScreen = () => p.evaluate(() => {
@@ -30,6 +31,11 @@ const offScreen = () => p.evaluate(() => {
     .map((el) => `${el.tagName.toLowerCase()}.${[...el.classList].join('.')}`).slice(0, 5)
 })
 const sheetHeight = () => p.locator('.bottom-sheet .form-grid').evaluate((el) => Math.round(el.getBoundingClientRect().height))
+// v17: "Until" is "End time instead of minutes", inside More options.
+const UNTIL = '.bottom-sheet .ts-check:has-text("End time instead") input'
+const moreOptions = async () => {
+  if ((await p.locator('.bottom-sheet .mo-toggle').getAttribute('aria-expanded')) !== 'true') await p.click('.bottom-sheet .mo-toggle')
+}
 
 // The round + opens a short menu (GEN-50); "Task" adds a task on the day.
 const addTask = async () => {
@@ -41,8 +47,9 @@ const addTask = async () => {
 await addTask()
 await p.fill('.bottom-sheet input[placeholder="Mobility"]', 'Sheet late shift')
 await p.fill('.bottom-sheet input[type=time]', '22:30')
+await moreOptions()
 const before = await sheetHeight()
-await p.click('.bottom-sheet .ts-until input')
+await p.click(UNTIL)
 is('ticking Until swaps Minutes for an end time', await p.locator('.bottom-sheet input[aria-label="End time"]').count(), 1)
 is('and the Minutes field is gone', await p.locator('.bottom-sheet label', { hasText: 'Minutes' }).count(), 0)
 await p.fill('.bottom-sheet input[aria-label="End time"]', '00:15')
@@ -67,9 +74,10 @@ is('in the section picked from the list', r.category, 'Work')
 // Opened again, the task shows minutes; unticking Until brings them back too.
 await p.locator('.row', { hasText: 'Sheet late shift' }).locator('.row-name button').click()
 is('a task opens showing its minutes', await p.locator('.bottom-sheet label', { hasText: 'Minutes' }).locator('input').inputValue(), '105')
-await p.click('.bottom-sheet .ts-until input')
+await moreOptions()
+await p.click(UNTIL)
 is('ticking shows the end the minutes give', await p.locator('.bottom-sheet input[aria-label="End time"]').inputValue(), '00:15')
-await p.click('.bottom-sheet .ts-until input')
+await p.click(UNTIL)
 is('unticking gives the minutes back to edit', await p.locator('.bottom-sheet label', { hasText: 'Minutes' }).locator('input').isEditable(), true)
 await p.click('.bottom-sheet button:has-text("Cancel")')
 
