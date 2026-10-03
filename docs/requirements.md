@@ -2,7 +2,7 @@
 title: "GetIt — Requirements and Specification"
 subtitle: "Every requirement, the app as built in version 15, and what the next version must change"
 author: "Prepared for Edvinas Straigis"
-date: "1 October 2026"
+date: "3 October 2026 (statuses updated for version 16)"
 ---
 
 # Part A. About this document
@@ -40,9 +40,10 @@ The competitor comparison and the usability plan are in the second document ("Ge
 - **Should**: next after that (version 17).
 - **Could**: later, or when there is demand.
 
-**Status (in version 15):**
+**Status (updated for version 16, 3 October 2026):**
 
-- **Done**: built and tested.
+- **Done (v16)**: built in version 16 and checked (rule checks, the security suite, and every screen at 360 px in light and dark); the end-to-end tests against the live project still to run.
+- **Done**: built and tested in an earlier version.
 - **Partly**: built, but missing something the requirement asks for (the cell says what).
 - **Open**: not built.
 
@@ -346,62 +347,62 @@ Columns: **ID**, **Requirement** (with "Done when" where a test is needed), **Pr
 
 | ID | Requirement | Pri | Status | Src |
 |----------|-----------------------------------------------------|--------|-------------------------------|-------|
-| GEN-01 | One function decides whether a module is on for the profile; every screen, list, menu, tab, section picker, add menu, search source, Stats card, widget row, export list and colour list uses it. Done when: switching a module off removes every trace of it from the interface within one second, on every page, without a reload. | Must | Partly: pages, tabs and Stats follow it; task sections, colours list and add paths do not | R3, R5 |
-| GEN-02 | A new account starts with only the core switched on; the template chosen in onboarding switches modules on. The server sign-up trigger stops switching nine modules on. Done when: a new account that picks "Minimal planner" never shows Food, Shop, Training or Habits, even if onboarding is interrupted or offline. | Must | Open | R5 |
-| GEN-03 | Each module has display switches, set per template and editable in its settings: **Show on Today**, **Show on Plan**, **Show on the widget**, **Count in Stats**, **Send reminders**. A module that is on but has "Show on Today" off still has its page. | Must | Open | R5 |
-| GEN-04 | Items of every module that has "Show on Today" on (tasks, habits, chores, supplements, planned training, study reviews, planned payments, own agenda events, dated records) appear on Today's list on the days they are due, at their time or in an "Any time" group. | Must | Open (only tasks and followed-calendar events appear) | R5 |
-| GEN-05 | Task sections offered in the task sheet come only from modules that are on, plus the person's own sections. A section never makes a switched-off module's colour, tab or page appear. | Must | Open | R5 |
+| GEN-01 | One function decides whether a module is on for the profile; every screen, list, menu, tab, section picker, add menu, search source, Stats card, widget row, export list and colour list uses it. Done when: switching a module off removes every trace of it from the interface within one second, on every page, without a reload. | Must | Done (v16) | R3, R5 |
+| GEN-02 | A new account starts with only the core switched on; the template chosen in onboarding switches modules on. The server sign-up trigger stops switching nine modules on. Done when: a new account that picks "Minimal planner" never shows Food, Shop, Training or Habits, even if onboarding is interrupted or offline. | Must | Done (v16) | R5 |
+| GEN-03 | Each module has display switches, set per template and editable in its settings: **Show on Today**, **Show on Plan**, **Show on the widget**, **Count in Stats**, **Send reminders**. A module that is on but has "Show on Today" off still has its page. | Must | Done (v16) | R5 |
+| GEN-04 | Items of every module that has "Show on Today" on (tasks, habits, chores, supplements, planned training, study reviews, planned payments, own agenda events, dated records) appear on Today's list on the days they are due, at their time or in an "Any time" group. | Must | Done (v16) | R5 |
+| GEN-05 | Task sections offered in the task sheet come only from modules that are on, plus the person's own sections. A section never makes a switched-off module's colour, tab or page appear. | Must | Done (v16) | R5 |
 | GEN-06 | Switching a module off never deletes its data; switching it back on restores everything. The confirmation says so. | Must | Done | R3 |
 
 ### One search
 
 | ID | Requirement | Pri | Status | Src |
 |-----------|--------------------------------------------------------------|--------|---------------------|--------|
-| GEN-10 | One search behaviour for the whole app, modelled on the Foods tab: results update instantly as each letter is typed, over the whole list (no cap of 8 in page lists; pickers show the best 20 and "Show all"). | Must | Partly: two different searches exist | R2, R5 |
-| GEN-11 | Matching: every typed word must appear somewhere in the name (or in tags, brand, aisle or note where shown), in any order; case, accents and punctuation ignored; "1/2" style fractions and numbers allowed. | Must | Partly (pickers only) | R5 |
-| GEN-12 | Ranking: names that start with the first word first, then names with a word starting with it, then the rest; within each, own and recently used items first, then shorter (plainer) names, then alphabetical. | Must | Partly (pickers only) | R5 |
-| GEN-13 | Used on: Foods, Recipes, Stock, the shopping list, every picker, module record lists, the Modules hub, settings lists (countries, modules, colours), Plan's Inbox and the note template list. | Must | Open (Recipes has no search) | R5 |
+| GEN-10 | One search behaviour for the whole app, modelled on the Foods tab: results update instantly as each letter is typed, over the whole list (no cap of 8 in page lists; pickers show the best 20 and "Show all"). | Must | Done (v16) | R2, R5 |
+| GEN-11 | Matching: every typed word must appear somewhere in the name (or in tags, brand, aisle or note where shown), in any order; case, accents and punctuation ignored; "1/2" style fractions and numbers allowed. | Must | Done (v16) | R5 |
+| GEN-12 | Ranking: names that start with the first word first, then names with a word starting with it, then the rest; within each, own and recently used items first, then shorter (plainer) names, then alphabetical. | Must | Done (v16) | R5 |
+| GEN-13 | Used on: Foods, Recipes, Stock, the shopping list, every picker, module record lists, the Modules hub, settings lists (countries, modules, colours), Plan's Inbox and the note template list. | Must | Done (v16) | R5 |
 
 ### One scheduling engine
 
 | ID | Requirement | Pri | Status | Src |
 |----------|-------------------------------------------------|----------|------------------------|----------------|
-| GEN-20 | One **Repeat** sheet, used by tasks, habits, chores, supplements, training sessions, study blocks, planned payments and built modules. Options: never; every day; every N days; weekdays; weekends; chosen days of the week; every N weeks on chosen days; N times a week (any days); monthly on a date; monthly on the nth weekday (e.g. second Tuesday, last Friday); every N months; yearly; picked dates. | Must | Partly: tasks have most of this; weekends, nth weekday, N times a week and yearly are missing; other modules have none | R3, R5 |
-| GEN-21 | Ends: never, on a date, or after N times (the data model already supports a count). | Must | Partly (no "after N times" in the sheet) | SR |
-| GEN-22 | Extra kinds of repeat: **after completion** ("7 days after it was last done") and **flexible** ("about every 7 days", shown with a due-ness bar that never turns into "failed"). | Should | Open | SR (research) |
-| GEN-23 | A repeating item's rule can be edited after creation, for "this and following" or "all", without stopping and re-creating it. | Must | Open (tasks must be stopped and re-made; habits cannot change at all) | SR |
-| GEN-24 | Optional **assign and rotate** for household items: me, a named member, or rotate (each time, each week, whoever did it least recently). | Should | Open | R5 (household) |
-| GEN-25 | Optional **light days** and a **cap per day** for flexible items (e.g. no chores on Friday, at most 3 a day). | Could | Open | SR |
+| GEN-20 | One **Repeat** sheet, used by tasks, habits, chores, supplements, training sessions, study blocks, planned payments and built modules. Options: never; every day; every N days; weekdays; weekends; chosen days of the week; every N weeks on chosen days; N times a week (any days); monthly on a date; monthly on the nth weekday (e.g. second Tuesday, last Friday); every N months; yearly; picked dates. | Must | Done (v16) | R3, R5 |
+| GEN-21 | Ends: never, on a date, or after N times (the data model already supports a count). | Must | Done (v16) | SR |
+| GEN-22 | Extra kinds of repeat: **after completion** ("7 days after it was last done") and **flexible** ("about every 7 days", shown with a due-ness bar that never turns into "failed"). | Should | Done (v16) | SR (research) |
+| GEN-23 | A repeating item's rule can be edited after creation, for "this and following" or "all", without stopping and re-creating it. | Must | Done (v16) | SR |
+| GEN-24 | Optional **assign and rotate** for household items: me, a named member, or rotate (each time, each week, whoever did it least recently). | Should | Done (v16) | R5 (household) |
+| GEN-25 | Optional **light days** and a **cap per day** for flexible items (e.g. no chores on Friday, at most 3 a day). | Could | Done (v16) | SR |
 | GEN-26 | Repeats are stored in a form that maps one-to-one onto iCalendar (RRULE, RDATE, EXDATE) so calendar export and import keep them. | Must | Done for tasks | R3 |
 
 ### Linking between modules
 
 | ID | Requirement | Pri | Status | Src |
 |-----------|-----------------------------------------------------------|-----------|----------------------|--------|
-| GEN-30 | Recipe → task note (insert ingredients as a checklist, steps, macros), keeping a link back (see NOT-20). | Must | Open | R5 |
-| GEN-31 | Meal task ↔ meal: ticking a meal task on Today marks the meal eaten, and the other way round. | Must | Partly (meal → task only) | SR |
-| GEN-32 | Shopping list → agenda: a trip task when items are waiting (SHOP-20). | Must | Open | R5 |
+| GEN-30 | Recipe → task note (insert ingredients as a checklist, steps, macros), keeping a link back (see NOT-20). | Must | Done (v16) | R5 |
+| GEN-31 | Meal task ↔ meal: ticking a meal task on Today marks the meal eaten, and the other way round. | Must | Done (v16) | SR |
+| GEN-32 | Shopping list → agenda: a trip task when items are waiting (SHOP-20). | Must | Done (v16) | R5 |
 | GEN-33 | Shopping → stock → recipes: what is bought goes into stock, what is cooked or eaten leaves it, what is in stock is not put on the list. | Must | Done for recipe meals; manual items and quick meals not yet | R2 |
-| GEN-34 | Habits, chores, supplements, training and study items reach Today and Plan through GEN-03/GEN-04. | Must | Open | R5 |
-| GEN-35 | Projects hold tasks: a task can belong to a project; the project shows its tasks and progress; dated projects show as goals on the Year view. | Should | Open | SR |
-| GEN-36 | Goals: a goal page; tasks, projects and habits can be linked to a goal; the Year view's "Goals and phases" lists them. | Should | Open (stub) | R1, SR |
-| GEN-37 | Sleep target → bedtime: an optional locked "Wind down / Bed" block on Plan at target bedtime. | Should | Open | SR |
-| GEN-38 | Training plan → tasks: a planned session (routine) becomes a task at its time; ticking it opens the log for that routine. | Should | Open | SR |
-| GEN-39 | Supplements → Today: with "Show on Today" on, each time slot appears as one item "Morning supplements (3)" that ticks all at once, with per-item ticks when expanded. | Should | Open | SR |
-| GEN-40 | Finance planned payments → Today and Plan ("Rent due — mark paid"). | Could | Open | SR |
-| GEN-41 | Every module's numbers → Stats (STA). | Must | Partly | R3, R5 |
+| GEN-34 | Habits, chores, supplements, training and study items reach Today and Plan through GEN-03/GEN-04. | Must | Done (v16) | R5 |
+| GEN-35 | Projects hold tasks: a task can belong to a project; the project shows its tasks and progress; dated projects show as goals on the Year view. | Should | Done (v16) | SR |
+| GEN-36 | Goals: a goal page; tasks, projects and habits can be linked to a goal; the Year view's "Goals and phases" lists them. | Should | Done (v16) | R1, SR |
+| GEN-37 | Sleep target → bedtime: an optional locked "Wind down / Bed" block on Plan at target bedtime. | Should | Done (v16) | SR |
+| GEN-38 | Training plan → tasks: a planned session (routine) becomes a task at its time; ticking it opens the log for that routine. | Should | Done (v16) | SR |
+| GEN-39 | Supplements → Today: with "Show on Today" on, each time slot appears as one item "Morning supplements (3)" that ticks all at once, with per-item ticks when expanded. | Should | Done (v16) | SR |
+| GEN-40 | Finance planned payments → Today and Plan ("Rent due — mark paid"). | Could | Done (v16) | SR |
+| GEN-41 | Every module's numbers → Stats (STA). | Must | Done (v16) | R3, R5 |
 
 ### One add flow, one long-press rule, copy everywhere
 
 | ID | Requirement | Pri | Status | Src |
 |-----------|-----------------------------------------------------------|----------|----------------------|--------|
-| GEN-50 | The round + button is context-aware: on a module page it adds that module's main thing; on Today and Plan it opens a short menu (2–6 entries) of the add types the person uses most (Task, Food, Habit tick, Note, Expense…), ordered by use and editable. | Must | Open (+ always makes a task) | SR |
-| GEN-51 | Every add sheet has at most two steps, never stacks a second sheet on top, and offers **Recent · Saved · Search · Scan** where they make sense. | Must | Open | SR |
-| GEN-52 | One long-press rule in every list: **long press expands** an item in place (TOD-10) or, in tables and module lists, **enters multi-select**; the same actions are always also in a visible ⋮ menu. | Must | Partly (long press means drag on Today, select in Food tables, move on Plan) | R5, SR |
-| GEN-53 | Multi-select (where offered) shows an action bar: Select all, Copy to day…, Move to day…, Duplicate, Change repeat, Add to book, Export, Delete (last, with confirm). | Should | Partly (Food tables only) | R3, SR |
-| GEN-54 | **Undo** for 8 seconds after delete, drag, swap, move, copy and bulk actions, as a bar at the bottom. | Must | Open | SR |
-| GEN-55 | **Copy to…** works the same for tasks, meals, whole days and whole weeks (TSK-20). | Must | Open | R5 |
-| GEN-56 | Haptic feedback on long press (where the phone allows), and every gesture also has a visible button for accessibility. | Must | Partly | SR |
+| GEN-50 | The round + button is context-aware: on a module page it adds that module's main thing; on Today and Plan it opens a short menu (2–6 entries) of the add types the person uses most (Task, Food, Habit tick, Note, Expense…), ordered by use and editable. | Must | Done (v16) | SR |
+| GEN-51 | Every add sheet has at most two steps, never stacks a second sheet on top, and offers **Recent · Saved · Search · Scan** where they make sense. | Must | Done (v16) | SR |
+| GEN-52 | One long-press rule in every list: **long press expands** an item in place (TOD-10) or, in tables and module lists, **enters multi-select**; the same actions are always also in a visible ⋮ menu. | Must | Done (v16) | R5, SR |
+| GEN-53 | Multi-select (where offered) shows an action bar: Select all, Copy to day…, Move to day…, Duplicate, Change repeat, Add to book, Export, Delete (last, with confirm). | Should | Done (v16) | R3, SR |
+| GEN-54 | **Undo** for 8 seconds after delete, drag, swap, move, copy and bulk actions, as a bar at the bottom. | Must | Done (v16) | SR |
+| GEN-55 | **Copy to…** works the same for tasks, meals, whole days and whole weeks (TSK-20). | Must | Done (v16) | R5 |
+| GEN-56 | Haptic feedback on long press (where the phone allows), and every gesture also has a visible button for accessibility. | Must | Done (v16) | SR |
 
 ### General quality
 
@@ -409,34 +410,34 @@ Columns: **ID**, **Requirement** (with "Done when" where a test is needed), **Pr
 |-----------|-------------------------------------------------------------|-----------|-------------------|--------|
 | GEN-60 | Works fully offline; every change is written locally first and synced later. | Must | Done | R1 |
 | GEN-61 | Usable at 360 px wide; nothing runs off the screen; nothing tappable sits under the + button. | Must | Done | R2 |
-| GEN-62 | Light and dark themes, following the phone; plus a manual choice (LOOK-03). | Must | Partly (follows the phone only) | R1, R5 |
+| GEN-62 | Light and dark themes, following the phone; plus a manual choice (LOOK-03). | Must | Done (v16) | R1, R5 |
 | GEN-63 | Landscape phones and wide screens use a side rail; sheets are centred and keep Save visible. | Must | Done | R3 |
 | GEN-64 | Compact dropdowns everywhere instead of the phone's full-screen pickers. | Must | Done | R2 |
 | GEN-65 | Unknown is never shown as zero; calculated figures can show their working. | Must | Done | R2 |
 | GEN-66 | British English, plain words, no emoji in the interface. | Must | Done | R1 |
-| GEN-67 | Every empty page or list says what it is for and offers the first action (and an import or template where one exists). | Must | Partly | SR |
+| GEN-67 | Every empty page or list says what it is for and offers the first action (and an import or template where one exists). | Must | Done (v16) | SR |
 | GEN-68 | Settings that hold user data are validated on read, so an old or broken value never breaks a screen. | Must | Done | R1 |
-| GEN-69 | Time zone follows the phone, or a time zone chosen in settings; it is no longer fixed to Europe/Amsterdam. | Should | Open | SR |
+| GEN-69 | Time zone follows the phone, or a time zone chosen in settings; it is no longer fixed to Europe/Amsterdam. | Should | Done (v16) | SR |
 | GEN-70 | Day start and day end (stored but unused) set the edges of the Today timeline and the "after midnight still counts as yesterday" boundary. | Could | Open | SR |
 
 ## D2. Today (TOD)
 
 | ID | Requirement | Pri | Status | Src |
 |----------|---------------------------------------------------------------|----------|-------------------|-------|
-| TOD-01 | Today shows **today**, with a one-tap peek at tomorrow. Browsing other days moves to Plan's Day view (PLN-02); the week strip leaves Today. Done when: no function that Today has now is lost (each is on Today for today, or on Plan's Day view for any day). | Must | Open | R5 |
-| TOD-02 | Today's list merges every module set to show there (GEN-04): timed items on the time rail, untimed ones in "Any time", grouped by morning / afternoon / evening if the person picks that layout. | Must | Partly (tasks only) | R1, R5 |
-| TOD-03 | **Carry-over**: unfinished items from earlier days in one collapsible row at the top, with Tomorrow, Pick a day, Done, Drop (the review actions). The evening review stays, at the person's review time. | Must | Partly (review exists; no carry-over row) | R1 |
-| TOD-04 | Followed-calendar events and the person's own agenda events sit at the top of the timeline. | Must | Partly (followed calendars only) | R4, SR |
+| TOD-01 | Today shows **today**, with a one-tap peek at tomorrow. Browsing other days moves to Plan's Day view (PLN-02); the week strip leaves Today. Done when: no function that Today has now is lost (each is on Today for today, or on Plan's Day view for any day). | Must | Done (v16) | R5 |
+| TOD-02 | Today's list merges every module set to show there (GEN-04): timed items on the time rail, untimed ones in "Any time", grouped by morning / afternoon / evening if the person picks that layout. | Must | Done (v16) | R1, R5 |
+| TOD-03 | **Carry-over**: unfinished items from earlier days in one collapsible row at the top, with Tomorrow, Pick a day, Done, Drop (the review actions). The evening review stays, at the person's review time. | Must | Done (v16) | R1 |
+| TOD-04 | Followed-calendar events and the person's own agenda events sit at the top of the timeline. | Must | Done (v16) | R4, SR |
 | TOD-05 | Tabs (Body, Work, Training, module tabs, Evening, Sleep) appear only when that module is on and the day has something for it; with only one tab, no tab row. | Must | Done | R3 |
 | TOD-06 | The figure under the date (e.g. kcal eaten / target) is the person's choice, or nothing; and a pinned stats card can replace it (TOD-20). | Must | Done (figure); Open (stats card) | R2, R5 |
-| TOD-10 | **Two-stage hold on a task** (decided 2 Oct): a tap opens it; a **short hold** (about 0.35 s) then moving the finger **drags** it; holding still for **longer** (about 0.8 s) **expands** it in place, showing its note, checklist, time, minutes, section and quick actions (Edit, Copy to…, Duplicate, Move to…, Skip, Delete, Open note as page). A light buzz marks each stage. A second long hold, a tap on the title or Back collapses it. Both times are adjustable in settings. | Must | Open | R5 |
-| TOD-11 | An expanded row keeps the page usable: the header of the expanded row stays visible while scrolling its content; only one row is expanded at a time. | Must | Open | SR |
-| TOD-12 | Checklist items in an expanded row can be ticked directly; each tick saves at once, offline. | Must | Open (only on the note page) | R5 |
-| TOD-13 | Ticking the last checklist item asks "Mark the task done?" (Yes / Not yet); it never ticks the task silently. | Must | Open | SR |
-| TOD-14 | The same two-stage hold works on Plan's Day view. Move up / Move down stay in the ⋮ menu for anyone who cannot drag. | Must | Open | R5 |
-| TOD-15 | Push buttons 15 / 30 / 60, tick, the ⋮ move menu and drag warnings (locked, fixed, locked work hours, clash) work as in v15. Fix: a push past midnight moves the task to the next day instead of wrapping on the same date; pushing an untimed task asks for a time instead of starting from 09:00. | Must | Partly | R1, SR |
-| TOD-20 | **Pinned cards**: the person can pin up to 6 cards to Today (a module summary such as "Protein 82/140 g", "3 chores due", "Sleep 7.2 h", or any saved stats template), add, remove and drag to reorder them, choose small or large, and choose "show on weekdays / weekends / always". Cards never come back after being removed. | Should | Open | R5, SR |
-| TOD-21 | Each card shows one glanceable figure and one main action ("+ Add food", "Start"). | Should | Open | SR |
+| TOD-10 | **Two-stage hold on a task** (decided 2 Oct): a tap opens it; a **short hold** (about 0.35 s) then moving the finger **drags** it; holding still for **longer** (about 0.8 s) **expands** it in place, showing its note, checklist, time, minutes, section and quick actions (Edit, Copy to…, Duplicate, Move to…, Skip, Delete, Open note as page). A light buzz marks each stage. A second long hold, a tap on the title or Back collapses it. Both times are adjustable in settings. | Must | Done (v16) | R5 |
+| TOD-11 | An expanded row keeps the page usable: the header of the expanded row stays visible while scrolling its content; only one row is expanded at a time. | Must | Done (v16) | SR |
+| TOD-12 | Checklist items in an expanded row can be ticked directly; each tick saves at once, offline. | Must | Done (v16) | R5 |
+| TOD-13 | Ticking the last checklist item asks "Mark the task done?" (Yes / Not yet); it never ticks the task silently. | Must | Done (v16) | SR |
+| TOD-14 | The same two-stage hold works on Plan's Day view. Move up / Move down stay in the ⋮ menu for anyone who cannot drag. | Must | Done (v16) | R5 |
+| TOD-15 | Push buttons 15 / 30 / 60, tick, the ⋮ move menu and drag warnings (locked, fixed, locked work hours, clash) work as in v15. Fix: a push past midnight moves the task to the next day instead of wrapping on the same date; pushing an untimed task asks for a time instead of starting from 09:00. | Must | Done (v16) | R1, SR |
+| TOD-20 | **Pinned cards**: the person can pin up to 6 cards to Today (a module summary such as "Protein 82/140 g", "3 chores due", "Sleep 7.2 h", or any saved stats template), add, remove and drag to reorder them, choose small or large, and choose "show on weekdays / weekends / always". Cards never come back after being removed. | Should | Done (v16) | R5, SR |
+| TOD-21 | Each card shows one glanceable figure and one main action ("+ Add food", "Start"). | Should | Done (v16) | SR |
 | TOD-22 | Optional **Plan my day** sheet on the first open of the day: yesterday's leftovers, suggestions (due soon, flexible chores, study reviews), and a workload bar (planned minutes against a daily capacity the person sets) that warns when over. | Could | Open | SR |
 | TOD-23 | Optional **Close the day** sheet at review time: moves leftovers to tomorrow or the Inbox in one go. | Could | Partly (the review) | R1 |
 | TOD-24 | Completed repeating items stay visible (struck through) on Today, so the day's record is complete. | Should | Done for tasks | SR |
@@ -445,18 +446,18 @@ Columns: **ID**, **Requirement** (with "Done when" where a test is needed), **Pr
 
 | ID | Requirement | Pri | Status | Src |
 |-----------|------------------------------------------------------------|----------|---------------------|--------|
-| PLN-01 | Plan views: **Day · Week · Month · Year · Inbox**. | Must | Partly (Week, Month, Year) | R1, R5 |
-| PLN-02 | **Day view**: the full editable rail for any day (what Today offers now): add, open, edit, drag to reorder, push, tick, notes, and that day's items from every module set to "Show on Plan". | Must | Open | R5 |
-| PLN-03 | Week view can show **1 to 14 days** (pinch or a setting), with a busy-ness bar per day. | Should | Open (fixed 7) | SR |
-| PLN-04 | Tapping an item on Week, Month or Year opens it; a + on each view adds on the selected day. | Must | Open (tasks cannot be opened or added from Plan) | SR |
+| PLN-01 | Plan views: **Day · Week · Month · Year · Inbox**. | Must | Done (v16) | R1, R5 |
+| PLN-02 | **Day view**: the full editable rail for any day (what Today offers now): add, open, edit, drag to reorder, push, tick, notes, and that day's items from every module set to "Show on Plan". | Must | Done (v16) | R5 |
+| PLN-03 | Week view can show **1 to 14 days** (pinch or a setting), with a busy-ness bar per day. | Should | Done (v16) | SR |
+| PLN-04 | Tapping an item on Week, Month or Year opens it; a + on each view adds on the selected day. | Must | Done (v16) | SR |
 | PLN-05 | Hold a day to swap it with another; hold an item to move it; repeating items write a series exception; warnings as in v15. | Must | Done | R3 |
-| PLN-06 | **Copy** a day or a week to one or many other days or weeks, choosing what to include (tasks, repeats, notes, meals). | Must | Open | R5 |
-| PLN-07 | **Inbox**: one place for every task without a date (not a separate module): open from Plan and from Today, capture into it from the + menu, drag or "Plan for…" onto a day, and a cleared date sends a task there instead of making it vanish. | Must | Open | SR, R5 |
-| PLN-08 | **Templates**: save a day or week as a template ("Sunday reset", "Meal prep Monday") and drop it onto any day. | Should | Open | R5, SR |
+| PLN-06 | **Copy** a day or a week to one or many other days or weeks, choosing what to include (tasks, repeats, notes, meals). | Must | Done (v16) | R5 |
+| PLN-07 | **Inbox**: one place for every task without a date (not a separate module): open from Plan and from Today, capture into it from the + menu, drag or "Plan for…" onto a day, and a cleared date sends a task there instead of making it vanish. | Must | Done (v16) | SR, R5 |
+| PLN-08 | **Templates**: save a day or week as a template ("Sunday reset", "Meal prep Monday") and drop it onto any day. | Should | Done (v16) | R5, SR |
 | PLN-09 | Month shows load heat, module dots, holidays and calendar marks; Year is a scrolling month list with heat and dots; both reach 3 years back and 5 ahead. | Must | Done | R1, R3 |
 | PLN-10 | Planned repeats beyond the 8-week fill show everywhere (Plan, Today peek, load, exports). | Must | Done | R3 |
-| PLN-11 | Items from every module set to "Show on Plan" show on Week, Month and Year, with their colour, and count in the load if they have a length. | Must | Open (tasks and followed events only) | R5 |
-| PLN-12 | Goals and phases on the Year view list real goals (GEN-36). | Should | Open (stub) | R1 |
+| PLN-11 | Items from every module set to "Show on Plan" show on Week, Month and Year, with their colour, and count in the load if they have a length. | Must | Done (v16) | R5 |
+| PLN-12 | Goals and phases on the Year view list real goals (GEN-36). | Should | Done (v16) | R1 |
 | PLN-13 | Public holidays by country, each in its own colour, on Today and every Plan view, offline. | Must | Done | R3 |
 
 ## D4. Tasks, repeats and copying (TSK)
@@ -465,20 +466,20 @@ Columns: **ID**, **Requirement** (with "Done when" where a test is needed), **Pr
 |-----------|---------------------------------------------------------------|----------|------------------|--------|
 | TSK-01 | Task fields: what, day (or none = Inbox), time, minutes or an end time ("Until"), section, repeat, ends, locked, note. | Must | Done (except Inbox) | R1, R2 |
 | TSK-02 | "Until" end time in the same cell as minutes; an end before the start means the next morning; at most 24 h. | Must | Done | R2 |
-| TSK-03 | Repeat options as GEN-20, in the task sheet. | Must | Partly | R3, R5 |
+| TSK-03 | Repeat options as GEN-20, in the task sheet. | Must | Done (v16) | R3, R5 |
 | TSK-04 | Edits to a repeating task ask "Only this one / This and following"; date-only changes and ticks never ask. | Must | Done | R3 |
 | TSK-05 | "Stop repeating" ends the series today and removes later undone days. | Must | Done | R3 |
-| TSK-06 | A task can be marked **fixed** in the sheet (the flag exists and raises warnings, but nothing can set it). | Should | Open | SR |
+| TSK-06 | A task can be marked **fixed** in the sheet (the flag exists and raises warnings, but nothing can set it). | Should | Done (v16) | SR |
 | TSK-07 | Natural-language quick add: one line such as "Gym tomorrow 18:00-19:30 every Mon Wed #Training" is read into day, time, length, repeat and section, with chips shown as it is typed. | Could | Open | SR |
-| TSK-08 | Missed tasks: the review at the review time (default 21:00), flagging after 3 moves or pushes, with the limit editable in settings (today device-only with no screen). | Must | Partly (limit not editable) | R1 |
-| TSK-09 | The task sheet closes on Back and Escape. | Must | Open (no Escape handling) | SR |
-| TSK-20 | **Copy to…** on a task (expanded row, ⋮ menu, multi-select): pick one or many days on a calendar, or shortcuts (Tomorrow, Every weekday this week, Same day next week). | Must | Open | R5 |
-| TSK-21 | Time choice when copying: keep the same time, set a new time, or no time. | Must | Open | R5 |
-| TSK-22 | Notes choice when copying: **same notes**, **same notes with ticks cleared**, **no notes**, or **a note template**. The last choice is remembered. | Must | Open | R5 |
-| TSK-23 | Other choices when copying: keep the section, minutes and locked flag (default on); copy as a one-off even if the original repeats. | Must | Open | R5 |
-| TSK-24 | **Duplicate** opens the task sheet pre-filled so anything can be changed before saving. | Must | Open | SR |
-| TSK-25 | Copies are independent tasks; editing one never changes another. A copy of a repeating task's day is a one-off. | Must | Open | R5 |
-| TSK-26 | **Save as template** on a task keeps title, minutes, section, note and repeat as a reusable "task template", offered in the add sheet's Saved tab. | Should | Open | R5 |
+| TSK-08 | Missed tasks: the review at the review time (default 21:00), flagging after 3 moves or pushes, with the limit editable in settings (today device-only with no screen). | Must | Done (v16) | R1 |
+| TSK-09 | The task sheet closes on Back and Escape. | Must | Done (v16) | SR |
+| TSK-20 | **Copy to…** on a task (expanded row, ⋮ menu, multi-select): pick one or many days on a calendar, or shortcuts (Tomorrow, Every weekday this week, Same day next week). | Must | Done (v16) | R5 |
+| TSK-21 | Time choice when copying: keep the same time, set a new time, or no time. | Must | Done (v16) | R5 |
+| TSK-22 | Notes choice when copying: **same notes**, **same notes with ticks cleared**, **no notes**, or **a note template**. The last choice is remembered. | Must | Done (v16) | R5 |
+| TSK-23 | Other choices when copying: keep the section, minutes and locked flag (default on); copy as a one-off even if the original repeats. | Must | Done (v16) | R5 |
+| TSK-24 | **Duplicate** opens the task sheet pre-filled so anything can be changed before saving. | Must | Done (v16) | SR |
+| TSK-25 | Copies are independent tasks; editing one never changes another. A copy of a repeating task's day is a one-off. | Must | Done (v16) | R5 |
+| TSK-26 | **Save as template** on a task keeps title, minutes, section, note and repeat as a reusable "task template", offered in the add sheet's Saved tab. | Should | Done (v16) | R5 |
 
 ## D5. Notes and note templates (NOT)
 
@@ -487,19 +488,19 @@ Columns: **ID**, **Requirement** (with "Done when" where a test is needed), **Pr
 | NOT-01 | Note toolbar: checklist item, bullet, bold, heading; Enter continues a list; plain text storage that syncs and exports as it is. | Must | Done | R2 |
 | NOT-02 | "Open as page": a full-screen note with tickable checklist and a progress count; ticks save at once. | Must | Done | R2 |
 | NOT-03 | Row marks: "done/total" chip for checklists, a page icon for other notes. | Must | Done | R2 |
-| NOT-04 | Checklist items can be reordered by drag and indented; ticked items can be sent to the bottom (setting). | Should | Open | SR |
-| NOT-10 | **Note templates**: named, reusable note bodies with fill-in fields `{date}`, `{weekday}`, `{time}`, `{title}`, `{day count}` filled when used. | Must | Open | R5 |
-| NOT-11 | Templates can be made from any note ("Save as template"), edited, renamed, deleted, ordered and searched, and sync with the profile. | Must | Open | R5 |
-| NOT-12 | Starter templates (editable, removable): Recipe ingredients and steps; Meal prep checklist; Reading reflection (What I remember, Questions, A line worth keeping); Study session (Goal, Done, Next); Workout plan; Packing list; Meeting notes; Weekly review; Cleaning checklist; Shopping run. | Must | Open | R5 |
-| NOT-13 | A template is chosen when making a task, when copying one (TSK-22), and from the note toolbar ("Insert template"). | Must | Open | R5 |
-| NOT-14 | **Prompt after done**: a template can be set to open when the task is ticked (e.g. the reading reflection after a reading task), with "Later" and "Skip". | Should | Open | R5 |
-| NOT-15 | A task template (TSK-26) can carry a note template, so "Reading 30 min" always comes with its reflection. | Should | Open | R5 |
-| NOT-16 | Habits, chores and module records use the same note editor and templates (HAB-10). | Must | Open | R5 |
-| NOT-17 | Template variables and the "prompt after done" are shown in plain words in the editor, not as code. | Must | Open | SR |
-| NOT-20 | **Insert → Recipe** in the note toolbar: pick a recipe with the shared search, choose portions, and insert any of: ingredients as a checklist (scaled, in the units used), steps, macros per portion. | Must | Open | R5 |
-| NOT-21 | The inserted block keeps a link to the recipe ("From: Chicken curry, 4 portions · Open recipe"). | Must | Open | R5 |
-| NOT-22 | If the recipe changes later, the note offers "Update from recipe" (never changes by itself). | Should | Open | SR |
-| NOT-23 | Several recipes can be inserted into one note (meal prep for the week), with an optional combined shopping-style ingredient list. | Should | Open | R5 |
+| NOT-04 | Checklist items can be reordered by drag and indented; ticked items can be sent to the bottom (setting). | Should | Done (v16) | SR |
+| NOT-10 | **Note templates**: named, reusable note bodies with fill-in fields `{date}`, `{weekday}`, `{time}`, `{title}`, `{day count}` filled when used. | Must | Done (v16) | R5 |
+| NOT-11 | Templates can be made from any note ("Save as template"), edited, renamed, deleted, ordered and searched, and sync with the profile. | Must | Done (v16) | R5 |
+| NOT-12 | Starter templates (editable, removable): Recipe ingredients and steps; Meal prep checklist; Reading reflection (What I remember, Questions, A line worth keeping); Study session (Goal, Done, Next); Workout plan; Packing list; Meeting notes; Weekly review; Cleaning checklist; Shopping run. | Must | Done (v16) | R5 |
+| NOT-13 | A template is chosen when making a task, when copying one (TSK-22), and from the note toolbar ("Insert template"). | Must | Done (v16) | R5 |
+| NOT-14 | **Prompt after done**: a template can be set to open when the task is ticked (e.g. the reading reflection after a reading task), with "Later" and "Skip". | Should | Done (v16) | R5 |
+| NOT-15 | A task template (TSK-26) can carry a note template, so "Reading 30 min" always comes with its reflection. | Should | Done (v16) | R5 |
+| NOT-16 | Habits, chores and module records use the same note editor and templates (HAB-10). | Must | Done (v16) | R5 |
+| NOT-17 | Template variables and the "prompt after done" are shown in plain words in the editor, not as code. | Must | Done (v16) | SR |
+| NOT-20 | **Insert → Recipe** in the note toolbar: pick a recipe with the shared search, choose portions, and insert any of: ingredients as a checklist (scaled, in the units used), steps, macros per portion. | Must | Done (v16) | R5 |
+| NOT-21 | The inserted block keeps a link to the recipe ("From: Chicken curry, 4 portions · Open recipe"). | Must | Done (v16) | R5 |
+| NOT-22 | If the recipe changes later, the note offers "Update from recipe" (never changes by itself). | Should | Done (v16) | SR |
+| NOT-23 | Several recipes can be inserted into one note (meal prep for the week), with an optional combined shopping-style ingredient list. | Should | Done (v16) | R5 |
 
 
 
@@ -507,90 +508,90 @@ Columns: **ID**, **Requirement** (with "Done when" where a test is needed), **Pr
 
 | ID | Requirement | Pri | Status | Src |
 |-----------|---------------------------------------------------------------|----------|-------------------|-------|
-| FOOD-01 | A person can **create and edit their own foods** by hand: name, brand, figures per 100 g or 100 ml, units, pack size, aisle, shops. Shared foods stay read-only but can be copied to "my version". | Must | Open (only units of own foods can be edited) | R5 |
-| FOOD-02 | Every food stores the **EU 1169/2011 declaration per 100 g or 100 ml**: energy (kJ and kcal), fat, of which saturates, carbohydrate, of which sugars, fibre, protein, salt. Optional: mono- and polyunsaturates, polyols, starch, alcohol. Unknown stays empty, never 0. | Must | Open (five figures only) | R5 |
-| FOOD-03 | Carbohydrate follows the EU definition (fibre not included). The current catalogue's carbohydrate includes fibre (US method) and must be converted: EU carbs = carbs − fibre. | Must | Open | R5 |
-| FOOD-04 | When only macros are known, energy is worked out with the Annex XIV factors (carbohydrate 4 kcal/17 kJ, protein 4/17, fat 9/37, fibre 2/8, alcohol 7/29, polyols 2.4/10, organic acid 3/13). A food whose stated energy differs from its macros by more than 15% is flagged for review. | Must | Open | R5 |
-| FOOD-05 | Salt is stored; sodium = salt ÷ 2.5 when shown. | Must | Open | R5 |
-| FOOD-06 | %RI (reference intake of an average adult: 2000 kcal, fat 70 g, saturates 20 g, carbohydrate 260 g, sugars 90 g, protein 50 g, salt 6 g) can be shown on a food and a day. | Should | Open | R5 |
-| FOOD-07 | Each food knows whether it is per 100 g or per 100 ml, and its state (raw, cooked, canned, dried, frozen) with a cook yield where it changes weight. | Must | Partly (no per-ml flag) | R1, R5 |
-| FOOD-08 | The shared catalogue is rebuilt on **NEVO-online 2025** (RIVM, 2,328 Dutch foods), used unchanged and attributed "Based on data from NEVO online version 2025/9.0, RIVM, Bilthoven", and never sold to users. Where NEVO has no entry, USDA FoodData Central (public domain) or the Swedish Livsmedelsverket (CC BY 4.0) fill the gap, each marked with its source. | Must | Open | R5 |
-| FOOD-09 | Food names are in plain British English with the Dutch name searchable as well ("Onion (ui)"); the US-style inverted names ("Squash Winter Zucchini") are replaced. | Must | Open | R5 |
-| FOOD-10 | Everyday European staples are present: flours, dry and cooked pasta, rice, noodles, couscous, bulgur, buckwheat, oats, muesli, granola, breads (white, wholemeal, rye, sourdough, rolls, wraps, pita, bagel, croissant), dairy (milks, quark, skyr, Greek yoghurt, cottage cheese, cream cheese, common cheeses), spreads and sauces (peanut butter, chocolate sprinkles, jam, honey, mayonnaise, ketchup, mustard, soy sauce, pesto), drinks (coffee, tea, juices, soft drinks, beer, wine), common meats and fish as sold in the EU (chicken breast and thigh, minced beef, pork chop, bacon, ham, salmon, tuna in water, cod, herring), legumes (tinned chickpeas, kidney and black beans, lentils), frozen vegetables, and Dutch and Lithuanian staples the owner uses. | Must | Open | R5 |
-| FOOD-11 | Irrelevant or inappropriate catalogue items are removed or hidden (e.g. "Milk Human", turtle, emu, mechanically separated poultry), and exact duplicates are merged ("Whole Wheat Bread" and "Whole-wheat bread"). Existing references (recipes, logs) are re-pointed, never broken. | Must | Open | R5 |
-| FOOD-12 | Data errors found by the review are fixed (Part H4): Grapeseed Oil stored with 0 g fat, Chicken Fat and Quinoa with no fat value; plant foods with fibre 0 where a value is known; energy mismatches over 15%. | Must | Open | R5 |
-| FOOD-13 | Each food carries its source and version (NEVO 2025, USDA, Open Food Facts, own, imported) and the attribution is shown on the food sheet and in About. | Must | Partly (source column exists) | R5 |
-| FOOD-14 | Foods list: sorted by name, filtered by the shared search (GEN-10), shows the tracked figures, no 200-row cap when searching. | Must | Partly (unsorted, plain contains) | R5 |
+| FOOD-01 | A person can **create and edit their own foods** by hand: name, brand, figures per 100 g or 100 ml, units, pack size, aisle, shops. Shared foods stay read-only but can be copied to "my version". | Must | Done (v16) | R5 |
+| FOOD-02 | Every food stores the **EU 1169/2011 declaration per 100 g or 100 ml**: energy (kJ and kcal), fat, of which saturates, carbohydrate, of which sugars, fibre, protein, salt. Optional: mono- and polyunsaturates, polyols, starch, alcohol. Unknown stays empty, never 0. | Must | Done (v16) | R5 |
+| FOOD-03 | Carbohydrate follows the EU definition (fibre not included). The current catalogue's carbohydrate includes fibre (US method) and must be converted: EU carbs = carbs − fibre. | Must | Done (v16) | R5 |
+| FOOD-04 | When only macros are known, energy is worked out with the Annex XIV factors (carbohydrate 4 kcal/17 kJ, protein 4/17, fat 9/37, fibre 2/8, alcohol 7/29, polyols 2.4/10, organic acid 3/13). A food whose stated energy differs from its macros by more than 15% is flagged for review. | Must | Done (v16) | R5 |
+| FOOD-05 | Salt is stored; sodium = salt ÷ 2.5 when shown. | Must | Done (v16) | R5 |
+| FOOD-06 | %RI (reference intake of an average adult: 2000 kcal, fat 70 g, saturates 20 g, carbohydrate 260 g, sugars 90 g, protein 50 g, salt 6 g) can be shown on a food and a day. | Should | Partly (v16: %RI on the food page; not yet on the day) | R5 |
+| FOOD-07 | Each food knows whether it is per 100 g or per 100 ml, and its state (raw, cooked, canned, dried, frozen) with a cook yield where it changes weight. | Must | Done (v16) | R1, R5 |
+| FOOD-08 | The shared catalogue is rebuilt on **NEVO-online 2025** (RIVM, 2,328 Dutch foods), used unchanged and attributed "Based on data from NEVO online version 2025/9.0, RIVM, Bilthoven", and never sold to users. Where NEVO has no entry, USDA FoodData Central (public domain) or the Swedish Livsmedelsverket (CC BY 4.0) fill the gap, each marked with its source. | Must | Done (v16) | R5 |
+| FOOD-09 | Food names are in plain British English with the Dutch name searchable as well ("Onion (ui)"); the US-style inverted names ("Squash Winter Zucchini") are replaced. | Must | Done (v16) | R5 |
+| FOOD-10 | Everyday European staples are present: flours, dry and cooked pasta, rice, noodles, couscous, bulgur, buckwheat, oats, muesli, granola, breads (white, wholemeal, rye, sourdough, rolls, wraps, pita, bagel, croissant), dairy (milks, quark, skyr, Greek yoghurt, cottage cheese, cream cheese, common cheeses), spreads and sauces (peanut butter, chocolate sprinkles, jam, honey, mayonnaise, ketchup, mustard, soy sauce, pesto), drinks (coffee, tea, juices, soft drinks, beer, wine), common meats and fish as sold in the EU (chicken breast and thigh, minced beef, pork chop, bacon, ham, salmon, tuna in water, cod, herring), legumes (tinned chickpeas, kidney and black beans, lentils), frozen vegetables, and Dutch and Lithuanian staples the owner uses. | Must | Done (v16) | R5 |
+| FOOD-11 | Irrelevant or inappropriate catalogue items are removed or hidden (e.g. "Milk Human", turtle, emu, mechanically separated poultry), and exact duplicates are merged ("Whole Wheat Bread" and "Whole-wheat bread"). Existing references (recipes, logs) are re-pointed, never broken. | Must | Done (v16) | R5 |
+| FOOD-12 | Data errors found by the review are fixed (Part H4): Grapeseed Oil stored with 0 g fat, Chicken Fat and Quinoa with no fat value; plant foods with fibre 0 where a value is known; energy mismatches over 15%. | Must | Done (v16) | R5 |
+| FOOD-13 | Each food carries its source and version (NEVO 2025, USDA, Open Food Facts, own, imported) and the attribution is shown on the food sheet and in About. | Must | Done (v16) | R5 |
+| FOOD-14 | Foods list: sorted by name, filtered by the shared search (GEN-10), shows the tracked figures, no 200-row cap when searching. | Must | Done (v16) | R5 |
 | FOOD-15 | Foods can be grouped into books and multi-selected (copy names, add to book, delete own, export). | Must | Done | R3 |
-| FOOD-16 | Nutrients tracked and shown are the person's choice from the full EU list (not only kcal, protein, carbs, fat, fibre). | Should | Partly (five) | R2, R5 |
+| FOOD-16 | Nutrients tracked and shown are the person's choice from the full EU list (not only kcal, protein, carbs, fat, fibre). | Should | Done (v16) | R2, R5 |
 | FOOD-17 | Vitamins and minerals (Annex XIII NRVs) are optional fields, shown only if the person turns them on. | Could | Open | SR |
 | FOOD-18 | Shops are shown on a food when known (from Open Food Facts or set by the person). | Must | Done for scanned products | R4 |
-| FOOD-19 | Food data is reviewed by checks that run with the app's other checks (energy consistency, required fields, units within limits). | Must | Open | SR |
-| FOOD-20 | Catalogue updates reach every device without disturbing the person's own foods, logs and recipes. | Must | Partly (sync of catalogue rows works; no update process) | SR |
+| FOOD-19 | Food data is reviewed by checks that run with the app's other checks (energy consistency, required fields, units within limits). | Must | Done (v16) | SR |
+| FOOD-20 | Catalogue updates reach every device without disturbing the person's own foods, logs and recipes. | Must | Done (v16) | SR |
 
 ## D7. Units for food (UNIT)
 
 | ID | Requirement | Pri | Status | Src |
 |------------|----------------------------------------------------------|----------|----------------------|--------|
 | UNIT-01 | A food can be counted in grams (or ml) and in its own units (egg, slice, clove, tbsp); up to 8 units, each with a weight. | Must | Done | R4 |
-| UNIT-02 | One amount field (number + unit picker) everywhere an amount is typed: recipe lines, meals, quick entries from a food, stock, scanning, the shopping list. | Must | Partly ("Just numbers" is grams only; shopping has no input) | R4, R5 |
+| UNIT-02 | One amount field (number + unit picker) everywhere an amount is typed: recipe lines, meals, quick entries from a food, stock, scanning, the shopping list. | Must | Done (v16) | R4, R5 |
 | UNIT-03 | Amounts accept decimal commas, fractions (½, ¼, 1/2, 1 1/2) and spaces in thousands. | Must | Done | R4 |
-| UNIT-04 | Volumes: ml, l, tsp (5 ml), tbsp (15 ml), cup (250 ml EU) for liquids and foods with a density. | Should | Partly (tbsp/tsp as units on some foods) | R5 |
-| UNIT-10 | Every food sold or used per piece has units, with **small / medium / large** where sizes differ, using RIVM Portie-online 2026 edible weights (Part H3). | Must | Partly (exact names only; several weights are US weights) | R5 |
-| UNIT-11 | Each unit has an **edible weight** (for nutrition) and an **as-bought weight** (for shopping and stock), e.g. banana medium 130 g edible, 186 g as bought. | Must | Open | R5 |
-| UNIT-12 | The default unit for a counted food is "medium" when the person types "1 onion". | Must | Open | R5 |
-| UNIT-13 | Part units: slice, segment, clove, leaf, stalk, floret, sprig, bunch, head, punnet, tin, jar, pack, bottle, as fits the food. | Must | Open | R5 |
-| UNIT-14 | Eggs follow EU sizes: S, M, L, XL (shell-on grading XL ≥ 73 g, L 63–73, M 53–63, S < 53 g) with edible weights S 40, M 50, L 60 g. | Must | Partly (one "egg" of 50 g) | R4, R5 |
-| UNIT-15 | The current wrong weights are corrected (Part H3, table H3.2): e.g. onion 110 → 95 g, garlic clove 5 → 3 g, tomato 120 → 89 g, potato 170 → 70 g, carrot 60 → 243 g (winter carrot; bunch carrot 20 g), apple 180 → 135 g. Saved entries keep their grams. | Must | Open | R5 |
-| UNIT-16 | A person can add, rename and remove units on their own foods, and add their own units to shared foods (kept as their overlay). | Must | Partly (own foods only) | R4, R5 |
-| UNIT-20 | Unit wording is always the food's own: the add-unit form uses the food's name as the example ("onion"), never "egg/eggs" on other foods; the hint "Add a unit to count it as eggs…" is replaced by one naming this food. | Must | Open | R5 |
-| UNIT-21 | Plurals follow the number everywhere, including on the unit buttons ("1 onion", "2 onions", "0.5 onion"); no stray separators or leading spaces ("· eggs"). | Must | Open | R5 |
-| UNIT-22 | Combined lists (shopping, copy ingredients) show a count when all lines used the same unit, else grams with the count in brackets where it helps ("3 onions (285 g)"). | Must | Partly | R4 |
-| UNIT-23 | Done when: on a phone, every screen that shows an amount (food sheet, recipe editor and view, meal day, quick entry, stock, scan, shopping, copy ingredients, exports) is checked for unit wording, and a check covers the plural and display rules. | Must | Open | R5 |
+| UNIT-04 | Volumes: ml, l, tsp (5 ml), tbsp (15 ml), cup (250 ml EU) for liquids and foods with a density. | Should | Done (v16) | R5 |
+| UNIT-10 | Every food sold or used per piece has units, with **small / medium / large** where sizes differ, using RIVM Portie-online 2026 edible weights (Part H3). | Must | Partly (v16: sizes and as-bought weights supported; Portie-online weights entered for about 22 foods so far) | R5 |
+| UNIT-11 | Each unit has an **edible weight** (for nutrition) and an **as-bought weight** (for shopping and stock), e.g. banana medium 130 g edible, 186 g as bought. | Must | Done (v16) | R5 |
+| UNIT-12 | The default unit for a counted food is "medium" when the person types "1 onion". | Must | Done (v16) | R5 |
+| UNIT-13 | Part units: slice, segment, clove, leaf, stalk, floret, sprig, bunch, head, punnet, tin, jar, pack, bottle, as fits the food. | Must | Done (v16) | R5 |
+| UNIT-14 | Eggs follow EU sizes: S, M, L, XL (shell-on grading XL ≥ 73 g, L 63–73, M 53–63, S < 53 g) with edible weights S 40, M 50, L 60 g. | Must | Done (v16) | R4, R5 |
+| UNIT-15 | The current wrong weights are corrected (Part H3, table H3.2): e.g. onion 110 → 95 g, garlic clove 5 → 3 g, tomato 120 → 89 g, potato 170 → 70 g, carrot 60 → 243 g (winter carrot; bunch carrot 20 g), apple 180 → 135 g. Saved entries keep their grams. | Must | Done (v16) | R5 |
+| UNIT-16 | A person can add, rename and remove units on their own foods, and add their own units to shared foods (kept as their overlay). | Must | Done (v16) | R4, R5 |
+| UNIT-20 | Unit wording is always the food's own: the add-unit form uses the food's name as the example ("onion"), never "egg/eggs" on other foods; the hint "Add a unit to count it as eggs…" is replaced by one naming this food. | Must | Done (v16) | R5 |
+| UNIT-21 | Plurals follow the number everywhere, including on the unit buttons ("1 onion", "2 onions", "0.5 onion"); no stray separators or leading spaces ("· eggs"). | Must | Done (v16) | R5 |
+| UNIT-22 | Combined lists (shopping, copy ingredients) show a count when all lines used the same unit, else grams with the count in brackets where it helps ("3 onions (285 g)"). | Must | Done (v16) | R4 |
+| UNIT-23 | Done when: on a phone, every screen that shows an amount (food sheet, recipe editor and view, meal day, quick entry, stock, scan, shopping, copy ingredients, exports) is checked for unit wording, and a check covers the plural and display rules. | Must | Done (v16) | R5 |
 
 ## D8. Recipes (REC)
 
 | ID | Requirement | Pri | Status | Src |
 |-----------|-------------------------------------------------------------|----------|--------------------|--------|
-| REC-01 | The Recipes tab has the shared search (GEN-10) over names, ingredients and tags, and sorting (name, kcal, recent, most cooked). | Must | Open | R5 |
-| REC-02 | Every recipe can be opened and read in full (shared ones included): ingredients with amounts and units, steps, figures per portion and per batch, time. | Must | Open (shared recipes cannot be viewed) | SR |
+| REC-01 | The Recipes tab has the shared search (GEN-10) over names, ingredients and tags, and sorting (name, kcal, recent, most cooked). | Must | Done (v16) | R5 |
+| REC-02 | Every recipe can be opened and read in full (shared ones included): ingredients with amounts and units, steps, figures per portion and per batch, time. | Must | Done (v16) | SR |
 | REC-03 | Recipe editor: name, for (meal type), portions per batch, ingredient lines with amount and unit, minutes, steps, who can see it. | Must | Done | R1, R3 |
-| REC-04 | Ingredient lines can be reordered, marked raw or cooked (so cook yields apply), carry a short note ("finely chopped"), and free-text lines without a food ("salt to taste"). | Must | Open | SR |
-| REC-05 | Delete from inside the editor (with confirm), and Duplicate ("make a variation"). | Must | Open | SR |
-| REC-06 | Scale a recipe by portions in the view; the scale carries into notes, meals and the shopping list. | Should | Open | SR |
-| REC-07 | Import a recipe from a web address (schema.org Recipe data), and from text pasted in ("200 g oats, 2 eggs…") matched to foods. | Should | Partly (Excel import only) | R1, SR |
+| REC-04 | Ingredient lines can be reordered, marked raw or cooked (so cook yields apply), carry a short note ("finely chopped"), and free-text lines without a food ("salt to taste"). | Must | Done (v16) | SR |
+| REC-05 | Delete from inside the editor (with confirm), and Duplicate ("make a variation"). | Must | Done (v16) | SR |
+| REC-06 | Scale a recipe by portions in the view; the scale carries into notes, meals and the shopping list. | Should | Done (v16) | SR |
+| REC-07 | Import a recipe from a web address (schema.org Recipe data), and from text pasted in ("200 g oats, 2 eggs…") matched to foods. | Should | Done (v16) | R1, SR |
 | REC-08 | Recipe books and multi-select (copy ingredients, add to shopping list, delete own, export). | Must | Done (except "add to shopping list") | R3 |
 | REC-09 | Share with everyone: propose, owner approves, statuses, review queue. | Must | Done | R3 |
-| REC-10 | **Add ingredient** when the food is not there: the ingredient search ends with "Add '<typed>' as a new food" (opens FOOD-01's form and returns to the line), plus Scan barcode and Find in stores. | Must | Open | R5 |
+| REC-10 | **Add ingredient** when the food is not there: the ingredient search ends with "Add '<typed>' as a new food" (opens FOOD-01's form and returns to the line), plus Scan barcode and Find in stores. | Must | Done (v16) | R5 |
 | REC-11 | A photo per recipe (kept on the device and synced within size limits). | Could | Open | SR |
 | REC-12 | Cook mode: steps one by one, screen kept on, timers from step text ("simmer 20 min"). | Could | Open | SR |
-| REC-20 | From a recipe: **Add to a task** (into a task's note, NOT-20), **Plan as a meal**, **Add ingredients to shopping list** (minus stock). | Must | Open | R5 |
-| REC-21 | A recipe can be a **ready meal** made from one scanned product (PROD-10). | Must | Open | R5 |
+| REC-20 | From a recipe: **Add to a task** (into a task's note, NOT-20), **Plan as a meal**, **Add ingredients to shopping list** (minus stock). | Must | Done (v16) | R5 |
+| REC-21 | A recipe can be a **ready meal** made from one scanned product (PROD-10). | Must | Done (v16) | R5 |
 
 ## D9. Meals and food logging (MEAL)
 
 | ID | Requirement | Pri | Status | Src |
 |------------|-------------------------------------------------------------|----------|--------------------|-------|
-| MEAL-01 | **No fixed meal slots by default.** Food entries are timed (or untimed) items on the day, with an optional meal label. | Must | Open (four hard-coded slots) | R5 |
-| MEAL-02 | Settings → Food → Meals: the person may define their own meals (any names, any number, ordered), each with an optional default time. Only then do meal cards appear on the Day tab. Templates may suggest a set (e.g. Fitness: Breakfast, Lunch, Pre-workout, Dinner, Snack). | Must | Open | R5 |
-| MEAL-03 | The server's unused `meal_slots` default is replaced by MEAL-02's setting. | Must | Open | SR |
-| MEAL-04 | Which meal is the "main meal" for the size-to-target suggestion is the person's choice (any meal, or none). | Should | Open (Dinner fixed) | SR |
+| MEAL-01 | **No fixed meal slots by default.** Food entries are timed (or untimed) items on the day, with an optional meal label. | Must | Done (v16) | R5 |
+| MEAL-02 | Settings → Food → Meals: the person may define their own meals (any names, any number, ordered), each with an optional default time. Only then do meal cards appear on the Day tab. Templates may suggest a set (e.g. Fitness: Breakfast, Lunch, Pre-workout, Dinner, Snack). | Must | Done (v16) | R5 |
+| MEAL-03 | The server's unused `meal_slots` default is replaced by MEAL-02's setting. | Must | Done (v16) | SR |
+| MEAL-04 | Which meal is the "main meal" for the size-to-target suggestion is the person's choice (any meal, or none). | Should | Done (v16) | SR |
 | MEAL-05 | Meal times: none unless set; a time set on the day wins over the default; changing defaults moves future meals that followed them. | Must | Done | R2 |
-| MEAL-06 | A meal can be marked skipped (the "skipped meal" rule), which removes its task and leaves it out of shopping. | Should | Open | SR |
-| MEAL-07 | Meals and whole days can be copied to other days (Copy to…, "Copy yesterday's breakfast"). | Must | Open | R5 |
-| MEAL-08 | A group of foods can be saved as a **saved meal** and logged in one tap; logging can "explode" it into its foods to edit one. | Should | Open | SR |
-| MEAL-09 | Untimed food entries show in an "Any time" group; timed ones on the day's time line. | Must | Open | R5 |
-| MEAL-10 | **+ Add food** on Food → Day and in Today's + menu (when Nutrition is on) opens the add-food sheet for the day shown. | Must | Open | R5 |
-| MEAL-11 | Step 1 of the sheet: **Which meal?** (own meal names, a new name, or none) and **When?** (now, a time, untimed); both pre-filled from the time of day and last use. | Must | Open | R5 |
-| MEAL-12 | Step 2: sources as tabs: **Recent · Saved meals · Recipes · Foods · Scan · Just numbers · Copy from another day**. Several items can be picked into a staging "plate" and added in one go, each with its amount and unit. | Must | Open | R5 |
-| MEAL-13 | A meal holds any number of items (foods, recipes, ready meals, quick numbers); each can be edited or removed. | Must | Open (one recipe or one set of numbers) | R5 |
-| MEAL-14 | **Scan** in the add sheet: a found product goes straight in with its pack or serving as the amount; an unknown one opens Find in stores or a new-food form. "Scan again" stays on the sheet for the next item. | Must | Open | R5 |
+| MEAL-06 | A meal can be marked skipped (the "skipped meal" rule), which removes its task and leaves it out of shopping. | Should | Done (v16) | SR |
+| MEAL-07 | Meals and whole days can be copied to other days (Copy to…, "Copy yesterday's breakfast"). | Must | Done (v16) | R5 |
+| MEAL-08 | A group of foods can be saved as a **saved meal** and logged in one tap; logging can "explode" it into its foods to edit one. | Should | Done (v16) | SR |
+| MEAL-09 | Untimed food entries show in an "Any time" group; timed ones on the day's time line. | Must | Done (v16) | R5 |
+| MEAL-10 | **+ Add food** on Food → Day and in Today's + menu (when Nutrition is on) opens the add-food sheet for the day shown. | Must | Done (v16) | R5 |
+| MEAL-11 | Step 1 of the sheet: **Which meal?** (own meal names, a new name, or none) and **When?** (now, a time, untimed); both pre-filled from the time of day and last use. | Must | Done (v16) | R5 |
+| MEAL-12 | Step 2: sources as tabs: **Recent · Saved meals · Recipes · Foods · Scan · Just numbers · Copy from another day**. Several items can be picked into a staging "plate" and added in one go, each with its amount and unit. | Must | Done (v16) | R5 |
+| MEAL-13 | A meal holds any number of items (foods, recipes, ready meals, quick numbers); each can be edited or removed. | Must | Done (v16) | R5 |
+| MEAL-14 | **Scan** in the add sheet: a found product goes straight in with its pack or serving as the amount; an unknown one opens Find in stores or a new-food form. "Scan again" stays on the sheet for the next item. | Must | Done (v16) | R5 |
 | MEAL-15 | "Just numbers": label, calories as total or per 100 g / 50 g / 30 g / 25 g / portion with grams eaten, optional macros; unknown stays unknown. | Must | Done | R2 |
-| MEAL-16 | "From a food" keeps the link to the food (today it saves only the numbers), so the food's later corrections and units carry through. | Should | Open | SR |
-| MEAL-17 | Meal tasks on Today (rule "every planned meal becomes a task"), switchable; ticking either side marks both (GEN-31). | Must | Partly | R1, SR |
+| MEAL-16 | "From a food" keeps the link to the food (today it saves only the numbers), so the food's later corrections and units carry through. | Should | Done (v16) | SR |
+| MEAL-17 | Meal tasks on Today (rule "every planned meal becomes a task"), switchable; ticking either side marks both (GEN-31). | Must | Done (v16) | R1, SR |
 | MEAL-18 | Day totals: planned and eaten, for the tracked nutrients, against targets where set. | Must | Done | R2 |
 | MEAL-19 | The figure on Today is the person's choice or none. | Must | Done | R2 |
-| MEAL-20 | Remembered last amount per food, and "hourly go-tos" (what is usually eaten at this time) at the top of Recent. | Should | Open | SR |
+| MEAL-20 | Remembered last amount per food, and "hourly go-tos" (what is usually eaten at this time) at the top of Recent. | Should | Done (v16) | SR |
 
 ## D10. Calorie budget and activity levels (BODY)
 
@@ -598,16 +599,16 @@ Columns: **ID**, **Requirement** (with "Done when" where a test is needed), **Pr
 |------------|-------------------------------------------------------------|----------|--------------------|-------|
 | BODY-01 | Targets are optional; with them off, nothing about the body is saved. | Must | Done | R2 |
 | BODY-02 | BMR by Mifflin-St Jeor; target = BMR × activity factor + goal adjustment (cut −500, recomp 0, bulk +300); protein 2.2 / 1.9 / 1.7 g per kg; fat 27% of energy; carbohydrate the rest; fibre 14 g per 1000 kcal; working shown. | Must | Done | R1 |
-| BODY-03 | Goal adjustment, protein per kg and fat share are editable by the person (the defaults stay). | Should | Open | SR |
-| BODY-04 | Targets are recalculated when goal, activity, height or date of birth change, not only on a weigh-in (with a note saying so). | Must | Open | SR |
-| BODY-05 | No hidden fallbacks: without height or date of birth the targets are not worked out (today onboarding quietly assumes 175 cm and age 30). | Must | Open | SR |
-| BODY-10 | Activity is chosen by two short questions: **Work** (mostly resting / sitting / standing / physical / very heavy) and **Training** (none / 1–2 / 3–4 / 5+ sessions a week, or 2+ hours a day), mapped to the lifestyle presets of Part H5. | Must | Open | R5 |
-| BODY-11 | Each preset shows its factor, an example day and a step range, e.g. "1.6 · desk job plus 2–3 gym sessions a week, about 6,000–9,000 steps". | Must | Open | R5 |
-| BODY-12 | Presets (Part H5): 1.3 mostly resting; 1.4 desk job, no exercise; 1.5 desk job with a daily walk or cycle commute; 1.6 desk job plus 2–3 workouts a week; 1.75 desk job plus daily training; 1.65 standing job; 1.8 standing job plus 3+ workouts; 1.9 physical job; 2.2 very heavy labour or endurance athlete. | Must | Open | R5 |
-| BODY-13 | Default is 1.4–1.5 (desk job, no or light exercise), never 1.2. "Mostly resting" (1.3) is labelled as housebound or recovering. | Must | Open (default 1.375; 1.2 listed first as "desk job") | R5 |
-| BODY-14 | A custom factor can still be typed (1.2 to 2.4, two decimals), with a warning outside 1.3–2.2. | Must | Partly (free text in More, no range check) | R2, R5 |
-| BODY-15 | The same picker is used in onboarding and in More (today More is a free text box with a hint that does not match). | Must | Open | SR |
-| BODY-16 | No double counting: the person chooses once whether training is inside the factor (default) or logged separately and added; the screen says which. | Must | Open | R5 |
+| BODY-03 | Goal adjustment, protein per kg and fat share are editable by the person (the defaults stay). | Should | Done (v16) | SR |
+| BODY-04 | Targets are recalculated when goal, activity, height or date of birth change, not only on a weigh-in (with a note saying so). | Must | Done (v16) | SR |
+| BODY-05 | No hidden fallbacks: without height or date of birth the targets are not worked out (today onboarding quietly assumes 175 cm and age 30). | Must | Done (v16) | SR |
+| BODY-10 | Activity is chosen by two short questions: **Work** (mostly resting / sitting / standing / physical / very heavy) and **Training** (none / 1–2 / 3–4 / 5+ sessions a week, or 2+ hours a day), mapped to the lifestyle presets of Part H5. | Must | Done (v16) | R5 |
+| BODY-11 | Each preset shows its factor, an example day and a step range, e.g. "1.6 · desk job plus 2–3 gym sessions a week, about 6,000–9,000 steps". | Must | Done (v16) | R5 |
+| BODY-12 | Presets (Part H5): 1.3 mostly resting; 1.4 desk job, no exercise; 1.5 desk job with a daily walk or cycle commute; 1.6 desk job plus 2–3 workouts a week; 1.75 desk job plus daily training; 1.65 standing job; 1.8 standing job plus 3+ workouts; 1.9 physical job; 2.2 very heavy labour or endurance athlete. | Must | Done (v16) | R5 |
+| BODY-13 | Default is 1.4–1.5 (desk job, no or light exercise), never 1.2. "Mostly resting" (1.3) is labelled as housebound or recovering. | Must | Done (v16) | R5 |
+| BODY-14 | A custom factor can still be typed (1.2 to 2.4, two decimals), with a warning outside 1.3–2.2. | Must | Done (v16) | R2, R5 |
+| BODY-15 | The same picker is used in onboarding and in More (today More is a free text box with a hint that does not match). | Must | Done (v16) | SR |
+| BODY-16 | No double counting: the person chooses once whether training is inside the factor (default) or logged separately and added; the screen says which. | Must | Partly (v16: the choice is there and said on screen; no training energy to add yet) | R5 |
 | BODY-17 | After 2–3 weeks of food logs (6 of 7 days) and at least one weigh-in a week, offer an **adaptive estimate** of maintenance from intake and trend weight, which the person may accept. | Could | Open | SR |
 | BODY-18 | Goal is not only about the body: the planner's goals (GEN-36) are separate from the calorie goal. | Must | Done (body goal is in its own section) | R2 |
 
@@ -615,27 +616,27 @@ Columns: **ID**, **Requirement** (with "Done when" where a test is needed), **Pr
 
 | ID | Requirement | Pri | Status | Src |
 |------------|--------------------------------------------------------|----------|------------------------|--------|
-| SHOP-01 | The list is built from planned meals (recipes **and** foods and ready meals), minus stock, in packs where a pack size is known. | Must | Partly (recipe meals only) | R1, R2 |
-| SHOP-02 | The window of meals the list covers is chosen: until the next shopping day (SHOP-21), or a number of days (default 4). | Must | Open (fixed today + 3) | SR |
-| SHOP-03 | Ticks sync across devices and the household, and are kept until the item is bought or removed (not reset at midnight). | Must | Open (device only, per day) | SR |
+| SHOP-01 | The list is built from planned meals (recipes **and** foods and ready meals), minus stock, in packs where a pack size is known. | Must | Done (v16) | R1, R2 |
+| SHOP-02 | The window of meals the list covers is chosen: until the next shopping day (SHOP-21), or a number of days (default 4). | Must | Done (v16) | SR |
+| SHOP-03 | Ticks sync across devices and the household, and are kept until the item is bought or removed (not reset at midnight). | Must | Done (v16) | SR |
 | SHOP-04 | "Put ticked items in stock" adds what was bought. | Must | Done | R2 |
-| SHOP-10 | **+ Add item**: free text with amount parsing ("2 kg apples", "6 eggs", "toilet paper"); matched to a food when one fits, else kept as a plain item. | Must | Open | R5 |
-| SHOP-11 | **Recently bought** tiles: one tap re-adds an item; frequent items first. | Should | Open | SR |
-| SHOP-12 | Scan to add an item to the list. | Should | Open | R4 |
-| SHOP-13 | Manual items can be edited (amount, note, aisle, shop), reordered and removed, and sync with the household. | Must | Open | R5 |
-| SHOP-14 | Recipes and multi-selected recipes can add their ingredients to the list (minus stock). | Must | Open | R3 |
-| SHOP-15 | Minimum stock: a stock item with a minimum adds itself to the list when it falls below it. | Should | Open | SR |
-| SHOP-20 | Setting **"Plan a shopping trip when the list has items"**: off by default; when on, a task "Shopping (N items)" is put on the next shopping day at the chosen time, updated as the count changes, and removed when the list is empty. | Must | Open | R5 |
-| SHOP-21 | Shopping days are the person's choice (any weekdays, or "the next day"), with a time and a length; the trip task can be locked (the old `trip_days` rule). | Must | Open | R5 |
-| SHOP-22 | Tapping the trip task opens the list; ticking the task when everything is ticked offers "Put bought items in stock". | Should | Open | R5 |
-| SHOP-23 | The trip task follows the module's "Show on Today / Plan" switches. | Must | Open | R5 |
-| SHOP-30 | The list shows **aisle sections as headings** (collapsible), in the person's aisle order. | Must | Open (aisles only sort) | R5 |
-| SHOP-31 | A **shop filter**: "Any shop", or one of the person's shops; each item shows where it is sold when known. | Must | Open | R5 |
-| SHOP-32 | **Stores tab**: the person's shops (from a list of chains in their country, or typed), each with its own aisle order and the prices the person types or scans. | Must | Open (placeholder) | R1, R5 |
-| SHOP-33 | Prices: the latest price per shop (own, or shared Open Prices), price per kg or litre, and a running total for the trip. | Should | Partly (shared prices on product page) | R4 |
-| SHOP-34 | Several lists (e.g. per shop, or "Household" and "Me"), with items movable between them. | Could | Open | SR |
-| SHOP-35 | Custom aisles (rename, reorder, add). | Should | Open | SR |
-| SHOP-36 | Shops near the person (country and city) are suggested first. | Should | Partly (country used for product search) | R1 |
+| SHOP-10 | **+ Add item**: free text with amount parsing ("2 kg apples", "6 eggs", "toilet paper"); matched to a food when one fits, else kept as a plain item. | Must | Done (v16) | R5 |
+| SHOP-11 | **Recently bought** tiles: one tap re-adds an item; frequent items first. | Should | Done (v16) | SR |
+| SHOP-12 | Scan to add an item to the list. | Should | Done (v16) | R4 |
+| SHOP-13 | Manual items can be edited (amount, note, aisle, shop), reordered and removed, and sync with the household. | Must | Done (v16) | R5 |
+| SHOP-14 | Recipes and multi-selected recipes can add their ingredients to the list (minus stock). | Must | Done (v16) | R3 |
+| SHOP-15 | Minimum stock: a stock item with a minimum adds itself to the list when it falls below it. | Should | Done (v16) | SR |
+| SHOP-20 | Setting **"Plan a shopping trip when the list has items"**: off by default; when on, a task "Shopping (N items)" is put on the next shopping day at the chosen time, updated as the count changes, and removed when the list is empty. | Must | Done (v16) | R5 |
+| SHOP-21 | Shopping days are the person's choice (any weekdays, or "the next day"), with a time and a length; the trip task can be locked (the old `trip_days` rule). | Must | Done (v16) | R5 |
+| SHOP-22 | Tapping the trip task opens the list; ticking the task when everything is ticked offers "Put bought items in stock". | Should | Done (v16) | R5 |
+| SHOP-23 | The trip task follows the module's "Show on Today / Plan" switches. | Must | Done (v16) | R5 |
+| SHOP-30 | The list shows **aisle sections as headings** (collapsible), in the person's aisle order. | Must | Done (v16) | R5 |
+| SHOP-31 | A **shop filter**: "Any shop", or one of the person's shops; each item shows where it is sold when known. | Must | Done (v16) | R5 |
+| SHOP-32 | **Stores tab**: the person's shops (from a list of chains in their country, or typed), each with its own aisle order and the prices the person types or scans. | Must | Done (v16) | R1, R5 |
+| SHOP-33 | Prices: the latest price per shop (own, or shared Open Prices), price per kg or litre, and a running total for the trip. | Should | Partly (v16: own prices per shop, per kg or litre, trip total; shared Open Prices stay on the product page) | R4 |
+| SHOP-34 | Several lists (e.g. per shop, or "Household" and "Me"), with items movable between them. | Could | Done (v16) | SR |
+| SHOP-35 | Custom aisles (rename, reorder, add). | Should | Done (v16) | SR |
+| SHOP-36 | Shops near the person (country and city) are suggested first. | Should | Partly (v16: the country's chains first, then neighbours'; no open data to rank by city) | R1 |
 | SHOP-40 | Supermarkets' weekly online offers ("catalogues"): kept as a later item. No open data source exists for Dutch chains; scraping their sites would break their terms. Revisit if a chain offers an open feed or partnership. | Could | Open (decided later) | R1, R5 |
 
 ## D12. Stock (STK)
@@ -643,23 +644,23 @@ Columns: **ID**, **Requirement** (with "Done when" where a test is needed), **Pr
 | ID | Requirement | Pri | Status | Src |
 |-----------|---------------------------------------------------------------|-----------|------------------|-------|
 | STK-01 | Stock per household: add by search or scan, amount in g, kg, packs or the food's units, note; adjust with − / +; remove with confirm; "out" stays listed. | Must | Done | R2 |
-| STK-02 | Optional auto-deduct when a meal is eaten (recipe meals today; foods and ready meals too). | Must | Partly (recipes only) | R2 |
-| STK-03 | Storage place (fridge, freezer, cupboard) and best-before date, with an "expiring soon" list. | Should | Open | SR |
-| STK-04 | Minimum amount per item feeding the shopping list (SHOP-15). | Should | Open | SR |
-| STK-05 | Household members invited from the app (today only by a database change). | Should | Open | SR |
-| STK-06 | Recipe suggestions by what is in stock. | Could | Open | SR |
+| STK-02 | Optional auto-deduct when a meal is eaten (recipe meals today; foods and ready meals too). | Must | Done (v16) | R2 |
+| STK-03 | Storage place (fridge, freezer, cupboard) and best-before date, with an "expiring soon" list. | Should | Done (v16) | SR |
+| STK-04 | Minimum amount per item feeding the shopping list (SHOP-15). | Should | Done (v16) | SR |
+| STK-05 | Household members invited from the app (today only by a database change). | Should | Done (v16) | SR |
+| STK-06 | Recipe suggestions by what is in stock. | Could | Done (v16) | SR |
 
 ## D13. Products and barcodes (PROD)
 
 | ID | Requirement | Pri | Status | Src |
 |------------|-------------------------------------------------------------|----------|-------------------|--------|
 | PROD-01 | Find products from Open Food Facts by name, brand or barcode, in the person's country; scan with Google's code scanner (no camera permission); rate limits respected; attribution shown. | Must | Done | R4 |
-| PROD-02 | Scanning is offered wherever food is added: meals, recipes (ingredients), stock, shopping list, Foods. | Must | Partly (Foods, Stock) | R4, R5 |
-| PROD-03 | A product brings in all EU label fields it has (salt, sugars, saturates…), not only five. | Must | Open | R5 |
-| PROD-04 | Use the current Open Food Facts API (v3) with an app identification; v2 is deprecated. | Should | Open (v2) | SR |
+| PROD-02 | Scanning is offered wherever food is added: meals, recipes (ingredients), stock, shopping list, Foods. | Must | Done (v16) | R4, R5 |
+| PROD-03 | A product brings in all EU label fields it has (salt, sugars, saturates…), not only five. | Must | Done (v16) | R5 |
+| PROD-04 | Use the current Open Food Facts API (v3) with an app identification; v2 is deprecated. | Should | Done (v16) | SR |
 | PROD-05 | Unknown product: create the food from a photo of its nutrition table, or by hand with the EU fields; optionally contribute it to Open Food Facts. | Could | Partly (by hand after FOOD-01) | SR |
-| PROD-06 | Nutri-Score shown when Open Food Facts has it. | Could | Open | SR |
-| PROD-10 | **Ready meals**: a scanned product can be saved as a ready meal (one portion = the pack or the stated serving) and logged or planned like a recipe. | Must | Open | R5 |
+| PROD-06 | Nutri-Score shown when Open Food Facts has it. | Could | Done (v16) | SR |
+| PROD-10 | **Ready meals**: a scanned product can be saved as a ready meal (one portion = the pack or the stated serving) and logged or planned like a recipe. | Must | Done (v16) | R5 |
 
 
 
@@ -667,32 +668,32 @@ Columns: **ID**, **Requirement** (with "Done when" where a test is needed), **Pr
 
 | ID | Requirement | Pri | Status | Src |
 |-----------|---------------------------------------------------------------|----------|-------------------|-------|
-| HAB-01 | Habits use the shared Repeat sheet (GEN-20): every day, weekdays, **weekends**, chosen days, every N days, **N times a week**, monthly, **picked (custom) dates**. | Must | Open (daily, weekdays, weekly) | R5 |
-| HAB-02 | The schedule can be changed after the habit is made; past ticks keep their meaning. | Must | Open | R5 |
-| HAB-03 | Optional time of day (or part of day: morning, afternoon, evening) and an optional reminder. | Should | Open | SR |
-| HAB-04 | Optional start and end dates (a 30-day challenge). | Should | Open | SR |
-| HAB-05 | Count habits ("8 glasses of water", "10 minutes"): a target number with a unit, ticked by adding to it. | Should | Open | SR |
-| HAB-06 | Rename, archive, reorder, colour and mark per habit. | Must | Partly (rename, archive) | SR |
-| HAB-07 | Streak plus a forgiving **strength %** (misses lower it gently instead of resetting to 0). | Should | Partly (streak only) | SR |
-| HAB-08 | A habit's history as a calendar grid (year-in-pixels style), with ticks editable for past days. | Should | Open | SR |
-| HAB-10 | **Pinned note** per habit (the same note editor, checklist and templates as tasks), e.g. Mobility → the list of exercises. | Must | Open | R5 |
-| HAB-11 | The pinned note shows when the habit is expanded on Today (long press), on the Habits page and on the widget's tap-through; its checklist can be ticked for the day without changing the note itself (ticks reset each day). | Must | Open | R5 |
-| HAB-20 | With Habits "Show on Today" on, habits due that day appear in Today's list (at their time, or in "Any time"), not only in a tab. | Must | Open | R5 |
-| HAB-21 | With Habits "Show on Plan" on, habits appear on Plan's Day and Week views (and as a quiet count on Month). | Must | Open | R5 |
-| HAB-22 | The first habit can be added from Today's + menu and from the Habits page; the Habits tab is no longer the only route. | Must | Partly | R5 |
-| HAB-23 | The rule switch "A daily habit appears on every day" is replaced by GEN-03's clear switches, so "selected to appear" means what it says. | Must | Open | R5 |
+| HAB-01 | Habits use the shared Repeat sheet (GEN-20): every day, weekdays, **weekends**, chosen days, every N days, **N times a week**, monthly, **picked (custom) dates**. | Must | Done (v16) | R5 |
+| HAB-02 | The schedule can be changed after the habit is made; past ticks keep their meaning. | Must | Done (v16) | R5 |
+| HAB-03 | Optional time of day (or part of day: morning, afternoon, evening) and an optional reminder. | Should | Done (v16) | SR |
+| HAB-04 | Optional start and end dates (a 30-day challenge). | Should | Done (v16) | SR |
+| HAB-05 | Count habits ("8 glasses of water", "10 minutes"): a target number with a unit, ticked by adding to it. | Should | Done (v16) | SR |
+| HAB-06 | Rename, archive, reorder, colour and mark per habit. | Must | Done (v16) | SR |
+| HAB-07 | Streak plus a forgiving **strength %** (misses lower it gently instead of resetting to 0). | Should | Done (v16) | SR |
+| HAB-08 | A habit's history as a calendar grid (year-in-pixels style), with ticks editable for past days. | Should | Done (v16) | SR |
+| HAB-10 | **Pinned note** per habit (the same note editor, checklist and templates as tasks), e.g. Mobility → the list of exercises. | Must | Done (v16) | R5 |
+| HAB-11 | The pinned note shows when the habit is expanded on Today (long press), on the Habits page and on the widget's tap-through; its checklist can be ticked for the day without changing the note itself (ticks reset each day). | Must | Partly (v16: on the Habits page and Today; not yet from the widget's tap) | R5 |
+| HAB-20 | With Habits "Show on Today" on, habits due that day appear in Today's list (at their time, or in "Any time"), not only in a tab. | Must | Done (v16) | R5 |
+| HAB-21 | With Habits "Show on Plan" on, habits appear on Plan's Day and Week views (and as a quiet count on Month). | Must | Done (v16) | R5 |
+| HAB-22 | The first habit can be added from Today's + menu and from the Habits page; the Habits tab is no longer the only route. | Must | Done (v16) | R5 |
+| HAB-23 | The rule switch "A daily habit appears on every day" is replaced by GEN-03's clear switches, so "selected to appear" means what it says. | Must | Done (v16) | R5 |
 | HAB-24 | Widget: today's habits with ticks (as now), refreshed at once after a tick. | Must | Done | R3 |
 
 ## D15. Supplements (SUP)
 
 | ID | Requirement | Pri | Status | Src |
 |-----------|------------------------------------------------------------|-----------|---------------------|-------|
-| SUP-01 | Add, **edit** (name, dose, slot), reorder and archive supplements. | Must | Partly (cannot edit after adding) | SR |
-| SUP-02 | Time slots are the person's (rename, add, remove; default Morning, Midday, Evening), each with an optional time. | Should | Open | SR |
-| SUP-03 | Schedule per supplement with the shared Repeat sheet (e.g. vitamin D in winter only, creatine on training days). | Should | Open | SR |
-| SUP-04 | One tick per slot ("take all"), with per-item ticks when expanded. | Should | Open | SR |
+| SUP-01 | Add, **edit** (name, dose, slot), reorder and archive supplements. | Must | Done (v16) | SR |
+| SUP-02 | Time slots are the person's (rename, add, remove; default Morning, Midday, Evening), each with an optional time. | Should | Done (v16) | SR |
+| SUP-03 | Schedule per supplement with the shared Repeat sheet (e.g. vitamin D in winter only, creatine on training days). | Should | Done (v16) | SR |
+| SUP-04 | One tick per slot ("take all"), with per-item ticks when expanded. | Should | Done (v16) | SR |
 | SUP-05 | Optional stock count per supplement: each tick takes one dose off; a refill reminder at N days left. | Could | Open | SR |
-| SUP-06 | With "Show on Today" on, each slot appears on Today's list as one item (GEN-39). | Should | Open | SR |
+| SUP-06 | With "Show on Today" on, each slot appears on Today's list as one item (GEN-39). | Should | Done (v16) | SR |
 | SUP-07 | Doses can optionally count towards nutrients (e.g. vitamin D µg). | Could | Open | SR |
 
 ## D16. Health and body log (HLT)
@@ -700,33 +701,33 @@ Columns: **ID**, **Requirement** (with "Done when" where a test is needed), **Pr
 | ID | Requirement | Pri | Status | Src |
 |-----------|-------------------------------------------------------------------|-----------|--------------|-------|
 | HLT-01 | Weigh-in per day (weight 30–300 kg, waist 40–250 cm), last 8 entries with change, a 7-day average line. | Must | Done | R1 |
-| HLT-02 | Weigh-ins for any past day can be added and edited from the Health page (today the page always shows today). | Must | Open | SR |
-| HLT-03 | **Trend weight** (time-weighted moving average) as the headline number, raw weights as dots; weekly rate and an estimated goal date. | Should | Open | SR |
+| HLT-02 | Weigh-ins for any past day can be added and edited from the Health page (today the page always shows today). | Must | Done (v16) | SR |
+| HLT-03 | **Trend weight** (time-weighted moving average) as the headline number, raw weights as dots; weekly rate and an estimated goal date. | Should | Done (v16) | SR |
 | HLT-04 | More body measures as optional fields (hips, chest, arm, body fat %), added in the module editor. | Could | Open | SR |
 | HLT-05 | Weigh-in day and reminder (the server's unused `weigh_in_day`). | Could | Open | SR |
-| HLT-06 | Height emptied in More is saved as empty, never 0. | Must | Open (saves 0) | SR |
+| HLT-06 | Height emptied in More is saved as empty, never 0. | Must | Done (v16) | SR |
 
 ## D17. Training (TRN)
 
 | ID | Requirement | Pri | Status | Src |
 |-----------|----------------------------------------------------------------------|-----------|-----------|-------|
 | TRN-01 | Log sets (exercise from the catalogue, set, reps, load, seconds, note) on any day. | Must | Done | R1 |
-| TRN-02 | Add own exercises (name, muscle group, equipment). | Must | Open | SR |
-| TRN-03 | **Routines** (named lists of exercises with target sets and reps) and a **session** view that logs a routine set by set. | Must | Open | SR |
-| TRN-04 | Prefill from last time, a "Previous" column, and a rest timer that starts on ticking a set. | Should | Open | SR |
-| TRN-05 | Planned sessions use the shared Repeat sheet and become tasks at their time (rule `session_task`, GEN-38); ticking opens the session. | Must | Open | SR |
-| TRN-06 | Training appears on Today and Plan only when its "Show on" switches are on (GEN-03); logging sets never adds anything to Today by itself. | Must | Partly | R5 |
+| TRN-02 | Add own exercises (name, muscle group, equipment). | Must | Done (v16) | SR |
+| TRN-03 | **Routines** (named lists of exercises with target sets and reps) and a **session** view that logs a routine set by set. | Must | Done (v16) | SR |
+| TRN-04 | Prefill from last time, a "Previous" column, and a rest timer that starts on ticking a set. | Should | Done (v16) | SR |
+| TRN-05 | Planned sessions use the shared Repeat sheet and become tasks at their time (rule `session_task`, GEN-38); ticking opens the session. | Must | Done (v16) | SR |
+| TRN-06 | Training appears on Today and Plan only when its "Show on" switches are on (GEN-03); logging sets never adds anything to Today by itself. | Must | Done (v16) | R5 |
 | TRN-07 | Phases (e.g. 6-week blocks) on the Year view, from the unused `phase` table. | Could | Open | SR |
-| TRN-08 | Stats: sessions, sets, volume, per exercise and muscle group, best sets. | Should | Partly | R5 |
+| TRN-08 | Stats: sessions, sets, volume, per exercise and muscle group, best sets. | Should | Done (v16) | R5 |
 
 ## D18. Sleep (SLP)
 
 | ID | Requirement | Pri | Status | Src |
 |-----------|-----------------------------------------------------------------|-----------|----------------|-------|
 | SLP-01 | Log a night (to bed, woke, quality 1–5); the night belongs to the day it ended. | Must | Done | R1 |
-| SLP-02 | **Target hours and bedtime** (the server's unused defaults), compared on every night and in Stats (sleep debt over 7 days, regularity of bed and wake times). | Must | Open | SR |
-| SLP-03 | Optional bedtime block on Plan, locked if chosen (rule `bedtime`, GEN-37), and a bedtime reminder (target wake time minus target hours). | Should | Open | SR |
-| SLP-04 | Past nights can be added and edited from the Sleep page. | Must | Partly (table on page) | SR |
+| SLP-02 | **Target hours and bedtime** (the server's unused defaults), compared on every night and in Stats (sleep debt over 7 days, regularity of bed and wake times). | Must | Done (v16) | SR |
+| SLP-03 | Optional bedtime block on Plan, locked if chosen (rule `bedtime`, GEN-37), and a bedtime reminder (target wake time minus target hours). | Should | Done (v16) | SR |
+| SLP-04 | Past nights can be added and edited from the Sleep page. | Must | Done (v16) | SR |
 | SLP-05 | Import from Health Connect (Android) when allowed. | Could | Open | SR |
 
 ## D19. Learning and reading (LRN)
@@ -734,9 +735,9 @@ Columns: **ID**, **Requirement** (with "Done when" where a test is needed), **Pr
 | ID | Requirement | Pri | Status | Src |
 |-----------|---------------------------------------------------------|-----------|-------------------------|-------|
 | LRN-01 | Study blocks (subject, date, minutes, source) on a page with table and month views. | Must | Done | R1 |
-| LRN-02 | Dated study blocks can become tasks (the day-task rule built modules have), and follow "Show on Today / Plan". | Must | Open | SR |
-| LRN-03 | A reading list (books: to read, reading, finished; pages; rating) as part of the module. | Should | Open (only as a built-module preset) | SR |
-| LRN-04 | Reading tasks offer the "Reading reflection" template after done (NOT-14). | Should | Open | R5 |
+| LRN-02 | Dated study blocks can become tasks (the day-task rule built modules have), and follow "Show on Today / Plan". | Must | Done (v16) | SR |
+| LRN-03 | A reading list (books: to read, reading, finished; pages; rating) as part of the module. | Should | Done (v16) | SR |
+| LRN-04 | Reading tasks offer the "Reading reflection" template after done (NOT-14). | Should | Done (v16) | R5 |
 | LRN-05 | Weekly target per subject with progress; optional review schedule (1–3–7–14–30 days) shown as "3 reviews due" on Today. | Could | Open | SR |
 | LRN-06 | A focus timer that logs minutes to a subject. | Could | Open | SR |
 
@@ -745,11 +746,11 @@ Columns: **ID**, **Requirement** (with "Done when" where a test is needed), **Pr
 | ID | Requirement | Pri | Status | Src |
 |-----------|----------------------------------------------------------------------|-----------|-----------|-------|
 | AGN-01 | Own events (title, start, end, all day, place) with month and list views. | Must | Done | R1 |
-| AGN-02 | **Own events show on Today and Plan** (today only followed calendars do). | Must | Open | SR |
-| AGN-03 | Events can repeat (shared Repeat sheet) and have reminders. | Should | Open | SR |
+| AGN-02 | **Own events show on Today and Plan** (today only followed calendars do). | Must | Done (v16) | SR |
+| AGN-03 | Events can repeat (shared Repeat sheet) and have reminders. | Should | Done (v16) | SR |
 | AGN-04 | Calendar links: a private feed of GetIt into Google Calendar (health items, built modules and notes kept out unless chosen); new link and off. | Must | Done | R4 |
 | AGN-05 | Follow calendars by their iCal address: shown read-only on Today, Plan and Agenda, refreshed on open and every 3 hours, kept on the device. | Must | Done | R4 |
-| AGN-06 | Calendar visibility chips on Plan (hide a followed calendar with one tap without unfollowing). | Should | Open | SR |
+| AGN-06 | Calendar visibility chips on Plan (hide a followed calendar with one tap without unfollowing). | Should | Done (v16) | SR |
 | AGN-07 | The "Nothing across an all-day event" rule: warn when planning across an all-day event that is marked busy. | Could | Open | SR |
 | AGN-08 | Import and export of calendars as .ics, Google-style CSV; repeats kept. | Must | Done | R3 |
 
@@ -758,60 +759,60 @@ Columns: **ID**, **Requirement** (with "Done when" where a test is needed), **Pr
 | ID | Requirement | Pri | Status | Src |
 |-----------|------------------------------------------------------------|-----------|---------------------|-------|
 | PRJ-01 | Projects (name, status, due date) with table and card views. | Must | Done | R1 |
-| PRJ-02 | A project holds **tasks** (a project field on tasks), shows progress (done / all) and its next task. | Must | Open | SR |
-| PRJ-03 | Milestones (dated points in a project) on Plan and the Year view (unused `milestone` table). | Should | Open | SR |
-| PRJ-04 | A board by status as a ready view. | Should | Partly (can be added in Edit module) | SR |
+| PRJ-02 | A project holds **tasks** (a project field on tasks), shows progress (done / all) and its next task. | Must | Done (v16) | SR |
+| PRJ-03 | Milestones (dated points in a project) on Plan and the Year view (unused `milestone` table). | Should | Done (v16) | SR |
+| PRJ-04 | A board by status as a ready view. | Should | Done (v16) | SR |
 | PRJ-05 | Project templates with dates relative to a start date ("Move house", "Exam prep"). | Could | Open | SR |
-| PRJ-06 | **Goals** page: goals with a target date and a measure; projects, tasks and habits link to a goal; the Year view lists them (GEN-36, PLN-12). | Should | Open | R1 |
+| PRJ-06 | **Goals** page: goals with a target date and a measure; projects, tasks and habits link to a goal; the Year view lists them (GEN-36, PLN-12). | Should | Done (v16) | R1 |
 
 ## D22. Finance (FIN)
 
 | ID | Requirement | Pri | Status | Src |
 |-----------|-----------------------------------------------------------|-----------|-----------------------|-------|
 | FIN-01 | Entries (date, category, amount, note) with table and month views; amount summed in Stats. | Must | Done | R1 |
-| FIN-02 | Income or expense; categories as an editable list (top-level ones too); currency (EUR default). | Must | Open (free-text category, no type) | SR |
-| FIN-03 | **Budgets** per category per month, with spent against budget. | Must | Open (summary promises it) | SR |
-| FIN-04 | **Planned payments** (rent, subscriptions) with the shared Repeat sheet, shown on Today and Plan ("Rent due — mark paid"); marking paid creates the entry. | Should | Open | SR |
-| FIN-05 | Fast entry: amount first, then a category grid (recent first). | Should | Open | SR |
+| FIN-02 | Income or expense; categories as an editable list (top-level ones too); currency (EUR default). | Must | Done (v16) | SR |
+| FIN-03 | **Budgets** per category per month, with spent against budget. | Must | Done (v16) | SR |
+| FIN-04 | **Planned payments** (rent, subscriptions) with the shared Repeat sheet, shown on Today and Plan ("Rent due — mark paid"); marking paid creates the entry. | Should | Done (v16) | SR |
+| FIN-05 | Fast entry: amount first, then a category grid (recent first). | Should | Done (v16) | SR |
 | FIN-06 | Import bank CSV exports (ING, Rabobank, ABN AMRO, Revolut) with column mapping. | Could | Partly (generic CSV import) | SR |
 
 ## D23. Household (HSE)
 
 | ID | Requirement | Pri | Status | Src |
 |-----------|-----------------------------------------------------------|-----------|----------------------|-------|
-| HSE-01 | Chores use the shared Repeat sheet (GEN-20): chosen days of the week, weekends, every N days or weeks, monthly on a date or the nth weekday, picked dates. | Must | Open (label only: daily, weekly, monthly) | R5 |
-| HSE-02 | **After completion** ("every 7 days after last done") and **flexible** ("about every 7 days") chores, with a due-ness bar and friendly wording, never "failed". | Should | Open | SR |
-| HSE-03 | Chores have a next-due date and a "last done", and appear on Today (when due or overdue) and Plan, following "Show on" switches. | Must | Open | R5 |
-| HSE-04 | Rooms or areas to group chores. | Should | Open | SR |
-| HSE-05 | **Shared with the household**: every member sees the same chores; who did it is recorded. | Must | Open (per profile) | SR |
-| HSE-06 | Assign to a member, or rotate (each time, each week, least recently done) (GEN-24). | Should | Open | R5 |
-| HSE-07 | "Who" is a household member, not free text. | Must | Open | SR |
-| HSE-08 | Pause (holiday) for the whole module or one chore. | Should | Open | SR |
-| HSE-09 | Light days and a daily cap for flexible chores (GEN-25). | Could | Open | SR |
-| HSE-10 | Starter packs (Studio flat, Family house) that seed rooms and chores; the person removes what they do not need. | Should | Open | SR |
-| HSE-11 | Chores can carry a pinned note and checklist (NOT-16). | Should | Open | R5 |
-| HSE-12 | Household members are invited from the app (shared with STK-05). | Should | Open | SR |
+| HSE-01 | Chores use the shared Repeat sheet (GEN-20): chosen days of the week, weekends, every N days or weeks, monthly on a date or the nth weekday, picked dates. | Must | Done (v16) | R5 |
+| HSE-02 | **After completion** ("every 7 days after last done") and **flexible** ("about every 7 days") chores, with a due-ness bar and friendly wording, never "failed". | Should | Done (v16) | SR |
+| HSE-03 | Chores have a next-due date and a "last done", and appear on Today (when due or overdue) and Plan, following "Show on" switches. | Must | Done (v16) | R5 |
+| HSE-04 | Rooms or areas to group chores. | Should | Done (v16) | SR |
+| HSE-05 | **Shared with the household**: every member sees the same chores; who did it is recorded. | Must | Done (v16) | SR |
+| HSE-06 | Assign to a member, or rotate (each time, each week, least recently done) (GEN-24). | Should | Done (v16) | R5 |
+| HSE-07 | "Who" is a household member, not free text. | Must | Done (v16) | SR |
+| HSE-08 | Pause (holiday) for the whole module or one chore. | Should | Done (v16) | SR |
+| HSE-09 | Light days and a daily cap for flexible chores (GEN-25). | Could | Done (v16) | SR |
+| HSE-10 | Starter packs (Studio flat, Family house) that seed rooms and chores; the person removes what they do not need. | Should | Done (v16) | SR |
+| HSE-11 | Chores can carry a pinned note and checklist (NOT-16). | Should | Done (v16) | R5 |
+| HSE-12 | Household members are invited from the app (shared with STK-05). | Should | Done (v16) | SR |
 
 ## D24. Stats (STA)
 
 | ID | Requirement | Pri | Status | Src |
 |----------|-------------------------------------------------------------------|----------|---------------|-------|
 | STA-01 | Period Day / Week / Month / Year with previous and next, compared with the period before; "show switched-off modules". | Must | Done | R3 |
-| STA-02 | **Every module card expands** to list every measure the module keeps, each selectable to show on the card. | Must | Open | R5 |
-| STA-03 | Measures available (at least): tasks (done, planned, completion %, minutes, pushed, by section or module); habits (ticks, kept %, streak, strength, per habit); supplements (taken %, per item); nutrition (every tracked nutrient eaten and planned, per day and per meal, days on target, top foods); health (weight, trend, waist, change); sleep (hours, quality, debt, bed and wake times, regularity); training (sessions, sets, volume, per exercise and muscle group, best sets); learning (minutes per subject); agenda (events, hours); projects (tasks done, open); finance (spent, income, per category, against budget); household (chores done, per person, overdue); shopping (trips, items, money spent if prices are kept); built modules (every number, duration, yes/no and choice field). | Must | Partly (2–4 fixed figures per module) | R5 |
-| STA-10 | **Stats builder** on one screen: **Measure** (any of STA-03) × **Summary** (sum, average, count, min, max, streak, % of days on target) × **Group by** (day, week, month, weekday, module, section, category, tag, habit, field value) × **Range** (7 / 30 / 90 days, this month, this year, custom). | Must | Open | R5 |
-| STA-11 | **Compare with**: a second measure on the same chart (two axes when units differ), or "days when X happened" shaded behind the chart, with a note when there are too few days (at least 3 with and 3 without). | Should | Open | R5 |
-| STA-12 | Chart chosen automatically (line over time, bars for categories), changeable; a **table toggle** shows the pivot (rows = groups, columns = a second grouping, cells = the summary), with tap-to-drill into the entries behind a cell. | Must | Open | R5 |
-| STA-13 | **Save as stats template**: as many as the person wants, named, ordered, edited, deleted, synced. | Must | Open | R5 |
-| STA-14 | A saved template can be pinned to the Stats page, to Today (TOD-20) and to a widget (WID-10). | Must | Open | R5 |
-| STA-15 | Ready-made templates the person can use or delete: Protein vs target (week), Calories eaten vs planned, Training volume by muscle group, Study minutes by subject, Spending by category (month), Chores per person, Sleep vs training days, Habit kept % by habit. | Should | Open | R5 |
+| STA-02 | **Every module card expands** to list every measure the module keeps, each selectable to show on the card. | Must | Done (v16) | R5 |
+| STA-03 | Measures available (at least): tasks (done, planned, completion %, minutes, pushed, by section or module); habits (ticks, kept %, streak, strength, per habit); supplements (taken %, per item); nutrition (every tracked nutrient eaten and planned, per day and per meal, days on target, top foods); health (weight, trend, waist, change); sleep (hours, quality, debt, bed and wake times, regularity); training (sessions, sets, volume, per exercise and muscle group, best sets); learning (minutes per subject); agenda (events, hours); projects (tasks done, open); finance (spent, income, per category, against budget); household (chores done, per person, overdue); shopping (trips, items, money spent if prices are kept); built modules (every number, duration, yes/no and choice field). | Must | Partly (v16: every module measured; sleep debt and regularity, the extra EU label figures and shopping spend not yet in Stats) | R5 |
+| STA-10 | **Stats builder** on one screen: **Measure** (any of STA-03) × **Summary** (sum, average, count, min, max, streak, % of days on target) × **Group by** (day, week, month, weekday, module, section, category, tag, habit, field value) × **Range** (7 / 30 / 90 days, this month, this year, custom). | Must | Done (v16) | R5 |
+| STA-11 | **Compare with**: a second measure on the same chart (two axes when units differ), or "days when X happened" shaded behind the chart, with a note when there are too few days (at least 3 with and 3 without). | Should | Done (v16) | R5 |
+| STA-12 | Chart chosen automatically (line over time, bars for categories), changeable; a **table toggle** shows the pivot (rows = groups, columns = a second grouping, cells = the summary), with tap-to-drill into the entries behind a cell. | Must | Done (v16) | R5 |
+| STA-13 | **Save as stats template**: as many as the person wants, named, ordered, edited, deleted, synced. | Must | Done (v16) | R5 |
+| STA-14 | A saved template can be pinned to the Stats page, to Today (TOD-20) and to a widget (WID-10). | Must | Done (v16) | R5 |
+| STA-15 | Ready-made templates the person can use or delete: Protein vs target (week), Calories eaten vs planned, Training volume by muscle group, Study minutes by subject, Spending by category (month), Chores per person, Sleep vs training days, Habit kept % by habit. | Should | Done (v16) | R5 |
 | STA-16 | Export any stats view (CSV, Excel, JSON). | Must | Done (figures on screen) | R3 |
-| STA-17 | Year-in-pixels heat grid for any measure. | Could | Open | SR |
-| STA-18 | **Pivot set-up by the person**: choose what goes in **rows**, **columns**, **values** (any number of measures, each with its own summary) and **filters** (module, section, tag, date range, field value), and reorder or remove any of them. | Must | Open | R5 |
-| STA-19 | **Every chart is adjustable**: type (bar, stacked bar, line, area, dots, number, progress ring, table, heat grid), which series show, colours per series, axis range, sort, labels, a target line, and the period buckets. | Must | Open | R5 |
-| STA-21 | Any saved stats view can become a **home-screen widget** (WID-10) or a pinned card, and keeps updating. | Must | Open | R5 |
+| STA-17 | Year-in-pixels heat grid for any measure. | Could | Done (v16) | SR |
+| STA-18 | **Pivot set-up by the person**: choose what goes in **rows**, **columns**, **values** (any number of measures, each with its own summary) and **filters** (module, section, tag, date range, field value), and reorder or remove any of them. | Must | Done (v16) | R5 |
+| STA-19 | **Every chart is adjustable**: type (bar, stacked bar, line, area, dots, number, progress ring, table, heat grid), which series show, colours per series, axis range, sort, labels, a target line, and the period buckets. | Must | Done (v16) | R5 |
+| STA-21 | Any saved stats view can become a **home-screen widget** (WID-10) or a pinned card, and keeps updating. | Must | Done (v16) | R5 |
 | STA-20 | Days still to come never lower an average; unknown days are left out, not counted as 0. | Must | Done | R3 |
-| STA-30 | Correlation cards ("On days you trained, sleep +0.4 h") only when there is enough data, with an honest caveat. | Could | Open | SR |
+| STA-30 | Correlation cards ("On days you trained, sleep +0.4 h") only when there is enough data, with an honest caveat. | Could | Done (v16) | SR |
 
 ## D25. Modules you build, and the module editor (MOD)
 
@@ -822,15 +823,15 @@ Columns: **ID**, **Requirement** (with "Done when" where a test is needed), **Pr
 | MOD-03 | Views: list, table (editable cells), calendar, board, grid, chart, form, with settings. | Must | Done | R3 |
 | MOD-04 | Edit any module: rename, reorder, hide fields; add fields where records are module records; views; rules; settings; "back to the app's version". | Must | Done | R3 |
 | MOD-05 | Rules for built modules: dated records become tasks; reminder at a time. | Must | Done | R3 |
-| MOD-06 | Built-in rules that are shown must be carried out or hidden; the nine rules marked "later" are carried out by GEN-37 to GEN-40, SHOP-21, MEAL-06, HSE-05, LRN-02 and AGN-07, or removed. | Must | Partly (4 of 14 act) | R3 |
-| MOD-07 | Keywords typed for a module really suggest it at setup (today they are stored but not used). | Should | Open | R3 |
-| MOD-10 | **"What you track" allows several choices**: presets combine, their fields are merged (same-named fields kept once, clashes renamed), views from each are offered. | Must | Open | R5 |
-| MOD-11 | A **multi-choice** (tags) field kind. | Must | Open | R5 |
-| MOD-12 | More field kinds: rating (1–5 stars), percentage, money (with currency), photo, link to another built module, checklist, duration with start and end. | Should | Open | SR |
-| MOD-13 | More presets: Water intake, Mood and energy, Medication, Period and cycle (private by default), Pet care, Car fuel, Language practice, Running log, Gratitude journal, Subscriptions. | Should | Open | SR |
-| MOD-14 | Records of built modules use the shared Repeat sheet for recurring records (e.g. plant watering) and follow the "Show on" switches. | Should | Open | SR |
+| MOD-06 | Built-in rules that are shown must be carried out or hidden; the nine rules marked "later" are carried out by GEN-37 to GEN-40, SHOP-21, MEAL-06, HSE-05, LRN-02 and AGN-07, or removed. | Must | Done (v16) | R3 |
+| MOD-07 | Keywords typed for a module really suggest it at setup (today they are stored but not used). | Should | Done (v16) | R3 |
+| MOD-10 | **"What you track" allows several choices**: presets combine, their fields are merged (same-named fields kept once, clashes renamed), views from each are offered. | Must | Done (v16) | R5 |
+| MOD-11 | A **multi-choice** (tags) field kind. | Must | Done (v16) | R5 |
+| MOD-12 | More field kinds: rating (1–5 stars), percentage, money (with currency), photo, link to another built module, checklist, duration with start and end. | Should | Partly (v16: rating, percent, money, checklist, note, start and end, link to records; photo not yet) | SR |
+| MOD-13 | More presets: Water intake, Mood and energy, Medication, Period and cycle (private by default), Pet care, Car fuel, Language practice, Running log, Gratitude journal, Subscriptions. | Should | Done (v16) | SR |
+| MOD-14 | Records of built modules use the shared Repeat sheet for recurring records (e.g. plant watering) and follow the "Show on" switches. | Should | Done (v16) | SR |
 | MOD-15 | Up to 4 entities per module (the definition allows it; the builder makes one) with links between them. | Could | Open | SR |
-| MOD-16 | Share a module design (not its records) as a file, and import one. | Could | Open | SR |
+| MOD-16 | Share a module design (not its records) as a file, and import one. | Could | Done (v16) | SR |
 
 ## D26. Onboarding and starting layouts (ONB)
 
@@ -839,11 +840,11 @@ Columns: **ID**, **Requirement** (with "Done when" where a test is needed), **Pr
 | ONB-01 | Four steps: who is planning (name, country, city); your day (work or school hours, lock, commute); start from (templates, keyword suggestion, adjust modules); body targets (optional). | Must | Done | R2 |
 | ONB-02 | Templates: Minimal planner, Student, Office worker, Shift worker, Parent / household, Fitness and nutrition, Freelancer / projects, Everything on. | Must | Done | R2 |
 | ONB-03 | "Start again from a template" in More. | Must | Done | R2 |
-| ONB-10 | Templates also set each module's "Show on Today / Plan / widget" switches and pinned cards. | Must | Open | R5 |
-| ONB-11 | A visible **Skip** that lands on a working default (Today, Plan, tasks). | Should | Open | SR |
-| ONB-12 | No colour or icon choices during onboarding; a dismissible "Make GetIt yours" card a few days later opens Looks. | Should | Open | SR |
-| ONB-13 | Just-in-time tips instead of a tour (first long press, first checklist, third manual meal: "Save as meal?"), each shown once, replayable in settings. | Should | Open | SR |
-| ONB-14 | Every empty module page has a designed empty state with one main action and a template or import where one exists. | Must | Partly | SR |
+| ONB-10 | Templates also set each module's "Show on Today / Plan / widget" switches and pinned cards. | Must | Done (v16) | R5 |
+| ONB-11 | A visible **Skip** that lands on a working default (Today, Plan, tasks). | Should | Done (v16) | SR |
+| ONB-12 | No colour or icon choices during onboarding; a dismissible "Make GetIt yours" card a few days later opens Looks. | Should | Done (v16) | SR |
+| ONB-13 | Just-in-time tips instead of a tour (first long press, first checklist, third manual meal: "Save as meal?"), each shown once, replayable in settings. | Should | Done (v16) | SR |
+| ONB-14 | Every empty module page has a designed empty state with one main action and a template or import where one exists. | Must | Done (v16) | SR |
 
 ## D27. Pages and navigation (NAV)
 
@@ -853,42 +854,42 @@ Columns: **ID**, **Requirement** (with "Done when" where a test is needed), **Pr
 | NAV-02 | Bar styles: one row, two rows, three rows, drawer, fan; Today and Plan larger and in their own colour. | Must | Done | R3 |
 | NAV-03 | Page order and hiding; swipe between pages, with swipes on day strips, tabs and wide tables left alone. | Must | Done | R3 |
 | NAV-04 | Landscape rail and wide-screen sidebar. | Must | Done | R3 |
-| NAV-20 | A **Modules hub** page (a grid of every module that is on, ordered by use), so the bar can stay short: Today · Plan · a pinned page · Stats · Modules. Offered as a sixth bar style ("Hub"), and recommended for 5+ modules. | Should | Open | R5 |
-| NAV-21 | Long press on a module in the hub: Pin to bar, Pin a card to Today, Hide, Settings. | Should | Open | SR |
-| NAV-22 | The hub has the shared search (GEN-13) over modules and their records. | Should | Open | SR |
-| NAV-23 | More is renamed "Settings" in the hub style, with the same sections. | Could | Open | SR |
+| NAV-20 | A **Modules hub** page (a grid of every module that is on, ordered by use), so the bar can stay short: Today · Plan · a pinned page · Stats · Modules. Offered as a sixth bar style ("Hub"), and recommended for 5+ modules. | Should | Done (v16) | R5 |
+| NAV-21 | Long press on a module in the hub: Pin to bar, Pin a card to Today, Hide, Settings. | Should | Done (v16) | SR |
+| NAV-22 | The hub has the shared search (GEN-13) over modules and their records. | Should | Done (v16) | SR |
+| NAV-23 | More is renamed "Settings" in the hub style, with the same sections. | Could | Done (v16) | SR |
 | NAV-24 | Android launcher shortcuts (up to 4) mirroring the + menu's top items (Add task, Add food…). | Could | Open | SR |
-| NAV-25 | Each module page keeps at most two levels: the module's list, then an item. Deeper settings go in sheets. | Should | Partly | SR |
-| NAV-26 | Moving functions between screens comes with a one-time "What moved where" note, and a "Classic layout" switch for one or two versions. | Should | Open | SR |
+| NAV-25 | Each module page keeps at most two levels: the module's list, then an item. Deeper settings go in sheets. | Should | Done (v16) | SR |
+| NAV-26 | Moving functions between screens comes with a one-time "What moved where" note, and a "Classic layout" switch for one or two versions. | Should | Partly (v16: the one-time "What moved where" note; no Classic layout switch) | SR |
 
 ## D28. Settings, profiles and accounts (SET)
 
 | ID | Requirement | Pri | Status | Src |
 |-----------|----------------------------------------------------------|-----------|-----------------------|-------|
-| SET-01 | Settings sections: Modules, Profile, Reminders, Data (as v15), plus Looks (LOOK). | Must | Partly | R3 |
-| SET-02 | Profiles inside an account: add, rename, switch (remembered), delete; each with its own modules and data. | Should | Partly (switch not saved, no add) | R1 |
+| SET-01 | Settings sections: Modules, Profile, Reminders, Data (as v15), plus Looks (LOOK). | Must | Done (v16) | R3 |
+| SET-02 | Profiles inside an account: add, rename, switch (remembered), delete; each with its own modules and data. | Should | Done (v16) | R1 |
 | SET-03 | Several accounts on one phone (up to 5), switching with the phone's unlock, never losing unsent changes. | Must | Done | R3 |
-| SET-04 | Sign out sends waiting changes first, or warns and asks before discarding them. | Must | Open (discards) | SR |
+| SET-04 | Sign out sends waiting changes first, or warns and asks before discarding them. | Must | Done (v16) | SR |
 | SET-05 | Delete account in the app and on a web page. | Must | Done | R1 |
-| SET-06 | A backup restore brings back settings, country and city too. | Must | Open | SR |
-| SET-07 | The conflicts list words refused changes as "refused by the server", not "kept", and never prints "[object Object]". | Must | Open | SR |
-| SET-08 | The extension limit (moves before a task is flagged) is editable. | Should | Open | SR |
+| SET-06 | A backup restore brings back settings, country and city too. | Must | Done (v16) | SR |
+| SET-07 | The conflicts list words refused changes as "refused by the server", not "kept", and never prints "[object Object]". | Must | Done (v16) | SR |
+| SET-08 | The extension limit (moves before a task is flagged) is editable. | Should | Done (v16) | SR |
 
 ## D29. Colours, themes and app icon (LOOK)
 
 | ID | Requirement | Pri | Status | Src |
 |------------|---------------------------------------------------------------|-----------|------------------|-------|
-| LOOK-01 | **Themes ("colour flows")**: a set of named themes, each with light and dark versions (paper, ink, accent, tint, lines, heat scale), chosen in Settings → Looks with a live preview. The design page ("GetIt — Looks") is the starting set. | Must | Open | R5 |
-| LOOK-02 | **System colours** (Android 12+ Material You): the theme follows the phone's wallpaper colours, re-read when the app comes back. | Should | Open | SR |
-| LOOK-03 | Mode: System, Light, Dark, and **Black** (AMOLED) for dark. | Must | Open (system only) | R5 |
-| LOOK-04 | **Own colour**: pick one accent (wheel, hex or swatches) and the theme is generated from it. | Should | Open | R5 |
-| LOOK-05 | Contrast guard on every theme: text at least 4.5:1, lines, markers and chart strokes at least 3:1 against their background; a colour that fails is adjusted and the person told "Adjusted for readability". | Must | Partly (module colours checked) | SR |
+| LOOK-01 | **Themes ("colour flows")**: a set of named themes, each with light and dark versions (paper, ink, accent, tint, lines, heat scale), chosen in Settings → Looks with a live preview. The design page ("GetIt — Looks") is the starting set. | Must | Done (v16) | R5 |
+| LOOK-02 | **System colours** (Android 12+ Material You): the theme follows the phone's wallpaper colours, re-read when the app comes back. | Should | Done (v16) | SR |
+| LOOK-03 | Mode: System, Light, Dark, and **Black** (AMOLED) for dark. | Must | Done (v16) | R5 |
+| LOOK-04 | **Own colour**: pick one accent (wheel, hex or swatches) and the theme is generated from it. | Should | Done (v16) | R5 |
+| LOOK-05 | Contrast guard on every theme: text at least 4.5:1, lines, markers and chart strokes at least 3:1 against their background; a colour that fails is adjusted and the person told "Adjusted for readability". | Must | Done (v16) | SR |
 | LOOK-06 | Module colours per module (16 swatches or hex), checked against the chosen theme's paper. | Must | Done (against the default paper) | R3 |
-| LOOK-07 | Text size: Small, Default, Large, Larger (also follows the phone's font size). | Should | Open | SR |
+| LOOK-07 | Text size: Small, Default, Large, Larger (also follows the phone's font size). | Should | Done (v16) | SR |
 | LOOK-08 | Density: Comfortable or Compact rows. | Could | Open | SR |
-| LOOK-09 | The widget follows the app's theme and mode. | Should | Partly (light and dark) | SR |
-| LOOK-10 | **App icon choice**: 6–8 icons bundled in the app (see the design page), switched in Settings → Looks, with the warning that the launcher may take a few seconds and that pinned shortcuts may need re-adding. Exactly one icon is always enabled; the icon is never hidden. | Should | Open | R5 |
-| LOOK-11 | The adaptive icon has a **monochrome layer** so Android 13+ themed icons work. | Must | Open | SR |
+| LOOK-09 | The widget follows the app's theme and mode. | Should | Done (v16) | SR |
+| LOOK-10 | **App icon choice**: 6–8 icons bundled in the app (see the design page), switched in Settings → Looks, with the warning that the launcher may take a few seconds and that pinned shortcuts may need re-adding. Exactly one icon is always enabled; the icon is never hidden. | Should | Done (v16) | R5 |
+| LOOK-11 | The adaptive icon has a **monochrome layer** so Android 13+ themed icons work. | Must | Done (v16) | SR |
 | LOOK-12 | The serif for what the person wrote and the sans for system text stay in every theme; a theme may offer an alternative pairing (e.g. all-sans). | Could | Open | SR |
 | LOOK-20 | Themes and icons are free; nothing about looks is behind a payment. | Should | n/a | SR |
 
@@ -897,9 +898,9 @@ Columns: **ID**, **Requirement** (with "Done when" where a test is needed), **Pr
 | ID | Requirement | Pri | Status | Src |
 |-----------|-----------------------------------------------------------------------|-----------|-----------|-------|
 | REM-01 | Reminders at each timed task's time, within a few minutes, for the next 3 days, off by default, quiet hours, text hidden on the lock screen, under the name the person chooses. | Must | Done | R1 |
-| REM-02 | Reminders for habits, supplements, chores, events and built-module records follow the module's "Send reminders" switch (GEN-03). | Should | Open | SR |
-| REM-03 | Tapping a reminder opens the item; "Done" and "In 15 min" actions on the notification. | Should | Open | SR |
-| REM-04 | A reminder in quiet hours is delayed to the end of them (setting), instead of always dropped. | Could | Open | SR |
+| REM-02 | Reminders for habits, supplements, chores, events and built-module records follow the module's "Send reminders" switch (GEN-03). | Should | Done (v16) | SR |
+| REM-03 | Tapping a reminder opens the item; "Done" and "In 15 min" actions on the notification. | Should | Done (v16) | SR |
+| REM-04 | A reminder in quiet hours is delayed to the end of them (setting), instead of always dropped. | Could | Done (v16) | SR |
 | REM-05 | Messaging-style reminders (Telegram) as an option. | Could | Open | R1 |
 
 ## D31. Home-screen widgets (WID)
@@ -907,12 +908,12 @@ Columns: **ID**, **Requirement** (with "Done when" where a test is needed), **Pr
 | ID | Requirement | Pri | Status | Src |
 |-----------|---------------------------------------------------------------------|-----------|-------------|-------|
 | WID-01 | "GetIt · Today" widget: open tasks with ticks, today's habits, done tasks, resizable, ticks applied safely. | Must | Done | R1 |
-| WID-02 | The Today widget shows items from every module set to "Show on the widget". | Should | Open | R5 |
-| WID-10 | **Stats widgets**: the person places as many as they want, each showing a saved stats view of their choice (a figure, a small chart, a ring or a short table), in 2×2, 4×2 and 4×4 sizes, refreshed whenever the data changes. | Must | Open | R5 |
+| WID-02 | The Today widget shows items from every module set to "Show on the widget". | Should | Done (v16) | R5 |
+| WID-10 | **Stats widgets**: the person places as many as they want, each showing a saved stats view of their choice (a figure, a small chart, a ring or a short table), in 2×2, 4×2 and 4×4 sizes, refreshed whenever the data changes. | Must | Done (v16) | R5 |
 | WID-11 | **Quick add widget**: buttons for the + menu's top items. | Could | Open | SR |
 | WID-12 | Widgets refresh at once after any change in the app or on the widget. | Must | Done for Today | R3 |
-| WID-13 | Widgets follow the theme (LOOK-09) and have proper empty states. | Should | Partly | SR |
-| WID-14 | A widget's settings can be changed by a long press on it (Android's own widget settings). | Should | Open | SR |
+| WID-13 | Widgets follow the theme (LOOK-09) and have proper empty states. | Should | Done (v16) | SR |
+| WID-14 | A widget's settings can be changed by a long press on it (Android's own widget settings). | Should | Done (v16) | SR |
 
 ## D32. Import, export and backup (DATA)
 
@@ -921,17 +922,17 @@ Columns: **ID**, **Requirement** (with "Done when" where a test is needed), **Pr
 | DATA-01 | "Export" link, small and bold, at the bottom right of every data page, with the formats that fit. | Must | Done | R3 |
 | DATA-02 | Import and export centre: pick a module and fields, a format (CSV, Excel, JSON, .ics, text) and a range; import with column matching, a preview and per-row problems. | Must | Done | R3 |
 | DATA-03 | Whole-account backup file, and restore into the open profile. | Must | Done (see SET-06) | R1 |
-| DATA-04 | Excel workbook import of foods and recipes (the owner's original files); exercises saved too once TRN-02 exists. | Must | Partly (exercises not saved) | R1 |
-| DATA-05 | Recipes import and export in a common format (CSV, JSON, and schema.org Recipe from the web). | Should | Partly | R1 |
-| DATA-06 | Note templates, stats templates and themes are part of the backup and of the profile sync. | Must | Open | R5 |
+| DATA-04 | Excel workbook import of foods and recipes (the owner's original files); exercises saved too once TRN-02 exists. | Must | Partly (v16: foods and recipes on the EU basis; exercises from the workbook not yet saved) | R1 |
+| DATA-05 | Recipes import and export in a common format (CSV, JSON, and schema.org Recipe from the web). | Should | Done (v16) | R1 |
+| DATA-06 | Note templates, stats templates and themes are part of the backup and of the profile sync. | Must | Done (v16) | R5 |
 
 ## D33. Sync, security and privacy (SYNC, SEC)
 
 | ID | Requirement | Pri | Status | Src |
 |------------|---------------------------------------------------------------------|-----------|------------|-------|
 | SYNC-01 | Local-first sync with a queue, field-level merge, folding of one-per-key rows, paging and parallel pulls. | Must | Done | R1 |
-| SYNC-02 | A light periodic pull (e.g. every 2 minutes while open, and on focus) so changes from another device appear without a reload. | Should | Open | SR |
-| SYNC-03 | New synced things (note templates, task templates, stats templates, meals list, manual shopping items, chores' schedules, themes) are synced with the same guarantees. | Must | Open | R5 |
+| SYNC-02 | A light periodic pull (e.g. every 2 minutes while open, and on focus) so changes from another device appear without a reload. | Should | Done (v16) | SR |
+| SYNC-03 | New synced things (note templates, task templates, stats templates, meals list, manual shopping items, chores' schedules, themes) are synced with the same guarantees. | Must | Done (v16) | R5 |
 | SEC-01 | Row-level security on every table, tested by the security suite (112 checks today) and extended for every new table. | Must | Done | R1 |
 | SEC-02 | Health data never leaves the person's profile without their action; the calendar feed keeps health and built-module items out. | Must | Done | R4 |
 | SEC-03 | Privacy policy and records of processing updated whenever data use changes (new food sources, household sharing of chores, themes). | Must | Ongoing | R4 |
