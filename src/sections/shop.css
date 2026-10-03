@@ -147,3 +147,8 @@
 .shop-aisle-order .stock-step { width: 40px; height: 40px; }
 .shop-aisle-order .stock-step:disabled { opacity: 0.35; }
 .shop-add-aisle { border-bottom: 0; }
+
+/* After the trip is ticked off on Today or Plan: the one attention card. */
+.shop-trip-done { margin: var(--space-3) var(--space-4) 0; padding: var(--space-3) var(--space-3) 0; background: var(--e-tint); border-radius: var(--radius-md); }
+.shop-trip-done p { margin: 0; font-family: var(--font-sans); font-size: 14px; }
+.shop-trip-done .shop-foot { padding: var(--space-3) 0; }

@@ -51,6 +51,10 @@ export function ShopList({ profile, addRef }: { profile: Profile; addRef: React.
   const [sheet, setSheet] = useState<null | 'scan' | 'recipes' | 'list'>(null)
   const [said, setSaid] = useState<string | null>(null)
 
+  // A shopping trip ticked off today, with things still in the basket: the
+  // list offers to put them away (SHOP-22).
+  const tripDone = useLiveQuery(async () => (await db.task.where('[profile_id+planned_date]').equals([profile.id, day]).toArray())
+    .some((t) => t.source === 'shopping' && !t.deleted_at && t.status === 'done'), [profile.id, day], false)
   if (!view) return <p className="empty">Reading the list…</p>
   const shops = view.shops
   // A shop or list that has gone (renamed, removed on another phone) falls back to all.
@@ -190,6 +194,16 @@ export function ShopList({ profile, addRef }: { profile: Profile; addRef: React.
               options={[{ value: '', label: 'Any shop' }, ...shops.map((s) => ({ value: s.name, label: s.name }))]}
               onChange={(v) => setShop(v || null)} />
           )}
+        </div>
+      )}
+
+      {tripDone && basket.length > 0 && (
+        <div className="shop-trip-done" role="status">
+          <p>The shopping trip is ticked off. Put the {basket.length} bought {basket.length === 1 ? 'item' : 'items'} away?</p>
+          <div className="shop-foot">
+            <button type="button" className="btn btn-primary" onClick={() => void stockBasket()}>Put in stock</button>
+            <button type="button" className="btn" onClick={() => void clear()}>Just clear the basket</button>
+          </div>
         </div>
       )}
 
