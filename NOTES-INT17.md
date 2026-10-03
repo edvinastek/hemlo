@@ -58,3 +58,13 @@ once on "deleted" read 600 ms after Delete (waits now). Both passed alone before
 - Tappable things above the fold (page only; bar and list rows apart): Today 5, Plan Day 15, Week 17, Month 11,
   Year 8, Inbox 13, task sheet 11, Food Day 17, Recipes 6, Foods 7, add-food sheet 8, Shop List 12, Stock 7, Stores 9,
   Stats 12, Habits 2, Chores 2, Training 6, Finance 8, Modules 3, Settings 11.
+
+## Full runs 2 and 3
+- tracking (and widget after it, and units once) failed in full runs only: the first sign-in of the fresh account
+  showed the page bar for ~50 ms before the first-run wizard (traced: SETUP → NAV → WIZ), so signIn saw the bar,
+  skipped the wizard and the check ran on the wizard's page. App bug (App.tsx said it must not happen): the setup
+  answer from before the profile arrived was reused for it. Now tied to the profile id.
+- tracking: the import is waited for until all of it is sent (it can take over 30 s), then counted.
+- e2e.mjs: a check that stops on an error prints the page it was on; todayPart says which tabs were there.
+- Words: "More" left in the first run, the module editor, a rule's note, the privacy policy's paths (POLICY_VERSION
+  moved to 2026-10-04) and the delete page: now Settings.
