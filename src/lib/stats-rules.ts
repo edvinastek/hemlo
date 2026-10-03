@@ -1,3 +1,8 @@
+import type { Fact } from './pivot-rules.ts'
+import {
+  addDays as addDay, choreState, habitDay, habitSchedule, mondayOf, fromDayNumber, toDayNumber,
+  type ChoreDone, type ChoreLike, type HabitLike as ScheduledHabit,
+} from './schedule-rules.ts'
 import { addDays, isScheduled, weekday, weekStart, type HabitSchedule } from './tracking-rules.ts'
 
 /** The arithmetic behind the Stats page, with no database and no React, so
@@ -460,4 +465,95 @@ export function statsRows(period: Period, range: Range, modules: ModuleStats[]):
     }
   }
   return rows
+}
+
+/* ---------- facts for the stats builder (pivot-rules.ts) ------------------- */
+
+
+export interface HabitRow extends ScheduledHabit { id: string; name: string; active: boolean; deleted_at?: string | null }
+
+/** Each habit's days as facts: a tick, whether it was due, whether a due
+ *  day was answered (hit), and any amount counted. A day is due by the
+ *  habit's own schedule (schedule-rules.ts); today is not yet missed; a
+ *  times-a-week habit is due its number of times in each week, the ones not
+ *  done counted on the week's Sunday once that Sunday has passed. A habit
+ *  put away keeps its ticks but is no longer due. */
+export function habitFacts(habits: HabitRow[], done: Record<string, string[]>, amounts: Record<string, Record<string, number>>, range: Range, today: string): Fact[] {
+  const out: Fact[] = []
+  for (const h of habits) {
+    if (h.deleted_at) continue
+    const base = { module: 'habits', item: h.name, ref: { table: 'habit', id: h.id, label: h.name } }
+    const doneSet = new Set(done[h.id] ?? [])
+    const inRange = (d: string) => d >= range.start && d <= range.end
+    for (const d of doneSet) if (inRange(d)) out.push({ ...base, day: d, measure: 'habits:ticks', value: 1 })
+    for (const [d, v] of Object.entries(amounts[h.id] ?? {})) if (inRange(d) && Number.isFinite(v)) out.push({ ...base, day: d, measure: 'habits:amount', value: v })
+    if (!h.active) continue
+    const s = habitSchedule(h)
+    if (s.rule === 'times_per_week') {
+      const times = Math.max(1, Math.min(7, Math.floor(s.rule_config.times ?? 1)))
+      const first = fromDayNumber(mondayOf(toDayNumber(range.start)))
+      for (let mon = first; mon <= range.end; mon = addDay(mon, 7)) {
+        const week = Array.from({ length: 7 }, (_, i) => addDay(mon, i)).filter((d) => d >= s.start_date && (!s.end_date || d <= s.end_date))
+        if (!week.length) continue
+        const ticked = week.filter((d) => doneSet.has(d))
+        ticked.slice(0, times).forEach((d) => {
+          if (!inRange(d)) return
+          out.push({ ...base, day: d, measure: 'habits:due', value: 1 }, { ...base, day: d, measure: 'habits:hit', value: 1 })
+        })
+        const sunday = week[week.length - 1]
+        const missing = times - ticked.length
+        if (missing > 0 && sunday < today && inRange(sunday)) out.push({ ...base, day: sunday, measure: 'habits:due', value: missing })
+      }
+      continue
+    }
+    for (let d = range.start; d <= range.end && d <= today; d = addDay(d, 1)) {
+      const state = habitDay(h, d, doneSet)
+      if (state === 'done') {
+        if (d < s.start_date || (s.end_date && d > s.end_date)) continue
+        out.push({ ...base, day: d, measure: 'habits:due', value: 1 }, { ...base, day: d, measure: 'habits:hit', value: 1 })
+      } else if (state === 'due' && d < today) {
+        out.push({ ...base, day: d, measure: 'habits:due', value: 1 })
+      }
+    }
+  }
+  return out
+}
+
+export interface ChoreRow extends ChoreLike { id: string; name: string; room: string | null; minutes: number | null; deleted_at?: string | null }
+export interface ChoreLogRow extends ChoreDone { id: string; chore_id: string }
+
+/** Household chores as facts: each one done (by whom, in which room, for
+ *  how long), and, for each day that has ended, every fixed or "after"
+ *  chore still not done after it fell due. Flexible chores are never
+ *  overdue: they only grow more due. */
+export function choreFacts(chores: ChoreRow[], logs: ChoreLogRow[], range: Range, today: string, person: (userId: string | null) => string): Fact[] {
+  const out: Fact[] = []
+  const byChore = new Map<string, ChoreLogRow[]>()
+  for (const l of logs) if (!l.deleted_at) byChore.set(l.chore_id, [...(byChore.get(l.chore_id) ?? []), l])
+  for (const c of chores) {
+    const base = { module: 'household', item: c.name, section: c.room, ref: { table: 'chore', id: c.id, label: c.name } }
+    const mine = byChore.get(c.id) ?? []
+    for (const l of mine) {
+      if (l.done_on < range.start || l.done_on > range.end) continue
+      out.push({ ...base, day: l.done_on, measure: 'household:chores_done', value: 1, person: person(l.done_by) })
+      if (c.minutes != null && c.minutes > 0) out.push({ ...base, day: l.done_on, measure: 'household:chore_minutes', value: c.minutes, person: person(l.done_by) })
+    }
+    if (c.deleted_at || c.paused || c.mode === 'flexible') continue
+    // At most a year and a bit of days looked at, so a long range stays quick.
+    const from = range.start < addDay(today, -400) ? addDay(today, -400) : range.start
+    for (let d = from; d <= range.end && d < today; d = addDay(d, 1)) {
+      if (choreState(c, d, mine).overdueDays > 0) out.push({ ...base, day: d, measure: 'household:chores_overdue', value: 1 })
+    }
+  }
+  return out
+}
+
+/** A clock time as hours after midnight; a bedtime before noon is the
+ *  night before's, so 00:30 is 24.5 and averages sensibly with 23:30. */
+export function clockHours(t: string | null | undefined, bedtime = false): number | null {
+  const m = /^(\d{1,2}):(\d{2})/.exec(t ?? '')
+  if (!m) return null
+  const h = Number(m[1]) + Number(m[2]) / 60
+  if (h >= 24) return null
+  return bedtime && h < 12 ? h + 24 : h
 }
