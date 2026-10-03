@@ -1,6 +1,6 @@
 import type { EntityDef, FieldDef } from '../modules/types.ts'
 import { addDays, fromDayNumber, mondayOf, toDayNumber } from './schedule-rules.ts'
-import { SUMMARY_LABEL, type MeasureInfo, type PivotSpec, type Span } from './pivot-rules.ts'
+import { cellValue, dailyValues, spanDays, SUMMARY_LABEL, withWithout, type WithWithout, type Fact, type MeasureInfo, type PivotSpec, type Span } from './pivot-rules.ts'
 import { MAX_VIEWS, readStatsView, type StatsMeasure, type StatsRange, type StatsView, type Summary } from './stats-view-rules.ts'
 
 /** The stats builder's rules (STA-02, STA-03, STA-10 to STA-15, GEN-41):
@@ -231,6 +231,76 @@ export function groupingsFor(measures: Measure[]): { key: string; label: string 
   if (modules.size > 1) out.push({ key: 'module', label: 'Module' })
   for (const d of common) out.push({ key: d, label: measures[0].dimNames[d] })
   return out
+}
+
+/** One figure on a module's card for a period: the measure's natural
+ *  summary, an average a day where it adds up, and the change on the
+ *  period before (per day for a total, so a half-over week is compared
+ *  fairly; in points for a share). */
+export interface CardFigure {
+  key: string
+  label: string
+  value: number | null
+  unit: string
+  decimals: number
+  /** For a total: the average a day ("a day" or "a day logged"). */
+  perDay: number | null
+  perLabel: string | null
+  delta: number | null
+  /** 'a day' when the change is of the average a day. */
+  deltaPer: boolean
+}
+
+export function cardFigure(m: Measure, facts: Fact[], cur: Span, prev: Span, today: string): CardFigure {
+  const cd = spanDays(cur); const pd = spanDays(prev)
+  const s = m.summary
+  const value = cellValue(m, { measure: m.key, summary: s }, facts, cd, today)
+  const adds = !m.ratio && m.combine === 'sum' && s === 'sum'
+  const perDay = adds && cd.length > 1 ? cellValue(m, { measure: m.key, summary: 'avg' }, facts, cd, today) : null
+  const compareBy = adds ? 'avg' : s
+  const a = cellValue(m, { measure: m.key, summary: compareBy }, facts, cd, today)
+  const b = cellValue(m, { measure: m.key, summary: compareBy }, facts, pd, today)
+  return {
+    key: m.key, label: m.label, value, unit: m.unit, decimals: m.unit === '%' ? 0 : s === 'avg' && m.unit !== 'time' ? Math.max(m.decimals, m.unit === '' ? 1 : 0) : m.decimals,
+    perDay, perLabel: perDay == null ? null : m.known === 'logged' ? 'a day logged' : 'a day',
+    delta: a != null && b != null ? a - b : null,
+    deltaPer: adds && cd.length > 1,
+  }
+}
+
+/* ---------- patterns (STA-30) ------------------------------------------------- */
+
+/** Things that happen on some days and not others… */
+export const PATTERN_FLAGS = ['training:sessions', 'habits:ticks', 'agenda:events', 'household:chores_done', 'shopping:trips']
+/** …and figures that might differ on those days. */
+export const PATTERN_OUTCOMES = ['sleep:hours', 'sleep:quality', 'nutrition:kcal', 'nutrition:protein_g', 'tasks:completion', 'tasks:done', 'habits:kept']
+
+export interface Pattern { flag: Measure; outcome: Measure; result: WithWithout; share: number }
+
+/** "On days you trained, you slept 0.4 h more": only for pairs from two
+ *  different modules with at least `minDays` known days on each side, and
+ *  a difference of at least 5% — and always said as a pattern, never a
+ *  cause. The largest differences first, at most four. */
+export function patterns(catalogue: Measure[], facts: Fact[], span: Span, today: string, minDays = 7): Pattern[] {
+  const byKey = new Map(catalogue.map((m) => [m.key, m]))
+  const days = spanDays(span)
+  const out: Pattern[] = []
+  for (const f of PATTERN_FLAGS) {
+    const flag = byKey.get(f)
+    if (!flag) continue
+    const happened = new Set(dailyValues(flag, facts, days, today).filter(([, v]) => v > 0).map(([d]) => d))
+    if (!happened.size) continue
+    for (const o of PATTERN_OUTCOMES) {
+      const outcome = byKey.get(o)
+      if (!outcome || outcome.module === flag.module) continue
+      const r = withWithout(dailyValues(outcome, facts, days, today), happened, minDays)
+      if (!r.enough || r.difference == null || r.without.mean == null) continue
+      const share = Math.abs(r.difference) / Math.max(Math.abs(r.without.mean), 1e-9)
+      if (share < 0.05) continue
+      out.push({ flag, outcome, result: r, share })
+    }
+  }
+  return out.sort((a, b) => b.share - a.share).slice(0, 4)
 }
 
 /* ---------- summaries ------------------------------------------------------ */

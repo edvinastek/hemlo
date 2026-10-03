@@ -5,11 +5,11 @@ import { readStatsViews, readStatsView, MAX_VIEWS, MAX_MEASURES } from '../lib/s
 import {
   measureCatalogue, recordMeasures, cardMeasures, groupingsFor, summariesFor, summaryName, viewSpan, rangeName, spanName,
   rangeChoice, newViewId, autoChart, blankView, viewSpec, viewModules, migrateSource, putView, duplicateView, moveView,
-  removeView, TEMPLATES, templatesFor, fromTemplate, cardsFor, addCard, moveCard, changeCard, plural,
+  removeView, TEMPLATES, templatesFor, fromTemplate, cardsFor, addCard, moveCard, changeCard, plural, cardFigure, patterns,
 } from '../lib/stats-builder-rules.ts'
 import { formatValue, shortNumber, niceScale, readable, splitColour, chartData, labelStep, describe, toWidgetView } from '../lib/chart-rules.ts'
 import { contrast, PAPER } from '../lib/colours-rules.ts'
-import { pivot } from '../lib/pivot-rules.ts'
+import { pivot, spanDays } from '../lib/pivot-rules.ts'
 import { MODULES } from '../modules/registry.ts'
 
 let fail = 0
@@ -94,6 +94,36 @@ is('summaries for a share', summariesFor(cat.find((m) => m.key === 'habits:kept'
 is('an average of a count is per day', summaryName('avg', cat[0]), 'Average a day')
 is('an average of food is per day logged', summaryName('avg', cat.find((m) => m.key === 'nutrition:kcal')), 'Average a day logged')
 
+/* ---------- module card figures ---------- */
+const doneM = cat.find((m) => m.key === 'tasks:done')
+const kgM = cat.find((m) => m.key === 'nutrition:protein_g')
+const cur = { start: '2026-09-21', end: '2026-09-27' }; const prev = { start: '2026-09-14', end: '2026-09-20' }
+const fx = [
+  ...['2026-09-21', '2026-09-22', '2026-09-22', '2026-09-24'].map((d) => ({ measure: 'tasks:done', day: d, value: 1, module: 'tasks' })),
+  ...['2026-09-14', '2026-09-15'].map((d) => ({ measure: 'tasks:done', day: d, value: 1, module: 'tasks' })),
+  { measure: 'nutrition:protein_g', day: '2026-09-21', value: 120, module: 'nutrition' }, { measure: 'nutrition:protein_g', day: '2026-09-22', value: 140, module: 'nutrition' },
+  { measure: 'nutrition:protein_g', day: '2026-09-15', value: 100, module: 'nutrition' },
+]
+const fd = cardFigure(doneM, fx, cur, prev, today)
+is('a total on a card: 4 done, 1 a day over the 4 days so far, +0.7 a day on the week before', [fd.value, fd.perDay, Math.round(fd.delta * 100) / 100, fd.deltaPer, fd.perLabel], [4, 1, 0.71, true, 'a day'])
+const fp = cardFigure(kgM, fx, cur, prev, today)
+is('food on a card: the average a day logged, against the week before\'s', [fp.value, fp.delta, fp.deltaPer], [130, 30, false])
+is('nothing in either week: no figure, no change', cardFigure(kgM, [], cur, prev, today).value, null)
+
+/* ---------- patterns ---------- */
+const pc = measureCatalogue(['training', 'sleep'].map((k) => ({ key: k, name: regs[k].name, entities: regs[k].entities })), [])
+const month = { start: '2026-08-26', end: today }
+const pf = []
+spanDays(month).forEach((d, i) => {
+  const trained = i % 2 === 0
+  if (trained) pf.push({ measure: 'training:sessions', day: d, value: 1, module: 'training' })
+  pf.push({ measure: 'sleep:hours', day: d, value: trained ? 8 : 7, module: 'sleep' })
+})
+const found = patterns(pc, pf, month, today)
+is('a pattern with enough days on each side', found.map((p) => [p.flag.key, p.outcome.key, p.result.difference]), [['training:sessions', 'sleep:hours', 1]])
+is('too few days says nothing', patterns(pc, pf.filter((f) => f.day >= '2026-09-20'), month, today), [])
+is('a small difference says nothing', patterns(pc, pf.map((f) => (f.measure === 'sleep:hours' ? { ...f, value: 7 + (f.value - 7) * 0.2 } : f)), month, today), [])
+
 /* ---------- ranges ---------- */
 is('last 30 days', viewSpan({ kind: 'last', n: 30, unit: 'days' }, today), { start: '2026-08-26', end: today })
 is('the 30 days before', viewSpan({ kind: 'last', n: 30, unit: 'days' }, today, -1), { start: '2026-07-27', end: '2026-08-25' })
@@ -167,7 +197,8 @@ is('an axis with nothing in it', niceScale([]).ticks, [0, 0.25, 0.5, 0.75, 1])
 is('a pale colour made readable on the light page', contrast(readable('#f0e68c', PAPER.light), PAPER.light) >= 3, true)
 is('a dark colour made readable on the dark page', contrast(readable('#202040', PAPER.dark), PAPER.dark) >= 3, true)
 is('a readable colour is left alone', readable('#4777d2', PAPER.light), '#4777d2')
-is('every split colour reads on both pages', Array.from({ length: 16 }, (_, i) => splitColour(i)).every((c) => contrast(c, PAPER.light) >= 3 && contrast(c, PAPER.dark) >= 3), true)
+is('every split colour reads on both pages', Array.from({ length: 10 }, (_, i) => splitColour(i)).every((c) => contrast(c, PAPER.light) >= 3 && contrast(c, PAPER.dark) >= 3), true)
+is('the eleventh column does not get a made-up colour', splitColour(10), splitColour(9))
 is('labels thinned to fit', [labelStep(7, 320), labelStep(31, 320), labelStep(0, 320)], [1, 4, 1])
 
 const tasksCat = measureCatalogue([], [])

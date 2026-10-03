@@ -1,4 +1,4 @@
-import { contrast, luminance, SWATCHES } from './colours-rules.ts'
+import { contrast, luminance } from './colours-rules.ts'
 import { decimalsFor, unitFor, type PivotResult } from './pivot-rules.ts'
 import type { StatsView } from './stats-view-rules.ts'
 import type { StatsWidgetView } from './stats-widget-rules.ts'
@@ -85,11 +85,17 @@ export function readable(hex: string, paper: string, min = 3): string {
   return ink
 }
 
-/** A colour for the n-th series of a split: the swatches in an order that
- *  keeps neighbours far apart in hue. */
+/** The fixed order series of a split take their colours in: checked with
+ *  a colour-blindness simulation so neighbours stay apart on both pages
+ *  (every pair next to each other at least 9.6 apart for red-green
+ *  colour blindness, all at 3:1 or more on both papers). Never cycled: a
+ *  split with more columns draws the first ten and keeps the rest in the
+ *  table. */
+export const SPLIT_COLOURS = ['#4777d2', '#ce710c', '#14938d', '#c43f3e', '#6a59bc', '#7a8a12', '#b84379', '#0a7ca6', '#a4861e', '#a262b6']
+export const MAX_SERIES = SPLIT_COLOURS.length
+
 export function splitColour(n: number): string {
-  const order = [5, 13, 9, 0, 4, 11, 1, 7, 14, 3, 10, 6, 12, 2, 8, 15]
-  return SWATCHES[order[n % order.length]].hex
+  return SPLIT_COLOURS[Math.min(n, SPLIT_COLOURS.length - 1)]
 }
 
 /* ---------- series -------------------------------------------------------- */
@@ -102,9 +108,13 @@ export interface ChartSeries {
   values: (number | null)[]
   unit: string
   decimals: number
-  /** 1 for a second axis on the right, when the units differ (STA-11). */
+  /** 1 when its unit differs from the first series' (kcal beside kg): it is
+   *  drawn in a second panel under the first, sharing the days, never on a
+   *  second scale over the same marks, which misleads (STA-11). */
   axis: 0 | 1
   hidden: boolean
+  /** Past the ten colours a chart can tell apart: in the table only. */
+  overflow?: boolean
 }
 
 export interface ChartData {
@@ -137,7 +147,8 @@ export function chartData(result: PivotResult, view: Pick<StatsView, 'measures' 
           key, label: c.label,
           colour: readable(view.chart.colours?.[key] ?? splitColour(j), paper),
           values: result.rows.map((_, i) => result.cells[i][j][0]),
-          unit: unitFor(v.info, v.spec.summary), decimals: decimalsFor(v.info, v.spec.summary), axis: 0, hidden: hidden.has(key),
+          unit: unitFor(v.info, v.spec.summary), decimals: decimalsFor(v.info, v.spec.summary), axis: 0,
+          hidden: hidden.has(key) || j >= MAX_SERIES, overflow: j >= MAX_SERIES,
         })
       })
     }
