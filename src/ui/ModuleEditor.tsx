@@ -169,7 +169,7 @@ function FieldsTab({ draft, base, fixed, change }: { draft: ModuleDef; base?: Mo
       </>
     )
   }
-  if (draft.entities.length === 0) return <p className="empty">This module has no fields. Build your own module in More, Modules.</p>
+  if (draft.entities.length === 0) return <p className="empty">This module has no fields. Build your own module in Settings → Modules.</p>
   return (
     <>
       {fixed && (

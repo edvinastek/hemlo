@@ -210,7 +210,7 @@ export function Onboarding({ onDone }: { onDone: () => void }) {
               <span>City or town <span className="ob-optional">optional</span></span>
               <input value={city} maxLength={80} autoComplete="address-level2" onChange={(e) => setCity(e.target.value)} />
             </label>
-            <p className="ob-note">Country and city are used for nearby shops and public holidays. You can change them in More.</p>
+            <p className="ob-note">Country and city are used for nearby shops and public holidays. You can change them in Settings.</p>
           </div>
         )}
 
@@ -346,7 +346,7 @@ export function Onboarding({ onDone }: { onDone: () => void }) {
               </div>
             )}
             {!targetsOn && (
-              <p className="ob-note ob-pad">Targets can be added later: height and date of birth in More, then a weigh-in on the Body tab.</p>
+              <p className="ob-note ob-pad">Targets can be added later: height and date of birth in Settings, then a weigh-in on the Body tab.</p>
             )}
           </>
         )}
@@ -355,7 +355,7 @@ export function Onboarding({ onDone }: { onDone: () => void }) {
           {step > 0 && <button type="button" className="btn" onClick={() => setStep(step - 1)}>Back</button>}
           {!last && (
             <button type="button" className="btn ob-skip" disabled={busy} onClick={() => void skip()}
-              title="Start with Today, Plan and tasks; set the rest later in More">Skip</button>
+              title="Start with Today, Plan and tasks; set the rest later in Settings">Skip</button>
           )}
           <button
             type="button"

@@ -7,7 +7,7 @@ import { controller } from '../src/legal/policy'
  *  same database function the app uses removes everything. */
 el(`${nav}
   <h1>Delete your GetIt account</h1>
-  <p class="sub">Also possible in the app: More → Data → Delete account.</p>
+  <p class="sub">Also possible in the app: Settings → Data and account → Delete account.</p>
   <h2>What is deleted</h2>
   <p>Your account and sign-in, your profiles, plan, tasks, notes and goals, every weigh-in, target, meal plan, food log and training log, your recipes, and your settings. It happens at once and cannot be undone. The database keeps no backups today, so nothing remains; if daily backups are added, deleted data will stay in them for no more than seven days, and the privacy policy will say so first.</p>
   <p>If you share a household, it passes to the other member; their own data is not touched.</p>

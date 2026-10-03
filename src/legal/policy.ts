@@ -8,7 +8,7 @@
  *  (VITE_CONTROLLER_NAME, VITE_CONTACT_EMAIL), so they are not hard-coded into
  *  the repository. The public site refuses to build without them. */
 
-export const POLICY_VERSION = '2026-09-29'
+export const POLICY_VERSION = '2026-10-04'
 
 export const controller = {
   name: (import.meta.env.VITE_CONTROLLER_NAME as string | undefined) ?? '',
@@ -34,7 +34,7 @@ export function privacySections(): Section[] {
         'Your profile: a name, sex, date of birth, height, activity level, goal, time zone and the times your day starts and ends.',
         'Health and fitness details you enter: weigh-ins and waist measurements, calorie and protein targets, what you plan to eat and what you ate, training sessions and sets, and, if you turn those modules on, sleep, habits and supplements.',
         'Your plan: tasks, notes, goals, calendar events, recipes you add, shopping lists and what is in stock.',
-        'If you follow a calendar (More → Profile → Calendar links): its name, colour and secret address, and when it was last fetched. When you stop following it, the address is erased at once. If you make a link for Google Calendar: only a scrambled form (a hash) of the link, from which the link cannot be worked out.',
+        'If you follow a calendar (Settings → Calendars): its name, colour and secret address, and when it was last fetched. When you stop following it, the address is erased at once. If you make a link for Google Calendar: only a scrambled form (a hash) of the link, from which the link cannot be worked out.',
         'When you agreed to the storing of your health details, and to which version of this policy.',
         'Technical logs of requests to the server, including your IP address and the type of device or browser, kept for security.',
         'GetIt has no advertising, no analytics, no tracking and no third-party code that receives your data. It never sells your data or shares it for anyone else’s use.',
@@ -83,9 +83,9 @@ export function privacySections(): Section[] {
     {
       heading: 'Your rights',
       body: [
-        `See and take your data: More → Data → Export gives you everything GetIt holds about you in one file: profile, plan, recurring tasks, targets, weigh-ins, food log, meal plan, habits, supplements, and the foods and recipes you added. You can also ask for a copy at ${mail}.`,
+        `See and take your data: Settings → Data and account → Export gives you everything GetIt holds about you in one file: profile, plan, recurring tasks, targets, weigh-ins, food log, meal plan, habits, supplements, and the foods and recipes you added. You can also ask for a copy at ${mail}.`,
         'Correct it: edit anything in the app.',
-        'Delete it: More → Data → Delete account, or on the account deletion page, which works without the app.',
+        'Delete it: Settings → Data and account → Delete account, or on the account deletion page, which works without the app.',
         `Object, restrict processing or ask anything else: write to ${mail}. You will get an answer within one month.`,
         'Complain: to the Dutch data protection authority, the Autoriteit Persoonsgegevens (autoriteitpersoonsgegevens.nl).',
       ],

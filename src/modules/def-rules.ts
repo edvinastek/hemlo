@@ -394,7 +394,7 @@ export const BUILTIN_RULES: Record<string, { support: RuleSupport; note: string 
   'nutrition.meal_tasks': { support: 'switch', note: 'Off: planned meals stay on Food and the shopping list, but from today on they are not put on Today as tasks.' },
   'nutrition.skipped_meal': { support: 'later', note: 'Not acted on yet: a meal cannot be marked skipped in the app.' },
   'nutrition.size_main': { support: 'switch', note: 'Off: Food no longer offers to size the main meal to the day’s target.' },
-  'shopping.from_plan': { support: 'always', note: 'This is how the trip is made, so it stays on. Switch Shopping off in More to stop it.' },
+  'shopping.from_plan': { support: 'always', note: 'This is how the trip is made, so it stays on. Switch Shopping off in Settings → Modules to stop it.' },
   'shopping.trip_days': { support: 'later', note: 'Not acted on yet: shopping days are not put on the planner.' },
   'training.session_task': { support: 'switch', note: 'Off: routines keep their days, but their sessions leave Today and Plan; sessions already done stay.' },
   'habits.daily': { support: 'always', note: 'Where habits show is now set by the module’s Show on Today, Show on Plan and Show on the widget switches.' },
