@@ -249,7 +249,8 @@ const allRules = MODULES.flatMap((m) => m.rules.map((r) => `${m.key}.${r.name}`)
 is('every registry rule says what the app does with it', allRules.filter((k) => !BUILTIN_RULES[k]), [])
 is('and nothing is listed that is not in the registry', Object.keys(BUILTIN_RULES).filter((k) => !allRules.includes(k)), [])
 is('the rules acted on have switches', allRules.filter((k) => ruleSwitchable(...k.split('.'))).sort(),
-  ['habits.daily', 'health.retarget', 'nutrition.meal_tasks', 'nutrition.size_main'])
+  ['habits.daily', 'health.retarget', 'learning.study_task', 'nutrition.meal_tasks', 'nutrition.size_main', 'projects.to_goal',
+    'sleep.bedtime', 'training.session_task'])
 is('the trip from the plan is always on', ruleSupport('shopping', 'from_plan'), 'always')
 is('a built module’s rules all have switches', [ruleSwitchable('u_abcdef123456', RULE_DAY_TASK), ruleSwitchable('u_abcdef123456', RULE_REMIND)], [true, true])
 is('a rule is on with no changes', isBuiltinRuleOn('nutrition', 'meal_tasks', undefined), true)
@@ -258,8 +259,9 @@ is('the other rule of the module stays on', isBuiltinRuleOn('nutrition', 'size_m
 is('garbage in the overlay leaves it on', isBuiltinRuleOn('habits', 'daily', 'drop table'), true)
 is('an unknown rule is never on', isBuiltinRuleOn('habits', 'nope', {}), false)
 is('an unknown module is never on', isBuiltinRuleOn('nope', 'daily', {}), false)
-is('a rule the app does not act on cannot be stored off', readOverlay({ rulesOff: ['bedtime'] }, sleep).rulesOff, undefined)
-is('and reads as on', isBuiltinRuleOn('sleep', 'bedtime', { rulesOff: ['bedtime'] }), true)
+is('a rule the app does not act on cannot be stored off', readOverlay({ rulesOff: ['no_overlap'] }, base('agenda')).rulesOff, undefined)
+is('and reads as on', isBuiltinRuleOn('agenda', 'no_overlap', { rulesOff: ['no_overlap'] }), true)
+is('the bedtime block can be switched off (v16)', isBuiltinRuleOn('sleep', 'bedtime', { rulesOff: ['bedtime'] }), false)
 const nut = clone(base('nutrition'))
 nut.rules.find((r) => r.name === 'meal_tasks').off = true
 nut.rules.find((r) => r.name === 'skipped_meal').off = true

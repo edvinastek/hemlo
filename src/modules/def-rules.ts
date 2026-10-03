@@ -382,14 +382,15 @@ export const BUILTIN_RULES: Record<string, { support: RuleSupport; note: string 
   'nutrition.size_main': { support: 'switch', note: 'Off: Food no longer offers to size the main meal to the day’s target.' },
   'shopping.from_plan': { support: 'always', note: 'This is how the trip is made, so it stays on. Switch Shopping off in More to stop it.' },
   'shopping.trip_days': { support: 'later', note: 'Not acted on yet: shopping days are not put on the planner.' },
-  'training.session_task': { support: 'later', note: 'Not acted on yet: sessions are logged, not planned ahead.' },
+  'training.session_task': { support: 'switch', note: 'Off: routines keep their days, but their sessions leave Today and Plan; sessions already done stay.' },
   'habits.daily': { support: 'switch', note: 'Off: habits no longer appear on Today or the widget; the Habits page still has them.' },
   'supplements.slot_task': { support: 'later', note: 'Not acted on yet: supplements are ticked on Today, not made into tasks.' },
   'health.retarget': { support: 'switch', note: 'Off: a weigh-in is saved and the calorie and protein targets are left as they are.' },
   'learning.soft': { support: 'later', note: 'Not acted on yet: the planner does not move tasks by itself.' },
+  'learning.study_task': { support: 'switch', note: 'Off: study blocks stay on the Learning page and their tasks still to come leave Today and Plan.' },
   'agenda.no_overlap': { support: 'later', note: 'Not acted on yet: the planner does not place tasks by itself.' },
-  'sleep.bedtime': { support: 'later', note: 'Not acted on yet: the planner does not place tasks by itself.' },
-  'projects.to_goal': { support: 'later', note: 'Not acted on yet: goals have no page of their own to show on.' },
+  'sleep.bedtime': { support: 'switch', note: 'Off: the bedtime block leaves the planner; the target and the nights stay on the Sleep page.' },
+  'projects.to_goal': { support: 'switch', note: 'Off: dated projects are no longer listed with the goals on the Year view.' },
   'household.shared': { support: 'later', note: 'Not acted on yet: records are kept per person.' },
 }
 

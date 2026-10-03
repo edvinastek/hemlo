@@ -284,12 +284,12 @@ export const MODULES: ModuleDef[] = [
     entities: [
       { name: 'entry', label: 'Entry', fields: [
         { name: 'entry_date', label: 'Date', type: 'date', width: 120 },
-        // Money out or in (FIN-02); entries from before it count by their sign.
-        { name: 'kind', label: 'Type', type: 'select', options: ['expense', 'income'], width: 100 },
         // One of the categories on the Finance page (a name, so a category
         // deleted from the list keeps its entries).
         { name: 'category', label: 'Category', type: 'text', width: 160 },
         { name: 'amount', label: 'Amount', type: 'number', width: 110, stats: 'sum' },
+        // Money out or in (FIN-02); entries from before it count by their sign.
+        { name: 'kind', label: 'Type', type: 'select', options: ['expense', 'income'], width: 100 },
         { name: 'note', label: 'Note', type: 'text', width: 240 },
       ]},
     ],
