@@ -3409,3 +3409,16 @@ alter table public.recipe add constraint recipe_role_check
 
 -- 6: no default meal slots ----------------------------------------------------------------------
 update public.module set default_settings = '{}'::jsonb where key = 'nutrition' and default_settings <> '{}'::jsonb;
+
+-- 7: limits the new screens keep to ------------------------------------------------------------
+-- An activity factor is typed from 1.2 to 2.4 (BODY-14); a free-text
+-- ingredient or a line's note holds at most 200 characters. Checked for new
+-- and changed rows only, so an old odd value never blocks the migration.
+do $$ begin
+  alter table public.profile add constraint profile_activity_check
+    check (activity_level is null or activity_level between 1.0 and 2.5) not valid;
+exception when duplicate_object then null; end $$;
+do $$ begin
+  alter table public.recipe_line add constraint recipe_line_text_check
+    check ((raw_text is null or length(raw_text) <= 200) and (note is null or length(note) <= 200)) not valid;
+exception when duplicate_object then null; end $$;

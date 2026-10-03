@@ -415,11 +415,13 @@ type Matchable = { id: string; name: string; nevo_code?: number | null; units?: 
 export function planRecipes<T extends Matchable>(recipes: ImportedRecipe[], foods: T[], match: (name: string) => T | null): PlannedRecipe[] {
   const byCode = new Map(foods.filter((f) => f.nevo_code).map((f) => [f.nevo_code!, f]))
   const round = (n: number) => Math.round(n * 100) / 100
+  // A line's note keeps to the 200 characters the database allows.
+  const clip = (t: string | null) => (t ? t.slice(0, 200) : null)
   return recipes.map((r) => {
     const portions = r.portions > 0 ? r.portions : 1
     const out: PlannedRecipe = {
       name: r.name.trim().slice(0, 120) || 'Imported recipe', role: r.role, portions_per_batch: round(Math.min(999, portions)),
-      cook_minutes: r.minutes && r.minutes <= 10000 ? r.minutes : null, steps: r.steps, lines: [], matched: 0, unmatched: [],
+      cook_minutes: r.minutes && r.minutes <= 10000 ? r.minutes : null, steps: r.steps ? r.steps.slice(0, 4000) : null, lines: [], matched: 0, unmatched: [],
     }
     for (const l of r.lines) {
       const food = (l.nevo_code ? byCode.get(l.nevo_code) : undefined) ?? match(l.name)
@@ -427,7 +429,7 @@ export function planRecipes<T extends Matchable>(recipes: ImportedRecipe[], food
       // A GetIt file says the grams a portion itself.
       if (food && l.grams_per_portion != null && l.grams_per_portion > 0) {
         out.lines.push({ food_id: food.id, raw_text: said, grams_per_portion: round(l.grams_per_portion), unit: l.unit_name && l.unit_qty ? l.unit_name : null,
-          unit_qty: l.unit_name && l.unit_qty ? l.unit_qty : null, state: l.state, note: l.note })
+          unit_qty: l.unit_name && l.unit_qty ? l.unit_qty : null, state: l.state, note: clip(l.note) })
         out.matched++
         continue
       }
@@ -435,7 +437,7 @@ export function planRecipes<T extends Matchable>(recipes: ImportedRecipe[], food
       if (food && g && g.grams / portions <= 10000) {
         const perUnit = g.unit && g.unit_qty ? round(g.unit_qty / portions) : null
         out.lines.push({ food_id: food.id, raw_text: said, grams_per_portion: round(g.grams / portions), unit: perUnit ? g.unit! : null,
-          unit_qty: perUnit, state: l.state, note: l.note })
+          unit_qty: perUnit, state: l.state, note: clip(l.note) })
         out.matched++
       } else {
         out.lines.push({ food_id: null, raw_text: said, grams_per_portion: null, unit: null, unit_qty: null, state: null, note: null })
