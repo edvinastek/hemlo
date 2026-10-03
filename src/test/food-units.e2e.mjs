@@ -67,6 +67,8 @@ is('Escape closes the ⋮, not the page', await sheet.count(), 1)
 await menu('Show % of reference intake')
 is('energy as a share of 2,000 kcal', (await sheet.locator('.fs-table tbody tr').first().locator('.fs-ri').textContent())?.trim(), '2%')
 await menu('Hide % of reference intake')
+// The choice is saved with Nutrition and the page follows it a moment later.
+await sheet.locator('.fs-ri').first().waitFor({ state: 'detached', timeout: 5000 }).catch(() => {})
 is('and off again', await sheet.locator('.fs-ri').count(), 0)
 
 // 3. A unit of one's own over the shared food.
@@ -75,12 +77,14 @@ await sheet.getByRole('textbox', { name: 'Unit', exact: true }).fill('ring')
 await sheet.getByRole('textbox', { name: 'Plural, if odd' }).fill('rings')
 await sheet.getByRole('textbox', { name: 'One weighs, g' }).fill('10')
 await sheet.getByRole('button', { name: 'Add unit' }).click()
-await p.waitForTimeout(500)
+await sheet.locator('.fu-list', { hasText: '1 ring = 10 g' }).waitFor({ timeout: 5000 }).catch(() => {})
 is('my unit is listed with the shared ones', /1 ring = 10 g/.test((await sheet.locator('.fu-list').textContent()) ?? ''), true)
 is('it reached the server', await drained(p), true)
 const overlay = await one(`select settings->'unit_overlay'->'${shared.id}' as units from public.module_instance
   where profile_id = ${me} and module_key = 'nutrition'`)
-is('kept with Nutrition, not on the shared row', JSON.stringify(overlay.units), JSON.stringify([{ name: 'ring', plural: 'rings', g: 10 }]))
+// Postgres keeps a JSON object's keys in its own order, so compare them sorted.
+const sorted = (list) => JSON.stringify((list ?? []).map((u) => Object.fromEntries(Object.entries(u).sort())))
+is('kept with Nutrition, not on the shared row', sorted(overlay.units), sorted([{ name: 'ring', plural: 'rings', g: 10 }]))
 const after = await one(`select units from public.food where id = '${shared.id}'`)
 is('the shared food is unchanged', JSON.stringify(after.units), JSON.stringify(shared.units))
 
