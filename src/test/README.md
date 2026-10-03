@@ -111,6 +111,9 @@ Types, then every check that needs nothing but Node. CI runs the same command.
 - `afterdone` — "ask after done" templates: the marker line in a note, what Fill in, Skip and Later leave behind.
 - `repeat` — the one repeat control's choices: the rule each stands for from a first day (the 2nd or last Wednesday,
   the 14th, 14 October), numbers kept and capped, picked days, and every choice reading back as itself.
+- `hold` — the two-stage hold: a tap opens, moving before the short hold is a scroll (never a drag), the short hold
+  arms the drag and a move then drags, holding still to the long hold expands, letting go in between does nothing,
+  rows that cannot be dragged only expand; when the clock next matters; the hold times kept sane.
 
 ## Browser checks
 
