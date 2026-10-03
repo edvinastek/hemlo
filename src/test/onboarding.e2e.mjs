@@ -73,7 +73,7 @@ is('no body fields while off', await p.locator('.ob-field', { hasText: 'Height' 
 await p.click('button[role=switch][aria-label="Set calorie and body targets"]')
 // Activity: two questions lead to a preset (BODY-10 to BODY-16).
 is('a desk job is the starting factor, never 1.2', (await p.locator('.ap-factor').textContent())?.trim(), '1.4')
-await p.locator('.ap-option[role=radio]', { hasText: 'Mostly sitting' }).click()
+await p.getByRole('radio', { name: /^Mostly sitting/ }).click()
 await p.locator('.ap-option[role=radio]', { hasText: '3–4 times a week' }).click()
 is('a desk job and 3–4 workouts is 1.6', (await p.locator('.ap-factor').textContent())?.trim(), '1.6')
 is('with its example day', /Desk job and 2–3 workouts a week/.test((await p.locator('.ap-result').textContent()) ?? ''), true)

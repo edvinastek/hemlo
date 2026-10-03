@@ -60,6 +60,14 @@ export async function signIn(p, email, password = process.env.TEST_PASSWORD, wiz
   await p.locator('.bottom-nav').or(first).first().waitFor({ timeout: 20000 })
   if (await first.count()) await completeWizard(p, wizard)
   await p.waitForTimeout(3000)
+  await dismissWhatMoved(p)
+}
+
+/** Accounts made before a release are shown "What moved where" once; the
+ *  checks read it as any person would and close it. */
+export async function dismissWhatMoved(p) {
+  const wm = p.locator('.wm')
+  if (await wm.count()) await wm.getByRole('button', { name: 'Got it' }).click()
 }
 
 /** The first-run wizard, four steps. Only a name is needed; everything else

@@ -1,4 +1,5 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useState, type ReactNode } from 'react'
+import type { MenuItem } from './MoreMenu'
 import { useApp } from '../lib/store'
 import { saveFile } from '../lib/native'
 import { FORMATS, type Format, type Range } from '../lib/transfer-rules'
@@ -25,6 +26,17 @@ const HINT: Record<Format, string> = {
   txt: 'plain text with headings',
 }
 
+/** The page menu's "Export…" (v17: pages carry one ⋮ instead of a link):
+ *  a menu item and the sheet it opens, to put in any `PageMenu`. */
+export function useExport(source: ExportSource | null, calendar = false): { item: MenuItem | null; sheet: ReactNode } {
+  const [open, setOpen] = useState(false)
+  if (!source) return { item: null, sheet: null }
+  return {
+    item: { label: 'Export…', onSelect: () => setOpen(true) },
+    sheet: open ? <ExportSheet source={source} calendar={calendar} onClose={() => setOpen(false)} /> : null,
+  }
+}
+
 /** "Export", small, bold and underlined, at the bottom right of a data page.
  *  It opens a sheet with the formats that make sense for what the page
  *  shows; `calendar` adds the calendar file for pages laid out by date. */
@@ -40,7 +52,7 @@ export function ExportLink({ source, calendar = false }: { source: ExportSource;
   )
 }
 
-function ExportSheet({ source, calendar, onClose }: { source: ExportSource; calendar: boolean; onClose: () => void }) {
+export function ExportSheet({ source, calendar, onClose }: { source: ExportSource; calendar: boolean; onClose: () => void }) {
   const profile = useApp((s) => s.profile)
   const userId = useApp((s) => s.session?.user.id ?? null)
   const [formats, setFormats] = useState<Format[] | null>(null)

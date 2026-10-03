@@ -8,7 +8,7 @@ import { queueChange } from '../lib/sync'
 import { mergeSettings, readSettings, type Commute, type WorkHours } from '../lib/settings'
 import { COUNTRIES, cleanCity, cleanCountry, countryName } from '../lib/countries'
 import { DEFAULT_TEMPLATE, TEMPLATES, modulesFor, suggestTemplate, templateByKey, templateLayout } from '../lib/templates'
-import { NO_ANSWERS, readStoredFactor } from '../lib/activity'
+import { DEFAULT_FACTOR, NO_ANSWERS } from '../lib/activity'
 import { saveBodySettings } from '../lib/body'
 import { ActivityPicker, type ActivityValue } from '../ui/ActivityPicker'
 import { applyModules, TEMPLATE_MODULE_KEYS } from '../lib/setup'
@@ -67,7 +67,7 @@ export function Onboarding({ onDone }: { onDone: () => void }) {
   const [birth, setBirth] = useState(profile?.birth_date ?? '')
   const [height, setHeight] = useState(profile?.height_cm ? String(profile.height_cm) : '')
   const [weight, setWeight] = useState('')
-  const [activityChoice, setActivityChoice] = useState<ActivityValue>({ answers: NO_ANSWERS, factor: readStoredFactor(profile?.activity_level) })
+  const [activityChoice, setActivityChoice] = useState<ActivityValue>({ answers: NO_ANSWERS, factor: DEFAULT_FACTOR })
   const activity = activityChoice.factor
   const [goal, setGoal] = useState<'cut' | 'recomp' | 'bulk'>(profile?.goal ?? 'recomp')
 

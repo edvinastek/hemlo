@@ -1,0 +1,2 @@
+/* The page's ⋮ sits at the top right of its header, level with the title. */
+.page-menu { margin-left: auto; align-self: center; }
