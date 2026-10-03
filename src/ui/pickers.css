@@ -49,3 +49,10 @@
 }
 .sp-meta { grid-column: 1 / -1; }
 .sp-empty { color: var(--e-ink-soft); cursor: default; }
+
+/* "Show all": the rest of a long list, after the best twenty (GEN-10). */
+.sp-list li.sp-more { display: block; padding: 0; cursor: default; }
+.sp-more button {
+  width: 100%; min-height: 44px; padding: 8px 12px; text-align: left;
+  font-family: var(--font-sans); font-size: 14px; color: var(--e-accent);
+}

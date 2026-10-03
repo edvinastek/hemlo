@@ -11,7 +11,9 @@ import {
   BUILTIN_RULES, ruleSupport, ruleSwitchable, isBuiltinRuleOn,
 } from '../modules/def-rules.ts'
 import { MODULES } from '../modules/registry.ts'
-import { PRESETS } from '../modules/presets.ts'
+import { PRESETS, combinePresets } from '../modules/presets.ts'
+import { coerce, spanMinutes, checklistCount, hasOptions, NUMERIC_TYPES } from '../modules/def-rules.ts'
+import { repeatPlan, sameRepeat, REPEAT_KEY } from '../modules/repeat-rules.ts'
 
 let fail = 0
 const is = (label, got, want) => {
@@ -273,6 +275,78 @@ is('built-in modules have keywords', moduleKeywords().every((m) => m.keywords.le
 is('built modules are added', moduleKeywords([{ key: 'u_abcdef', name: 'Car', keywords: ['apk'] }]).at(-1), { key: 'u_abcdef', name: 'Car', keywords: ['apk'] })
 is('typed words suggest modules', suggestModules('I go to the gym and read books', moduleKeywords([{ key: 'u_books1', name: 'Reading', keywords: ['books'] }])).sort(), ['learning', 'training', 'u_books1'])
 is('whole words only', suggestModules('gymnastics'), [])
+
+// ---------- field kinds of version 16 (MOD-11, MOD-12) ---------------------------
+const tags = { name: 'tags', label: 'Tags', type: 'multi', options: ['red', 'green', 'blue'] }
+is('tags: kept in the options’ order', coerce(tags, ['blue', 'red']), ['red', 'blue'])
+is('tags: from a spreadsheet cell', coerce(tags, 'green; red'), ['red', 'green'])
+is('tags: none is empty', coerce(tags, []), null)
+is('tags: an unknown one is refused', coerce(tags, ['pink']), undefined)
+is('tags need options, like a choice', fieldProblem({ ...tags, options: [] }, []), 'A choice field needs at least one option.')
+is('tags keep their options when read back', cleanField(tags)?.options, ['red', 'green', 'blue'])
+is('tags and choices have options', ['multi', 'select', 'text'].map(hasOptions), [true, true, false])
+const stars = { name: 'r', label: 'Rating', type: 'rating' }
+is('stars: 1 to 5', [coerce(stars, 3), coerce(stars, '5'), coerce(stars, 0), coerce(stars, 6), coerce(stars, 2.5)], [3, 5, undefined, undefined, undefined])
+const pct = { name: 'p', label: 'Share', type: 'percent' }
+is('percentage: 0 to 100, a % sign allowed', [coerce(pct, '42,5%'), coerce(pct, 101), coerce(pct, -1)], [42.5, undefined, undefined])
+const money = { name: 'm', label: 'Cost', type: 'money', unit: '€' }
+is('money: to the cent, a sign allowed', [coerce(money, '€ 12,345'), coerce(money, 3)], [12.35, 3])
+is('stars, shares and money count as numbers', ['rating', 'percent', 'money'].every((t) => NUMERIC_TYPES.includes(t)), true)
+const span = { name: 's', label: 'When', type: 'timespan' }
+is('start and end: kept as HH:MM-HH:MM', [coerce(span, '09:00-10:30'), coerce(span, '09:00 – 10:30'), coerce(span, '9-10')], ['09:00-10:30', '09:00-10:30', undefined])
+is('start and end: minutes, across midnight too', [spanMinutes('09:00-10:30'), spanMinutes('22:30-06:00'), spanMinutes('x')], [90, 450, null])
+is('checklist: lines ticked of all', checklistCount('- [x] milk\n- [ ] eggs\nplain line\n* [X] bread'), { done: 2, total: 3 })
+const link = { name: 'plant', label: 'Plant', type: 'lookup', lookup: 'record', module: 'u_plants01' }
+is('a link to a built module’s records keeps the module', cleanField(link)?.module, 'u_plants01')
+is('…and is dropped without one', cleanField({ ...link, module: 'habits' }), null)
+is('…and says so when made', fieldProblem({ ...link, module: '' }, []), 'Pick the module whose records it links to.')
+is('a note keeps up to 2000 characters', coerce({ name: 'n', label: 'Note', type: 'note' }, 'x'.repeat(2500)).length, 2000)
+
+// ---------- presets combined (MOD-10) ----------------------------------------------
+const both = combinePresets(['plants', 'expenses'])
+is('combined: fields of both, in order', both.fields.map((f) => f.name).slice(0, 3), ['plant', 'action', 'next_due'])
+is('combined: a field both have is kept once (Note)', both.fields.filter((f) => f.label === 'Note').length, 1)
+is('combined: the record is named by the first', both.item, 'Care')
+is('combined: views of both, no kind and name twice', both.views.map((v) => v.name), ['Plants', 'Month', 'Table', 'List'])
+const clash = combinePresets(['car', 'expenses'])
+is('combined: the same label and kind kept once, needed if either needs it', clash.fields.filter((f) => /^Day/.test(f.label)).map((f) => [f.label, !!f.required]), [['Day', true]])
+const odd = combinePresets(['car', 'pets'])
+is('combined: same name, another kind, kept apart under a new name', odd.fields.filter((f) => /^Cost/.test(f.label)).map((f) => [f.name, f.label, f.type]),
+  [['cost', 'Cost', 'number'], ['cost_pet_care', 'Cost (pet care)', 'money']])
+const mood = combinePresets(['mood', 'gratitude'])
+is('combined: same name and kind (Day) once', mood.fields.filter((f) => f.name === 'day').length, 1)
+is('combined is a valid module', definitionProblem({ key: 'u_test01', name: 'Mix', summary: '', built: true, depth: 'light',
+  entities: [{ name: 'item', label: both.item, fields: both.fields }], views: both.views.map((v) => ({ ...v, entity: 'item' })), rules: builtRuleCatalogue() }), null)
+is('Blank alone means nothing else', combinePresets(['blank', 'car']).keys, ['car'])
+is('nothing picked is Blank', combinePresets([]).keys, ['blank'])
+is('a private preset stays private when combined', combinePresets(['cycle', 'mood']).show, { today: false, plan: false, widget: false, reminders: false })
+const ten = ['water', 'medication', 'cycle', 'pets', 'fuel', 'language', 'running', 'gratitude', 'subscriptions', 'mood']
+is('the ten presets of MOD-13 exist', ten.every((k) => PRESETS.some((p) => p.key === k)), true)
+for (const k of ['reading', 'workout', 'expenses', 'plants', 'car', 'study']) {
+  for (const j of ten) {
+    const c = combinePresets([k, j])
+    const p = definitionProblem({ key: 'u_test01', name: 'Mix', summary: '', built: true, depth: 'light',
+      entities: [{ name: 'item', label: c.item, fields: c.fields }], views: c.views.map((v) => ({ ...v, entity: 'item' })), rules: builtRuleCatalogue() })
+    if (p) is(`${k} + ${j} combine into a valid module`, p, null)
+  }
+}
+
+// ---------- a record that repeats (MOD-14) ------------------------------------------
+const plantDef = { name: 'Plants', rules: builtRuleCatalogue() }
+const plantFields = PRESETS.find((p) => p.key === 'plants').fields
+const rplan = repeatPlan(plantDef, plantFields, { plant: 'Fern', next_due: '2026-10-06' }, { rule: 'daily', rule_config: { n: 3 }, end_date: null }, '2026-10-03')
+is('repeat: named by the record, from its first date, any time', [rplan.title, rplan.rule, rplan.rule_config.n, rplan.start_date, rplan.time], ['Fern', 'daily', 3, '2026-10-06', null])
+is('repeat: no rule, no series', repeatPlan(plantDef, plantFields, {}, { rule: null }, '2026-10-03'), null)
+is('repeat: "times a week" makes no days, so none', repeatPlan(plantDef, plantFields, {}, { rule: 'times_per_week', rule_config: { times: 3 } }, '2026-10-03'), null)
+is('repeat: no date, from today; named by the module when unnamed', (({ title, start_date }) => [title, start_date])(repeatPlan(plantDef, plantFields, {}, { rule: 'weekly', rule_config: { weekdays: [1] } }, '2026-10-03')), ['Plants', '2026-10-03'])
+const remindDef = { name: 'Plants', rules: builtRuleCatalogue().map((r) => ({ ...r, off: false, ...(r.time ? { time: '08:15' } : {}) })) }
+is('repeat: the reminder rule’s time when the record has none', repeatPlan(remindDef, plantFields, { plant: 'Fern' }, { rule: 'daily' }, '2026-10-03').time, '08:15')
+is('repeat: an end before the start is dropped', repeatPlan(plantDef, plantFields, { next_due: '2026-10-06' }, { rule: 'daily', end_date: '2026-10-01' }, '2026-10-03').end_date, null)
+const series = { title: 'Fern', rule: 'daily', rule_config: { n: 3 }, start_date: '2026-10-06', end_date: null, time_of_day: null }
+is('repeat: the same plan changes nothing', sameRepeat(series, rplan), true)
+is('repeat: a new name is a new series', sameRepeat({ ...series, title: 'Palm' }, rplan), false)
+is('repeat: kept under a name no field can have', /^[a-z]/.test(REPEAT_KEY), false)
+is('repeat: its key is not kept as a value', 'x' in cleanValues(plantFields, { plant: 'x', [REPEAT_KEY]: 'abc' }).data, false)
 
 console.log(fail ? `\n${fail} failed` : '\nall checks passed')
 process.exit(fail ? 1 : 0)

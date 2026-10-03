@@ -6,7 +6,7 @@ import {
   BUILTIN_RULES, LIMITS, RULE_DAY_TASK, RULE_REMIND, cleanKeywords, definitionFor, definitionProblem,
   glyphProblem, isDateLike, isNumeric, overlayFrom, ruleShown, ruleSupport, viewDefaults, type StatsKind,
 } from '../modules/def-rules'
-import { deleteBuiltModule, saveModuleDef, useModuleDef } from '../modules/defs'
+import { deleteBuiltModule, saveModuleDef, useModuleDef, useModuleDefs } from '../modules/defs'
 import { syncModuleTasks } from '../modules/records'
 import { syncMealTasks } from '../lib/meals'
 import { FieldForm, STATS_OPTIONS, describeField } from '../modules/FieldForm'
@@ -173,19 +173,21 @@ function FieldsTab({ draft, base, fixed, change }: { draft: ModuleDef; base?: Mo
       )}
       {draft.entities.map((e, ei) => (
         <EntityFields key={e.name} entity={e} baseEntity={base?.entities.find((b) => b.name === e.name)}
-          built={!!draft.built} fixed={fixed} showTitle={draft.entities.length > 1 || !!base}
+          built={!!draft.built} fixed={fixed} showTitle={draft.entities.length > 1 || !!base} self={draft.key}
           change={(fn) => change((d) => fn(d.entities[ei], d))} />
       ))}
     </>
   )
 }
 
-function EntityFields({ entity, baseEntity, built, fixed, showTitle, change }: {
-  entity: EntityDef; baseEntity?: EntityDef; built: boolean; fixed: boolean; showTitle: boolean
+function EntityFields({ entity, baseEntity, built, fixed, showTitle, self, change }: {
+  entity: EntityDef; baseEntity?: EntityDef; built: boolean; fixed: boolean; showTitle: boolean; self: string
   change: (fn: (e: EntityDef, d: ModuleDef) => void) => void
 }) {
   const [open, setOpen] = useState<string | null>(null)
   const [adding, setAdding] = useState(false)
+  // Modules the person built (not this one), for a link to their records.
+  const others = (useModuleDefs() ?? []).filter((e) => e.def.built && e.def.key !== self).map((e) => ({ key: e.def.key, name: e.def.name }))
   // Fields can be added where records are module records: every built
   // module, and the light built-in ones.
   const structural = !fixed && (built || !entity.table)
@@ -239,7 +241,7 @@ function EntityFields({ entity, baseEntity, built, fixed, showTitle, change }: {
           )}
           {open === f.name && (
             <div className="me-panel">
-              <FieldForm field={f} fields={entity.fields} index={i} typeLocked={!structural || isBase(f)}
+              <FieldForm field={f} fields={entity.fields} index={i} typeLocked={!structural || isBase(f)} modules={others}
                 onCancel={() => setOpen(null)}
                 onSave={(nf) => { change((e) => { e.fields[i] = nf }); setOpen(null) }} />
             </div>
@@ -250,7 +252,7 @@ function EntityFields({ entity, baseEntity, built, fixed, showTitle, change }: {
         adding ? (
           <div className="me-add">
             <div className="me-panel">
-              <FieldForm fields={entity.fields} index={entity.fields.length} onCancel={() => setAdding(false)}
+              <FieldForm fields={entity.fields} index={entity.fields.length} modules={others} onCancel={() => setAdding(false)}
                 onSave={(nf) => { change((e) => { e.fields.push(nf) }); setAdding(false) }} />
             </div>
           </div>
