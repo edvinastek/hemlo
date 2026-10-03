@@ -1,377 +1,386 @@
-import { useMemo, useState, type ReactNode } from 'react'
+import { useMemo, useState } from 'react'
 import { useLiveQuery } from 'dexie-react-hooks'
+import { format, parseISO } from 'date-fns'
 import { db } from '../lib/db'
 import { useApp } from '../lib/store'
 import { dayTotals } from '../lib/nutrition'
-import { mealMultiplier, type Macros } from '../lib/calc'
-import { SLOTS, MAIN_SLOT, slotsFor, planMeal, planQuick, markEaten, macrosFor, setMealTime, type SlotKey } from '../lib/meals'
-import { readSettings, mealTime, type Nutrient, type ProfileSettings } from '../lib/settings'
+import { readSettings, type Nutrient } from '../lib/settings'
+import { amountLine, nutrientLabel, shownNutrients, type QuickEntry } from '../lib/quick-food'
+import { amountChoices, findUnit, readUnits, unitKey } from '../lib/units-rules'
 import {
-  BASES, EMPTY_FORM, MACROS, amountLine, formFrom, isQuick, nutrientLabel, quickAmount, quickCount, quickFromFood, quickMacros, readQuick,
-  shownNutrients, type Basis, type QuickEntry, type QuickForm,
-} from '../lib/quick-food'
-import { amountChoices, amountHint, readAmount, readUnits, unitKey } from '../lib/units-rules'
+  groupDay, groupTitle, itemAmount, itemKind, itemMacros, itemName, kcalText, mealName, plateFields, portionsText, shiftDay,
+  sizeMain, sumItems, type Item, type Lookup, type MealGroup, type MealsCtx,
+} from '../lib/meal-rules'
+import {
+  copyMeals, makeLookup, mealsCtx, moveItems, removeItems, restoreItems, setEaten, setMealTime, setSkipped, slotsFor, updateItem,
+} from '../lib/meals'
+import { addSaved, savedFromItems } from '../lib/saved-meals-rules'
+import { savedMeals, writeSavedMeals } from '../lib/saved-meals'
+import { isReadyMeal } from '../lib/ready-meal-rules'
 import { AmountInput } from '../ui/AmountInput'
-import { FoodUnitsSheet } from '../ui/FoodUnits'
-import { SearchPick, type PickItem } from '../ui/SearchPick'
-import { Dropdown } from '../ui/Dropdown'
+import { AddFoodSheet } from '../ui/AddFoodSheet'
+import { QuickNumbers } from '../ui/QuickNumbers'
+import { offerUndo } from '../ui/Undo'
 import { useBuiltinRuleOn } from '../modules/rule-switch'
-import type { Food as FoodRow, Recipe, RecipeLine, MealPlanSlot, Target } from '../lib/types'
+import type { Food, MealPlanSlot, Recipe, RecipeLine } from '../lib/types'
+import './foodday.css'
 
-
-const live = (r: object) => !(r as { deleted_at?: string | null }).deleted_at
-
-/** Food's Day tab: the day's meals, what they come to, and what was eaten.
- *  Loads what it needs itself, so the Food page only says which tab is open. */
+/** Food's Day tab (MEAL-01 to MEAL-20): the day's food as meals, what it
+ *  comes to against the targets, and what was eaten. No fixed meals: the
+ *  person's own meals show as cards (when they made some), and everything
+ *  else by its time, or under Any time. "+ Add food" opens the one add
+ *  sheet. Loads what it needs itself, so the Food page only says which tab
+ *  is open. */
 export function FoodDay({ day }: { day: string }) {
   const profile = useApp((s) => s.profile)
-  const userId = useApp((s) => s.session?.user.id ?? null)
   const settings = readSettings(profile)
+  const ctx = mealsCtx(settings)
   const shown = shownNutrients(settings)
-  const foods = useLiveQuery(() => db.food.toArray(), [], [] as FoodRow[])
+  const foods = useLiveQuery(() => db.food.toArray(), [], [] as Food[])
   const recipes = useLiveQuery(() => db.recipe.toArray(), [], [] as Recipe[])
   const lines = useLiveQuery(() => db.recipe_line.toArray(), [], [] as RecipeLine[])
-  const totals = useLiveQuery(async () => (profile ? dayTotals(profile.id, day) : null), [profile?.id, day], null)
+  const look = useMemo(() => makeLookup(foods, recipes, lines), [foods, recipes, lines])
+  const rows = useLiveQuery(async () => (profile ? slotsFor(profile.id, day) : []), [profile?.id, day], null)
+  const eaten = useLiveQuery(async () => (profile ? dayTotals(profile.id, day) : null), [profile?.id, day], null)
   const target = useLiveQuery(async () => {
     if (!profile) return null
-    const rows = (await db.target.where('profile_id').equals(profile.id).sortBy('from_date'))
-      .filter((t) => !t.deleted_at && t.from_date <= day)
-    return rows[rows.length - 1] ?? null
+    const list = (await db.target.where('profile_id').equals(profile.id).sortBy('from_date')).filter((t) => !t.deleted_at && t.from_date <= day)
+    return list[list.length - 1] ?? null
   }, [profile?.id, day], null)
-  const foodMap = useMemo(() => new Map(foods.map((f) => [f.id, f])), [foods])
+  const sizeOn = useBuiltinRuleOn(profile?.id, 'nutrition', 'size_main')
+  const [adding, setAdding] = useState<{ meal: string | null } | null>(null)
+  const [copying, setCopying] = useState(false)
+
   if (!profile) return null
-  return <MealDay profileId={profile.id} userId={userId} day={day} recipes={recipes} lines={lines} foods={foodMap}
-    target={target} eaten={totals} settings={settings} shown={shown} />
-}
-
-type Totals = Record<Nutrient, number>
-const ZERO: Totals = { kcal: 0, protein_g: 0, carbs_g: 0, fat_g: 0, fiber_g: 0 }
-const add = (a: Totals, b: Totals, n = 1): Totals => ({
-  kcal: a.kcal + b.kcal * n, protein_g: a.protein_g + b.protein_g * n, carbs_g: a.carbs_g + b.carbs_g * n,
-  fat_g: a.fat_g + b.fat_g * n, fiber_g: a.fiber_g + b.fiber_g * n,
-})
-
-function MealDay({ profileId, userId, day, recipes, lines, foods, target, eaten, settings, shown }: {
-  profileId: string; userId: string | null; day: string; recipes: Recipe[]; lines: RecipeLine[]; foods: Map<string, FoodRow>
-  target: Target | null
-  eaten: Macros | null
-  settings: ProfileSettings
-  shown: Nutrient[]
-}) {
-  const slots = useLiveQuery(() => slotsFor(profileId, day), [profileId, day], [] as MealPlanSlot[])
-  const bySlot = new Map(slots.map((s) => [s.slot, s]))
-  const perPortion = (recipeId: string | null) => recipeId ? macrosFor(recipeId, lines, foods) : null
-
-  /** What one planned meal comes to: its own numbers, or its recipe × portions. */
-  const slotTotals = (s: MealPlanSlot | undefined): Totals | null => {
-    if (!s) return null
-    if (isQuick(s)) return quickMacros(s)
-    const m = perPortion(s.recipe_id)
-    return m ? add(ZERO, m, s.portion_multiplier) : null
-  }
-
-  // Recipes as the picker lists them: own ones tagged, calories per portion.
-  const items: PickItem[] = useMemo(() => recipes.filter(live).map((r) => ({
-    id: r.id, name: r.name,
-    tag: userId && r.owner_id === userId ? 'mine' : undefined,
-    meta: `${Math.round(macrosFor(r.id, lines, foods).kcal)} kcal per portion`,
-  })), [recipes, lines, foods, userId])
-
-  const planned = slots.reduce((acc, s) => add(acc, slotTotals(s) ?? ZERO), ZERO)
-
-  // The main meal is sized to close whatever the other meals leave open. It is
-  // a calorie sum, so it needs a calorie target to aim at.
-  const main = bySlot.get(MAIN_SLOT)
-  const mainPer = main && !isQuick(main) ? perPortion(main.recipe_id) : null
-  const others = slots.filter((s) => s.slot !== MAIN_SLOT).reduce((acc, s) => add(acc, slotTotals(s) ?? ZERO), ZERO)
-  const targetKcal = Math.round(Number(target?.kcal ?? 0))
-  // The Nutrition rule "scale the main meal", which Edit module can switch off.
-  const sizeMain = useBuiltinRuleOn(profileId, 'nutrition', 'size_main')
-  const suggestion = sizeMain && targetKcal > 0 && mainPer && mainPer.kcal > 0
-    ? Math.round(mealMultiplier({ kcal: targetKcal, protein_g: target?.protein_g ?? null }, others, mainPer) * 10) / 10 : null
-
+  const groups = rows ? groupDay(rows, ctx) : []
+  const planned = sumItems(groups.flatMap((g) => g.items), look)
   const goal = (k: Nutrient) => Math.round(Number(target?.[k] ?? 0))
+  const targetKcal = goal('kcal')
+  const suggestion = sizeOn ? sizeMain(groups, settings.meals.main, targetKcal, look) : null
+  const anything = groups.some((g) => g.items.length)
 
   return (
-    <>
-      <div className="totals">
+    <div className="fd">
+      <div className="totals" aria-label="The day’s totals">
         {shown.map((k) => (
           <span key={k}>
-            {k === 'kcal' ? 'Planned' : nutrientLabel(k)} <b>{Math.round(planned[k])}</b>
+            {k === 'kcal' ? 'Planned' : nutrientLabel(k)} <b>{Math.round(planned.total[k])}</b>
             {goal(k) > 0 ? ` / ${goal(k)}` : ''} {k === 'kcal' ? 'kcal' : 'g'}
           </span>
         ))}
         <span>Eaten <b>{Math.round(eaten?.kcal ?? 0)}</b> kcal</span>
+        {planned.unknown > 0 && <span>{planned.unknown} without calories</span>}
       </div>
 
-      {SLOTS.map((def) => {
-        const slot = bySlot.get(def.key)
-        const sizeTo = def.key === MAIN_SLOT && slot && suggestion !== null && Math.abs(suggestion - slot.portion_multiplier) >= 0.1
-          ? suggestion : null
-        return (
-          // Keyed by the slot row too: a meal made, cleared or on another day
-          // starts from what is stored, not from the last one's open fields.
-          <MealSlot key={`${day}:${def.key}:${slot?.id ?? ''}`} slotKey={def.key} label={def.label} slot={slot} day={day} profileId={profileId}
-            time={slot ? mealTime(slot, settings) : settings.meal_times[def.key] ?? null}
-            items={items} recipes={recipes} totals={slotTotals(slot)} shown={shown} foods={foods}
-            suggest={sizeTo !== null ? { portions: sizeTo, kcal: targetKcal } : null} />
-        )
-      })}
-      <p className="empty">
-        Planned meals appear on Today, at their time if they have one, and fill the shopping list.
-        A meal can be a recipe or just the numbers off a packet.
-      </p>
-    </>
-  )
-}
-
-function MealSlot({ slotKey, label, slot, day, profileId, time, items, recipes, totals, shown, suggest, foods }: {
-  slotKey: SlotKey; label: string; slot: MealPlanSlot | undefined; day: string; profileId: string
-  time: string | null; items: PickItem[]; recipes: Recipe[]; totals: Totals | null; shown: Nutrient[]
-  foods: Map<string, FoodRow>
-  suggest: { portions: number; kcal: number } | null
-}) {
-  const quickSaved = !!slot && isQuick(slot)
-  const [quick, setQuick] = useState(quickSaved)
-  const planned = !!slot && (!!slot.recipe_id || quickSaved)
-  const recipe = slot?.recipe_id ? recipes.find((r) => r.id === slot.recipe_id) : undefined
-  // A counted quick meal keeps its food's name as the label; that food's
-  // units say what one weighs, so a count left stale shows as grams.
-  const labelUnits = quickSaved && slot!.unit && slot!.label
-    ? readUnits([...foods.values()].find((f) => f.name === slot!.label)?.units) : []
-  const chosen = recipe?.name
-    ?? (quickSaved ? [slot!.label, quickCount(slot!, labelUnits), `${Math.round(Number(slot!.kcal))} kcal`].filter(Boolean).join(' · ') : null)
-
-  const toggle = (
-    <label className="slot-toggle">
-      <input type="checkbox" checked={quick} onChange={(e) => setQuick(e.target.checked)} aria-label={`${label}: just numbers`} />
-      Just numbers
-    </label>
-  )
-
-  return (
-    <div className="slot" data-slot={slotKey}>
-      <div className="slot-head">
-        <span className="slot-name">{label}{time ? ` · ${time}` : ''}</span>
-        <MealTime label={label} own={slot?.slot_time?.slice(0, 5) ?? null} time={time}
-          onSet={(t) => void setMealTime(profileId, day, slotKey, t)} />
+      <div className="fd-bar">
+        <button type="button" className="btn btn-primary fd-addbtn" onClick={() => setAdding({ meal: null })}>+ Add food</button>
+        {anything && (
+          <button type="button" className="btn" aria-expanded={copying} onClick={() => setCopying((v) => !v)}>Copy day to…</button>
+        )}
       </div>
+      {copying && (
+        <CopyDays from={day} label="this day’s food" onCancel={() => setCopying(false)}
+          onCopy={async (days) => {
+            const made = await copyMeals(day, days, 'all', profile.id)
+            setCopying(false)
+            offerUndo(`${made.length} ${made.length === 1 ? 'item' : 'items'} copied to ${daysText(days)}`, () => removeItems(made))
+          }} />
+      )}
 
-      {quick ? (
-        <QuickFields key={slot?.id ?? 'new'} slot={slot} shown={shown} toggle={toggle} foods={foods}
-          onSave={(entry) => void planQuick(profileId, day, slotKey, entry)} />
-      ) : (
-        <div className="slot-pick">
-          <SearchPick items={items} label={`${label} recipe`} placeholder="Choose a recipe" value={chosen}
-            onPick={(r) => void planMeal(profileId, day, slotKey, r.id, recipe ? slot!.portion_multiplier : 1)}
-            onClear={() => void planMeal(profileId, day, slotKey, null)} />
-          {toggle}
+      {rows && groups.length === 0 && (
+        <div className="fd-empty">
+          <p>Nothing eaten or planned on this day yet.</p>
+          <p className="row-meta">
+            Add food with the button above: from what you had lately, a recipe, a food, a barcode, or just the numbers.
+            It sits on the day by its time; your own meals, if you want fixed ones, are set in More → Food → Meals.
+          </p>
         </div>
       )}
 
-      {planned && (
-        <div className="slot-foot">
-          <span className="row-meta slot-amounts">
-            {/* A counted meal says how much: "2 eggs (100 g) · 143 kcal". */}
-            {quickSaved && slot!.unit ? `${quickAmount(slot!, labelUnits)} · ` : ''}{totals ? amountLine(totals, shown) : ''}
-          </span>
-          {!quickSaved && (
-            <input type="number" min={0.25} step={0.25} value={slot!.portion_multiplier} aria-label={`${label} portions`}
-              className="slot-portions"
-              onChange={(e) => void planMeal(profileId, day, slotKey, slot!.recipe_id, Number(e.target.value) || 1)} />
-          )}
-          <label className="slot-eaten">
-            <input type="checkbox" checked={slot!.status === 'eaten'} aria-label={`${label} eaten`}
-              onChange={(e) => void markEaten(slot!, e.target.checked)} />
-            eaten
-          </label>
-        </div>
+      {groups.map((g) => (
+        <MealCard key={`${day}:${g.key}`} group={g} day={day} profileId={profile.id} look={look} ctx={ctx} shown={shown}
+          suggestion={suggestion && g.items.some((i) => i.id === suggestion.item.id) ? { ...suggestion, kcal: targetKcal } : null}
+          onAdd={() => setAdding({ meal: g.meal })} />
+      ))}
+
+      {anything && (
+        <p className="fd-foot">
+          Each meal is also a task on Today when “every planned meal becomes a task” is on; ticking either one ticks both.
+          Planned meals fill the shopping list.
+        </p>
       )}
-      {suggest && slot && (
-        <button className="suggest" onClick={() => void planMeal(profileId, day, slotKey, slot.recipe_id, suggest.portions)}>
-          {suggest.portions}× reaches {suggest.kcal} kcal — use it
-        </button>
-      )}
+
+      {adding && <AddFoodSheet day={day} meal={adding.meal} onClose={() => setAdding(null)} />}
     </div>
   )
 }
 
-/** "Add time" until opened; then a time field, clearable when the meal has a
- *  time of its own. Clearing falls back to the default time, if one is set. */
-function MealTime({ label, own, time, onSet }: {
-  label: string; own: string | null; time: string | null; onSet: (t: string | null) => void
+const daysText = (days: string[]) => days.length === 1 ? format(parseISO(days[0]), 'EEE d MMM') : `${days.length} days`
+
+/** One meal: its name and time, what it comes to, its items, and a ⋮ with
+ *  everything that can be done to it (every gesture's action is a button). */
+function MealCard({ group: g, day, profileId, look, ctx, shown, suggestion, onAdd }: {
+  group: MealGroup; day: string; profileId: string; look: Lookup; ctx: MealsCtx; shown: Nutrient[]
+  suggestion: { item: Item; portions: number; kcal: number } | null
+  onAdd: () => void
 }) {
-  const [open, setOpen] = useState(false)
-  if (!open) {
+  const [panel, setPanel] = useState<null | 'menu' | 'time' | 'copy' | 'save'>(null)
+  const [name, setName] = useState('')
+  const [said, setSaid] = useState<string | null>(null)
+  const title = groupTitle(g)
+  const items = g.items as MealPlanSlot[]
+  const live = items.filter((i) => i.status !== 'skipped')
+  const { total, unknown } = sumItems(items, look)
+  const toggle = (p: typeof panel) => setPanel(panel === p ? null : p)
+
+  async function removeAll() {
+    setPanel(null)
+    const before = [...items, ...(g.holders as MealPlanSlot[])]
+    await removeItems(before)
+    offerUndo(`${title} removed`, () => restoreItems(before))
+  }
+
+  return (
+    <section className={`fd-meal${g.skipped ? ' is-skipped' : ''}`} aria-label={title}>
+      <header className="fd-head">
+        <h3 className="fd-name">{title}{g.name && g.time && <span className="fd-time">{g.time}</span>}</h3>
+        {live.length > 0 && <span className="fd-kcal">{kcalText(total, unknown)}</span>}
+        {live.length > 0 && (
+          <label className="fd-tick">
+            <input type="checkbox" checked={g.eaten} onChange={(e) => void setEaten(live, e.target.checked)} aria-label={`${title} eaten`} />
+            <span aria-hidden="true">eaten</span>
+          </label>
+        )}
+        <button type="button" className="fd-icon" aria-label={`Add food to ${title}`} onClick={onAdd}>+</button>
+        <button type="button" className="fd-icon" aria-label={`More for ${title}`} aria-expanded={panel === 'menu'} onClick={() => toggle('menu')}>⋮</button>
+      </header>
+
+      {panel === 'menu' && (
+        <div className="fd-menu" role="group" aria-label={`${title}: more`}>
+          {g.meal && <button type="button" className="btn" onClick={() => setPanel('time')}>{g.time ? 'Change time' : 'Give it a time'}</button>}
+          {live.length > 0 && <button type="button" className="btn" onClick={() => { setPanel(null); void setEaten(live, !g.eaten) }}>{g.eaten ? 'Not eaten after all' : 'Mark all eaten'}</button>}
+          {(g.meal || items.length > 0) && (
+            <button type="button" className="btn" onClick={async () => {
+              setPanel(null)
+              await setSkipped(profileId, day, g, !g.skipped)
+              if (!g.skipped) offerUndo(`${title} skipped`, () => setSkipped(profileId, day, { ...g, holders: [] }, false))
+            }}>{g.skipped ? 'Not skipped' : 'Skip this meal'}</button>
+          )}
+          {items.length > 0 && <button type="button" className="btn" onClick={() => setPanel('copy')}>Copy to…</button>}
+          {items.length > 0 && <button type="button" className="btn" onClick={() => { setName(g.name ?? ''); setPanel('save') }}>Save as a saved meal</button>}
+          {(items.length > 0 || g.holders.length > 0) && <button type="button" className="btn fd-danger" onClick={() => void removeAll()}>Remove {items.length > 1 ? 'all' : ''}</button>}
+        </div>
+      )}
+      {panel === 'time' && (
+        <div className="fd-panel">
+          <label className="fd-timefield">
+            <span>{title} on {format(parseISO(day), 'EEE d MMM')}</span>
+            <input type="time" defaultValue={g.time ?? ''} autoFocus aria-label={`${title} time`}
+              onChange={(e) => { if (/^\d\d:\d\d/.test(e.target.value)) void setMealTime(profileId, day, g, e.target.value.slice(0, 5)) }} />
+          </label>
+          {g.items.concat(g.holders).some((i) => i.slot_time) && (
+            <button type="button" className="btn" onClick={() => { void setMealTime(profileId, day, g, null); setPanel(null) }}>
+              Back to the usual time
+            </button>
+          )}
+          <button type="button" className="btn" onClick={() => setPanel(null)}>Done</button>
+        </div>
+      )}
+      {panel === 'copy' && (
+        <CopyDays from={day} label={title} onCancel={() => setPanel(null)}
+          onCopy={async (days) => {
+            const made = await copyMeals(day, days, [g.key], profileId)
+            setPanel(null)
+            offerUndo(`${title} copied to ${daysText(days)}`, () => removeItems(made))
+          }} />
+      )}
+      {panel === 'save' && (
+        <form className="fd-panel" onSubmit={async (e) => {
+          e.preventDefault()
+          const list = await savedMeals(profileId)
+          const r = addSaved(list, { id: crypto.randomUUID(), name, items: savedFromItems(items) })
+          if ('error' in r) { setSaid(r.error); return }
+          await writeSavedMeals(profileId, r.list)
+          setSaid(`Saved as “${name.trim()}”: it is under Saved meals when adding food.`)
+          setPanel(null)
+        }}>
+          <input className="fd-namefield" value={name} maxLength={60} autoFocus placeholder="Name, e.g. Usual breakfast" aria-label="Saved meal’s name"
+            onChange={(e) => setName(e.target.value)} />
+          <button type="submit" className="btn" disabled={!name.trim()}>Save</button>
+          <button type="button" className="btn" onClick={() => setPanel(null)}>Cancel</button>
+        </form>
+      )}
+      {said && <p className="fd-said" role="status">{said}</p>}
+
+      {g.skipped && <p className="fd-skipped">Skipped. It has no task and stays off the shopping list.</p>}
+      {!g.skipped && items.length === 0 && (
+        <button type="button" className="fd-nothing" onClick={onAdd}>Nothing yet. Add food to {title}</button>
+      )}
+      {items.length > 0 && (
+        <ul className="fd-items">
+          {items.map((i, n) => (
+            <ItemRow key={i.id} item={i} look={look} ctx={ctx} shown={shown} first={n === 0} last={n === items.length - 1} siblings={items} />
+          ))}
+        </ul>
+      )}
+      {suggestion && (
+        <button type="button" className="fd-suggest" onClick={() => void updateItem(suggestion.item as MealPlanSlot, { portion_multiplier: suggestion.portions })}>
+          {portionsText(suggestion.portions)} of {itemName(suggestion.item, look)} reaches {suggestion.kcal} kcal: use it
+        </button>
+      )}
+    </section>
+  )
+}
+
+/** One item: eaten tick, name, how much and what it comes to. Tapping it
+ *  opens its amount to change; its ⋮ moves it to another meal or removes it. */
+function ItemRow({ item, look, ctx, shown, siblings }: {
+  item: MealPlanSlot; look: Lookup; ctx: MealsCtx; shown: Nutrient[]; first: boolean; last: boolean; siblings: MealPlanSlot[]
+}) {
+  const [open, setOpen] = useState<null | 'edit' | 'menu' | 'move'>(null)
+  const name = itemName(item, look)
+  const kind = itemKind(item)
+  const m = itemMacros(item, look)
+  const amount = itemAmount(item, look)
+  const skipped = item.status === 'skipped'
+  const recipe = kind === 'recipe' ? look.recipes.get(item.recipe_id!) : undefined
+
+  async function remove() {
+    setOpen(null)
+    await removeItems([item])
+    offerUndo(`${name} removed`, () => restoreItems([item]))
+  }
+  async function moveTo(meal: string) {
+    setOpen(null)
+    const before = { meal: item.slot, time: item.slot_time ?? null }
+    // Moved into a meal of the person's, it takes that meal's time on the day.
+    const there = siblings.find((s) => s.slot === meal && s.id !== item.id)
+    await moveItems([item], { meal, time: meal ? there?.slot_time ?? null : item.slot_time ?? null })
+    offerUndo(`${name} moved to ${mealName(meal, ctx) ?? 'no meal'}`, () => moveItems([{ ...item }], before))
+  }
+
+  return (
+    <li className={`fd-item${skipped ? ' is-skipped' : ''}`}>
+      <div className="fd-item-row">
+        <label className="fd-tick">
+          <input type="checkbox" checked={item.status === 'eaten'} disabled={skipped} aria-label={`${name} eaten`}
+            onChange={(e) => void setEaten([item], e.target.checked)} />
+        </label>
+        <button type="button" className="fd-item-main" aria-expanded={open === 'edit'} onClick={() => setOpen(open === 'edit' ? null : 'edit')}>
+          <span className="fd-item-name">{name}{recipe && isReadyMeal(recipe) && <span className="sp-tag">ready meal</span>}</span>
+          <span className="fd-item-meta">{[amount, m ? amountLine(m, shown.slice(0, 2)) : 'kcal unknown'].filter(Boolean).join(' · ')}</span>
+        </button>
+        <button type="button" className="fd-icon" aria-label={`More for ${name}`} aria-expanded={open === 'menu' || open === 'move'}
+          onClick={() => setOpen(open === 'menu' ? null : 'menu')}>⋮</button>
+      </div>
+      {open === 'menu' && (
+        <div className="fd-menu" role="group" aria-label={`${name}: more`}>
+          <button type="button" className="btn" onClick={() => setOpen('edit')}>Change amount</button>
+          <button type="button" className="btn" onClick={() => setOpen('move')}>Move to another meal</button>
+          <button type="button" className="btn fd-danger" onClick={() => void remove()}>Remove</button>
+        </div>
+      )}
+      {open === 'move' && (
+        <div className="fd-menu" role="group" aria-label={`Move ${name} to`}>
+          {ctx.meals.names.filter((x) => x.key !== item.slot).map((x) => (
+            <button key={x.key} type="button" className="btn" onClick={() => void moveTo(x.key)}>{x.name}</button>
+          ))}
+          {item.slot && <button type="button" className="btn" onClick={() => void moveTo('')}>No meal</button>}
+          <button type="button" className="btn" onClick={() => setOpen(null)}>Cancel</button>
+        </div>
+      )}
+      {open === 'edit' && <ItemEditor item={item} look={look} shown={shown} onDone={() => setOpen(null)} onRemove={() => void remove()} />}
+    </li>
+  )
+}
+
+/** Change how much: the one amount field for a food (UNIT-02), portions for
+ *  a recipe, the numbers for a quick entry. */
+function ItemEditor({ item, look, shown, onDone, onRemove }: {
+  item: MealPlanSlot; look: Lookup; shown: Nutrient[]; onDone: () => void; onRemove: () => void
+}) {
+  const kind = itemKind(item)
+  const food = kind === 'food' ? look.foods.get(item.food_id!) : undefined
+  const units = readUnits(food?.units)
+  const pack = Number((food as Food | undefined)?.pack_size_g ?? 0) || null
+  const unit = item.unit ? findUnit(units, item.unit) : undefined
+  const [text, setText] = useState(kind === 'recipe' ? String(Number(item.portion_multiplier) || 1)
+    : unit && item.unit_qty != null ? String(Number(item.unit_qty)) : String(Number(item.grams ?? 0) || ''))
+  const [choice, setChoice] = useState(unit ? unitKey(unit.name) : 'g')
+
+  if (kind === 'quick') {
     return (
-      <button type="button" className="slot-link" onClick={() => setOpen(true)}>
-        {time ? 'Change time' : 'Add time'}
-      </button>
+      <div className="fd-edit">
+        <QuickNumbers start={item as Partial<QuickEntry>} shown={shown} action="Save"
+          onSubmit={(entry) => { void updateItem(item, { ...entry, unit: null, unit_qty: null }); onDone() }} />
+        <button type="button" className="btn fd-danger" onClick={onRemove}>Remove</button>
+      </div>
     )
   }
+  const plate = kind === 'recipe'
+    ? plateFields({ key: '', kind: 'recipe', recipe_id: item.recipe_id!, text })
+    : plateFields({ key: '', kind: 'food', food_id: item.food_id!, text, choice }, units, pack)
+  const fields = 'fields' in plate ? plate.fields : null
+  const preview = fields ? itemMacros({ ...item, ...fields } as Item, look) : null
   return (
-    <span className="slot-time">
-      <input type="time" value={time ?? ''} aria-label={`${label} time`} autoFocus={!time}
-        // A half-typed time reads as empty; only a whole one is saved.
-        onChange={(e) => { if (/^\d\d:\d\d/.test(e.target.value)) onSet(e.target.value.slice(0, 5)) }} />
-      {own && (
-        <button type="button" className="slot-link" aria-label={`Clear ${label} time`}
-          onClick={() => { onSet(null); setOpen(false) }}>×</button>
-      )}
-      <button type="button" className="slot-link" onClick={() => setOpen(false)}>Done</button>
-    </span>
+    <form className="fd-edit" onSubmit={(e) => {
+      e.preventDefault()
+      if (!fields) return
+      const { food_id: _f, recipe_id: _r, ...change } = fields
+      void updateItem(item, change as Partial<MealPlanSlot>)
+      onDone()
+    }}>
+      <div className="fd-amount">
+        {kind === 'food' ? (
+          <AmountInput text={text} choice={choice} choices={amountChoices(units, { pack })} onText={setText} onChoice={setChoice}
+            label={`How much ${itemName(item, look)}`} input={{ autoFocus: true, onFocus: (e) => e.currentTarget.select() }} />
+        ) : (
+          <>
+            <input type="text" inputMode="decimal" className="amt-input" value={text} autoFocus aria-label="Portions"
+              onFocus={(e) => e.currentTarget.select()} onChange={(e) => setText(e.target.value)} />
+            <span className="amt-only">portions</span>
+          </>
+        )}
+      </div>
+      <span className="fd-preview" aria-live="polite">{fields ? (preview ? amountLine(preview, shown) : 'kcal unknown') : (plate as { error: string }).error}</span>
+      <div className="fd-edit-actions">
+        <button type="button" className="btn fd-danger" onClick={onRemove}>Remove</button>
+        <button type="button" className="btn" onClick={onDone}>Cancel</button>
+        <button type="submit" className="btn btn-primary" disabled={!fields}>Save</button>
+      </div>
+    </form>
   )
 }
 
-/** The ways the numbers can be given, and one more: worked out from a food
- *  and how much of it, in grams or one of its units ("2 eggs"). */
-type Mode = Basis | 'food'
-const BASIS_OPTIONS: { value: Mode; label: string }[] = [
-  ...BASES.map((b) => ({ value: b.value as Mode, label: b.label })),
-  { value: 'food', label: 'From a food' },
-]
-
-/** A meal as plain numbers. Only calories are needed; any macro typed in is
- *  kept. Figures can be the total, or per 100 g (or another size) with the
- *  grams eaten, and the total is worked out as they type. */
-function QuickFields({ slot, shown, toggle, onSave, foods }: {
-  slot: MealPlanSlot | undefined; shown: Nutrient[]; toggle: ReactNode; onSave: (entry: QuickEntry) => void
-  foods: Map<string, FoodRow>
-}) {
-  const [form, setForm] = useState<QuickForm>(() => (slot && isQuick(slot) ? formFrom(slot) : EMPTY_FORM))
-  const [fromFood, setFromFood] = useState(false)
-  if (fromFood) {
-    return <FoodFields slot={slot} shown={shown} toggle={toggle} foods={foods} onSave={onSave}
-      onMode={(m) => { if (m !== 'food') { setFromFood(false); setForm((f) => ({ ...f, basis: m })) } }} />
-  }
-  // Tracked macros first; the rest are one tap away, and kept if filled in.
-  const first = MACROS.filter((k) => shown.includes(k))
-  const rest = MACROS.filter((k) => !shown.includes(k))
-  const [more, setMore] = useState(() => rest.some((k) => form[k] !== ''))
-  const set = (change: Partial<QuickForm>) => setForm((f) => ({ ...f, ...change }))
-
-  const result = readQuick(form)
-  const entry = 'entry' in result ? result.entry : null
-  const touched = form.kcal !== '' || form.grams !== ''
-  // Saved already when the form comes to exactly what the slot holds.
-  const same = !!entry && !!slot && isQuick(slot)
-    && JSON.stringify(formFrom(entry)) === JSON.stringify(formFrom(slot))
-  const per = form.basis === 'total' ? '' : ` ${BASES.find((b) => b.value === form.basis)!.label.replace('…', form.portion_g || '…')}`
-
-  const field = (key: keyof QuickForm, text: string, placeholder?: string) => (
-    <label key={key} className="qf-field">
-      <span>{text}</span>
-      <input type="text" inputMode="decimal" autoComplete="off" value={form[key]} placeholder={placeholder}
-        onChange={(e) => set({ [key]: e.target.value })} />
-    </label>
-  )
-
+/** Pick days to copy to (MEAL-07): the next seven, or any day typed. */
+function CopyDays({ from, label, onCopy, onCancel }: { from: string; label: string; onCopy: (days: string[]) => Promise<void>; onCancel: () => void }) {
+  const [days, setDays] = useState<string[]>([])
+  const [busy, setBusy] = useState(false)
+  const next = Array.from({ length: 7 }, (_, i) => shiftDay(from, i + 1))
+  const flip = (d: string) => setDays((list) => (list.includes(d) ? list.filter((x) => x !== d) : [...list, d].sort()))
   return (
-    <div className="qf">
-      <div className="slot-pick">
-        <input className="qf-label" type="text" value={form.label} maxLength={120} placeholder="What it was (optional)"
-          aria-label="What it was" onChange={(e) => set({ label: e.target.value })} />
-        {toggle}
-      </div>
-      <div className="qf-grid">
-        {/* The dropdown sits in the left column so its list, wider than the
-            field, opens across the screen and not off its edge. */}
-        <div className="qf-field">
-          <span>Calories are</span>
-          <Dropdown<Mode> value={form.basis} options={BASIS_OPTIONS} label="Calories are"
-            onChange={(m) => (m === 'food' ? setFromFood(true) : set({ basis: m }))} />
-        </div>
-        {field('kcal', `kcal${per}`)}
-        {form.basis === 'portion' && field('portion_g', 'One portion, g')}
-        {form.basis !== 'total' && field('grams', 'Grams eaten')}
-        {first.map((k) => field(k, `${nutrientLabel(k)}, g${per}`, 'optional'))}
-        {more && rest.map((k) => field(k, `${nutrientLabel(k)}, g${per}`, 'optional'))}
-      </div>
-      <div className="qf-actions">
-        {!more && rest.length > 0 && (
-          <button type="button" className="slot-link" onClick={() => setMore(true)}>
-            {first.length ? 'More' : 'Add macros'}
+    <div className="fd-panel fd-copy" role="group" aria-label={`Copy ${label} to`}>
+      <p className="row-meta">Copy {label} to (pick one or more days):</p>
+      <div className="fd-days">
+        {next.map((d, i) => (
+          <button key={d} type="button" className="af-chip" aria-pressed={days.includes(d)} onClick={() => flip(d)}>
+            {i === 0 ? 'Next day' : format(parseISO(d), 'EEE')}<small>{format(parseISO(d), 'd MMM')}</small>
           </button>
-        )}
-        <span className="row-meta qf-result" aria-live="polite">
-          {entry ? `Comes to ${amountLine(quickMacros(entry), shown)}` : touched ? (result as { error: string }).error : ''}
-        </span>
-        <button type="button" className="btn btn-primary" disabled={!entry || same} onClick={() => entry && onSave(entry)}>
-          {same ? 'Saved' : 'Save'}
+        ))}
+        {days.filter((d) => !next.includes(d)).map((d) => (
+          <button key={d} type="button" className="af-chip" aria-pressed onClick={() => flip(d)}>{format(parseISO(d), 'EEE d MMM')}</button>
+        ))}
+        <input type="date" className="af-date" aria-label="Another day" value=""
+          onChange={(e) => { const d = e.target.value; if (d && d !== from && !days.includes(d)) setDays([...days, d].sort()) }} />
+      </div>
+      <div className="fd-edit-actions">
+        <button type="button" className="btn" onClick={onCancel}>Cancel</button>
+        <button type="button" className="btn btn-primary" disabled={!days.length || busy}
+          onClick={async () => { setBusy(true); try { await onCopy(days) } finally { setBusy(false) } }}>
+          {days.length ? `Copy to ${daysText(days)}` : 'Copy'}
         </button>
       </div>
     </div>
   )
 }
 
-/** A meal from one food and how much of it: pick the food, say how much in
- *  grams or one of its units ("2" eggs), and the numbers are worked out from
- *  the food's figures per 100 g. Saved as plain numbers like any quick meal,
- *  with the unit and how many kept beside the grams. */
-function FoodFields({ slot, shown, toggle, foods, onSave, onMode }: {
-  slot: MealPlanSlot | undefined; shown: Nutrient[]; toggle: ReactNode; foods: Map<string, FoodRow>
-  onSave: (entry: QuickEntry) => void; onMode: (m: Mode) => void
-}) {
-  const [foodId, setFoodId] = useState<string | null>(null)
-  const [text, setText] = useState('')
-  const [unit, setUnit] = useState('g')
-  const [open, setOpen] = useState<FoodRow | null>(null)
-  const userId = useApp((s) => s.session?.user.id ?? null)
-  const food = foodId ? foods.get(foodId) : undefined
-  const units = readUnits(food?.units)
-  const choices = amountChoices(units)
-  const choice = choices.find((c) => c.key === unit) ?? choices[0]
-  const items: PickItem[] = useMemo(() => [...foods.values()].filter(live).map((f) => ({
-    id: f.id, name: f.name, tag: userId && f.owner_id === userId ? 'mine' : undefined,
-    meta: [f.kcal != null ? `${Math.round(Number(f.kcal))} kcal / 100 g` : null,
-      ...readUnits(f.units).slice(0, 2).map((u) => u.name)].filter(Boolean).join(' · ') || undefined,
-  })), [foods, userId])
-  const result = food ? quickFromFood(food, readAmount(text, choice)) : null
-  const entry = result && 'entry' in result ? result.entry : null
-  const same = !!entry && !!slot && isQuick(slot) && JSON.stringify(formFrom(entry)) === JSON.stringify(formFrom(slot))
-    && (slot.unit ?? null) === (entry.unit ?? null)
-
-  return (
-    <div className="qf">
-      <div className="slot-pick">
-        <SearchPick items={items} label="Food eaten" placeholder="Which food" value={food?.name ?? null}
-          onPick={(f) => {
-            setFoodId(f.id)
-            // Counted foods start in their first unit: "2" eggs.
-            const first = readUnits(foods.get(f.id)?.units)[0]
-            setUnit(first ? unitKey(first.name) : 'g')
-          }}
-          onClear={() => setFoodId(null)} />
-        {toggle}
-      </div>
-      <div className="qf-grid">
-        <div className="qf-field">
-          <span>Calories are</span>
-          <Dropdown<Mode> value="food" options={BASIS_OPTIONS} label="Calories are" onChange={onMode} />
-        </div>
-        <div className="qf-field is-wide">
-          <span>How much</span>
-          <div className="qf-amount">
-            <AmountInput text={text} choice={choice.key} choices={choices} onText={setText} onChoice={setUnit}
-              label="How much was eaten" input={{ placeholder: choice.unit ? 'how many' : 'g' }} />
-          </div>
-        </div>
-      </div>
-      <div className="qf-actions">
-        {food && (
-          <button type="button" className="slot-link" onClick={() => setOpen(food)}>
-            {units.length ? 'Units' : 'Add a unit'}
-          </button>
-        )}
-        <span className="row-meta qf-result" aria-live="polite">
-          {entry ? `${amountHint(text, choice)} comes to ${amountLine(quickMacros(entry), shown)}`
-            : food && text.trim() && result && 'error' in result ? result.error : ''}
-        </span>
-        <button type="button" className="btn btn-primary" disabled={!entry || same} onClick={() => entry && onSave(entry)}>
-          {same ? 'Saved' : 'Save'}
-        </button>
-      </div>
-      {open && <FoodUnitsSheet food={open} onClose={() => setOpen(null)} />}
-    </div>
-  )
-}

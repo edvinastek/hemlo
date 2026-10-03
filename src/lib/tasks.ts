@@ -30,13 +30,16 @@ export async function saveTask(task: Task, changed?: (keyof Task & string)[]) {
   return row
 }
 
-/** Tick or untick, from Today or from the home-screen widget. */
-export function setTaskDone(task: Task, done: boolean) {
-  return saveTask({
+/** Tick or untick, from Today or from the home-screen widget. A meal's task
+ *  ticks its meal eaten too, and unticking un-eats it (GEN-31). */
+export async function setTaskDone(task: Task, done: boolean) {
+  const row = await saveTask({
     ...task,
     status: done ? 'done' : 'todo',
     completed_at: done ? new Date().toISOString() : null,
   }, ['status', 'completed_at'])
+  if (task.source === 'meal') await (await import('./meals')).mealTaskTicked(row, done)
+  return row
 }
 
 /** Deleting keeps the row with a date on it, so the deletion syncs to every

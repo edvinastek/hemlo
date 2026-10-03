@@ -8,17 +8,21 @@ import { formatGrams } from '../lib/stock-rules'
 import { amountChoices, amountHint, readAmount, readUnits, unitLine, type Amount } from '../lib/units-rules'
 import { AmountInput } from './AmountInput'
 import {
-  addProduct, foodByBarcode, productByBarcode, searchProducts, sharedPrices, whereFor, ProductProblem,
+  addProduct, foodByBarcode, lookUpBarcode, productByBarcode, searchProducts, sharedPrices, whereFor, ProductProblem,
 } from '../lib/products'
 import {
-  displayName, formatDay, maybeShopLabel, normaliseBarcode, pricesPage, productFromFood, productPage,
-  type PriceRow, type Product,
+  displayName, formatDay, labelRows, maybeShopLabel, normaliseBarcode, pricesPage, productFromFood, productPage,
+  type NutriScore, type PriceRow, type Product,
 } from '../lib/products-rules'
 import { BarcodeScan } from './BarcodeScan'
-import type { Food } from '../lib/types'
+import { ReadyMealForm } from './ReadyMeal'
+import type { Food, Recipe } from '../lib/types'
 import './products.css'
 
-type Purpose = 'foods' | 'stock'
+/** What the finder is for: the Foods tab (keep it), Stock (put it in the
+ *  cupboard), or picking a food for something else (a meal, a recipe line,
+ *  the shopping list), which hands the food back. */
+type Purpose = 'foods' | 'stock' | 'pick'
 type View = 'search' | 'scan' | 'detail' | 'amount'
 type Chosen = { product: Product; food: Food | null; said?: string }
 
@@ -55,37 +59,65 @@ export function ScanToStock({ householdId }: { householdId: string }) {
   )
 }
 
-/** A sheet: search or scan, a product's page, and adding it. Searching goes
- *  out only when the person presses Search, never as they type: Open Food
- *  Facts allows ten searches a minute. */
-export function ProductFinder({ start, purpose, onClose, onShow, householdId, onStocked }: {
+interface FinderProps {
   start: 'search' | 'scan'
   purpose: Purpose
   onClose: () => void
   onShow?: (name: string) => void
   householdId?: string
   onStocked?: (text: string) => void
-}) {
-  const profile = useApp((s) => s.profile)
-  const userId = useApp((s) => s.session?.user.id ?? null)
-  const where = useMemo(() => whereFor(profile?.country), [profile?.country])
-  const [view, setView] = useState<View>(start)
-  const [query, setQuery] = useState('')
-  const [results, setResults] = useState<Product[] | null>(null)
-  const [busy, setBusy] = useState(false)
-  const [problem, setProblem] = useState<string | null>(null)
-  const [chosen, setChosen] = useState<Chosen | null>(null)
+  /** For 'pick': the food chosen (kept in the person's foods first). */
+  onPick?: (food: Food, product: Product) => void
+  /** For 'pick': the words on its button ("Put on plate"). */
+  pickLabel?: string
+  /** For 'pick': offered "Save as ready meal", which hands the recipe back. */
+  onReady?: (recipe: Recipe, food: Food) => void
+  /** What to search for first (the words typed in another search). */
+  query?: string
+}
+
+/** A sheet: search or scan, a product's page, and adding it. */
+export function ProductFinder(props: FinderProps) {
   const titleId = useId()
-
-  // Barcodes of the foods already kept, to mark them in the results.
-  const foods = useLiveQuery(() => db.food.toArray(), [], [] as Food[])
-  const kept = useMemo(() => new Set(foods.filter((f) => !f.deleted_at && f.barcode).map((f) => f.barcode as string)), [foods])
-
+  const { purpose, onClose } = props
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose() }
     document.addEventListener('keydown', onKey)
     return () => document.removeEventListener('keydown', onKey)
   }, [onClose])
+  const title = purpose === 'stock' ? 'Scan to add to stock' : 'Find in stores'
+  return (
+    <>
+      <div className="sheet-scrim" onClick={onClose} />
+      <div className="bottom-sheet pf-sheet" role="dialog" aria-modal="true" aria-labelledby={titleId}>
+        <div className="pf-head">
+          <h2 id={titleId}>{title}</h2>
+          <button type="button" className="slot-link" onClick={onClose}>Close</button>
+        </div>
+        <ProductFinderBody {...props} />
+      </div>
+    </>
+  )
+}
+
+/** The finder without a sheet of its own, to sit inside another sheet (the
+ *  add-food sheet's Foods tab), so a sheet never opens on top of a sheet.
+ *  Searching goes out only when the person presses Search, never as they
+ *  type: Open Food Facts allows ten searches a minute. */
+export function ProductFinderBody({ start, purpose, onClose, onShow, householdId, onStocked, onPick, pickLabel, onReady, query: firstQuery }: FinderProps) {
+  const profile = useApp((s) => s.profile)
+  const userId = useApp((s) => s.session?.user.id ?? null)
+  const where = useMemo(() => whereFor(profile?.country), [profile?.country])
+  const [view, setView] = useState<View>(start)
+  const [query, setQuery] = useState(firstQuery ?? '')
+  const [results, setResults] = useState<Product[] | null>(null)
+  const [busy, setBusy] = useState(false)
+  const [problem, setProblem] = useState<string | null>(null)
+  const [chosen, setChosen] = useState<Chosen | null>(null)
+
+  // Barcodes of the foods already kept, to mark them in the results.
+  const foods = useLiveQuery(() => db.food.toArray(), [], [] as Food[])
+  const kept = useMemo(() => new Set(foods.filter((f) => !f.deleted_at && f.barcode).map((f) => f.barcode as string)), [foods])
 
   async function search(e: FormEvent) {
     e.preventDefault()
@@ -140,17 +172,8 @@ export function ProductFinder({ start, purpose, onClose, onShow, householdId, on
     return food
   }
 
-  const title = purpose === 'stock' ? 'Scan to add to stock' : 'Find in stores'
-
   return (
-    <>
-      <div className="sheet-scrim" onClick={onClose} />
-      <div className="bottom-sheet pf-sheet" role="dialog" aria-modal="true" aria-labelledby={titleId}>
-        <div className="pf-head">
-          <h2 id={titleId}>{title}</h2>
-          <button type="button" className="slot-link" onClick={onClose}>Close</button>
-        </div>
-
+      <div className="pf-body">
         {view === 'search' && (
           <>
             <form className="pf-search" onSubmit={search} role="search">
@@ -217,7 +240,17 @@ export function ProductFinder({ start, purpose, onClose, onShow, householdId, on
               try { await add(chosen.product) } finally { setBusy(false) }
             }}
             onShow={onShow && chosen.food ? () => { onShow(chosen.food!.name); onClose() } : undefined}
-            onStock={() => setView('amount')} />
+            onStock={() => setView('amount')}
+            pickLabel={pickLabel}
+            onPick={onPick ? async () => {
+              setBusy(true)
+              try {
+                const food = chosen.food ?? await add(chosen.product)
+                if (food) onPick(food, chosen.product)
+              } finally { setBusy(false) }
+            } : undefined}
+            onReady={onReady ? async () => chosen.food ?? await add(chosen.product) : undefined}
+            onReadySaved={onReady} />
         )}
 
         {view === 'amount' && chosen && householdId && (
@@ -230,7 +263,6 @@ export function ProductFinder({ start, purpose, onClose, onShow, householdId, on
             }} />
         )}
       </div>
-    </>
   )
 }
 
@@ -242,13 +274,19 @@ function Thumb({ product }: { product: Product }) {
   )
 }
 
-const FACTS: [keyof Product['per100'], string, string][] = [
-  ['kcal', 'Energy', 'kcal'], ['protein_g', 'Protein', 'g'], ['carbs_g', 'Carbohydrate', 'g'], ['fat_g', 'Fat', 'g'], ['fiber_g', 'Fibre', 'g'],
-]
+/** The Nutri-Score letter in its own colour, with the letter written out so
+ *  colour is never the only signal (PROD-06). */
+export function NutriScoreBadge({ grade }: { grade: NutriScore }) {
+  return (
+    <span className={`pf-ns pf-ns-${grade}`} role="img" aria-label={`Nutri-Score ${grade.toUpperCase()}`}>
+      <span aria-hidden="true">Nutri-Score</span> <b aria-hidden="true">{grade.toUpperCase()}</b>
+    </span>
+  )
+}
 
-/** One product: its figures per 100 g, where it is sold, shared prices,
- *  where the data comes from, and adding it. */
-function ProductPage({ chosen, purpose, busy, problem, onBack, onAdd, onShow, onStock }: {
+/** One product: its whole EU nutrition table, where it is sold, shared
+ *  prices, where the data comes from, and what can be done with it. */
+function ProductPage({ chosen, purpose, busy, problem, onBack, onAdd, onShow, onStock, onPick, pickLabel, onReady, onReadySaved }: {
   chosen: Chosen
   purpose: Purpose
   busy: boolean
@@ -257,9 +295,21 @@ function ProductPage({ chosen, purpose, busy, problem, onBack, onAdd, onShow, on
   onAdd: () => Promise<void>
   onShow?: () => void
   onStock: () => void
+  onPick?: () => Promise<void>
+  pickLabel?: string
+  /** Keeps the food (when not yet kept) for a ready meal, and gives it. */
+  onReady?: () => Promise<Food | null>
+  onReadySaved?: (recipe: Recipe, food: Food) => void
 }) {
   const { product: p, food, said } = chosen
-  const per = p.packUnit === 'ml' ? '100 ml' : '100 g'
+  const per = p.perMl || p.packUnit === 'ml' ? '100 ml' : '100 g'
+  const [ready, setReady] = useState<Food | null>(null)
+  if (ready && onReadySaved) {
+    return (
+      <ReadyMealForm food={ready} product={p} onCancel={() => setReady(null)}
+        onSaved={(recipe) => onReadySaved(recipe, ready)} />
+    )
+  }
   return (
     <article className="pf-page" aria-label={displayName(p)}>
       <button type="button" className="slot-link" onClick={onBack}>← Back</button>
@@ -269,14 +319,15 @@ function ProductPage({ chosen, purpose, busy, problem, onBack, onAdd, onShow, on
           <h3 className="pf-name">{displayName(p)}</h3>
           <p className="row-meta">{[p.brand, p.quantity ?? (p.pack ? formatGrams(p.pack) : null)].filter(Boolean).join(' · ')}</p>
           <p className="row-meta">Barcode {p.code}</p>
+          {p.nutriScore && <NutriScoreBadge grade={p.nutriScore} />}
         </div>
       </div>
 
       <table className="pf-facts">
-        <caption>Per {per}</caption>
+        <caption>Nutrition per {per}</caption>
         <tbody>
-          {FACTS.map(([key, label, unit]) => (
-            <tr key={key}><th scope="row">{label}</th><td>{p.per100[key] === null ? '–' : `${p.per100[key]} ${unit}`}</td></tr>
+          {labelRows(p).map((r) => (
+            <tr key={r.key} className={r.sub ? 'is-sub' : undefined}><th scope="row">{r.label}</th><td>{r.value}</td></tr>
           ))}
         </tbody>
       </table>
@@ -300,7 +351,14 @@ function ProductPage({ chosen, purpose, busy, problem, onBack, onAdd, onShow, on
       {said && <p className="pf-note" role="status">{said}</p>}
       {problem && <p className="pf-note is-bad" role="alert">{problem}</p>}
       <div className="sheet-actions pf-do">
-        {purpose === 'stock' ? (
+        {purpose === 'pick' && onPick ? (
+          <>
+            {onReady && (
+              <button type="button" className="btn" disabled={busy} onClick={async () => setReady(await onReady())}>Save as ready meal…</button>
+            )}
+            <button type="button" className="btn btn-primary grow" disabled={busy} onClick={() => void onPick()}>{pickLabel ?? 'Use this food'}</button>
+          </>
+        ) : purpose === 'stock' ? (
           <button type="button" className="btn btn-primary grow" disabled={busy} onClick={onStock}>Put in stock…</button>
         ) : food ? (
           onShow && <button type="button" className="btn btn-primary grow" onClick={onShow}>Show in Foods</button>
@@ -384,5 +442,80 @@ function StockAmount({ chosen, onBack, onSave }: {
         <button type="submit" className="btn btn-primary grow" disabled={!amount || busy}>Add to stock</button>
       </div>
     </form>
+  )
+}
+
+/** Scan a barcode and get a food back (PROD-02): the one kept with that
+ *  barcode, or the product from Open Food Facts added to the person's foods.
+ *  For anywhere food is added (a recipe's ingredient, the shopping list,
+ *  stock): open it, and `onFood` gets the food. An unknown barcode offers the
+ *  search by name instead. A sheet of its own: open it from a page, not from
+ *  inside another sheet (the add-food sheet has scanning built in). */
+export function ScanFoodSheet({ title = 'Scan a barcode', action = 'Use this food', onFood, onClose }: {
+  title?: string
+  /** The button's words on a product's page, when it is shown. */
+  action?: string
+  onFood: (food: Food, product: Product) => void
+  onClose: () => void
+}) {
+  const titleId = useId()
+  const profile = useApp((s) => s.profile)
+  const userId = useApp((s) => s.session?.user.id ?? null)
+  const where = useMemo(() => whereFor(profile?.country), [profile?.country])
+  const [busy, setBusy] = useState(false)
+  const [problem, setProblem] = useState<string | null>(null)
+  const [searching, setSearching] = useState(false)
+  const [attempt, setAttempt] = useState(0)
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose() }
+    document.addEventListener('keydown', onKey)
+    return () => document.removeEventListener('keydown', onKey)
+  }, [onClose])
+
+  async function got(code: string) {
+    setBusy(true)
+    setProblem(null)
+    try {
+      const found = await lookUpBarcode(code, userId, where)
+      if (!found) {
+        setProblem(`No product with barcode ${code} in Open Food Facts yet.${maybeShopLabel(code)
+          ? ' It may be a shop’s own label for something weighed at the counter; those are not listed.' : ''} Search by name instead.`)
+        return
+      }
+      if (found.food) { onFood(found.food, found.product); return }
+      if (!userId) { setProblem('Sign in to keep foods.'); return }
+      const { food } = await addProduct(found.product, userId)
+      onFood(food, found.product)
+    } catch (e) {
+      setProblem(problemText(e))
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  return (
+    <>
+      <div className="sheet-scrim" onClick={onClose} />
+      <div className="bottom-sheet pf-sheet" role="dialog" aria-modal="true" aria-labelledby={titleId}>
+        <div className="pf-head">
+          <h2 id={titleId}>{title}</h2>
+          <button type="button" className="slot-link" onClick={onClose}>Close</button>
+        </div>
+        {searching ? (
+          <ProductFinderBody start="search" purpose="pick" pickLabel={action} onClose={onClose}
+            onPick={(food, product) => onFood(food, product)} />
+        ) : (
+          <>
+            {busy ? <p className="pf-note" role="status">Looking it up…</p>
+              : <BarcodeScan key={attempt} onCode={(c) => void got(c)} onCancel={onClose} />}
+            {problem && <p className="pf-note is-bad" role="alert">{problem}</p>}
+            <div className="sheet-actions">
+              {problem && <button type="button" className="btn" onClick={() => { setProblem(null); setAttempt((n) => n + 1) }}>Scan again</button>}
+              <button type="button" className="btn grow" onClick={() => setSearching(true)}>Search by name</button>
+            </div>
+          </>
+        )}
+      </div>
+    </>
   )
 }

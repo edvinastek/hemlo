@@ -516,7 +516,7 @@ export function startAmount(units: FoodUnit[], last: Pick<Item, 'grams' | 'unit'
 }
 
 /** A plate item read into the columns of a meal item, or what stops it. */
-export function plateFields(p: PlateItem, units: FoodUnit[] = []): { fields: Partial<Item> } | { error: string } {
+export function plateFields(p: PlateItem, units: FoodUnit[] = [], pack: number | null = null): { fields: Partial<Item> } | { error: string } {
   if (p.kind === 'quick') {
     const { unit, unit_qty, ...rest } = p.entry
     return { fields: { ...rest, recipe_id: null, food_id: null, portion_multiplier: 1, ...(unit && unit_qty != null ? { unit, unit_qty } : {}) } }
@@ -527,8 +527,8 @@ export function plateFields(p: PlateItem, units: FoodUnit[] = []): { fields: Par
     if (n > 99) return { error: 'At most 99 portions at once.' }
     return { fields: { recipe_id: p.recipe_id, food_id: null, portion_multiplier: Math.round(n * 100) / 100 } }
   }
-  const choices = amountChoices(units)
-  const choice = choices.find((c) => c.key === p.choice) ?? choices[0]
+  const choices = amountChoices(units, { pack })
+  const choice = choices.find((c) => c.key === p.choice) ?? choices.find((c) => c.key === 'g')!
   const a: Amount | null = readAmount(p.text, choice)
   if (!a || a.grams <= 0) return { error: 'Say how much.' }
   if (a.grams > LIMITS.grams) return { error: `At most ${LIMITS.grams} g at once.` }

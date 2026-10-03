@@ -190,6 +190,7 @@ is('in grams, with a decimal comma and a fraction', [
   plateFields({ kind: 'food', food_id: 'egg', text: '12,5', choice: 'g' }, eggUnits).fields.grams,
   plateFields({ kind: 'food', food_id: 'egg', text: '1 1/2', choice: 'u:egg' }, eggUnits).fields.grams,
 ], [12.5, 75])
+is('a whole pack, when the pack size is known', plateFields({ kind: 'food', food_id: 'egg', text: '1', choice: 'packs' }, [], 400).fields.grams, 400)
 is('no amount stops it', plateFields({ kind: 'food', food_id: 'egg', text: '', choice: 'g' }), { error: 'Say how much.' })
 is('a recipe in portions', plateFields({ kind: 'recipe', recipe_id: 'oats', text: '1,5' }), { fields: { recipe_id: 'oats', food_id: null, portion_multiplier: 1.5 } })
 is('no portions stops it', plateFields({ kind: 'recipe', recipe_id: 'oats', text: '0' }), { error: 'Say how many portions.' })
