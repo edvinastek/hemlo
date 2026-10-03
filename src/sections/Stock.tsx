@@ -317,6 +317,7 @@ function StockEdit({ item, householdId, places, day, onDone }: { item: Item; hou
   // The minimum opens in the unit it reads best in, as the amount does.
   const minStartUnit = item.unit ? unitKey(item.unit.name) : item.min_grams ? unitFor(item.min_grams) : 'g'
   const [minUnit, setMinUnit] = useState(minStartUnit)
+  const [confirm, setConfirm] = useState(false)
   const choice = choices.find((c) => c.key === unit) ?? choices[0]
   const minChoice = choices.find((c) => c.key === minUnit) ?? choices[0]
   const read = readAmount(amount, choice)
@@ -372,13 +373,23 @@ function StockEdit({ item, householdId, places, day, onDone }: { item: Item; hou
       <input className="stock-note-input" value={note} onChange={(e) => setNote(e.target.value)} maxLength={NOTE_MAX}
         placeholder="Note" aria-label={`Note for ${item.name}`} />
       <div className="stock-actions">
-        <button type="button" className="btn warn" onClick={async () => {
-          const before = item.row
-          await removeStock(item.row)
-          offerUndo(`${item.name} taken out of stock`, () => restoreStock(before))
-          onDone()
-        }}>Remove</button>
-        <button type="button" className="btn grow" onClick={onDone}>Cancel</button>
+        {confirm ? (
+          <>
+            <span className="stock-hint stock-ask">Take {item.name} off the list?</span>
+            <button type="button" className="btn warn" onClick={async () => {
+              const before = item.row
+              await removeStock(item.row)
+              offerUndo(`${item.name} taken out of stock`, () => restoreStock(before))
+              onDone()
+            }}>Remove</button>
+            <button type="button" className="btn" onClick={() => setConfirm(false)}>Keep</button>
+          </>
+        ) : (
+          <>
+            <button type="button" className="btn" onClick={() => setConfirm(true)}>Remove</button>
+            <button type="button" className="btn grow" onClick={onDone}>Cancel</button>
+          </>
+        )}
       </div>
     </form>
   )
