@@ -9,15 +9,17 @@ const email = process.env.TEST_EMAIL
 const mine = `profile_id = ${profileOf(email)}`
 const { is, failed } = checks()
 
-const { b, ctx, p } = await open()
-await signIn(p, email)
-
-// The three rows the run touches, made fresh for today so every run starts the same.
+// The three rows the run touches, made fresh for today so every run starts the
+// same. Before signing in, so the first pull already sees them (a row
+// removed after the pull would stay on this device).
 await sql(`delete from public.task where ${mine} and title in ('Lunch: chicken mayo pasta','Calisthenics A','Learning, 1 h');
   insert into public.task (profile_id, title, category, planned_date, planned_time, duration_min) values
     (${profileOf(email)}, 'Lunch: chicken mayo pasta', 'Food', '${today()}', '12:00', 30),
     (${profileOf(email)}, 'Calisthenics A', 'Training', '${today()}', '16:30', 45),
     (${profileOf(email)}, 'Learning, 1 h', 'Work', '${today()}', '19:00', 60);`)
+
+const { b, ctx, p } = await open()
+await signIn(p, email)
 await p.waitForFunction(() => navigator.serviceWorker?.controller != null, { timeout: 15000 })
   .catch(() => console.log('note: service worker did not take control in time'))
 await p.reload({ waitUntil: 'networkidle' })
@@ -35,7 +37,10 @@ await p.waitForTimeout(400)
 is('ticked while offline shows at once', await lunch.locator('.tick').textContent(), '✓')
 
 const cal = p.locator('.row', { hasText: 'Calisthenics A' })
-await cal.locator('.push button', { hasText: '30' }).click()
+// v17 (CALM-06): the pushes live in the open row, not on the collapsed one.
+await cal.locator('.row-more').click()
+await p.locator('.move-menu [role=menuitem]', { hasText: /^Open here$/ }).click()
+await cal.locator('.ir-push button[aria-label="Push 30 min"]').click()
 await p.waitForTimeout(400)
 is('pushed 30 minutes while offline', await cal.locator('.row-time').textContent(), '17:00')
 
