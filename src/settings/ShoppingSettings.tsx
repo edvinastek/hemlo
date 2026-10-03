@@ -127,7 +127,7 @@ export function ShoppingSettings() {
       <div className="setting-row">
         <div>
           <div className="row-name">Take from stock when meals are eaten</div>
-          <div className="row-meta">A meal ticked eaten takes its ingredients off the stock; unticked, they go back.</div>
+          <div className="row-meta">A meal ticked eaten takes its ingredients off the stock.</div>
         </div>
         <button className="switch" role="switch" aria-checked={s.stock_auto} aria-label="Take from stock when meals are eaten"
           onClick={() => void saveSettings(profile!, { stock_auto: !s.stock_auto })} />

@@ -19,8 +19,6 @@
 }
 .shop-suggest button > span:first-child { min-width: 0; overflow-wrap: anywhere; }
 .shop-suggest-why { flex: none; font-family: var(--font-sans); font-size: 12px; color: var(--e-ink-soft); }
-.shop-add-more { display: flex; flex-wrap: wrap; gap: var(--space-2); }
-.shop-add-more .btn { min-height: 40px; }
 
 /* ---- recently bought, chips ---------------------------------------------- */
 .shop-recent { padding: var(--space-3) var(--space-4) 0; }
