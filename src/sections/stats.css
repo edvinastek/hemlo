@@ -196,3 +196,6 @@
 .st-h-views { padding: var(--space-4) var(--space-4) var(--space-2); }
 .st-empty-views { margin-top: var(--space-4); }
 .mh-sheet .st-templates { margin: 0; padding: 0; border: 0; }
+.sb-picker:not(.is-searching) .sb-pick-hint { display: none; }
+.sb-picker:not(.is-searching) .sb-pick:focus-visible .sb-pick-hint,
+.sb-picker:not(.is-searching) .sb-pick:hover .sb-pick-hint { display: block; }
