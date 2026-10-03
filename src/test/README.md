@@ -4,17 +4,19 @@
 
 Types, then every check that needs nothing but Node. CI runs the same command.
 
-- `calc` — BMR, maintenance, goal adjustments, protein, macros, packs, meal sizing.
+- `calc` — BMR, maintenance, goal adjustments, protein, macros, packs, meal sizing; the plan's own numbers read
+  within their limits; no targets at all without sex, height and date of birth (never a guess).
 - `formula` — the calculated-field parser, including that a formula cannot reach the page.
 - `notify` — quiet hours across midnight, reminder wording.
-- `body` — weigh-in parsing, the 7-day trend, when targets are recalculated.
+- `body` — weigh-in parsing, the 7-day trend, when targets are recalculated, sex asked for like height and date of
+  birth, the body settings kept with Health and the reason a recalculation gives.
 - `series` — repeat rules (every N days and days picked by hand included), laying out days, "only this one" and
   "this and following", and the planned repeats shown past the eight weeks the fill turns into tasks.
 - `tracking` — habit schedules and streaks, supplement slots.
 - `review` — which tasks the evening review offers, and what each action does.
 - `import` — reading the Excel workbook, ingredient lines, matching foods.
 - `allowlist` — the invite-list script.
-- `templates` — the starting layouts, the keyword suggestion, activity levels, the country list.
+- `templates` — the starting layouts, the keyword suggestion, the country list.
 - `work` — work hours and the commute as repeating series, night shifts included; which series are kept, stopped or started.
 - `settings` — personal settings always come out whole and sane.
 - `timeframe` — a task's length as minutes or as an end time, across midnight.
@@ -109,6 +111,24 @@ Types, then every check that needs nothing but Node. CI runs the same command.
 - `search` — the one search: accents and case ignored, every word in any order, starts-with first, own things first,
   plainer names first, extra text searched, nothing typed A to Z.
 - `afterdone` — "ask after done" templates: the marker line in a note, what Fill in, Skip and Later leave behind.
+- `activity` — the activity factor: the nine FAO/EFSA presets (1.3 to 2.2, a desk job 1.4 by default, never 1.2),
+  every pair of answers (work, training, a daily walk) leading to one, a typed factor (1.2 to 2.4, two decimals, a
+  comma read as a point, warned outside 1.3 to 2.2), and training inside the factor or logged and added, never both.
+- `nevo` — the NEVO import (027): the file read as published (the byte-order mark, quotes, CRLF, decimal commas,
+  a value that is not a number refused), the food row each NEVO line becomes, unchanged, with its fixed id; GetIt's
+  display names and units marked as additions; the old catalogue foods replaced, kept or hidden; and that the
+  generated part of 027 is exactly what the script makes from the file.
+- `fooddata` — the generated catalogue itself: 2,328 NEVO foods with unique names and codes, parts never above their
+  wholes, energy matching the EU factors (or reviewed), units within limits, every replaced food pointing at a NEVO food.
+- `eulabel` — the EU 1169/2011 label: Annex XIV energy factors, energy worked out from macros and checked against the
+  stated figure, salt and sodium, %RI, figures as a label prints them, the attribution each source needs, and an own
+  food's form read strictly.
+- `foodreplaced` — a phone catching up with replaced foods: ingredients, meals, stock, ticks and waiting edits moved
+  to the replacement, chains of replacements followed, nothing else touched.
+- `recipe` — recipes: roles (ready meals included), the one search over names and ingredients, the sorts, scaling to
+  portions, figures with what is missing, variation names, what to buy against stock, ready meals.
+- `recipeio` — recipe import and export: schema.org JSON-LD from a page, GetIt's own file and CSV, ISO durations and
+  yields, ingredient lines read into amount, unit and food, and lines matched to foods or kept as text.
 - `repeat` — the one repeat control's choices: the rule each stands for from a first day (the 2nd or last Wednesday,
   the 14th, 14 October), numbers kept and capped, picked days, and every choice reading back as itself.
 
@@ -123,7 +143,7 @@ export SB=<Supabase access token>  TEST_PASSWORD=<random>
 export TEST_EMAIL=e2e-a@example.invalid TEST_NEW_EMAIL=e2e-b@example.invalid TEST_FEAT_EMAIL=e2e-c@example.invalid
 export TEST_ONBOARD_EMAIL=e2e-d@example.invalid TEST_MODULES_EMAIL=e2e-e@example.invalid
 node scripts/test-accounts.mjs create $TEST_EMAIL $TEST_NEW_EMAIL $TEST_FEAT_EMAIL $TEST_ONBOARD_EMAIL $TEST_MODULES_EMAIL
-for t in onboarding features offline privacy tracking widget tasksheet repeat reorder food stock daytabs modules views nav holidays stats transfer books sharing accounts calendarlinks products units landscape layout tour; do node src/test/$t.e2e.mjs || break; done
+for t in onboarding features offline privacy tracking widget tasksheet repeat reorder food stock daytabs modules views nav holidays stats transfer books sharing accounts calendarlinks products units food-units landscape layout tour; do node src/test/$t.e2e.mjs || break; done
 node scripts/test-accounts.mjs delete $TEST_EMAIL $TEST_NEW_EMAIL $TEST_FEAT_EMAIL $TEST_ONBOARD_EMAIL $TEST_MODULES_EMAIL
 ```
 
