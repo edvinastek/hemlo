@@ -1,4 +1,4 @@
-import { need, open, signIn, modulesOn, ALL_MODULES, APP } from './e2e.mjs'
+import { need, open, signIn, modulesOn, ALL_MODULES, APP, addTask } from './e2e.mjs'
 
 // Nothing on any screen runs off a small phone or hides under the add button. At 360 px wide (the most
 // common Android width) every screen and tab is opened, and anything whose
@@ -63,7 +63,7 @@ for (const route of routes) {
   }
 }
 await p.click('.bottom-nav a[href="/"]')
-await p.click('.fab')
+await addTask(p)
 await p.waitForTimeout(500)
 const sheet = await overflow()
 if (sheet.length) bad++

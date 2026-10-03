@@ -154,3 +154,10 @@ export async function modulesOn(email, keys, { only = false } = {}) {
 /** Every built-in module a person can switch on. */
 export const ALL_MODULES = ['nutrition', 'shopping', 'training', 'habits', 'supplements', 'health', 'learning',
   'agenda', 'sleep', 'projects', 'finance', 'household', 'stats']
+
+/** The round + on Today and Plan opens the add menu (GEN-50); this picks
+ *  "Task" in it, which opens a new task on the day in view. */
+export async function addTask(p) {
+  await p.click('.fab')
+  await p.locator('.add-pick', { has: p.locator('.add-label', { hasText: /^Task$/ }) }).click()
+}

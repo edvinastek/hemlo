@@ -1,5 +1,5 @@
 import { chromium } from 'playwright'
-import { signIn } from './e2e.mjs'
+import { signIn, addTask } from './e2e.mjs'
 
 // What a closed-test tester will do in the first ten minutes, end to end:
 // add, edit and delete a task; plan meals and size the main one; eat one;
@@ -49,7 +49,7 @@ await p.click('text=Back to sign in')
 await signIn(p, email, undefined, { template: 'Fitness & nutrition', targets: true })
 
 // Tasks: add, edit, delete.
-await p.click('.fab')
+await addTask(p)
 await p.fill('.bottom-sheet input[placeholder="Mobility"]', 'Mobility')
 await p.fill('.bottom-sheet input[type=time]', '07:30')
 await p.locator('.bottom-sheet label', { hasText: 'Minutes' }).locator('input').fill('15')

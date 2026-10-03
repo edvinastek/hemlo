@@ -1,4 +1,4 @@
-import { need, sql, checks, open, signIn, profileOf, drained, today } from './e2e.mjs'
+import { need, sql, checks, open, signIn, profileOf, drained, today, addTask } from './e2e.mjs'
 
 // Plan's views, the Inbox and Copy to… (PLN-01, PLN-03, PLN-04, PLN-06,
 // PLN-07, TSK-01, TSK-20 to TSK-25, GEN-54, GEN-55), at 360 px:
@@ -60,7 +60,7 @@ is('Undo sends it back to the Inbox', r.planned_date, null)
 // 2. A task on the Week view, opened and copied.
 await p.goto(new URL(`plan?view=week&date=${DAY}`, p.url()).href)
 await p.waitForTimeout(1200)
-await p.click('.fab')
+await addTask(p)
 await p.fill('.bottom-sheet input[placeholder="Mobility"]', 'Plan e2e copy me')
 await p.fill('.bottom-sheet input[type=time]', '07:30')
 await p.locator('.bottom-sheet textarea').fill('- [x] first\n- [ ] second')

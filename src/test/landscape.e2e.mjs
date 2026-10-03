@@ -1,4 +1,4 @@
-import { need, open, signIn, modulesOn, ALL_MODULES, APP } from './e2e.mjs'
+import { need, open, signIn, modulesOn, ALL_MODULES, APP, addTask } from './e2e.mjs'
 
 // A phone turned sideways, and a wide screen. At 844 × 390 and 740 × 360
 // (phones on their side) and 1280 × 800 (a desktop window), every screen and
@@ -122,7 +122,7 @@ for (const screen of SCREENS) {
   // The new task sheet and the header's calendar.
   await p.click('.bottom-nav a[href="/"]')
   await p.waitForTimeout(600)
-  await p.click('.fab')
+  await addTask(p)
   await p.waitForTimeout(500)
   report(`${size} new task sheet`, [...await overflow(), ...await sheetFits('Save')])
   await p.click('.bottom-sheet button:has-text("Cancel")')
