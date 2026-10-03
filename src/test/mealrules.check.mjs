@@ -7,7 +7,7 @@ import {
   mealName, resolveMeal, mealKeyFor, humanise, defaultTime, itemTime, itemKind, itemMacros, sumItems, itemName, itemAmount,
   groupDay, groupKey, groupTitle, nextSort, taskTitle, groupRef, taskStatus, copyItems, defaultMeal, defaultWhen, whenTime,
   eatenByDefault, identity, recentItems, goTos, lastAmount, lastPortions, shiftDay, startAmount, plateFields, sizeMain, kcalText,
-  portionsText,
+  portionsText, knownKeys,
 } from '../lib/meal-rules.ts'
 
 let fail = 0
@@ -76,6 +76,8 @@ is('a sum skips skipped and holders, counts the unknown', [Math.round(sum.total.
 is('names', [itemName(eggs, look), itemName(oats, look), itemName(sandwich, look), itemName(item({ kcal: 10 }), look)], ['Egg', 'Overnight oats', 'Sandwich', 'Quick entry'])
 is('amounts in the food’s own words (UNIT-21)', [itemAmount(eggs, look), itemAmount(oats, look), itemAmount(item({ food_id: 'egg', grams: 50, unit: 'egg', unit_qty: 1 }), look)],
   ['2 eggs (100 g)', '1.5 portions', '1 egg (50 g)'])
+is('unknown macros are not shown as 0 (P8)', [knownKeys(sandwich, look, ['kcal', 'protein_g', 'fat_g']), knownKeys(eggs, look, ['kcal', 'protein_g']), knownKeys(oats, look, ['kcal', 'fat_g'])],
+  [['kcal', 'protein_g'], ['kcal', 'protein_g'], ['kcal', 'fat_g']])
 is('portions', [portionsText(1), portionsText(0.5), portionsText(2)], ['1 portion', '0.5 portion', '2 portions'])
 is('kcal with something unknown says so', [kcalText({ kcal: 300 }, 0), kcalText({ kcal: 300 }, 1), kcalText({ kcal: 0 }, 2)], ['300 kcal', '300 kcal + 1 unknown', 'kcal unknown'])
 

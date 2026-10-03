@@ -126,3 +126,15 @@
 .af-actions { align-items: center; flex-wrap: wrap; }
 .af-actions .btn { min-height: 48px; }
 .af-total { font-family: var(--font-sans); font-size: 13px; color: var(--e-ink-soft); }
+
+/* Add stays in reach however long the list or the plate: the actions stick
+   to the sheet's foot, on a phone held upright too. */
+.af-sheet > .af-actions {
+  position: sticky; z-index: 1;
+  bottom: calc(-1 * (var(--space-4) + var(--safe-area-inset-bottom, env(safe-area-inset-bottom, 0px))));
+  margin: var(--space-2) calc(-1 * var(--space-4)) calc(-1 * (var(--space-4) + var(--safe-area-inset-bottom, env(safe-area-inset-bottom, 0px))));
+  padding: var(--space-3) var(--space-4) calc(var(--space-3) + var(--safe-area-inset-bottom, env(safe-area-inset-bottom, 0px)));
+  background: var(--e-paper); border-top: 1px solid var(--e-rule);
+}
+.af-total { min-height: 44px; padding: 0 var(--space-1); text-decoration: underline; text-underline-offset: 3px; }
+.af-hint-foot { text-decoration: none; display: inline-flex; align-items: center; }

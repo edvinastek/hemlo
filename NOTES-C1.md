@@ -11,7 +11,15 @@
 6. Screenshots, e2e updates, README, verify.
 
 ## Done
-(nothing yet)
+- 1 rules + checks (mealrules, savedmeals, readymeal, products extended) — committed
+- 2 meals.ts rewrite, tasks.ts GEN-31 hook — committed
+- 3 AddFoodSheet, saved meals store, ready meals store — committed
+- 4 FoodDay, FoodSettings meals editor — committed
+- 5 ProductSearch: EU table, Nutri-Score, pick purpose, ReadyMealForm, ScanFoodSheet — committed
+- CSS — committed
+- C2 confirmed (via lead): 027 adds role 'ready' and clears meal_slots default.
 
 ## Left
-everything above
+- screenshots (harness, then delete), fix what they show
+- e2e food.e2e.mjs / features.e2e.mjs updated to the new flow
+- final verify + report

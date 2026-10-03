@@ -8,11 +8,11 @@ import { readSettings, type Nutrient } from '../lib/settings'
 import { amountLine, nutrientLabel, shownNutrients, type QuickEntry } from '../lib/quick-food'
 import { amountChoices, findUnit, readUnits, unitKey } from '../lib/units-rules'
 import {
-  groupDay, groupTitle, itemAmount, itemKind, itemMacros, itemName, kcalText, mealName, plateFields, portionsText, shiftDay,
+  groupDay, groupTitle, itemAmount, knownKeys, itemKind, itemMacros, itemName, kcalText, mealName, plateFields, portionsText, shiftDay,
   sizeMain, sumItems, type Item, type Lookup, type MealGroup, type MealsCtx,
 } from '../lib/meal-rules'
 import {
-  copyMeals, makeLookup, mealsCtx, moveItems, removeItems, restoreItems, setEaten, setMealTime, setSkipped, slotsFor, updateItem,
+  copyMeals, makeLookup, mealsCtx, moveItems, removeItems, restoreItems, setEaten, setMealTime, setSkipped, slotsFor, unskipMeal, updateItem,
 } from '../lib/meals'
 import { addSaved, savedFromItems } from '../lib/saved-meals-rules'
 import { savedMeals, writeSavedMeals } from '../lib/saved-meals'
@@ -49,7 +49,7 @@ export function FoodDay({ day }: { day: string }) {
     return list[list.length - 1] ?? null
   }, [profile?.id, day], null)
   const sizeOn = useBuiltinRuleOn(profile?.id, 'nutrition', 'size_main')
-  const [adding, setAdding] = useState<{ meal: string | null } | null>(null)
+  const [adding, setAdding] = useState<{ meal: string | null; time?: string | null } | null>(null)
   const [copying, setCopying] = useState(false)
 
   if (!profile) return null
@@ -101,7 +101,7 @@ export function FoodDay({ day }: { day: string }) {
       {groups.map((g) => (
         <MealCard key={`${day}:${g.key}`} group={g} day={day} profileId={profile.id} look={look} ctx={ctx} shown={shown}
           suggestion={suggestion && g.items.some((i) => i.id === suggestion.item.id) ? { ...suggestion, kcal: targetKcal } : null}
-          onAdd={() => setAdding({ meal: g.meal })} />
+          onAdd={() => setAdding({ meal: g.meal, time: g.key.startsWith('t:') ? g.time : null })} />
       ))}
 
       {anything && (
@@ -111,7 +111,7 @@ export function FoodDay({ day }: { day: string }) {
         </p>
       )}
 
-      {adding && <AddFoodSheet day={day} meal={adding.meal} onClose={() => setAdding(null)} />}
+      {adding && <AddFoodSheet day={day} meal={adding.meal} time={adding.time} onClose={() => setAdding(null)} />}
     </div>
   )
 }
@@ -164,7 +164,7 @@ function MealCard({ group: g, day, profileId, look, ctx, shown, suggestion, onAd
             <button type="button" className="btn" onClick={async () => {
               setPanel(null)
               await setSkipped(profileId, day, g, !g.skipped)
-              if (!g.skipped) offerUndo(`${title} skipped`, () => setSkipped(profileId, day, { ...g, holders: [] }, false))
+              if (!g.skipped) offerUndo(`${title} skipped`, () => unskipMeal(profileId, day, g.key))
             }}>{g.skipped ? 'Not skipped' : 'Skip this meal'}</button>
           )}
           {items.length > 0 && <button type="button" className="btn" onClick={() => setPanel('copy')}>Copy to…</button>}
@@ -269,7 +269,7 @@ function ItemRow({ item, look, ctx, shown, siblings }: {
         </label>
         <button type="button" className="fd-item-main" aria-expanded={open === 'edit'} onClick={() => setOpen(open === 'edit' ? null : 'edit')}>
           <span className="fd-item-name">{name}{recipe && isReadyMeal(recipe) && <span className="sp-tag">ready meal</span>}</span>
-          <span className="fd-item-meta">{[amount, m ? amountLine(m, shown.slice(0, 2)) : 'kcal unknown'].filter(Boolean).join(' · ')}</span>
+          <span className="fd-item-meta">{[amount, m ? amountLine(m, knownKeys(item, look, shown.slice(0, 2))) : 'kcal unknown'].filter(Boolean).join(' · ')}</span>
         </button>
         <button type="button" className="fd-icon" aria-label={`More for ${name}`} aria-expanded={open === 'menu' || open === 'move'}
           onClick={() => setOpen(open === 'menu' ? null : 'menu')}>⋮</button>
@@ -343,7 +343,7 @@ function ItemEditor({ item, look, shown, onDone, onRemove }: {
           </>
         )}
       </div>
-      <span className="fd-preview" aria-live="polite">{fields ? (preview ? amountLine(preview, shown) : 'kcal unknown') : (plate as { error: string }).error}</span>
+      <span className="fd-preview" aria-live="polite">{fields ? (preview ? amountLine(preview, knownKeys({ ...item, ...fields } as Item, look, shown)) : 'kcal unknown') : (plate as { error: string }).error}</span>
       <div className="fd-edit-actions">
         <button type="button" className="btn fd-danger" onClick={onRemove}>Remove</button>
         <button type="button" className="btn" onClick={onDone}>Cancel</button>

@@ -9,7 +9,7 @@ import { amountChoices, gramsLabel, readUnits } from '../lib/units-rules'
 import { search, type Searchable } from '../lib/search-rules'
 import {
   defaultMeal, defaultTime, defaultWhen, eatenByDefault, goTos, groupDay, groupTitle, identity, itemAmount, itemKind,
-  itemMacros, itemName, kcalText, lastAmount, lastPortions, mealName, plateFields, recentItems, resolveMeal, shiftDay,
+  itemMacros, itemName, kcalText, knownKeys, lastAmount, lastPortions, mealName, plateFields, recentItems, resolveMeal, shiftDay,
   startAmount, sumItems, whenTime, addMacros, ZERO, type Item, type Lookup, type MealGroup, type PlateItem, type When,
 } from '../lib/meal-rules'
 import { addItems, copyMeals, itemHistory, makeLookup, mealsCtx, removeItems, slotsFor } from '../lib/meals'
@@ -62,7 +62,15 @@ function keepTab(t: Tab) {
   try { window.localStorage.setItem(TAB_KEY, t) } catch { /* private window: the tab is not remembered */ }
 }
 
-export function AddFoodSheet({ day, meal: startMeal, onClose }: { day: string; meal?: string | null; onClose: () => void }) {
+export function AddFoodSheet({ day, meal: startMeal, time: startTime, onClose }: {
+  day: string
+  /** The meal to add to (its label; '' for no meal): the sheet then opens on
+   *  its second step. Left out, it asks. */
+  meal?: string | null
+  /** A time to add at (adding to food logged at 15:30 with no meal). */
+  time?: string | null
+  onClose: () => void
+}) {
   const profile = useApp((s) => s.profile)
   const userId = useApp((s) => s.session?.user.id ?? null)
   const settings = readSettings(profile)
@@ -84,8 +92,8 @@ export function AddFoodSheet({ day, meal: startMeal, onClose }: { day: string; m
   const [step, setStep] = useState<1 | 2>(startMeal != null ? 2 : 1)
   const [meal, setMeal] = useState<string | null>(startMeal ?? null)
   const [other, setOther] = useState('')
-  const [when, setWhen] = useState<When | null>(null)
-  const [at, setAt] = useState('')
+  const [when, setWhen] = useState<When | null>(startTime ? 'at' : null)
+  const [at, setAt] = useState(startTime ?? '')
   const [eatenSet, setEatenSet] = useState<boolean | null>(null)
   const chosenMeal = meal === '\u0000other' ? resolveMeal(other, ctx) : meal ?? ''
   const mealTime = chosenMeal ? defaultTime(chosenMeal, ctx) : null
@@ -109,6 +117,11 @@ export function AddFoodSheet({ day, meal: startMeal, onClose }: { day: string; m
   const [note, setNote] = useState<string | null>(null)
   const [numbersLabel, setNumbersLabel] = useState<string | undefined>(undefined)
   const [finding, setFinding] = useState(false)
+
+  // The chosen tab scrolled into view, so a tab at the end is never half hidden.
+  useEffect(() => {
+    document.getElementById(`af-tab-${tab}`)?.scrollIntoView({ block: 'nearest', inline: 'nearest' })
+  }, [tab, step])
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose() }
@@ -258,10 +271,19 @@ export function AddFoodSheet({ day, meal: startMeal, onClose }: { day: string; m
     <Frame titleId={titleId} title="Add food" sub={dayLabel} onClose={onClose}
       actions={(
         <>
-          {plate.length > 0 && <span className="af-total" aria-live="polite">{plate.length} on the plate · {plateKcal}</span>}
-          <button type="button" className="btn btn-primary grow" disabled={!ready || busy} onClick={addPlate}>
-            {plate.length ? `Add ${plate.length === 1 ? 'it' : `all ${plate.length}`}` : 'Add'}
-          </button>
+          {plate.length > 0 && (
+            <button type="button" className="af-total" aria-live="polite"
+              onClick={() => document.getElementById('af-plate')?.scrollIntoView({ behavior: 'smooth', block: 'start' })}>
+              {plate.length} on the plate · {plateKcal}
+            </button>
+          )}
+          {plate.length > 0 ? (
+            <button type="button" className="btn btn-primary grow" disabled={!ready || busy} onClick={addPlate}>
+              {`Add ${plate.length === 1 ? 'it' : `all ${plate.length}`}`}
+            </button>
+          ) : (
+            <span className="af-total af-hint-foot">Tap what you had; it goes on the plate.</span>
+          )}
         </>
       )}>
       <div className="af-where">
@@ -295,7 +317,7 @@ export function AddFoodSheet({ day, meal: startMeal, onClose }: { day: string; m
               setNote(`${m.name}: its ${m.items.length === 1 ? 'item is' : `${m.items.length} items are`} on the plate, to change as you like.`)
             }} />
         )}
-        {tab === 'recipes' && <RecipeList recipes={recipes} userId={userId} query={query} look={look} history={history ?? []} onPick={putRecipe} />}
+        {tab === 'recipes' && <RecipeList recipes={recipes} lines={lines} userId={userId} query={query} look={look} history={history ?? []} onPick={putRecipe} />}
         {tab === 'foods' && !finding && (
           <FoodList foods={foods} userId={userId} query={query} history={history ?? []} onPick={(f) => putFood(f)}
             onFind={() => setFinding(true)} onNumbers={() => { setNumbersLabel(query.trim() || undefined); setTab('numbers') }} />
@@ -459,15 +481,21 @@ function FoodList({ foods, userId, query, history, onPick, onFind, onNumbers }: 
 }
 
 /** Recipes and ready meals, through the one search, calories a portion. */
-function RecipeList({ recipes, userId, query, look, history, onPick }: {
-  recipes: Recipe[]; userId: string | null; query: string; look: Lookup; history: Item[]; onPick: (r: Recipe) => void
+function RecipeList({ recipes, lines, userId, query, look, history, onPick }: {
+  recipes: Recipe[]; lines: RecipeLine[]; userId: string | null; query: string; look: Lookup; history: Item[]; onPick: (r: Recipe) => void
 }) {
   const [all, setAll] = useState(false)
   const rank = useRecentRank(history)
+  // A recipe is found by its ingredients too: "oats" finds overnight oats.
+  const inside = useMemo(() => {
+    const m = new Map<string, string[]>()
+    for (const l of lines) if (l.food_id) m.set(l.recipe_id, [...(m.get(l.recipe_id) ?? []), look.foods.get(l.food_id)?.name ?? ''])
+    return m
+  }, [lines, look])
   const items = useMemo(() => recipes.filter(live).map((r) => ({
-    r, name: r.name, extra: isReadyMeal(r) ? 'ready meal' : r.role ?? '',
+    r, name: r.name, extra: [isReadyMeal(r) ? 'ready meal' : r.role ?? '', ...(inside.get(r.id) ?? [])].join(' '),
     mine: !!userId && r.owner_id === userId, recent: rank.get(`r:${r.id}`) ?? 0,
-  })), [recipes, userId, rank])
+  })), [recipes, userId, rank, inside])
   const hits = useMemo(() => search(items, query), [items, query])
   const shown = all ? hits : hits.slice(0, SHOW)
   if (!items.length) return <p className="af-empty">No recipes yet. Add them on Food → Recipes, or scan a ready meal under Scan.</p>
@@ -714,7 +742,7 @@ function Plate({ plate, unitsOf, packOf, read, look, shown, profileId, onChange,
     setSaving(null)
   }
   return (
-    <section className="af-plate" aria-label="On the plate">
+    <section className="af-plate" id="af-plate" aria-label="On the plate">
       <h3 className="af-h">On the plate</h3>
       <ul className="af-plate-list">
         {plate.map((p) => {
@@ -739,7 +767,7 @@ function Plate({ plate, unitsOf, packOf, read, look, shown, profileId, onChange,
                 {p.kind === 'quick' && <span className="af-row-meta">{p.entry.grams ? `${gramsLabel(p.entry.grams)} · ` : ''}as typed</span>}
               </span>
               <span className={`af-plate-kcal${'error' in r ? ' is-bad' : ''}`}>
-                {'error' in r ? r.error : m ? amountLine(m, shown.slice(0, 2)) : 'kcal unknown'}
+                {'error' in r ? r.error : m ? amountLine(m, knownKeys({ id: '', slot: '', slot_date: '', status: 'planned', portion_multiplier: 1, recipe_id: null, ...r.fields } as Item, look, shown.slice(0, 2))) : 'kcal unknown'}
               </span>
               <button type="button" className="af-remove" aria-label={`Take ${p.name} off the plate`} onClick={() => onRemove(p.key)}>×</button>
             </li>

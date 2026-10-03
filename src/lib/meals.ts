@@ -154,11 +154,8 @@ async function unlogItem(row: MealPlanSlot) {
  *  switched that on (stock.ts decides; a recipe's ingredients only). */
 async function eatOne(row: MealPlanSlot, eaten: boolean, ctx: MealsCtx): Promise<MealPlanSlot> {
   if (!isContent(row)) return row
-  if ((row.status === 'eaten') === eaten && row.status !== 'skipped') {
-    // Already so; make sure the log agrees (a log lost on another device).
-    if (eaten) await logItem(row, ctx)
-    return row
-  }
+  // Already so: nothing to write.
+  if ((row.status === 'eaten') === eaten && row.status !== 'skipped') return row
   await consumeForMeal(row, eaten ? 1 : -1)
   const saved = await saveSlot({ ...row, status: eaten ? 'eaten' : 'planned' }, ['status'])
   if (eaten) await logItem(saved, ctx)
@@ -393,6 +390,14 @@ export async function setSkipped(profileId: string, day: string, group: Pick<Mea
     for (const h of holders) await saveSlot(h.slot_time ? { ...h, status: 'planned' } : { ...h, deleted_at: now() }, h.slot_time ? ['status'] : ['deleted_at'])
   }
   await syncDayTasks(profileId, day, { retime: skipped ? [] : [group.key] })
+}
+
+/** Take a skip back by the meal's key, reading the meal as it is now: what
+ *  Undo after "Skip this meal" does, so a row made to hold the skip goes too. */
+export async function unskipMeal(profileId: string, day: string, key: string): Promise<void> {
+  const ctx = await ctxFor(profileId)
+  const g = groupDay(await slotsFor(profileId, day), { ...ctx, meals: { ...ctx.meals, cards: false } }).find((x) => x.key === key)
+  if (g) await setSkipped(profileId, day, g, false)
 }
 
 /** Give a meal a time on its day, or clear the one it had (it then follows

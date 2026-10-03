@@ -160,6 +160,16 @@ export function itemMacros(item: Item, look: Lookup): Macros | null {
   }
 }
 
+/** Which of an item's figures are actually known: a quick entry's macros
+ *  left empty, or a food's that the food does not list, are unknown and are
+ *  not shown as 0 (P8). Calories count as known when the item has them. */
+export function knownKeys(item: Item, look: Pick<Lookup, 'foods'>, keys: Nutrient[]): Nutrient[] {
+  const kind = itemKind(item)
+  if (kind === 'recipe') return keys
+  const src: Record<string, unknown> = kind === 'food' ? (look.foods.get(item.food_id!) ?? {}) as Record<string, unknown> : item as Record<string, unknown>
+  return keys.filter((k) => num((src[k] ?? null) as string | number | null) != null)
+}
+
 /** The sum of some items. Items whose figures are unknown add nothing, and
  *  are counted so the screen can say "2 items without calories". */
 export function sumItems(items: Item[], look: Lookup): { total: Macros; unknown: number } {
