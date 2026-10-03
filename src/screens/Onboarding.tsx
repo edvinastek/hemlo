@@ -2,13 +2,15 @@ import { useMemo, useState } from 'react'
 import { format } from 'date-fns'
 import { useApp } from '../lib/store'
 import { edit } from '../lib/write'
-import { targetsFor } from '../lib/calc'
+import { missingForCalc, targetsFor } from '../lib/calc'
 import { db } from '../lib/db'
 import { queueChange } from '../lib/sync'
 import { mergeSettings, readSettings, type Commute, type WorkHours } from '../lib/settings'
 import { COUNTRIES, cleanCity, cleanCountry, countryName } from '../lib/countries'
 import { DEFAULT_TEMPLATE, TEMPLATES, modulesFor, suggestTemplate, templateByKey } from '../lib/templates'
-import { ACTIVITY_LEVELS, nearestActivity } from '../lib/activity'
+import { NO_ANSWERS, readStoredFactor } from '../lib/activity'
+import { saveBodySettings } from '../lib/body'
+import { ActivityPicker, type ActivityValue } from '../ui/ActivityPicker'
 import { applyModules } from '../lib/setup'
 import { applyWorkPlan } from '../lib/work'
 import { MODULES } from '../modules/registry'
@@ -25,7 +27,6 @@ const GOAL_OPTIONS = [
   { value: 'recomp' as const, label: 'Maintain and recomp', hint: 'at maintenance' },
   { value: 'bulk' as const, label: 'Build muscle', hint: '300 kcal over maintenance' },
 ]
-const ACTIVITY_OPTIONS = ACTIVITY_LEVELS.map((l) => ({ value: String(l.value), label: `${l.value} · ${l.label}` }))
 const COUNTRY_ITEMS = COUNTRIES.map((c) => ({ id: c.code, name: c.name, tag: c.code }))
 
 /** First run, four short steps, all optional but a name. The app is a planner
@@ -62,7 +63,8 @@ export function Onboarding({ onDone }: { onDone: () => void }) {
   const [birth, setBirth] = useState(profile?.birth_date ?? '')
   const [height, setHeight] = useState(profile?.height_cm ? String(profile.height_cm) : '')
   const [weight, setWeight] = useState('')
-  const [activity, setActivity] = useState(nearestActivity(profile?.activity_level))
+  const [activityChoice, setActivityChoice] = useState<ActivityValue>({ answers: NO_ANSWERS, factor: readStoredFactor(profile?.activity_level) })
+  const activity = activityChoice.factor
   const [goal, setGoal] = useState<'cut' | 'recomp' | 'bulk'>(profile?.goal ?? 'recomp')
 
   if (!profile) return <p className="empty">Setting up…</p>
@@ -75,8 +77,15 @@ export function Onboarding({ onDone }: { onDone: () => void }) {
     activity_level: activity,
     goal,
   }
-  // No guessing at sex: the resting burn differs by 166 kcal between the two.
-  const targets = targetsOn && sex && Number(weight) > 0 ? targetsFor(draft, Number(weight)) : null
+  // No guessing: without sex, height and date of birth there is no resting
+  // burn to work from, so no targets are shown or saved (BODY-05).
+  const missing = missingForCalc(draft)
+  const targets = targetsOn && Number(weight) > 0
+    ? targetsFor(draft, Number(weight), new Date(), { trainingAdded: activityChoice.answers.mode === 'added' }) : null
+  const missingWords = [
+    ...missing.map((m) => (m === 'birth_date' ? 'date of birth' : m)),
+    ...(Number(weight) > 0 ? [] : ['weight today']),
+  ]
 
   function choose(key: string, byHand: boolean) {
     setTemplate(key)
@@ -112,6 +121,8 @@ export function Onboarding({ onDone }: { onDone: () => void }) {
         activity_level: activity,
         goal,
       } : {}
+
+      if (targetsOn) await saveBodySettings(profile!.id, { activity: activityChoice.answers })
 
       if (targets) {
         // The person's own calendar day, not the UTC date, which is still
@@ -281,8 +292,7 @@ export function Onboarding({ onDone }: { onDone: () => void }) {
                 </div>
                 <div className="ob-field">
                   <span>Activity</span>
-                  <Dropdown label="Activity" value={String(activity)} options={ACTIVITY_OPTIONS}
-                    onChange={(v) => setActivity(Number(v))} />
+                  <ActivityPicker value={activityChoice} onChange={setActivityChoice} />
                 </div>
                 <div className="ob-field">
                   <span>Body goal</span>
@@ -300,7 +310,9 @@ export function Onboarding({ onDone }: { onDone: () => void }) {
                     <p className="row-meta">{targets.explain}</p>
                   </div>
                 ) : (
-                  <p className="ob-note">Choose sex and put in a weight, and the targets appear with the arithmetic that produced them.</p>
+                  <p className="ob-note" aria-live="polite">
+                    Still needed for the targets: {missingWords.join(', ')}. They then appear with the arithmetic that produced them.
+                  </p>
                 )}
               </div>
             )}

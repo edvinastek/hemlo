@@ -1,5 +1,5 @@
 // Checks the calculation engine against figures worked out by hand.
-import { calorieBudget, bmr, macroSplit, shoppingQuantity, mealMultiplier } from '../lib/calc.ts'
+import { calorieBudget, bmr, macroSplit, shoppingQuantity, mealMultiplier, readPlan, DEFAULT_PLAN, targetsFor, missingForCalc } from '../lib/calc.ts'
 
 let fail = 0
 const is = (label, got, want, tol = 0) => {
@@ -32,6 +32,30 @@ is('packs', s.packs, 1)
 
 // Sizing: 2,670 target, 1,620 already fixed, main meal 350 kcal a portion -> 3 portions.
 is('main meal multiplier', Number(mealMultiplier({ kcal: 2670, protein_g: 152 }, { kcal: 1620, carbs_g: 0, fiber_g: 0, fat_g: 0, protein_g: 0 }, { kcal: 350, carbs_g: 0, fiber_g: 0, fat_g: 0, protein_g: 0 }).toFixed(2)), 3.0, 0.01)
+
+// The plan's numbers (BODY-03): a changed adjustment and protein change the budget.
+is('own cut of 300', calorieBudget({ weightKg: 80, heightCm: 180, age: 30, sex: 'male', activity: 1.5, goal: 'cut', adjust: -300 }).target, 2370)
+is('own protein 2.0 g per kg', macroSplit(2670, 80, 'recomp', { protein: { cut: 2.2, recomp: 2.0, bulk: 1.7 }, fat_share: 0.3 }).protein_g, 160)
+is('own fat share 30%', macroSplit(2670, 80, 'recomp', { protein: { cut: 2.2, recomp: 2.0, bulk: 1.7 }, fat_share: 0.3 }).fat_g, 89)
+const same = (label, got, want) => { const ok = JSON.stringify(got) === JSON.stringify(want); if (!ok) fail++; console.log(`${ok ? 'ok  ' : 'FAIL'}  ${label}: got ${JSON.stringify(got)}, expected ${JSON.stringify(want)}`) }
+same('nothing stored is the default plan', readPlan(null), DEFAULT_PLAN)
+same('a cut that adds is refused', readPlan({ adjust: { cut: 200 } }).adjust.cut, -500)
+same('a bulk inside limits stays', readPlan({ adjust: { bulk: '250' } }).adjust.bulk, 250)
+same('protein over 3 g refused', readPlan({ protein: { cut: 4 } }).protein.cut, 2.2)
+same('fat share 0.5 refused', readPlan({ fat_share: 0.5 }).fat_share, 0.27)
+same('fat share 0.3 kept', readPlan({ fat_share: 0.3 }).fat_share, 0.3)
+
+// No fallbacks (BODY-05): without sex, height or date of birth there are no targets.
+const person = { sex: 'male', height_cm: 180, birth_date: '1996-01-01', activity_level: 1.5, goal: 'recomp' }
+const on = new Date('2026-06-01T12:00:00')
+same('a whole profile gives targets', targetsFor(person, 80, on)?.kcal, 2670)
+same('no sex, no targets', targetsFor({ ...person, sex: null }, 80, on), null)
+same('no height, no targets', targetsFor({ ...person, height_cm: null }, 80, on), null)
+same('no birth date, no targets', targetsFor({ ...person, birth_date: null }, 80, on), null)
+same('what is missing, in order', missingForCalc({ sex: null, height_cm: 0, birth_date: null }), ['sex', 'height', 'birth_date'])
+same('the explanation shows the sum', targetsFor(person, 80, on)?.explain, 'from 80 kg · plan recomp · BMR 1780 × 1.5 = 2670')
+same('training added is said', targetsFor(person, 80, on, { trainingAdded: true })?.explain.includes('training not included'), true)
+same('the plan is used', targetsFor({ ...person, goal: 'cut' }, 80, on, { plan: readPlan({ adjust: { cut: -250 } }) })?.kcal, 2420)
 
 console.log(fail ? `\n${fail} check(s) failed` : '\nall checks passed')
 process.exit(fail ? 1 : 0)

@@ -3,7 +3,10 @@ import {
   parseWeight, parseWaist, isFutureDay, dayNumber, newestFirst, withChanges,
   movingAverage, trendPoints, formatChange, missingForTargets,
   missingFields, parseHeight, parseBirthDate, latestOnOrBefore, pickProfile,
+  readBodySettings, recalcReason,
 } from '../lib/body-rules.ts'
+import { DEFAULT_PLAN } from '../lib/calc.ts'
+import { NO_ANSWERS } from '../lib/activity.ts'
 
 let fail = 0
 const is = (label, got, want) => {
@@ -128,6 +131,21 @@ const slow = long.map((r) => {
   return { log_date: r.log_date, avg: Math.round((w.reduce((s, o) => s + o.weight_kg, 0) / w.length) * 100) / 100 }
 })
 is('sliding average matches the plain count', JSON.stringify(movingAverage(long)) === JSON.stringify(slow), true)
+
+// Sex is asked for, not guessed (BODY-05), when the profile carries the field.
+is('sex missing on a profile row', missingFields({ sex: null, height_cm: 180, birth_date: '1996-02-01' }), ['sex'])
+is('an odd sex value is missing', missingFields({ sex: 'x', height_cm: 180, birth_date: '1996-02-01' }), ['sex'])
+is('female is complete', missingFields({ sex: 'female', height_cm: 180, birth_date: '1996-02-01' }), [])
+is('all three missing, in the user\'s words', missingForTargets({ sex: null, height_cm: null, birth_date: null }),
+  'Targets need your sex, height and date of birth.')
+
+// The body settings kept with Health (BODY-03, BODY-16).
+is('nothing stored gives the defaults', readBodySettings(undefined), { plan: DEFAULT_PLAN, activity: NO_ANSWERS })
+is('a stored plan and answers are read', readBodySettings({ plan: { adjust: { cut: -400 } }, activity: { work: 'standing', training: '3-4', mode: 'added' } }),
+  { plan: { ...DEFAULT_PLAN, adjust: { ...DEFAULT_PLAN.adjust, cut: -400 } }, activity: { work: 'standing', training: '3-4', walks: false, mode: 'added' } })
+is('rubbish is ignored', readBodySettings({ plan: 'x', activity: { work: 'astronaut', mode: 'both' } }), { plan: DEFAULT_PLAN, activity: NO_ANSWERS })
+is('the reason says what changed', recalcReason('goal'), 'recalculated after the goal changed')
+is('a weigh-in needs no reason', recalcReason('weigh-in'), '')
 
 console.log(fail ? `\n${fail} check(s) failed` : '\nall checks passed')
 process.exit(fail ? 1 : 0)
