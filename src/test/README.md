@@ -118,6 +118,9 @@ Types, then every check that needs nothing but Node. CI runs the same command.
   count habit's count and a checklist habit's ticks from the newest log, supplement slots as one item in slot order;
   the timeline and the morning / afternoon / evening layout (slots in their part); where the "now" line goes; "Mark it
   done?" only after the last tick; a slot's one tick; carry-over and the Inbox.
+- `todayprefs` — Today's own choices kept in the core module's settings, read back clean (layout, the + menu's counts,
+  hidden entries and own order); the + menu: six at most, most used first, the person's own order winning, hidden
+  entries listed apart and never lost, counts halved now and then.
 - `hold` — the two-stage hold: a tap opens, moving before the short hold is a scroll (never a drag), the short hold
   arms the drag and a move then drags, holding still to the long hold expands, letting go in between does nothing,
   rows that cannot be dragged only expand; when the clock next matters; the hold times kept sane.
