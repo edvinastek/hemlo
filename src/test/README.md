@@ -264,6 +264,31 @@ Types, then every check that needs nothing but Node. CI runs the same command.
   pages, a rating of 1 to 5), progress and pages in words, what starting and finishing a book set, the list's order,
   books finished in a year, a reading task that asks for the "Reading reflection" once done, and minutes studied per
   day and per subject.
+
+Added when the ten version 16 branches were wired together (integration):
+
+- `tasksheet` — a task template keeps no ticks, can carry a note template (NOT-15) instead of a copy of its text (an
+  "ask after done" one as its marker, beside the own note), and brings it back filled in for the new task's day.
+- `projects` — where a milestone opens from Plan (its project, else its goal), its quiet line, milestones by day, and a
+  year goal's date in words.
+- `dayitems` — what a tap and a tick do (a shopping trip task opens the list; a planned session not yet done opens its
+  session); repeating own events (AGN-03) on every day their rule gives, at the same local time across the change to
+  winter time, keeping their length, ending on a day or after N times, never for a followed calendar's event, and kept
+  by the readers long after their first day.
+- `stock` — what eating takes from the cupboard: a recipe or ready meal, or one food with grams; typed numbers nothing.
+- `copy` — a copy counts meals, not the foods in them.
+- `daytabs`, `widget`, `stats` — habits counted by their real rule (weekends, chosen days, start days, N times a week).
+- `settingsui` — where a found record opens (Food and Shopping on their own screens), a recipe or food on the Food page,
+  and the Food page's address.
+- `household` — the household's Export: chores with how often, who is next, next due, last done and times done; and
+  the done history, newest first, a deleted chore keeping its own.
+- `transfer` — household chores and their done history as datasets (saved only, as tables).
+- `shopping` — the add box's suggestions: the one search, the household's own things first, the amount left out.
+- `savedmeals` — the third time the same things are logged by hand, "Save it as a meal?" (never for one thing, or one
+  already saved).
+- `ics`, `calendarlinks` — a repeating own event in a calendar file and in the GetIt feed: its RRULE at its own local
+  time, from the first day the rule gives, cut to the feed's window.
+
 ## Browser checks
 
 They need the app built and served (`npm run build`, then
