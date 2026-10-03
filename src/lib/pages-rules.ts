@@ -1,4 +1,5 @@
 import type { NavSettings } from './settings'
+import { modulesOn } from './module-view-rules.ts'
 
 /** Which pages a profile has, in which order, and where the page bar puts
  *  them. Pure: no database, no React, so the rules can be checked on their own
@@ -74,8 +75,11 @@ function builtGlyph(m: BuiltLike): string {
  *  module list, then name), More. A module needs an enabled instance row to
  *  count: a profile that never had a row for it has never switched it on. */
 export function availablePages(instances: InstanceLike[], built: BuiltLike[]): PageInfo[] {
+  // The one "is it on" rule (module-view-rules.ts), so the bar, Today, the
+  // hub and every list agree on which modules exist.
+  const isOn = modulesOn(instances, built)
   const on = new Map<string, InstanceLike>()
-  for (const i of instances) if (i.enabled) on.set(i.module_key, i)
+  for (const i of instances) if (isOn.has(i.module_key)) on.set(i.module_key, i)
   const out: PageInfo[] = [TODAY, PLAN]
   if (on.has('nutrition')) out.push(FOOD)
   if (on.has('shopping')) out.push(SHOP)

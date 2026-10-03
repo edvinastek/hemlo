@@ -54,3 +54,9 @@
 .ob-actions { display: flex; gap: var(--space-2); padding: var(--space-4); }
 .ob-actions .btn-primary { margin-left: auto; min-width: 120px; }
 .ob-actions .btn:disabled { opacity: 0.5; }
+
+/* Modules the typed words point at, beyond the template: one tap each. */
+.ob-extra { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2); }
+.ob-add { min-height: 36px; padding: 4px 12px; font-family: var(--font-sans); font-size: 13px; cursor: pointer; }
+/* Skip is always there but quiet: the way out, not the way forward. */
+.ob-skip { border-color: transparent; color: var(--e-ink-soft); }

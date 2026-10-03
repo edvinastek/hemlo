@@ -126,7 +126,11 @@ function Planning({ profile }: { profile: Profile }) {
               goes off (Custom is left as it is) and keeps what it holds. Food figures:{' '}
               {nutrientNames(chosen.nutrients)}; Today shows {chosen.today_metric === 'none' ? 'no figure' : nutrientNames([chosen.today_metric])}.
             </p>
-            <p>Work hours, targets, tasks and logs stay as they are.</p>
+            <p>
+              Where each module shows (Today, Plan, the widget, Stats, reminders) goes back to the template’s
+              choice{chosen.cards?.length ? <>, and Today’s pinned cards become {chosen.cards.map((c) => moduleByKey.get(c.key)?.name ?? c.key).join(', ')}</> : ''}.
+              Work hours, targets, tasks and logs stay as they are.
+            </p>
             <div className="pl-actions">
               <button type="button" className="btn" onClick={() => setConfirming(false)}>Cancel</button>
               <button type="button" className="btn btn-primary grow" onClick={() => void startAgain()}>
