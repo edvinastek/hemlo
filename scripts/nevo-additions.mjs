@@ -69,7 +69,7 @@ const SAID = [
   [/^Potato sweet\b/, 'Sweet potato'], [/^Nuts macadamia\b/, 'Macadamia nuts'], [/^Peas split\b/, 'Split peas'],
   [/^Beans black eyed\b/, 'Black-eyed beans'], [/^Beans long yard\b/, 'Yard-long beans'],
   [/^Tomatoes classic round\b/, 'Classic round tomatoes'], [/^Cheese Danish Blue\b/, 'Danish Blue cheese'],
-  [/^Oil rice bran\b/, 'Rice bran oil'], [/^Oil sunflower seed\b/, 'Sunflower oil'], [/^Beans kidney red\b/, 'Red kidney beans'],
+  [/^Oil rice bran\b/, 'Rice bran oil'], [/^Egg whole chicken\b/, 'Egg'], [/^Oil sunflower seed\b/, 'Sunflower oil'], [/^Beans kidney red\b/, 'Red kidney beans'],
 ]
 /** Where a state starts ("Red cabbage, raw"). */
 const STATE_WORDS = /\s(raw|boiled|cooked|fried|prepared|unprepared|tinned|canned|frozen|grilled|steamed|stewed|baked|roasted|dried)\b/
