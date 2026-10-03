@@ -120,7 +120,8 @@ Types, then every check that needs nothing but Node. CI runs the same command.
   recipes' ingredients added up.
 - `household` — chores as a person reads them: calm words that never say overdue, the due-ness bar, the page's
   sections and rooms, a holiday pause with dates, light days and a daily cap for flexible chores, members' names,
-  the starter packs.
+  the starter packs, old chore records brought over; and the day's items carrying the person's supplement slots and
+  chore limits.
 
 ## Browser checks
 

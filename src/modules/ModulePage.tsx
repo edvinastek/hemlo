@@ -6,6 +6,7 @@ import { useApp } from '../lib/store'
 import { ModuleEditor } from '../ui/ModuleEditor'
 import { Habits } from '../sections/Habits'
 import { Supplements } from '../sections/Supplements'
+import { Chores } from '../sections/Chores'
 import { WeighIn } from '../sections/WeighIn'
 import { Stats } from '../sections/Stats'
 import type { ModuleDef, ViewDef } from './types'
@@ -26,6 +27,7 @@ import './modules.css'
 const SECTION_PAGES: Record<string, (p: { profileId: string; day: string }) => JSX.Element | null> = {
   habits: Habits,
   supplements: Supplements,
+  household: Chores,
   health: WeighIn,
   stats: Stats,
 }

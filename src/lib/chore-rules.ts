@@ -237,3 +237,19 @@ export function packChoresToAdd(pack: StarterPack, existing: { name: string; roo
   const have = new Set(existing.filter((c) => !c.deleted_at).map((c) => `${c.name.trim().toLowerCase()}|${(c.room ?? '').trim().toLowerCase()}`))
   return pack.chores.filter((c) => !have.has(`${c.name.toLowerCase()}|${c.room.toLowerCase()}`))
 }
+
+/* ---------- chores kept as records before version 16 ---------------------- */
+
+/** A chore written in the old Household table (a name, "daily", "weekly"
+ *  or "monthly", and a free-text who) as a chore of the new kind. The who
+ *  goes into the note, since it was not a member. Null for a record with no
+ *  name. Monthly keeps the day it is moved on; weekly, the weekday. */
+export function choreFromRecord(data: Record<string, unknown>, today: string): Omit<PackChore, 'room'> & { room: string | null; note: string | null } | null {
+  const name = typeof data.name === 'string' ? data.name.replace(/\s+/g, ' ').trim().slice(0, 120) : ''
+  if (!name) return null
+  const who = typeof data.who === 'string' && data.who.trim() ? `Who: ${data.who.trim().slice(0, 100)}` : null
+  const schedule = data.schedule
+  if (schedule === 'daily') return { name, room: null, mode: 'fixed', rule: 'daily', rule_config: {}, note: who }
+  if (schedule === 'monthly') return { name, room: null, mode: 'fixed', rule: 'monthly', rule_config: { day_of_month: Number(today.slice(8, 10)) }, note: who }
+  return { name, room: null, mode: 'fixed', rule: 'weekly', rule_config: { weekdays: [weekdayOf(today)] }, note: who }
+}

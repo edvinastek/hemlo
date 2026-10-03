@@ -89,5 +89,28 @@ is('every pack chore has a valid schedule', STARTER_PACKS.every((p) => p.chores.
   c.mode === 'fixed' ? cleanRule(c.rule, c.rule_config).rule === c.rule : (c.every_days ?? 0) >= 1)), true)
 is('adding a pack twice makes no doubles', packChoresToAdd(STARTER_PACKS[0], [{ name: 'wash up', room: 'kitchen' }]).length, STARTER_PACKS[0].chores.length - 1)
 
+// Old chores (records before 026) brought over.
+import { choreFromRecord } from '../lib/chore-rules.ts'
+is('an old weekly chore keeps its weekday from the day it moves', choreFromRecord({ name: ' Bins ', schedule: 'weekly', who: 'Sam' }, today),
+  { name: 'Bins', room: null, mode: 'fixed', rule: 'weekly', rule_config: { weekdays: [6] }, note: 'Who: Sam' })
+is('old monthly', choreFromRecord({ name: 'Oven', schedule: 'monthly' }, today).rule_config, { day_of_month: 3 })
+is('no name, nothing', choreFromRecord({ schedule: 'daily' }, today), null)
+
+// The day's items (day-items-rules.ts) carry the person's slots and chore limits.
+import { dayItems } from '../lib/day-items-rules.ts'
+const base = { today, enabled: ['household', 'supplements'], views: {}, tasks: [], habits: [], habitLogs: [], chores: [], choreLogs: [], supplements: [], supplementLogs: [], events: [], records: [] }
+const supp = (id, slot, extra = {}) => ({ id, profile_id: 'p', name: id, dose_text: null, time_slot: slot, active: true, sort_order: 0, updated_at: '', deleted_at: null, ...extra })
+const dayList = dayItems([today], 'today', { ...base,
+  supplements: [supp('D', 'wake'), supp('Creatine', 'wake', { rule: 'weekly', rule_config: { weekdays: [1] }, start_date: '2026-09-01' }), supp('Zinc', 'gone')],
+  supplementSlots: [{ key: 'wake', name: 'On waking', time: '06:45' }],
+})
+is('one item per own slot, at its time, only what is due', dayList.map((i) => [i.title, i.time, i.parts.map((p) => p.name)]),
+  [['On waking supplements', '06:45', ['D']], ['Any time supplements', null, ['Zinc']]])
+const flexChore = (id, days) => ({ id, household_id: 'h', name: id, room: null, mode: 'flexible', rule: null, rule_config: {}, every_days: days, start_date: '2026-09-01', end_date: null, time_of_day: null, minutes: null, assignees: [], rotation: 'none', note: null, paused: false, sort_order: 0, updated_at: '', deleted_at: null })
+const capped = dayItems([today], 'today', { ...base, chores: [flexChore('a', 3), flexChore('b', 5)], chorePrefs: { light_days: [], cap: 1 } })
+is('a cap of one keeps one flexible chore', capped.filter((i) => i.kind === 'chore').length, 1)
+const light = dayItems([today], 'today', { ...base, chores: [flexChore('a', 3)], chorePrefs: { light_days: [6], cap: null } })
+is('none on a light day', light.filter((i) => i.kind === 'chore').length, 0)
+
 console.log(fail ? `\n${fail} check(s) failed` : '\nall checks passed')
 process.exit(fail ? 1 : 0)

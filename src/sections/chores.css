@@ -1,0 +1,30 @@
+/* Household chores: the due-ness bar under each chore, and the folds for
+   packs, holidays and names. The bar is never the only signal: the words
+   beside it say the same. */
+.chore-row .track-text { display: grid; gap: 2px; }
+.chore-status { display: flex; align-items: center; gap: var(--space-2); min-width: 0; }
+.chore-bar {
+  flex: none; width: 56px; height: 6px; border-radius: var(--radius-pill); background: var(--e-tint); overflow: hidden;
+}
+.chore-bar i { display: block; height: 100%; border-radius: var(--radius-pill); background: var(--e-ink-soft); }
+.chore-bar.tone-soon i { background: var(--e-goal); }
+.chore-bar.tone-due i { background: var(--e-accent); }
+.chore-bar.tone-waiting i { background: var(--e-warn); }
+.chore-words { font-family: var(--font-sans); font-size: 12px; color: var(--e-ink-soft); overflow-wrap: anywhere; }
+.chore-note { margin: 0; padding: var(--space-2) var(--space-4); font-family: var(--font-sans); font-size: 13px; color: var(--e-ink-soft); }
+.chore-fold .chore-note { padding: 0; }
+.chore-view { display: flex; gap: var(--space-1); padding: var(--space-2) var(--space-4) 0; }
+.track-choice[aria-pressed="true"] { background: var(--e-tint); color: var(--e-ink); border-color: var(--e-ink-soft); font-weight: 600; }
+.chore-fold { display: grid; gap: var(--space-2); padding: var(--space-3) var(--space-4); border-bottom: 1px solid var(--e-rule); }
+.chore-packs { display: grid; gap: var(--space-2); }
+.chore-pack {
+  display: grid; gap: 2px; text-align: left; padding: var(--space-3); min-height: 56px;
+  border: 1px solid var(--e-rule); border-radius: var(--radius-md);
+}
+.empty .chore-packs .tp-sum, .empty .chore-packs .tp-name { color: var(--e-ink); }
+.empty .chore-packs .tp-sum { color: var(--e-ink-soft); }
+.chore-hist { list-style: none; margin: 0; padding: 0; font-family: var(--font-sans); font-size: 13px; color: var(--e-ink); }
+.chore-hist li { padding: 4px 0; border-bottom: 1px solid var(--e-rule); }
+.chore-date, .chore-name { display: grid; gap: 4px; font-family: var(--font-sans); font-size: 13px; color: var(--e-ink-soft); }
+.chore-name input { padding: 9px 10px; font-size: 15px; font-family: var(--font-serif); }
+.chore-date input { padding: 8px 10px; font-size: 15px; }
