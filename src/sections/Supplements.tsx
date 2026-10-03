@@ -52,7 +52,8 @@ export function Supplements({ profileId, day }: { profileId: string; day: string
   return (
     <section aria-labelledby="supplements-title" className="track">
       {onPage && <ModuleMenu items={[{ label: 'Time slots…', onSelect: () => setEditSlots(true) }]} />}
-      <h2 className="section-title" id="supplements-title">Supplements</h2>
+      {/* On its own page the page title already says it (CALM-07); the heading stays for screen readers. */}
+      <h2 className={onPage ? 'visually-hidden' : 'section-title'} id="supplements-title">Supplements</h2>
       {live.length === 0 && (
         <p className="empty">Add a supplement with its dose and when you take it{onPage ? ': tap the round + button' : ''}.</p>
       )}

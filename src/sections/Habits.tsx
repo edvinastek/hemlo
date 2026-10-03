@@ -75,8 +75,9 @@ export function Habits({ profileId, day }: { profileId: string; day: string }) {
 
   return (
     <section aria-labelledby="habits-title" className="track">
-      <div className="track-head">
-        <h2 className="section-title" id="habits-title">Habits</h2>
+      <div className={`track-head${onPage ? ' is-page' : ''}`}>
+        {/* On its own page the page title already says it (CALM-07); the heading stays for screen readers. */}
+        <h2 className={onPage ? 'visually-hidden' : 'section-title'} id="habits-title">Habits</h2>
         {dueToday.length > 0 && <span className="track-count">{doneCount} of {dueToday.length} done {day === format(new Date(), 'yyyy-MM-dd') ? 'today' : 'that day'}</span>}
       </div>
       {live.length === 0 && (
