@@ -117,6 +117,11 @@ Types, then every check that needs nothing but Node. CI runs the same command.
   shade come out readable and say "Adjusted for readability" only when the chosen colour moved; system mode follows
   the phone and never picks black; text zoom on top of the phone's font size; nine icons with every mark inside the
   adaptive icon's safe zone.
+- `widget` — what the Today widget is sent: the day's tasks in time order, due habits, and (WID-02) chores, supplement
+  slots, events and dated records only for modules set to "Show on the widget"; ticks of every kind, the last per row
+  winning; a stats widget's tap kept inside the app; the widgets' colours taken only from plain hex values. The
+  Android side has its own tests (android/app/src/test: models, and the real layouts drawn to PNGs in
+  app/build/widget-previews by `./gradlew :app:testDebugUnitTest`).
 
 ## Browser checks
 
@@ -146,8 +151,9 @@ to the test accounts, because they run against the live project.
 - `tracking` — weigh-in, habits and supplements, the same tick from two offline phones,
   a repeating task, the evening review, the Excel import, an export read into another account.
 - `tour` — walks every screen and reports what rendered.
-- `widget` — the app’s side of the Android widget, with a stand-in for the native bridge:
-  what it is sent, ticks applied while open and after a restart, cleared on sign-out.
+- `widget` — the app’s side of the Android widgets, with a stand-in for the native bridge:
+  what it is sent (with the other modules’ items, the theme and the stats views), ticks applied while open and after
+  a restart, text following the phone’s font size, cleared on sign-out.
 - `tasksheet` — a task with a time range, a checklist note ticked on its page, the chip on Today.
 - `repeat` — a task repeating on days picked in the sheet's calendar (Clear, the count, one day past the eight
   weeks the series fills), what Postgres holds, "every few days", Plan's Year as scrolling months with the

@@ -21,7 +21,8 @@ function fakeAndroid(startTicks) {
     App: ['addListener', 'removeListener', 'getLaunchUrl', 'getState', 'exitApp'],
     LocalNotifications: ['checkPermissions', 'requestPermissions', 'getPending', 'cancel', 'schedule', 'createChannel',
       'registerActionTypes', 'addListener', 'removeListener', 'removeAllListeners'],
-    GetItWidget: ['update', 'takeTicks', 'clear', 'addListener', 'removeListener'],
+    GetItWidget: ['update', 'takeTicks', 'clear', 'setLooks', 'updateStats', 'addListener', 'removeListener'],
+    GetItLooks: ['setTextZoom', 'fontScale', 'systemColours', 'setIcon', 'getIcon', 'haptic'],
     // The saved-accounts list lives in the phone's secure storage; this
     // stand-in holds it in memory. Without a stand-in, the plugin's own
     // fallback calls itself until the page crashes.
@@ -29,7 +30,7 @@ function fakeAndroid(startTicks) {
       'internalClearItemsWithPrefix', 'internalGetPrefixedKeys'],
   }
   const secure = {}
-  const state = { snapshot: null, ticks: startTicks, calls: [], listeners: {} }
+  const state = { snapshot: null, ticks: startTicks, calls: [], listeners: {}, looks: null, stats: null, zoom: null }
   window.__widget = state
   window.androidBridge = { postMessage() {} }
   let nextId = 1
@@ -48,7 +49,16 @@ function fakeAndroid(startTicks) {
       if (plugin === 'GetItWidget') {
         if (method === 'update') { state.snapshot = JSON.parse(options.snapshot); return undefined }
         if (method === 'takeTicks') { const t = state.ticks; state.ticks = []; return { ticks: t } }
-        if (method === 'clear') { state.snapshot = null; state.ticks = []; return undefined }
+        if (method === 'clear') { state.snapshot = null; state.ticks = []; state.stats = null; return undefined }
+        if (method === 'setLooks') { state.looks = JSON.parse(options.looks); return undefined }
+        if (method === 'updateStats') { state.stats = JSON.parse(options.snapshot); return undefined }
+      }
+      if (plugin === 'GetItLooks') {
+        if (method === 'fontScale') return { scale: 1.15 }
+        if (method === 'systemColours') return { accent: '#6750a4' }
+        if (method === 'getIcon') return { key: 'classic', pending: null }
+        if (method === 'setTextZoom') { state.zoom = options.percent; return undefined }
+        return undefined
       }
       if (plugin === 'SecureStorage') {
         if (method === 'internalGetItem') return { data: secure[options.prefixedKey] ?? null }
@@ -130,6 +140,14 @@ await drained(p)
 r = await one(`select status from public.task where ${mine} and title = 'Widget standup'`)
 is('an untick made while the app was closed reaches the server when it opens', r.status, 'todo')
 is('and the queue on the phone is empty', (await p.evaluate(() => window.__widget.ticks.length)), 0)
+
+// WID-02: the day items beside tasks and habits; LOOK-09: the theme; WID-10: the stats views.
+is('the snapshot carries the other modules’ items', Array.isArray(snap.days[day].items), true)
+await p.waitForFunction(() => window.__widget.looks?.light?.paper, null, { timeout: 5000 }).catch(() => undefined)
+is('the widgets are given the theme', await p.evaluate(() => [window.__widget.looks?.mode, /^#[0-9a-f]{6}$/.test(window.__widget.looks?.dark?.paper ?? '')]), ['system', true])
+await p.waitForFunction(() => window.__widget.stats, null, { timeout: 5000 }).catch(() => undefined)
+is('the stats widgets are given the saved views', await p.evaluate(() => Array.isArray(window.__widget.stats?.views)), true)
+is('text follows the phone’s font size', await p.evaluate(() => window.__widget.zoom), 115)
 
 // Signing out clears the widget.
 await p.click('.bottom-nav a[href="/more"]')
