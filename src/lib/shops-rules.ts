@@ -60,6 +60,45 @@ export function suggestShops(country: string | null | undefined, kept: string[],
   return search(out.map((s) => ({ ...s, recent: out.length - (rank.get(s.name) ?? 0) })), query)
 }
 
+/** Each chain's own weekly offers page (PRICE-06), by country. Only the
+ *  retailer's official site: GetIt opens it in the browser and copies
+ *  nothing from it. A chain with no page here gets no link. Checked by hand
+ *  on 3 October 2026. */
+export const OFFERS: Record<string, Record<string, string>> = {
+  NL: {
+    albertheijn: 'https://www.ah.nl/bonus', jumbo: 'https://www.jumbo.com/aanbiedingen', lidl: 'https://www.lidl.nl/c/aanbiedingen/a10008785',
+    aldi: 'https://www.aldi.nl/aanbiedingen.html', plus: 'https://www.plus.nl/aanbiedingen', dirk: 'https://www.dirk.nl/aanbiedingen',
+    dekamarkt: 'https://www.dekamarkt.nl/aanbiedingen', hoogvliet: 'https://www.hoogvliet.com/aanbiedingen',
+    // Coop's shops became Plus shops; its old offers page leads there.
+    coop: 'https://www.plus.nl/aanbiedingen', spar: 'https://www.spar.nl/aanbiedingen/', vomar: 'https://www.vomar.nl/folders',
+    poiesz: 'https://webwinkel.poiesz-supermarkten.nl/aanbiedingen',
+  },
+  DE: {
+    edeka: 'https://www.edeka.de/eh/angebote.jsp', rewe: 'https://www.rewe.de/angebote/', lidl: 'https://www.lidl.de/c/online-prospekte/s10005610',
+    aldi: 'https://www.aldi-nord.de/angebote.html', kaufland: 'https://filiale.kaufland.de/angebote/uebersicht.html',
+    penny: 'https://www.penny.de/angebote', netto: 'https://www.netto-online.de/angebote', norma: 'https://www.norma-online.de/de/angebote/',
+    globus: 'https://www.globus.de/angebote',
+  },
+  BE: {
+    colruyt: 'https://www.colruyt.be/nl/acties', aldi: 'https://www.aldi.be/onze-aanbiedingen.html', albertheijn: 'https://www.ah.be/bonus',
+    okay: 'https://www.okay.be/nl/promos/promoties', jumbo: 'https://www.jumbo.com/aanbiedingen',
+  },
+}
+
+/** The offers page for a shop: the chain's page in the person's country,
+ *  else in a country next door (a Dutch chain kept by someone over the
+ *  border), else none. */
+export function offersUrl(shop: string, country: string | null | undefined): string | null {
+  const key = fold(shop).replace(/\s+/g, '')
+  const home = (country ?? '').toUpperCase()
+  const order = [home, ...(NEAR[home] ?? []), ...Object.keys(OFFERS)]
+  for (const c of order) {
+    const url = OFFERS[c]?.[key]
+    if (url) return url
+  }
+  return null
+}
+
 /** A shop's name as kept: spaces tidied, at most 60 characters. A chain's
  *  name typed in other case is written the chain's way ("albert heijn" is
  *  "Albert Heijn"). */
