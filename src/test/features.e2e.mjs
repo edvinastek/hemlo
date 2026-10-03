@@ -79,16 +79,16 @@ if (await presets.count()) await presets.click()
 await p.waitForTimeout(800)
 await toPage(p, '/food')
 await p.waitForTimeout(1200)
-// Recipes are found with the one search, in the add sheet's Recipes tab.
+// Recipes are found with the add sheet's one search (v17: saved meals,
+// recipes and foods together).
 const plan = async (meal, name) => {
   await p.click(`button[aria-label="Add food to ${meal}"]`)
-  await p.click('.af-tabs button:has-text("Recipes")')
   await p.fill('.af-search', name)
   await p.locator('.af-row', { hasText: name }).first().click()
   // Planned for later, not eaten yet.
   await p.click('.af-change')
   await p.uncheck('.af-eaten input')
-  await p.click('text=Next: choose the food')
+  await p.click('.af-actions button:has-text("Done")')
   await p.click('.af-actions .btn-primary')
   await p.waitForTimeout(900)
 }
@@ -102,7 +102,9 @@ await p.waitForTimeout(900)
 const dinnerAmount = (await p.locator('section.fd-meal[aria-label="Dinner"] .fd-item-meta').first().textContent()) ?? ''
 is('using it sets dinner to that size', dinnerAmount.startsWith(suggestion.split(' of ')[0]), true)
 
-await p.locator('input[aria-label="Lunch eaten"]').click()
+// The whole meal is eaten from its ⋮ (v17: the meal has no tick of its own).
+await p.locator('button[aria-label="More for Lunch"]').click()
+await p.locator('.pm-menu button:has-text("Mark all eaten")').click()
 await p.waitForTimeout(1200)
 const eatenText = await p.locator('.totals').textContent()
 is('eating lunch moves the eaten total', /Eaten\s*[1-9]\d*/.test(eatenText ?? ''), true)

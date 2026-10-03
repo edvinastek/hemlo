@@ -36,7 +36,7 @@ await signIn(p, email)
 const sheet = p.locator('.pf-sheet')
 const overflow = () => p.evaluate(() => {
   const w = document.documentElement.clientWidth
-  return [...document.querySelectorAll('.pf-sheet *, .pf-bar *')]
+  return [...document.querySelectorAll('.pf-sheet *, .ft-tools *')]
     .filter((el) => el.getBoundingClientRect().right > w + 1)
     .map((el) => `${el.tagName.toLowerCase()}.${[...el.classList].join('.')}`).slice(0, 5)
 })
@@ -45,7 +45,9 @@ const offFoods = async () => sql(`select name, barcode, source, brand, pack_size
 
 await toPage(p, '/food')
 await p.click('.tabs button:has-text("Foods")')
-await p.click('.pf-bar button:has-text("Find in stores")')
+// Find in stores is in the page's ⋮ (v17), and offered when a search finds nothing.
+await p.click('.food-menu .pm-button')
+await p.click('.pm-menu button:has-text("Find in stores")')
 await sheet.waitFor()
 
 // 1. Typing sends nothing; Search does.
@@ -78,7 +80,7 @@ if (answered) {
 } else {
   console.log('SKIP  the search step: Open Food Facts’ search did not answer three times; adding by barcode instead')
   await p.click('.pf-head button:has-text("Close")')
-  await p.click('.pf-bar button:has-text("Scan barcode")')
+  await p.click('.ft-tools button[aria-label="Scan a barcode"]')
   await p.fill('input[aria-label="Barcode digits"]', KNOWN)
   await p.click('button:has-text("Look up")')
 }
@@ -102,7 +104,7 @@ const name = rows[0]?.name
 
 // 3. The same barcode again opens that food rather than adding a second.
 await p.click('.pf-head button:has-text("Close")')
-await p.click('.pf-bar button:has-text("Scan barcode")')
+await p.click('.ft-tools button[aria-label="Scan a barcode"]')
 await p.fill('input[aria-label="Barcode digits"]', code)
 await p.click('button:has-text("Look up")')
 await p.locator('.pf-page').waitFor({ timeout: 30000 })
@@ -117,8 +119,10 @@ rows = await offFoods()
 is('still one food in Postgres', rows.length, 1)
 
 // 4. Shared prices for a product that has some, or "none yet".
+await p.fill('input[aria-label="Search foods, in English or Dutch"]', 'no such food e2e')
+is('a search that finds nothing offers the shops', await p.locator('.ft-more button', { hasText: 'in stores' }).count(), 1)
 await p.fill('input[aria-label="Search foods, in English or Dutch"]', '')
-await p.click('.pf-bar button:has-text("Scan barcode")')
+await p.click('.ft-tools button[aria-label="Scan a barcode"]')
 await p.fill('input[aria-label="Barcode digits"]', KNOWN)
 await p.click('button:has-text("Look up")')
 await p.locator('.pf-prices ul, .pf-prices p.row-meta:not([role=status])').first().waitFor({ timeout: 30000 })

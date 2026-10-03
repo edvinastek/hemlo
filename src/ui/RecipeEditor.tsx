@@ -5,7 +5,7 @@ import { useApp } from '../lib/store'
 import { edit, remove } from '../lib/write'
 import { recipeMacros } from '../lib/calc'
 import {
-  choiceOf, lineGrams, macroLine, nextSharing, personalFoods, readRecipe, readSharing, recipeChanges, sharingEffect,
+  choiceOf, statusOf, lineGrams, macroLine, nextSharing, personalFoods, readRecipe, readSharing, recipeChanges, sharingEffect,
   LINE_TEXT_MAX, type Choice, type LineDraft, type RecipeDraft,
 } from '../lib/sharing-rules'
 import { amountChoices, countFits, defaultUnit, entryText, findUnit, gramsLabel, readUnits, unitColumns, unitWord } from '../lib/units-rules'
@@ -14,6 +14,7 @@ import { foodByBarcode, productByBarcode, addProduct, whereFor } from '../lib/pr
 import { Dropdown } from './Dropdown'
 import { AmountInput } from './AmountInput'
 import { SharingChoice } from './SharingChoice'
+import { MoreOptions } from './MoreOptions'
 import { IngredientPick } from './IngredientPick'
 import { FoodEditor } from './FoodEditor'
 import { BarcodeScan } from './BarcodeScan'
@@ -106,6 +107,9 @@ export function RecipeEditor({ recipe, lines, foods, userId, onClose, start, onS
   const values = 'values' in read ? read.values : null
   const changes = values ? recipeChanges(recipe, saved, values) : null
   const next = nextSharing(current, choice, changes?.contentChanged ?? false)
+  // What is set under More options, in a few words, while it is closed.
+  const extrasSummary = [draft.minutes.trim() ? `${draft.minutes.trim()} min` : null,
+    choice === 'propose' || current !== 'private' ? statusOf({ owner_id: userId, sharing: next }).label : null].filter(Boolean).join(' · ') || null
   const blocking = personalFoods(draft.lines, allFoods)
   const blocked = (next === 'proposed' || next === 'public') && blocking.length > 0
   const nothing = !!recipe && !!changes && Object.keys(changes.fields).length === 0
@@ -243,7 +247,7 @@ export function RecipeEditor({ recipe, lines, foods, userId, onClose, start, onS
             </label>
           </div>
           {draft.role === 'ready' && (
-            <p className="fe-note">A ready meal is one product bought ready, eaten as one portion: one line, the pack or the stated serving.</p>
+            <p className="fe-note">One product, eaten as one portion: one line, the pack or its serving.</p>
           )}
 
           <div className="re-lines" role="group" aria-label="Ingredients, amount per portion">
@@ -261,21 +265,27 @@ export function RecipeEditor({ recipe, lines, foods, userId, onClose, start, onS
             {draft.lines.some((l) => l.food_id) && <p className="re-total">One portion: {macroLine(perPortion)}</p>}
           </div>
 
-          <div className="two">
-            <label>
-              Minutes to make
-              <input type="text" inputMode="numeric" value={draft.minutes} placeholder="optional"
-                onChange={(e) => set({ minutes: e.target.value })} />
-            </label>
-            <span />
-          </div>
           <label>
             Steps
             <textarea value={draft.steps} placeholder="optional" maxLength={4000} onChange={(e) => set({ steps: e.target.value })} />
           </label>
 
-          <SharingChoice value={choice} onChange={(c) => { setChoice(c); setError(null) }} recipe={recipe}
-            effect={sharingEffect(current, next, !recipe)} blocking={blocking} />
+          {/* How long it takes and who can see it, in one disclosure, open
+              when either is set (CALM-08). */}
+          <MoreOptions open={!!extrasSummary} summary={extrasSummary}>
+            <div className="form-grid">
+              <div className="two">
+                <label>
+                  Minutes to make
+                  <input type="text" inputMode="numeric" value={draft.minutes} placeholder="optional"
+                    onChange={(e) => set({ minutes: e.target.value })} />
+                </label>
+                <span />
+              </div>
+              <SharingChoice value={choice} onChange={(c) => { setChoice(c); setError(null) }} recipe={recipe}
+                effect={sharingEffect(current, next, !recipe)} blocking={blocking} />
+            </div>
+          </MoreOptions>
           {error && <p className="re-error" role="alert">{error}</p>}
         </div>
         {recipe && (sure ? (

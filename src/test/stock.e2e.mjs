@@ -166,12 +166,17 @@ is('and the choice reached the server', r.v, 'true')
 
 await toPage(p, '/food')
 await p.waitForTimeout(1000)
-await p.locator('input[aria-label="Lunch eaten"]').click()
+// The whole meal is eaten from its ⋮ (v17: the meal has no tick of its own).
+const lunchMenu = async (item) => {
+  await p.locator('button[aria-label="More for Lunch"]').click()
+  await p.locator(`.pm-menu button:has-text("${item}")`).click()
+}
+await lunchMenu('Mark all eaten')
 await settle(p, 1200)
 const left = Math.max(0, 1000 - needG)
 r = await server(food.id)
 is(`eating lunch takes ${needG.toFixed(1)} g out`, close(r.g, left), true)
-await p.locator('input[aria-label="Lunch eaten"]').click()
+await lunchMenu('Not eaten after all')
 await settle(p, 1200)
 is('unticking it puts it back', close((await server(food.id)).g, 1000), true)
 await openStock()

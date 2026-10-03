@@ -41,13 +41,18 @@ const row = (name) => p.locator('.sheet tbody tr', { hasText: name })
 const chip = (name) => p.locator('.bk-bar .bk-chip', { hasText: name })
 const bar = p.locator('.sb-bar')
 const status = () => bar.locator('.sb-status').textContent()
+// New book and Select are in the page's ⋮ (v17); selecting also starts with a hold.
+const pageMenu = async (item) => {
+  await p.click('.food-menu .pm-button')
+  await p.click(`.pm-menu button:has-text("${item}")`)
+}
 
 await toPage(p, '/food')
 await p.click('.tabs button:has-text("Recipes")')
 await row('E2E bowl A').waitFor({ timeout: 20000 })
 
 // 1. A new book, coloured Green.
-await p.click('.bk-chip.bk-new')
+await pageMenu('New book')
 await p.fill('.bk-sheet input', 'E2E lunches')
 await p.click('.bk-sheet button[aria-label="Green"]')
 await p.click('.bk-sheet button:has-text("Make book")')
@@ -89,7 +94,7 @@ is('the book shows its two recipes', await p.locator('.sheet tbody tr').count(),
 is('its chip counts them', (await chip('E2E lunches').locator('.bk-count').textContent())?.trim(), '2')
 
 // 4. Copy the ingredients of both: summed by food, one batch each.
-await p.click('.bk-select')
+await pageMenu('Select')
 await bar.locator('button:has-text("Select all shown")').click()
 await bar.locator('button:has-text("Copy ingredients")').click()
 await p.waitForTimeout(300)
@@ -115,7 +120,7 @@ is('the other is not', kept?.kept, true)
 await bar.locator('button:has-text("Done")').click()
 await chip('All').click()
 if (shared) {
-  await p.click('.bk-select')
+  await pageMenu('Select')
   await p.check(`input[aria-label="Select ${shared.name}"]`)
   await bar.locator('button:has-text("Delete")').click()
   is('nothing to delete', (await p.locator('.bk-sheet h2').textContent())?.trim(), 'Nothing here can be deleted')

@@ -51,17 +51,26 @@ const source = (await sheet.locator('.fs-source').textContent()) ?? ''
 is('NEVO is credited', source.includes('Based on data from NEVO online version 2025/9.0, RIVM, Bilthoven'), true)
 is('the units are credited to Portie-online', /Portie-online/.test(source), true)
 is('GetIt’s additions are marked', /Added by GetIt, not part of NEVO/.test(source), true)
-is('a shared food has no Edit', await sheet.locator('.fs-actions button:has-text("Edit")').count(), 0)
 is('the page fits 360 px', (await overflow()).join(', '), '')
+// The page's actions are in the ⋮ by its name (v17); its main one at the foot.
+const menu = async (item) => {
+  await sheet.locator('.fs-more .pm-button').click()
+  await sheet.locator(`.pm-menu button:has-text("${item}")`).click()
+}
+is('Add to a meal is the main action', await sheet.locator('.fs-actions .btn-primary').textContent(), 'Add to a meal')
+await sheet.locator('.fs-more .pm-button').click()
+is('a shared food has no Edit', await sheet.locator('.pm-menu button:has-text("Edit")').count(), 0)
+await p.keyboard.press('Escape')
+is('Escape closes the ⋮, not the page', await sheet.count(), 1)
 
 // 2. %RI on request, remembered with Nutrition.
-await sheet.locator('.fs-toggle').click()
-is('the toggle says it is on', await sheet.locator('.fs-toggle').getAttribute('aria-pressed'), 'true')
+await menu('Show % of reference intake')
 is('energy as a share of 2,000 kcal', (await sheet.locator('.fs-table tbody tr').first().locator('.fs-ri').textContent())?.trim(), '2%')
-await sheet.locator('.fs-toggle').click()
+await menu('Hide % of reference intake')
 is('and off again', await sheet.locator('.fs-ri').count(), 0)
 
 // 3. A unit of one's own over the shared food.
+await sheet.getByRole('button', { name: '+ Add a unit' }).click()
 await sheet.getByRole('textbox', { name: 'Unit', exact: true }).fill('ring')
 await sheet.getByRole('textbox', { name: 'Plural, if odd' }).fill('rings')
 await sheet.getByRole('textbox', { name: 'One weighs, g' }).fill('10')
@@ -76,7 +85,7 @@ const after = await one(`select units from public.food where id = '${shared.id}'
 is('the shared food is unchanged', JSON.stringify(after.units), JSON.stringify(shared.units))
 
 // 4. Make my own copy.
-await sheet.getByRole('button', { name: 'Make my own copy' }).click()
+await menu('Make my own copy')
 const editor = p.locator('.bottom-sheet.fe-sheet')
 is('the copy starts from the onion', (await editor.locator('h2').textContent())?.trim(), 'Your own copy')
 await editor.getByRole('textbox', { name: 'Name', exact: true }).fill(copy)

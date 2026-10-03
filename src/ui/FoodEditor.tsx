@@ -5,6 +5,7 @@ import {
 } from '../lib/eu-label-rules'
 import { readUnits } from '../lib/units-rules'
 import { Dropdown } from './Dropdown'
+import { MoreOptions } from './MoreOptions'
 import type { Food } from '../lib/types'
 import './food.css'
 
@@ -56,6 +57,12 @@ export function FoodEditor({ food, copyOf, name, barcode, userId, onClose, onSav
   }, [onClose])
 
   const read = readFoodForm(draft)
+  // What is set under More options, in a few words, while it is closed.
+  const extrasSummary = [
+    draft.brand.trim(), draft.state !== 'raw' ? draft.state : null, draft.cook_yield.trim() ? `cooks ×${draft.cook_yield.trim()}` : null,
+    draft.pack_size_g.trim() ? `pack ${draft.pack_size_g.trim()} g` : null, draft.store_section.trim() || null,
+    draft.stores.trim() || null, draft.density.trim() ? `${draft.density.trim()} g/ml` : null,
+  ].filter(Boolean).join(' · ') || null
   const per = draft.per === 'ml' ? '100 ml' : '100 g'
   // What the energy comes to from the macros as typed, shown while the
   // energy boxes are empty, so the person sees what will be saved.
@@ -128,10 +135,6 @@ export function FoodEditor({ food, copyOf, name, barcode, userId, onClose, onSav
             <input value={draft.name} maxLength={120} autoFocus={!food && !copyOf} autoComplete="off"
               onChange={(e) => set({ name: e.target.value })} />
           </label>
-          <label>
-            Brand <span className="fe-optional">optional</span>
-            <input value={draft.brand} maxLength={120} autoComplete="off" onChange={(e) => set({ brand: e.target.value })} />
-          </label>
 
           <div className="fe-per" role="group" aria-label="The figures are per">
             <span>Figures per</span>
@@ -151,43 +154,54 @@ export function FoodEditor({ food, copyOf, name, barcode, userId, onClose, onSav
             <p className="fe-note" aria-live="polite">
               {worked
                 ? `Energy left empty: worked out from the macros with the EU factors, ${worked.kcal} kcal (${worked.kj} kJ).`
-                : 'Leave a figure empty when the label does not give it: it stays unknown, never 0. Leave energy empty to work it out from the macros.'}
+                : 'Empty is unknown, never 0. Energy left empty is worked out from the macros.'}
             </p>
             {'notes' in read && read.notes.filter((n) => n.startsWith('The macros')).map((n) => <p key={n} className="fe-note is-warn">{n}</p>)}
           </fieldset>
 
-          <div className="two">
-            <div className="fe-field">
-              <span>State</span>
-              <Dropdown<FoodState> value={draft.state} options={STATE_OPTIONS} label="State" onChange={(state) => set({ state })} />
+          {/* What the label gives first; the rest (brand, state, pack, aisle,
+              shops, weight a millilitre) in one disclosure, open when any is
+              set (CALM-08). */}
+          <MoreOptions open={!!extrasSummary} summary={extrasSummary}>
+            <div className="form-grid">
+            <label>
+              Brand <span className="fe-optional">optional</span>
+              <input value={draft.brand} maxLength={120} autoComplete="off" onChange={(e) => set({ brand: e.target.value })} />
+            </label>
+            <div className="two">
+              <div className="fe-field">
+                <span>State</span>
+                <Dropdown<FoodState> value={draft.state} options={STATE_OPTIONS} label="State" onChange={(state) => set({ state })} />
+              </div>
+              <label>
+                Cook yield <span className="fe-optional">cooked ÷ raw</span>
+                <input inputMode="decimal" autoComplete="off" value={draft.cook_yield} placeholder="e.g. 2.9 for rice"
+                  onChange={(e) => set({ cook_yield: e.target.value })} />
+              </label>
+            </div>
+            <div className="two">
+              <label>
+                Pack size, g <span className="fe-optional">optional</span>
+                <input inputMode="decimal" autoComplete="off" value={draft.pack_size_g} onChange={(e) => set({ pack_size_g: e.target.value })} />
+              </label>
+              <label>
+                Aisle <span className="fe-optional">optional</span>
+                <input value={draft.store_section} maxLength={40} autoComplete="off" onChange={(e) => set({ store_section: e.target.value })} />
+              </label>
             </div>
             <label>
-              Cook yield <span className="fe-optional">cooked ÷ raw</span>
-              <input inputMode="decimal" autoComplete="off" value={draft.cook_yield} placeholder="e.g. 2.9 for rice"
-                onChange={(e) => set({ cook_yield: e.target.value })} />
+              Shops <span className="fe-optional">optional, with commas between</span>
+              <input value={draft.stores} autoComplete="off" placeholder="Albert Heijn, Jumbo" onChange={(e) => set({ stores: e.target.value })} />
             </label>
-          </div>
-          <div className="two">
-            <label>
-              Pack size, g <span className="fe-optional">optional</span>
-              <input inputMode="decimal" autoComplete="off" value={draft.pack_size_g} onChange={(e) => set({ pack_size_g: e.target.value })} />
-            </label>
-            <label>
-              Aisle <span className="fe-optional">optional</span>
-              <input value={draft.store_section} maxLength={40} autoComplete="off" onChange={(e) => set({ store_section: e.target.value })} />
-            </label>
-          </div>
-          <label>
-            Shops <span className="fe-optional">optional, with commas between</span>
-            <input value={draft.stores} autoComplete="off" placeholder="Albert Heijn, Jumbo" onChange={(e) => set({ stores: e.target.value })} />
-          </label>
-          {draft.per === 'g' && (
-            <label>
-              Grams in a millilitre <span className="fe-optional">optional, to count it in spoons and cups</span>
-              <input inputMode="decimal" autoComplete="off" value={draft.density} placeholder="e.g. 0.92 for oil"
-                onChange={(e) => set({ density: e.target.value })} />
-            </label>
-          )}
+            {draft.per === 'g' && (
+              <label>
+                Grams in a millilitre <span className="fe-optional">optional, to count it in spoons and cups</span>
+                <input inputMode="decimal" autoComplete="off" value={draft.density} placeholder="e.g. 0.92 for oil"
+                  onChange={(e) => set({ density: e.target.value })} />
+              </label>
+            )}
+            </div>
+          </MoreOptions>
           {error && <p className="re-error" role="alert">{error}</p>}
         </div>
         <div className="sheet-actions">

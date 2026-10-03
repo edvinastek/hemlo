@@ -19,7 +19,8 @@ import { isReadyMeal } from '../lib/ready-meal-rules'
 import { addProduct, lookUpBarcode, whereFor, ProductProblem } from '../lib/products'
 import { maybeShopLabel, type Product } from '../lib/products-rules'
 import { AmountInput } from './AmountInput'
-import { BarcodeScan } from './BarcodeScan'
+import { BarcodeScan, ScanIcon } from './BarcodeScan'
+import { MoreMenu, type MenuItem } from './MoreMenu'
 import { ProductFinderBody } from './ProductSearch'
 import { QuickNumbers } from './QuickNumbers'
 import { ReadyMealForm } from './ReadyMeal'
@@ -30,23 +31,26 @@ import './addfood.css'
 import { Tip } from './Tip'
 
 /** THE add-food sheet (MEAL-10 to MEAL-14, GEN-51): opened from Food → Day's
- *  "+ Add food", a meal's own +, and Today's + menu. Two steps at most, and
- *  never a sheet on top of it:
- *  1. Which meal (the person's own, a new name, or none) and when (now, the
- *     meal's time, a time, or any time), filled in from the time of day and
- *     what is usually eaten now, with "eaten already" worked out from both.
- *  2. Where the food comes from, as tabs: Recent · Saved meals · Recipes ·
- *     Foods · Scan · Just numbers · Copy from another day. Everything picked
- *     goes on a "plate", each with its amount, and the plate goes in at once. */
+ *  round +, a meal's own +, and Today's + menu. It opens where the work is
+ *  (CALM-09): on the food, with its guess of the meal, the time and whether
+ *  it is eaten in one line ("Lunch · now · eaten — Change"). Change shows
+ *  that guess as choices: which meal (the person's own, a new name, or none)
+ *  and when (now, the meal's time, a time, or any time). Never a sheet on top
+ *  of it.
+ *
+ *  The food: Recent (what is usually eaten now, then lately), or Search (saved
+ *  meals, recipes and foods together, with the barcode scanner in the field;
+ *  the shops when nothing is found). "Just the numbers" is a link; copying
+ *  from another day is in the sheet's ⋮. Everything picked goes on a
+ *  "plate", each with its amount, and the plate goes in at once. */
 
-type Tab = 'recent' | 'saved' | 'recipes' | 'foods' | 'scan' | 'numbers' | 'copy'
-const TABS: { key: Tab; label: string }[] = [
-  { key: 'recent', label: 'Recent' }, { key: 'saved', label: 'Saved meals' }, { key: 'recipes', label: 'Recipes' },
-  { key: 'foods', label: 'Foods' }, { key: 'scan', label: 'Scan' }, { key: 'numbers', label: 'Just numbers' },
-  { key: 'copy', label: 'Copy from another day' },
-]
+type Tab = 'recent' | 'search'
+/** What takes the lists' place for a moment, with a way back. */
+type Mode = 'scan' | 'numbers' | 'copy' | 'find'
 const TAB_KEY = 'getit:addfood:tab'
 const SHOW = 30
+/** In Search with nothing typed: a few of each, the latest first. */
+const BROWSE = 8
 
 /** One thing on the plate, with the name it shows. */
 type OnPlate = PlateItem & { name: string }
@@ -55,18 +59,21 @@ const live = <T extends { deleted_at?: string | null }>(r: T) => !r.deleted_at
 
 function readTab(): Tab {
   try {
-    const t = window.localStorage.getItem(TAB_KEY) as Tab | null
-    return t && TABS.some((x) => x.key === t) ? t : 'recent'
+    const t = window.localStorage.getItem(TAB_KEY)
+    // v16 kept one of seven tabs; Saved meals, Recipes and Foods are Search now.
+    return t === 'search' || t === 'saved' || t === 'recipes' || t === 'foods' ? 'search' : 'recent'
   } catch { return 'recent' }
 }
 function keepTab(t: Tab) {
   try { window.localStorage.setItem(TAB_KEY, t) } catch { /* private window: the tab is not remembered */ }
 }
 
-export function AddFoodSheet({ day, meal: startMeal, time: startTime, onClose }: {
+export function AddFoodSheet({ day, meal: startMeal, time: startTime, food: startFood, onClose }: {
   day: string
-  /** The meal to add to (its label; '' for no meal): the sheet then opens on
-   *  its second step. Left out, it asks. */
+  /** A food to start the plate with (a food's page: "Add to a meal"). */
+  food?: Food
+  /** The meal to add to (its label; '' for no meal). Left out, it is
+   *  guessed from the time of day and what is usually eaten now. */
   meal?: string | null
   /** A time to add at (adding to food logged at 15:30 with no meal). */
   time?: string | null
@@ -89,8 +96,8 @@ export function AddFoodSheet({ day, meal: startMeal, time: startTime, onClose }:
   const look = useMemo(() => makeLookup(foods, recipes, lines), [foods, recipes, lines])
   const foodById = useMemo(() => new Map(foods.map((f) => [f.id, f])), [foods])
 
-  // Step 1, filled in once the history is there.
-  const [step, setStep] = useState<1 | 2>(startMeal != null ? 2 : 1)
+  // The guess (filled in once the history is there), and its choices on Change.
+  const [step, setStep] = useState<1 | 2>(2)
   const [meal, setMeal] = useState<string | null>(startMeal ?? null)
   const [other, setOther] = useState('')
   const [when, setWhen] = useState<When | null>(startTime ? 'at' : null)
@@ -109,23 +116,27 @@ export function AddFoodSheet({ day, meal: startMeal, time: startTime, onClose }:
   const time = whenTime(whenUsed, nowHM, at)
   const eaten = eatenSet ?? eatenByDefault(day, today, nowHM, time ?? mealTime)
 
-  // Step 2.
+  // The food.
   const [tab, setTabState] = useState<Tab>(readTab)
   const setTab = (t: Tab) => { setTabState(t); keepTab(t) }
+  const [mode, setMode] = useState<Mode | null>(null)
   const [query, setQuery] = useState('')
   const [plate, setPlate] = useState<OnPlate[]>([])
   const [busy, setBusy] = useState(false)
   const [note, setNote] = useState<string | null>(null)
   const [numbersLabel, setNumbersLabel] = useState<string | undefined>(undefined)
-  const [finding, setFinding] = useState(false)
-
-  // The chosen tab scrolled into view, so a tab at the end is never half hidden.
+  // The food the sheet was opened with goes on the plate once, in the
+  // amount it was last had in (so the history is waited for).
+  const started = useRef(false)
   useEffect(() => {
-    document.getElementById(`af-tab-${tab}`)?.scrollIntoView({ block: 'nearest', inline: 'nearest' })
-  }, [tab, step])
+    if (!profile || !startFood || started.current || history === null) return
+    started.current = true
+    putFood(startFood)
+  }, [history]) // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
-    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose() }
+    // Escape closes an open ⋮ first (it handles that itself), then the sheet.
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape' && !document.querySelector('.af-sheet .pm-menu')) onClose() }
     document.addEventListener('keydown', onKey)
     return () => document.removeEventListener('keydown', onKey)
   }, [onClose])
@@ -134,7 +145,8 @@ export function AddFoodSheet({ day, meal: startMeal, time: startTime, onClose }:
 
   const dayLabel = day === today ? 'Today' : day === shiftDay(today, -1) ? 'Yesterday' : day === shiftDay(today, 1) ? 'Tomorrow'
     : format(parseISO(day), 'EEE d MMM')
-  const whereText = [
+  const guessing = startMeal == null && meal === null
+  const whereText = guessing ? 'Guessing the meal…' : [
     mealName(chosenMeal, ctx) ?? 'No meal',
     whenUsed === 'now' ? `now (${nowHM})` : whenUsed === 'at' ? (time ?? 'at a time') : whenUsed === 'meal' ? mealTime : 'any time',
     eaten ? 'eaten' : 'planned',
@@ -211,7 +223,7 @@ export function AddFoodSheet({ day, meal: startMeal, time: startTime, onClose }:
       <Frame titleId={titleId} title="Add food" sub={dayLabel} onClose={onClose}
         actions={(
           <button type="button" className="btn btn-primary grow" disabled={meal === '\u0000other' && !other.trim()}
-            onClick={() => setStep(2)}>Next: choose the food</button>
+            onClick={() => setStep(2)}>Done</button>
         )}>
         <fieldset className="af-field">
           <legend>Which meal?</legend>
@@ -232,9 +244,6 @@ export function AddFoodSheet({ day, meal: startMeal, time: startTime, onClose }:
           {meal === '\u0000other' && (
             <input className="af-other" type="text" value={other} maxLength={30} autoFocus placeholder="Second breakfast, Pre-workout…"
               aria-label="Meal’s name" onChange={(e) => setOther(e.target.value)} />
-          )}
-          {!ownMeals.length && (
-            <p className="row-meta af-hint">Your own meals, with times, can be set in More → Food → Meals. Without them food goes by time.</p>
           )}
         </fieldset>
 
@@ -266,11 +275,16 @@ export function AddFoodSheet({ day, meal: startMeal, time: startTime, onClose }:
     )
   }
 
-  /* ---- step 2 ---- */
+  /* ---- the food ---- */
   const plateKcal = plate.length ? `${Math.round(plateTotal.kcal)} kcal` : ''
+  const back = () => { setMode(null); setNote(null) }
+  const toNumbers = (label?: string) => { setNumbersLabel(label); setMode('numbers'); setNote(null) }
   return (
     <Frame titleId={titleId} title="Add food" sub={dayLabel} onClose={onClose}
-      actions={(
+      menu={[{ label: 'Copy from another day…', onSelect: () => { setMode('copy'); setNote(null) } }]}
+      // The foot appears with the first thing on the plate (v17: no hint line
+      // while it is empty; the + on every row says what a tap does).
+      actions={plate.length === 0 ? null : (
         <>
           {plate.length > 0 && (
             <button type="button" className="af-total" aria-live="polite"
@@ -278,80 +292,83 @@ export function AddFoodSheet({ day, meal: startMeal, time: startTime, onClose }:
               {plate.length} on the plate · {plateKcal}
             </button>
           )}
-          {plate.length > 0 ? (
-            <button type="button" className="btn btn-primary grow" disabled={!ready || busy} onClick={addPlate}>
-              {`Add ${plate.length === 1 ? 'it' : `all ${plate.length}`}`}
-            </button>
-          ) : (
-            <span className="af-total af-hint-foot">Tap what you had; it goes on the plate.</span>
-          )}
+          <button type="button" className="btn btn-primary grow" disabled={!ready || busy} onClick={addPlate}>
+            {`Add ${plate.length === 1 ? 'it' : `all ${plate.length}`}`}
+          </button>
         </>
       )}>
       <div className="af-where">
         <span>{whereText}</span>
-        <button type="button" className="slot-link af-change" onClick={() => setStep(1)}>Change</button>
+        <button type="button" className="slot-link af-change" disabled={guessing} onClick={() => setStep(1)}>Change</button>
       </div>
 
-      <div className="af-tabs" role="tablist" aria-label="Where the food comes from">
-        {TABS.map((t) => (
-          <button key={t.key} type="button" role="tab" id={`af-tab-${t.key}`} aria-selected={tab === t.key} aria-controls="af-panel"
-            onClick={() => { setTab(t.key); setFinding(false); setNote(null) }}>{t.label}</button>
-        ))}
-      </div>
-
-      <div className="af-panel" id="af-panel" role="tabpanel" aria-labelledby={`af-tab-${tab}`}>
-        {(tab === 'recent' || tab === 'saved' || tab === 'recipes' || (tab === 'foods' && !finding)) && (
-          <input className="af-search" type="search" value={query} autoComplete="off" enterKeyHint="search"
-            placeholder={tab === 'foods' ? 'Search foods' : tab === 'recipes' ? 'Search recipes and ready meals' : tab === 'saved' ? 'Search saved meals' : 'Search what you had'}
-            aria-label="Search" onChange={(e) => setQuery(e.target.value)} />
-        )}
-        {note && <p className="af-note" role="status">{note}</p>}
-
-        {tab === 'recent' && history && (
-          <RecentList history={history} query={query} look={look} ctx={ctx} nowHM={nowHM} today={today} onPick={putItem} />
-        )}
-        {tab === 'saved' && (
-          <SavedList profileId={profile.id} query={query} look={look} plate={plate}
-            onLog={(m) => void logFields(m.items.map((i) => itemFields(i) as Partial<MealPlanSlot>), m.name)}
-            onExplode={(m) => {
-              for (const i of m.items) putItem({ id: '', slot: '', slot_date: day, status: 'planned', portion_multiplier: 1, recipe_id: null, ...itemFields(i) } as Item)
-              setNote(`${m.name}: its ${m.items.length === 1 ? 'item is' : `${m.items.length} items are`} on the plate, to change as you like.`)
-            }} />
-        )}
-        {tab === 'recipes' && <RecipeList recipes={recipes} lines={lines} userId={userId} query={query} look={look} history={history ?? []} onPick={putRecipe} />}
-        {tab === 'foods' && !finding && (
-          <FoodList foods={foods} userId={userId} query={query} history={history ?? []} onPick={(f) => putFood(f)}
-            onFind={() => setFinding(true)} onNumbers={() => { setNumbersLabel(query.trim() || undefined); setTab('numbers') }} />
-        )}
-        {tab === 'foods' && finding && (
-          <div className="af-find">
-            <button type="button" className="slot-link" onClick={() => setFinding(false)}>← Back to your foods</button>
-            <ProductFinderBody start="search" purpose="pick" pickLabel="Put on plate" query={query} onClose={() => setFinding(false)}
-              onPick={(food, product) => { putFood(food, servingOf(product)); setFinding(false) }}
-              onReady={(recipe) => { putRecipe(recipe); setFinding(false) }} />
+      {mode === null ? (
+        <>
+          <div className="af-field-row">
+            <input className="af-search" type="search" value={query} autoComplete="off" enterKeyHint="search"
+              placeholder="Search foods, recipes, saved meals" aria-label="Search foods, recipes and saved meals"
+              onChange={(e) => { setQuery(e.target.value); if (e.target.value.trim() && tab !== 'search') setTab('search') }} />
+            <button type="button" className="af-scanbtn" aria-label="Scan a barcode" title="Scan a barcode"
+              onClick={() => { setMode('scan'); setNote(null) }}><ScanIcon /></button>
           </div>
-        )}
-        {tab === 'scan' && (
-          <ScanSource userId={userId} country={profile.country ?? null}
-            onFood={(food, product) => putFood(food, servingOf(product))}
-            onReady={(recipe) => putRecipe(recipe)}
-            onFind={() => { setTab('foods'); setFinding(true) }}
-            onNumbers={(label) => { setNumbersLabel(label); setTab('numbers') }} />
-        )}
-        {tab === 'numbers' && (
-          <QuickNumbers key={`${plate.length}:${numbersLabel ?? ''}`} label={numbersLabel} shown={shown} action="Put on plate"
-            onSubmit={(entry) => { put({ key: crypto.randomUUID(), kind: 'quick', entry, name: entry.label ?? 'Quick entry' }); setNumbersLabel(undefined) }} />
-        )}
-        {tab === 'copy' && (
-          <CopySource profileId={profile.id} day={day} today={today} look={look}
-            onPlate={(items) => { items.forEach(putItem) }}
-            onWholeDay={async (from) => {
-              const made = await copyMeals(from, [day], 'all', profile.id)
-              offerUndo(made.length ? `${made.length} items copied from ${format(parseISO(from), 'EEE d MMM')}` : 'Nothing to copy', () => removeItems(made))
-              onClose()
-            }} />
-        )}
-      </div>
+          <div className="af-tabrow">
+            <div className="af-tabs" role="tablist" aria-label="Where the food comes from">
+              {(['recent', 'search'] as Tab[]).map((t) => (
+                <button key={t} type="button" role="tab" id={`af-tab-${t}`} aria-selected={tab === t} aria-controls="af-panel"
+                  onClick={() => { setTab(t); setNote(null) }}>{t === 'recent' ? 'Recent' : 'Search'}</button>
+              ))}
+            </div>
+            <button type="button" className="slot-link af-numbers" onClick={() => toNumbers(query.trim() || undefined)}>Just the numbers</button>
+          </div>
+
+          <div className="af-panel" id="af-panel" role="tabpanel" aria-labelledby={`af-tab-${tab}`}>
+            {note && <p className="af-note" role="status">{note}</p>}
+            {tab === 'recent' && history && (
+              <RecentList history={history} query={query} look={look} ctx={ctx} nowHM={nowHM} today={today} onPick={putItem} />
+            )}
+            {tab === 'search' && (
+              <SearchList profileId={profile.id} foods={foods} recipes={recipes} lines={lines} userId={userId} query={query} look={look}
+                history={history ?? []} onFood={(f) => putFood(f)} onRecipe={putRecipe} onItem={putItem}
+                onLog={(m) => void logFields(m.items.map((i) => itemFields(i) as Partial<MealPlanSlot>), m.name)}
+                onExplode={(m) => {
+                  for (const i of m.items) putItem({ id: '', slot: '', slot_date: day, status: 'planned', portion_multiplier: 1, recipe_id: null, ...itemFields(i) } as Item)
+                  setNote(`${m.name}: its ${m.items.length === 1 ? 'item is' : `${m.items.length} items are`} on the plate, to change as you like.`)
+                }}
+                onFind={() => { setMode('find'); setNote(null) }} onNumbers={() => toNumbers(query.trim() || undefined)} />
+            )}
+          </div>
+        </>
+      ) : (
+        <div className="af-panel">
+          <button type="button" className="slot-link af-back" onClick={back}>← Back to the food</button>
+          {note && <p className="af-note" role="status">{note}</p>}
+          {mode === 'find' && (
+            <ProductFinderBody start="search" purpose="pick" pickLabel="Put on plate" query={query} onClose={back}
+              onPick={(food, product) => { putFood(food, servingOf(product)); back() }}
+              onReady={(recipe) => { putRecipe(recipe); back() }} />
+          )}
+          {mode === 'scan' && (
+            <ScanSource userId={userId} country={profile.country ?? null}
+              onFood={(food, product) => putFood(food, servingOf(product))}
+              onReady={(recipe) => putRecipe(recipe)}
+              onFind={() => setMode('find')}
+              onNumbers={(label) => toNumbers(label)} />
+          )}
+          {mode === 'numbers' && (
+            <QuickNumbers key={`${plate.length}:${numbersLabel ?? ''}`} label={numbersLabel} shown={shown} action="Put on plate"
+              onSubmit={(entry) => { put({ key: crypto.randomUUID(), kind: 'quick', entry, name: entry.label ?? 'Quick entry' }); setNumbersLabel(undefined) }} />
+          )}
+          {mode === 'copy' && (
+            <CopySource profileId={profile.id} day={day} today={today} look={look}
+              onPlate={(items) => { items.forEach(putItem) }}
+              onWholeDay={async (from) => {
+                const made = await copyMeals(from, [day], 'all', profile.id)
+                offerUndo(made.length ? `${made.length} items copied from ${format(parseISO(from), 'EEE d MMM')}` : 'Nothing to copy', () => removeItems(made))
+                onClose()
+              }} />
+          )}
+        </div>
+      )}
 
       {plate.length > 0 && (
         <Plate plate={plate} unitsOf={unitsOf} packOf={packOf} read={read} look={look} shown={shown} profileId={profile.id} history={history ?? []}
@@ -367,8 +384,11 @@ export function AddFoodSheet({ day, meal: startMeal, time: startTime, onClose }:
 const servingOf = (p: Product | null | undefined) => (p?.serving ? null : p?.pack ? { grams: p.pack, pack: true } : null)
 
 /** The sheet itself: a heading, the content, and actions kept at its foot. */
-function Frame({ titleId, title, sub, onClose, actions, children }: {
-  titleId: string; title: string; sub: string; onClose: () => void; actions: React.ReactNode; children: React.ReactNode
+function Frame({ titleId, title, sub, onClose, actions, menu, children }: {
+  titleId: string; title: string; sub: string; onClose: () => void; actions: React.ReactNode
+  /** The sheet's ⋮, for what is rarely needed (Copy from another day). */
+  menu?: MenuItem[]
+  children: React.ReactNode
 }) {
   return (
     <>
@@ -376,10 +396,13 @@ function Frame({ titleId, title, sub, onClose, actions, children }: {
       <div className="bottom-sheet af-sheet" role="dialog" aria-modal="true" aria-labelledby={titleId}>
         <div className="af-head">
           <h2 id={titleId}>{title} <span className="af-sub">{sub}</span></h2>
-          <button type="button" className="slot-link af-close" onClick={onClose}>Close</button>
+          <span className="af-head-tools">
+            {menu && <MoreMenu label="More ways to add food" items={menu} />}
+            <button type="button" className="slot-link af-close" onClick={onClose}>Close</button>
+          </span>
         </div>
         {children}
-        <div className="sheet-actions af-actions">{actions}</div>
+        {actions && <div className="sheet-actions af-actions">{actions}</div>}
       </div>
     </>
   )
@@ -418,7 +441,7 @@ function RecentList({ history, query, look, ctx, nowHM, today, onPick }: {
   const hits = q ? search(named(recent).map((x) => ({ ...x, extra: '' } as Searchable & { i: Item })), q) : named(recent)
   const usualIds = new Set(usual.map(identity))
   if (!history.length) {
-    return <p className="af-empty">Nothing eaten yet. What you add shows here next time, with the amount you had, so it is one tap.</p>
+    return <p className="af-empty">Nothing eaten yet. What you add shows here next time, with its amount.</p>
   }
   return (
     <>
@@ -429,7 +452,7 @@ function RecentList({ history, query, look, ctx, nowHM, today, onPick }: {
           <h3 className="af-h">Lately</h3>
         </>
       )}
-      {hits.length === 0 ? <p className="af-empty">Nothing you had lately matches. Try Foods or Recipes.</p> : (
+      {hits.length === 0 ? <p className="af-empty">Nothing you had lately matches. Search finds the rest.</p> : (
         <ul className="af-list">
           {hits.filter((x) => q || !usualIds.has(identity(x.i))).map(({ i, name }) => (
             <PickRow key={i.id} name={name} meta={itemMeta(i, look)} onPick={() => onPick(i)} />
@@ -449,92 +472,108 @@ function useRecentRank(history: Item[]) {
   }, [history])
 }
 
-/** The person's foods and the shared catalogue, through the one search. */
-function FoodList({ foods, userId, query, history, onPick, onFind, onNumbers }: {
-  foods: Food[]; userId: string | null; query: string; history: Item[]
-  onPick: (f: Food) => void; onFind: () => void; onNumbers: () => void
+/** Search: saved meals, recipes and foods together, through the one search
+ *  (v17: three tabs until then). With words typed, what was had lately and
+ *  matches comes first, with the amount it was had in; nothing found offers
+ *  the shops and plain numbers. With nothing typed, a few of each to browse,
+ *  the latest first. */
+function SearchList({ profileId, foods, recipes, lines, userId, query, look, history, onFood, onRecipe, onItem, onLog, onExplode, onFind, onNumbers }: {
+  profileId: string; foods: Food[]; recipes: Recipe[]; lines: RecipeLine[]; userId: string | null; query: string; look: Lookup
+  history: Item[]
+  onFood: (f: Food) => void; onRecipe: (r: Recipe) => void; onItem: (i: Item) => void
+  onLog: (m: SavedMeal) => void; onExplode: (m: SavedMeal) => void; onFind: () => void; onNumbers: () => void
 }) {
-  const [all, setAll] = useState(false)
+  const saved = useSavedMeals(profileId)
   const rank = useRecentRank(history)
-  const items = useMemo(() => foods.filter(live).map((f) => ({
-    f, name: f.name, extra: [f.brand, f.store_section].filter(Boolean).join(' '),
-    mine: !!userId && f.owner_id === userId, recent: rank.get(`f:${f.id}`) ?? 0,
-  })), [foods, userId, rank])
-  const hits = useMemo(() => search(items, query), [items, query])
-  const shown = all ? hits : hits.slice(0, SHOW)
-  return (
-    <>
-      {hits.length === 0 && query.trim() && <p className="af-empty">No food called “{query.trim()}” yet.</p>}
-      <ul className="af-list">
-        {shown.map(({ f, mine }) => (
-          <PickRow key={f.id} name={f.name}
-            meta={[f.kcal != null ? `${Math.round(Number(f.kcal))} kcal / 100 ${f.per_ml ? 'ml' : 'g'}` : 'kcal unknown', f.brand].filter(Boolean).join(' · ')}
-            tag={mine ? 'mine' : null} onPick={() => onPick(f)} />
-        ))}
-      </ul>
-      {!all && hits.length > SHOW && <button type="button" className="slot-link af-more" onClick={() => setAll(true)}>Show all {hits.length}</button>}
-      <div className="af-also">
-        <button type="button" className="btn" onClick={onFind}>Find in stores</button>
-        <button type="button" className="btn" onClick={onNumbers}>Type the numbers instead</button>
-      </div>
-    </>
-  )
-}
-
-/** Recipes and ready meals, through the one search, calories a portion. */
-function RecipeList({ recipes, lines, userId, query, look, history, onPick }: {
-  recipes: Recipe[]; lines: RecipeLine[]; userId: string | null; query: string; look: Lookup; history: Item[]; onPick: (r: Recipe) => void
-}) {
-  const [all, setAll] = useState(false)
-  const rank = useRecentRank(history)
+  const q = query.trim()
+  // Had lately, with its amount: one tap puts it back as it was.
+  const lately = useMemo(() => (q ? search(recentItems(history, undefined, 60).map((i) => ({ i, name: itemName(i, look), extra: '' })), q).slice(0, 5) : []),
+    [history, look, q])
+  const had = new Set(lately.map((x) => identity(x.i)))
   // A recipe is found by its ingredients too: "oats" finds overnight oats.
   const inside = useMemo(() => {
     const m = new Map<string, string[]>()
     for (const l of lines) if (l.food_id) m.set(l.recipe_id, [...(m.get(l.recipe_id) ?? []), look.foods.get(l.food_id)?.name ?? ''])
     return m
   }, [lines, look])
-  const items = useMemo(() => recipes.filter(live).map((r) => ({
+  const recipeHits = useMemo(() => search(recipes.filter(live).map((r) => ({
     r, name: r.name, extra: [isReadyMeal(r) ? 'ready meal' : r.role ?? '', ...(inside.get(r.id) ?? [])].join(' '),
     mine: !!userId && r.owner_id === userId, recent: rank.get(`r:${r.id}`) ?? 0,
-  })), [recipes, userId, rank, inside])
-  const hits = useMemo(() => search(items, query), [items, query])
-  const shown = all ? hits : hits.slice(0, SHOW)
-  if (!items.length) return <p className="af-empty">No recipes yet. Add them on Food → Recipes, or scan a ready meal under Scan.</p>
+  })), query).filter((x) => !had.has(`r:${x.r.id}`)), [recipes, userId, rank, inside, query, lately]) // eslint-disable-line react-hooks/exhaustive-deps
+  const foodHits = useMemo(() => search(foods.filter(live).map((f) => ({
+    f, name: f.name, extra: [f.brand, f.store_section].filter(Boolean).join(' '),
+    mine: !!userId && f.owner_id === userId, recent: rank.get(`f:${f.id}`) ?? 0,
+  })), query).filter((x) => !had.has(`f:${x.f.id}`)), [foods, userId, rank, query, lately]) // eslint-disable-line react-hooks/exhaustive-deps
+  const savedHits = search(sortSaved(saved), query)
+  const nothing = q && !lately.length && !recipeHits.length && !foodHits.length && !savedHits.length
+
+  if (nothing) {
+    return (
+      <>
+        <p className="af-empty">Nothing called “{q}” yet.</p>
+        <div className="af-also">
+          <button type="button" className="btn" onClick={onFind}>Find “{q}” in stores</button>
+          <button type="button" className="btn" onClick={onNumbers}>Type the numbers</button>
+        </div>
+      </>
+    )
+  }
   return (
     <>
-      {hits.length === 0 && <p className="af-empty">No recipe matches.</p>}
-      <ul className="af-list">
-        {shown.map(({ r, mine }) => {
+      {lately.length > 0 && (
+        <>
+          <h3 className="af-h">Had lately</h3>
+          <ul className="af-list">{lately.map(({ i, name }) => <PickRow key={`h${i.id}`} name={name} meta={itemMeta(i, look)} onPick={() => onItem(i)} />)}</ul>
+        </>
+      )}
+      {savedHits.length > 0 && (
+        <SavedList profileId={profileId} saved={saved} hits={savedHits} look={look} onLog={onLog} onExplode={onExplode} />
+      )}
+      <Section title="Recipes" count={recipeHits.length} first={q ? SHOW : BROWSE}>
+        {(n) => recipeHits.slice(0, n).map(({ r, mine }) => {
           const per = look.perPortion(r.id)
           return (
             <PickRow key={r.id} name={r.name} meta={per ? `${Math.round(per.kcal)} kcal a portion` : null}
-              tag={isReadyMeal(r) ? 'ready meal' : mine ? 'mine' : null} onPick={() => onPick(r)} />
+              tag={isReadyMeal(r) ? 'ready meal' : mine ? 'mine' : null} onPick={() => onRecipe(r)} />
           )
         })}
-      </ul>
-      {!all && hits.length > SHOW && <button type="button" className="slot-link af-more" onClick={() => setAll(true)}>Show all {hits.length}</button>}
+      </Section>
+      <Section title="Foods" count={foodHits.length} first={q ? SHOW : BROWSE}>
+        {(n) => foodHits.slice(0, n).map(({ f, mine }) => (
+          <PickRow key={f.id} name={f.name}
+            meta={[f.kcal != null ? `${Math.round(Number(f.kcal))} kcal / 100 ${f.per_ml ? 'ml' : 'g'}` : 'kcal unknown', f.brand].filter(Boolean).join(' · ')}
+            tag={mine ? 'mine' : null} onPick={() => onFood(f)} />
+        ))}
+      </Section>
+      {q && (
+        <div className="af-also">
+          <button type="button" className="btn" onClick={onFind}>Find “{q}” in stores</button>
+        </div>
+      )}
+    </>
+  )
+}
+
+/** A heading, the first few of a list, and "Show all" for the rest. */
+function Section({ title, count, first, children }: { title: string; count: number; first: number; children: (n: number) => React.ReactNode }) {
+  const [all, setAll] = useState(false)
+  if (!count) return null
+  return (
+    <>
+      <h3 className="af-h">{title}</h3>
+      <ul className="af-list">{children(all ? count : first)}</ul>
+      {!all && count > first && <button type="button" className="slot-link af-more" onClick={() => setAll(true)}>Show all {count}</button>}
     </>
   )
 }
 
 /** Saved meals (MEAL-08): logged whole in one tap, or put on the plate item
- *  by item to change one. Renamed and removed here too. */
-function SavedList({ profileId, query, look, plate, onLog, onExplode }: {
-  profileId: string; query: string; look: Lookup; plate: OnPlate[]; onLog: (m: SavedMeal) => void; onExplode: (m: SavedMeal) => void
+ *  by item to change one. Renamed and removed from each one's ⋮. */
+function SavedList({ profileId, saved, hits, look, onLog, onExplode }: {
+  profileId: string; saved: SavedMeal[]; hits: SavedMeal[]; look: Lookup; onLog: (m: SavedMeal) => void; onExplode: (m: SavedMeal) => void
 }) {
-  const saved = useSavedMeals(profileId)
-  const [menu, setMenu] = useState<string | null>(null)
   const [renaming, setRenaming] = useState<{ id: string; name: string } | null>(null)
   const [problem, setProblem] = useState<string | null>(null)
-  const hits = search(sortSaved(saved), query)
-  if (!saved.length) {
-    return (
-      <p className="af-empty">
-        No saved meals yet. Put what you often eat together on the plate, then “Save as a meal”; or use a meal’s ⋮ on the Day tab.
-        {plate.length > 0 && ' The plate below can be saved now.'}
-      </p>
-    )
-  }
   const summary = (m: SavedMeal) => {
     const items = m.items.map((i) => ({ id: '', slot: '', slot_date: '', status: 'planned', portion_multiplier: 1, recipe_id: null, ...itemFields(i) } as Item))
     const { total, unknown } = sumItems(items, look)
@@ -542,6 +581,7 @@ function SavedList({ profileId, query, look, plate, onLog, onExplode }: {
   }
   return (
     <>
+      <h3 className="af-h">Saved meals</h3>
       {problem && <p className="pf-note is-bad" role="alert">{problem}</p>}
       <ul className="af-list af-saved">
         {hits.map((m) => (
@@ -567,26 +607,23 @@ function SavedList({ profileId, query, look, plate, onLog, onExplode }: {
                 <span className="af-saved-tools">
                   <button type="button" className="btn btn-primary" onClick={() => onLog(m)}>Add</button>
                   <button type="button" className="btn" onClick={() => onExplode(m)}>Change items</button>
-                  <button type="button" className="af-dots" aria-label={`More for ${m.name}`} aria-expanded={menu === m.id}
-                    onClick={() => setMenu(menu === m.id ? null : m.id)}>⋮</button>
+                  <MoreMenu className="af-dots" label={`More for ${m.name}`} items={[
+                    { label: 'Rename', onSelect: () => setRenaming({ id: m.id, name: m.name }) },
+                    {
+                      label: 'Delete', danger: true,
+                      onSelect: async () => {
+                        const before = saved
+                        await writeSavedMeals(profileId, removeSaved(saved, m.id))
+                        offerUndo(`Saved meal “${m.name}” deleted`, () => writeSavedMeals(profileId, before))
+                      },
+                    },
+                  ]} />
                 </span>
-                {menu === m.id && (
-                  <span className="af-menu" role="group" aria-label={`${m.name}: more`}>
-                    <button type="button" className="btn" onClick={() => { setRenaming({ id: m.id, name: m.name }); setMenu(null) }}>Rename</button>
-                    <button type="button" className="btn" onClick={async () => {
-                      const before = saved
-                      await writeSavedMeals(profileId, removeSaved(saved, m.id))
-                      setMenu(null)
-                      offerUndo(`Saved meal “${m.name}” deleted`, () => writeSavedMeals(profileId, before))
-                    }}>Delete</button>
-                  </span>
-                )}
               </>
             )}
           </li>
         ))}
       </ul>
-      {hits.length === 0 && <p className="af-empty">No saved meal matches.</p>}
     </>
   )
 }

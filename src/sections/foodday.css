@@ -2,13 +2,7 @@
    at 360 px; the name and meta shrink and wrap, the ticks and buttons keep
    their 44–48 px. Tokens only, so light and dark both follow. */
 
-.fd-bar { display: flex; flex-wrap: wrap; gap: var(--space-2); padding: var(--space-2) var(--space-4) var(--space-3); }
-.fd-bar .btn { min-height: 44px; }
-.fd-addbtn { font-weight: 600; }
-
-.fd-empty { padding: var(--space-4); border-bottom: 1px solid var(--e-rule); }
-.fd-empty p { margin: 0 0 var(--space-2); font-family: var(--font-sans); font-size: 15px; color: var(--e-ink); }
-.fd-empty .row-meta { font-size: 13px; color: var(--e-ink-soft); }
+.fd-empty { margin: 0; padding: var(--space-4); font-family: var(--font-sans); font-size: 15px; color: var(--e-ink-soft); }
 
 .fd-meal { display: grid; gap: var(--space-2); padding: var(--space-3) var(--space-4); border-bottom: 1px solid var(--e-rule); min-width: 0; }
 .fd-meal.is-skipped .fd-name { color: var(--e-ink-soft); text-decoration: line-through; }
@@ -27,7 +21,7 @@
   font-family: var(--font-sans); font-size: 20px; line-height: 1; color: var(--e-ink-soft);
 }
 .fd-icon:hover, .fd-icon[aria-expanded="true"] { background: var(--e-tint); color: var(--e-ink); }
-.fd-icon:focus-visible, .fd-item-main:focus-visible, .fd-nothing:focus-visible { outline: 2px solid var(--e-accent); outline-offset: 1px; }
+.fd-icon:focus-visible, .fd-item-main:focus-visible { outline: 2px solid var(--e-accent); outline-offset: 1px; }
 
 .fd-menu, .fd-panel { display: flex; flex-wrap: wrap; gap: var(--space-2); align-items: center; }
 .fd-menu .btn, .fd-panel .btn { min-height: 44px; }
@@ -36,7 +30,9 @@
 .fd-timefield input { min-height: 44px; padding: 4px 8px; font-family: var(--font-sans); font-size: 15px; }
 .fd-namefield { flex: 1 1 160px; min-width: 0; min-height: 44px; padding: 6px 10px; font-family: var(--font-serif); font-size: 16px; }
 .fd-said, .fd-skipped { margin: 0; font-family: var(--font-sans); font-size: 13px; color: var(--e-ink-soft); }
-.fd-nothing { justify-self: start; min-height: 44px; text-align: left; font-family: var(--font-sans); font-size: 14px; color: var(--e-accent); }
+.fd-nothing { margin: 0; font-family: var(--font-sans); font-size: 13px; color: var(--e-ink-soft); }
+/* The meal's and the item's ⋮ (MoreMenu), as large as the + beside them. */
+.fd-more .pm-button { min-width: 44px; min-height: 44px; font-size: 20px; }
 
 .fd-items { list-style: none; margin: 0; padding: 0; display: grid; }
 .fd-item + .fd-item { border-top: 1px solid var(--e-rule); }
@@ -62,5 +58,4 @@
 .fd-days { display: flex; flex-wrap: wrap; gap: var(--space-2); }
 
 .fd-suggest { justify-self: start; min-height: 40px; text-align: left; font-family: var(--font-sans); font-size: 13px; color: var(--e-accent); }
-.fd-foot { padding: var(--space-3) var(--space-4); margin: 0; font-family: var(--font-sans); font-size: 12px; color: var(--e-ink-soft); }
 

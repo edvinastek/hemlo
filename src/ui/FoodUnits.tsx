@@ -11,18 +11,24 @@ import {
   addUnit, foodWord, readUnitForm, readUnits, removeUnit, unitLine, MAX_UNITS, UNIT_NAME_MAX, type FoodUnit,
 } from '../lib/units-rules'
 import { saveLabelChoice, saveOwnUnits, useNutritionPrefs } from '../lib/nutrition-prefs'
+import { format } from 'date-fns'
 import { offerUndo } from './Undo'
 import { FoodEditor } from './FoodEditor'
+import { MoreMenu } from './MoreMenu'
+import { AddFoodSheet } from './AddFoodSheet'
 import type { Food } from '../lib/types'
 import './amount.css'
 import './food.css'
 
 /** One food's page: the label per 100 g or 100 ml (with %RI if wanted), what
  *  state it is in, the units it is counted in, and where the figures came
- *  from. One's own foods can be changed or deleted here; a shared food can be
- *  copied to change it, and given units of one's own (kept with the person,
- *  not the shared list). NEVO foods carry NEVO's attribution, as its
- *  conditions of use ask. */
+ *  from. Its main action, Add to a meal, is at the foot (it becomes the
+ *  add-food sheet, with this food on the plate); the rest are in the ⋮ by its
+ *  name (v17): one's own foods can be changed or deleted, a shared food
+ *  copied to change it, and %RI shown or hidden. Shared foods can be given
+ *  units of one's own (kept with the person, not the shared list). NEVO foods
+ *  carry NEVO's attribution, as its conditions of use ask, here where the
+ *  data is shown in full (CALM-13). */
 export function FoodUnitsSheet({ food: given, onClose }: { food: Food; onClose: () => void }) {
   const userId = useApp((s) => s.session?.user.id ?? null)
   const profileId = useApp((s) => s.profile?.id ?? null)
@@ -30,20 +36,25 @@ export function FoodUnitsSheet({ food: given, onClose }: { food: Food; onClose: 
   const food = useLiveQuery(() => db.food.get(given.id), [given.id]) ?? given
   const replacement = useLiveQuery(async () => (food.replaced_by ? db.food.get(food.replaced_by) : undefined), [food.replaced_by])
   const prefs = useNutritionPrefs()
-  const [mode, setMode] = useState<'view' | 'edit' | 'copy' | 'delete'>('view')
+  const [mode, setMode] = useState<'view' | 'edit' | 'copy' | 'delete' | 'add'>('view')
+  const canAdd = !!profileId && !food.deleted_at
   const titleId = useId()
   const mine = !!userId && food.owner_id === userId
   const shared = !food.owner_id
 
   useEffect(() => {
     if (mode !== 'view') return
-    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose() }
+    // Escape closes the ⋮ first, when it is open, and the page after.
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape' && !document.querySelector('.fs-sheet .pm-menu')) onClose() }
     document.addEventListener('keydown', onKey)
     return () => document.removeEventListener('keydown', onKey)
   }, [onClose, mode])
 
   if (mode === 'edit' && userId) return <FoodEditor food={food} userId={userId} onClose={() => setMode('view')} />
   if (mode === 'copy' && userId) return <FoodEditor copyOf={food} userId={userId} onClose={() => setMode('view')} onSaved={() => onClose()} />
+  // The add-food sheet takes this page's place (never a sheet on a sheet),
+  // for today, with this food on the plate.
+  if (mode === 'add') return <AddFoodSheet day={format(new Date(), 'yyyy-MM-dd')} food={food} onClose={() => setMode('view')} />
 
   const per = food.per_ml ? '100 ml' : '100 g'
   const ri = prefs.label.ri
@@ -68,7 +79,15 @@ export function FoodUnitsSheet({ food: given, onClose }: { food: Food; onClose: 
     <>
       <div className="sheet-scrim" onClick={onClose} />
       <div className="bottom-sheet fs-sheet" role="dialog" aria-modal="true" aria-labelledby={titleId}>
-        <h2 id={titleId}>{food.name}</h2>
+        <div className="fs-head">
+          <h2 id={titleId}>{food.name}</h2>
+          <MoreMenu className="fs-more" label={`More for ${food.name}`} items={[
+            mine && { label: 'Edit', onSelect: () => setMode('edit') },
+            !mine && !!userId && !food.deleted_at && { label: 'Make my own copy', onSelect: () => setMode('copy') },
+            !!profileId && { label: ri ? 'Hide % of reference intake' : 'Show % of reference intake', onSelect: () => void saveLabelChoice(profileId!, { ...prefs.label, ri: !ri }) },
+            mine && { label: 'Delete…', danger: true, onSelect: () => setMode('delete') },
+          ]} />
+        </div>
         <p className="fs-sub">
           {[food.name_nl && food.name_nl !== food.name ? food.name_nl : null, food.brand, food.food_group].filter(Boolean).join(' · ') || sourceText(food)}
         </p>
@@ -105,10 +124,6 @@ export function FoodUnitsSheet({ food: given, onClose }: { food: Food; onClose: 
             {sodium !== null ? `Sodium ${figureText(sodium, 'g')} (salt ÷ 2.5).` : 'Sodium unknown.'}
             {check?.flagged ? ` The macros come to ${check.worked} kcal by the EU factors; the stated figure is shown.` : ''}
           </span>
-          <button type="button" className="fs-toggle" aria-pressed={ri}
-            onClick={() => profileId && void saveLabelChoice(profileId, { ...prefs.label, ri: !ri })}>
-            <input type="checkbox" readOnly checked={ri} tabIndex={-1} aria-hidden="true" /> % of reference intake
-          </button>
         </div>
         {ri && <p className="fe-note">Reference intake of an average adult (8,400 kJ / 2,000 kcal).</p>}
 
@@ -147,17 +162,14 @@ export function FoodUnitsSheet({ food: given, onClose }: { food: Food; onClose: 
         {mode === 'delete' ? (
           <div className="fs-actions" role="alertdialog" aria-label="Delete this food">
             <p className="fe-note" style={{ flexBasis: '100%' }}>Delete {food.name}? Recipes and meals that use it keep their figures.</p>
-            <button type="button" className="btn" onClick={() => setMode('view')}>Keep it</button>
+            {/* Focused, so a delete asked from the ⋮ at the top is seen down here. */}
+            <button type="button" className="btn" autoFocus onClick={() => setMode('view')}>Keep it</button>
             <button type="button" className="btn fs-danger grow" onClick={() => void remove()}>Delete</button>
           </div>
         ) : (
           <div className="fs-actions">
-            {mine && <button type="button" className="btn" onClick={() => setMode('edit')}>Edit</button>}
-            {mine && <button type="button" className="btn fs-danger" onClick={() => setMode('delete')}>Delete…</button>}
-            {!mine && userId && !food.deleted_at && (
-              <button type="button" className="btn" onClick={() => setMode('copy')}>Make my own copy</button>
-            )}
-            <button type="button" className="btn grow" onClick={onClose}>Close</button>
+            <button type="button" className="btn" onClick={onClose}>Close</button>
+            {canAdd && <button type="button" className="btn btn-primary grow" onClick={() => setMode('add')}>Add to a meal</button>}
           </div>
         )}
         {!mine && !shared && <p className="fe-note" style={{ marginTop: 'var(--space-2)' }}>A housemate’s food: only they can change it.</p>}
@@ -175,6 +187,7 @@ function Units({ food, units, mine, shared, profileId }: {
 }) {
   const word = foodWord(food.name)
   const [form, setForm] = useState({ name: '', plural: '', g: '' })
+  const [adding, setAdding] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
   const canAdd = mine || (shared && !!profileId && !food.deleted_at)
@@ -204,13 +217,14 @@ function Units({ food, units, mine, shared, profileId }: {
     await save(next.units)
     setForm({ name: '', plural: '', g: '' })
     setError(null)
+    setAdding(false)
   }
 
   return (
     <>
       <h3 className="section-title" style={{ padding: 'var(--space-4) 0 var(--space-1)' }}>Units</h3>
       {units.length === 0
-        ? <p className="fu-facts">Counted in grams only.{canAdd ? ` Add a unit to count ${word} by the piece, slice or spoon.` : ''}</p>
+        ? <p className="fu-facts">Counted in grams only.</p>
         : (
           <ul className="fu-list" aria-label={`Units of ${food.name}`}>
             {units.map((u) => (
@@ -228,7 +242,10 @@ function Units({ food, units, mine, shared, profileId }: {
             ))}
           </ul>
         )}
-      {canAdd && units.length < MAX_UNITS && (
+      {canAdd && units.length < MAX_UNITS && !adding && (
+        <button type="button" className="slot-link fu-open" onClick={() => setAdding(true)}>+ Add a unit</button>
+      )}
+      {canAdd && units.length < MAX_UNITS && adding && (
         <form className="fu-add" onSubmit={(e) => void add(e)} style={{ display: 'grid', gap: 'var(--space-2)', marginTop: 'var(--space-3)' }}>
           <div className="fu-form">
             <label>Unit
@@ -246,10 +263,12 @@ function Units({ food, units, mine, shared, profileId }: {
           </div>
           {error && <p className="amt-hint is-warn" role="alert">{error}</p>}
           <p className="fu-facts">
-            {shared ? 'Your own units on a shared food stay with you. ' : ''}
-            A new weight only counts for what is typed from now on: amounts already saved keep their grams.
+            {shared ? 'Your own units on a shared food stay with you. ' : ''}Amounts already saved keep their grams.
           </p>
-          <button type="submit" className="btn btn-primary" disabled={busy || !form.name.trim() || !form.g.trim()}>Add unit</button>
+          <div className="fu-do">
+            <button type="button" className="btn" onClick={() => { setAdding(false); setError(null) }}>Cancel</button>
+            <button type="submit" className="btn btn-primary" disabled={busy || !form.name.trim() || !form.g.trim()}>Add unit</button>
+          </div>
         </form>
       )}
     </>

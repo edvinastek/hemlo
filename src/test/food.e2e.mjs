@@ -1,6 +1,7 @@
 import { need, open, signIn, sql, profileOf, today, checks, drained, modulesOn, openSettings, toPage } from './e2e.mjs'
 
-// Food logging with no fixed meals (v16): the add-food sheet's two steps, a
+// Food logging with no fixed meals (v16, calm in v17): the add-food sheet
+// opening on the food with its guess (Change for the meal and time), a
 // recipe planned under a meal named on the spot, a time given on the day,
 // plain numbers as their own meal, eating and un-eating, the meal's task on
 // Today ticked both ways (GEN-31), the person's own meals as cards, and the
@@ -29,28 +30,44 @@ await signIn(p, email)
 const overflow = () => p.evaluate(() => {
   const w = document.documentElement.clientWidth
   return [...document.querySelectorAll('.page *, .bottom-sheet *')]
-    .filter((el) => el.getBoundingClientRect().right > w + 1 && !el.closest('.af-tabs, .amt-units, .week-strip, table'))
+    .filter((el) => el.getBoundingClientRect().right > w + 1 && !el.closest('.amt-units, .week-strip, table'))
     .map((el) => `${el.tagName.toLowerCase()}.${[...el.classList].join('.')}`).slice(0, 5)
 })
 const meal = (name) => p.locator(`section.fd-meal[aria-label="${name}"]`)
 const row = (text) => p.locator('.row', { hasText: text })
 const go = async (href) => { await toPage(p, href); await p.waitForTimeout(1200) }
+// A meal counts as eaten when every item in it is ticked (v17: the meal's own
+// tick is gone; "Mark all eaten" is in its ⋮).
+const mealEaten = async (name) => {
+  const ticks = meal(name).locator('.fd-item input[type=checkbox]')
+  const n = await ticks.count()
+  for (let i = 0; i < n; i++) if (!(await ticks.nth(i).isChecked())) return false
+  return n > 0
+}
+const mealMenu = async (name, item) => {
+  await meal(name).locator(`button[aria-label="More for ${name}"]`).click()
+  await meal(name).locator(`.pm-menu button:has-text("${item}")`).click()
+}
 
 // 1. No meals of one's own: an empty day says what it is for; no cards.
 await go('/food')
 is('an empty day offers the first action', await p.locator('.fd-empty').count(), 1)
 is('no fixed meal cards', await p.locator('section.fd-meal').count(), 0)
 
-// 2. + Add food: name the meal "Lunch", any time, planned; a recipe from the Recipes tab.
-await p.click('.fd-addbtn')
+// 2. The round +: the sheet opens on the food, with its guess and Change.
+// Change: name the meal "Lunch", any time, planned; a recipe found by search.
+await p.click('.fab[aria-label="Add food"]')
+is('the sheet opens on the food', await p.locator('.af-search').count(), 1)
+is('with its guess in one line', await p.locator('.af-where .af-change').count(), 1)
+await p.click('.af-change')
 await p.click('.af-chip:has-text("Name it")')
 await p.fill('input[aria-label="Meal’s name"]', 'Lunch')
 await p.click('.af-chip:has-text("Any time")')
 await p.uncheck('.af-eaten input')
 is('nothing runs off a 360 px screen in step 1', (await overflow()).join(', '), '')
-await p.click('text=Next: choose the food')
-await p.click('.af-tabs button:has-text("Recipes")')
+await p.click('.af-actions button:has-text("Done")')
 await p.fill('.af-search', 'Grilled chicken')
+is('typing searches everything', await p.locator('.af-tabs [aria-selected="true"]').textContent(), 'Search')
 await p.locator('.af-row', { hasText: 'Grilled chicken' }).first().click()
 is('it is on the plate', await p.locator('.af-plate-item').count(), 1)
 is('nothing runs off a 360 px screen in step 2', (await overflow()).join(', '), '')
@@ -64,8 +81,7 @@ is('without a time on Today', (await row('Lunch: Grilled').locator('.row-time').
 
 // 3. Giving the meal a time on the day puts it at that time on Today.
 await go('/food')
-await meal('Lunch').locator('button[aria-label="More for Lunch"]').click()
-await meal('Lunch').locator('button:has-text("Give it a time")').click()
+await mealMenu('Lunch', 'Give it a time')
 await p.fill('input[aria-label="Lunch time"]', '12:30')
 await p.waitForTimeout(900)
 is('the card shows the time', (await meal('Lunch').locator('.fd-time').textContent())?.trim(), '12:30')
@@ -74,13 +90,14 @@ is('the meal is at its time on Today', (await row('Lunch: Grilled').locator('.ro
 
 // 4. A snack as plain numbers: 250 kcal per 100 g, 180 g eaten, eaten now.
 await go('/food')
-await p.click('.fd-addbtn')
+await p.click('.fab[aria-label="Add food"]')
+await p.click('.af-change')
 await p.click('.af-chip:has-text("Another name")')
 await p.fill('input[aria-label="Meal’s name"]', 'Snack')
 await p.click('.af-chip:has-text("Any time")')
 await p.check('.af-eaten input')
-await p.click('text=Next: choose the food')
-await p.click('.af-tabs button:has-text("Just numbers")')
+await p.click('.af-actions button:has-text("Done")')
+await p.click('.af-numbers')
 await p.fill('.qf input[aria-label="What it was"]', 'Granola')
 await p.click('.qf button[aria-label="Calories are"]')
 await p.locator('.dd-list li', { hasText: 'per 100 g' }).click()
@@ -91,7 +108,8 @@ await p.click('.qf button[type=submit]')
 await p.click('.af-actions .btn-primary')
 await p.waitForTimeout(900)
 is('the snack shows what it comes to', (await meal('Snack').locator('.fd-kcal').textContent())?.trim(), '450 kcal')
-is('and is eaten', await meal('Snack').locator('.fd-head input[type=checkbox]').isChecked(), true)
+is('and is eaten', await mealEaten('Snack'), true)
+is('the meal header has no tick of its own', await meal('Snack').locator('.fd-head input[type=checkbox]').count(), 0)
 is('eating it moved the eaten total', /Eaten\s*450 kcal/.test((await p.locator('.totals').textContent()) ?? ''), true)
 is('Undo is offered', await p.locator('.undo-bar').count(), 1)
 
@@ -104,7 +122,7 @@ is('Today shows calories', /^450( \/ \d+)? kcal$/.test((await p.locator('.page-s
 await row('Lunch: Grilled').locator('input[type=checkbox], button[aria-pressed]').first().click()
 await p.waitForTimeout(900)
 await go('/food')
-is('the meal is eaten after ticking its task', await meal('Lunch').locator('.fd-head input[type=checkbox]').isChecked(), true)
+is('the meal is eaten after ticking its task', await mealEaten('Lunch'), true)
 
 await drained(p)
 const [log] = await sql(`select kcal, grams, label, recipe_id from public.food_log
@@ -121,12 +139,12 @@ const [lunch] = await sql(`select to_char(slot_time, 'HH24:MI') as t from public
   where profile_id = ${me} and slot_date = '${today()}' and deleted_at is null and slot = 'lunch'`)
 is('the lunch time reached the server', lunch?.t, '12:30')
 
-// 6. Unticking takes it back out; ticking again puts it back.
-await meal('Snack').locator('.fd-head input[type=checkbox]').click()
+// 6. Not eaten after all (the meal's ⋮) takes it back out; Mark all eaten puts it back.
+await mealMenu('Snack', 'Not eaten after all')
 await drained(p)
 const [gone] = await sql(`select count(*) as n from public.food_log where profile_id = ${me} and label = 'Granola' and deleted_at is null`)
 is('unticking removes the log', Number(gone?.n), 0)
-await meal('Snack').locator('.fd-head input[type=checkbox]').click()
+await mealMenu('Snack', 'Mark all eaten')
 await drained(p)
 
 // 7. One's own meals: a set to start from; then each is a card, even empty.
@@ -137,6 +155,7 @@ is('the meals are listed', await p.locator('.fs-meal').count(), 3)
 is('nothing runs off a 360 px screen in Food settings', (await overflow()).join(', '), '')
 await go('/food')
 is('an empty card for breakfast', await meal('Breakfast').locator('.fd-nothing').count(), 1)
+is('the Day has no footnote and no Export link', await p.locator('.fd-foot, .xl-row').count(), 0)
 is('lunch takes its own meal’s place', await meal('Lunch').count(), 1)
 
 // 8. Choosing protein, then nothing, for Today's figure.

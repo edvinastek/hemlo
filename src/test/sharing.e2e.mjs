@@ -63,6 +63,8 @@ try {
   // The one search: NEVO's food, in its display name (v16).
   await one.p.locator('.ip-list li[role=option]', { hasText: 'Brown rice, boiled' }).first().click()
   await sheet.locator('input[aria-label="Brown rice, boiled, grams per portion"]').fill('75')
+  // Who can see it waits under More options (v17), closed for a new recipe.
+  await sheet.getByRole('button', { name: /^More options/ }).click()
   is('"Only me" is the default', await sheet.locator('input[name=sharing][value=private]').isChecked(), true)
   await sheet.locator('.sh-option', { hasText: 'Propose to everyone' }).click()
   is('it says what saving does', await sheet.locator('.sh-effect').textContent(),
@@ -71,9 +73,10 @@ try {
   await sheet.getByRole('button', { name: 'Save' }).click()
   await one.p.waitForTimeout(800)
   // A new recipe opens on its own page once saved (v16).
-  await one.p.locator('.bottom-sheet.rcp .rcp-actions button:has-text("Close")').click()
-  is('the author sees it waiting', await one.p.locator('.my-recipes .setting-row', { hasText: name }).locator('.sh-chip').textContent(),
-    'Waiting for review')
+  is('its page says it is waiting', /Waiting for review/.test((await one.p.locator('.bottom-sheet.rcp .rcp-sub').textContent()) ?? ''), true)
+  await one.p.locator('.bottom-sheet.rcp .sheet-actions button:has-text("Close")').click()
+  // The one list marks only recipes that are not private, in a word (v17).
+  is('the author sees it waiting', /Waiting/.test(await one.p.locator('table.sheet tbody tr', { hasText: name }).first().innerText()), true)
   is('it reached the server', await drained(one.p), true)
   is('Postgres holds it as proposed', await sharingOf(), 'proposed')
 
@@ -111,10 +114,9 @@ try {
   // 5. The author sees it shared.
   await one.p.reload({ waitUntil: 'domcontentloaded' }); await one.p.waitForTimeout(4000)
   await recipesTab(one.p)
-  await one.p.locator('.my-recipes .setting-row', { hasText: name }).locator('.sh-chip', { hasText: 'Shared with everyone' })
+  await one.p.locator('table.sheet tbody tr', { hasText: name }).filter({ hasText: 'Shared' })
     .waitFor({ timeout: 20000 }).catch(() => {})
-  is('the author sees it shared', await one.p.locator('.my-recipes .setting-row', { hasText: name }).locator('.sh-chip').textContent(),
-    'Shared with everyone')
+  is('the author sees it shared', /Shared/.test(await one.p.locator('table.sheet tbody tr', { hasText: name }).first().innerText()), true)
   is('the author still has one copy', await localRecipe(one.p), 1)
   is('nothing left waiting to send', await localCount(one.p, 'pending'), 0)
 } finally {

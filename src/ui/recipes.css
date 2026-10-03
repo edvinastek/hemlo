@@ -3,7 +3,11 @@
 
 /* The ingredient picker: its list sits in the sheet, under the field. */
 .ip { display: grid; gap: var(--space-2); min-width: 0; }
-.ip-field input { width: 100%; min-width: 0; box-sizing: border-box; min-height: 44px; padding: 8px 10px;
+.ip-field { position: relative; }
+.ip-scan { position: absolute; top: 0; right: 0; bottom: 0; width: 44px; display: grid; place-items: center;
+  border-radius: var(--radius-md); color: var(--e-ink-soft); }
+.ip-scan:focus-visible { outline: 2px solid var(--e-accent); outline-offset: -2px; }
+.ip-field input { width: 100%; min-width: 0; box-sizing: border-box; min-height: 44px; padding: 8px 48px 8px 10px;
   border: 1px solid var(--e-field-line); border-radius: var(--radius-md); background: var(--e-field); color: var(--e-ink);
   font-family: var(--font-sans); font-size: 15px; }
 .ip-list { margin: 0; padding: 4px 0; list-style: none; max-height: 260px; overflow-y: auto; overscroll-behavior: contain;
@@ -31,8 +35,11 @@
 .rl-state .amt-units button { min-width: 60px; }
 .form-grid .rl-note, .form-grid .rl-text { padding: 7px 8px; font-size: 14px; }
 
-/* A recipe's page. */
+/* A recipe's page: its name with the ⋮ beside it. */
 .rcp h2 { margin-bottom: 2px; overflow-wrap: anywhere; }
+.rcp-head { display: flex; align-items: flex-start; gap: var(--space-2); }
+.rcp-head h2 { flex: 1; min-width: 0; }
+.rcp-more .pm-button { min-width: 44px; min-height: 44px; font-size: 20px; }
 .rcp-sub { margin: 0 0 var(--space-3); font-family: var(--font-sans); font-size: 13px; color: var(--e-ink-soft); }
 .rcp-scale { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2); margin-bottom: var(--space-2);
   font-family: var(--font-sans); font-size: 13px; color: var(--e-ink-soft); }
@@ -66,4 +73,3 @@
 /* The Recipes tab's tools. */
 .rt-tools { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2); padding: var(--space-2) var(--space-4) 0; }
 .rt-tools .ft-search { flex: 1 1 160px; }
-.rt-tools .dd { flex: 0 1 200px; }

@@ -10,7 +10,7 @@ import {
 } from '../lib/eu-label-rules'
 import { useNutritionPrefs } from '../lib/nutrition-prefs'
 import { formatCount, gramsLabel, readQty } from '../lib/units-rules'
-import { readSharing } from '../lib/sharing-rules'
+import { readSharing, statusOf } from '../lib/sharing-rules'
 import {
   isReady, readyProduct, recipeFigures, roleLabel, scaleLines, toBuy, type ScaledLine,
 } from '../lib/recipe-rules'
@@ -24,6 +24,7 @@ import { addToShoppingList } from '../lib/recipe-actions'
 import { search } from '../lib/search-rules'
 import { SharingStatus } from './SharingChoice'
 import { Dropdown } from './Dropdown'
+import { MoreMenu } from './MoreMenu'
 import { FoodUnitsSheet } from './FoodUnits'
 import { offerUndo } from './Undo'
 import type { Food, Recipe, RecipeLine, Task } from '../lib/types'
@@ -64,9 +65,10 @@ export function exportShape(r: Recipe, lines: RecipeLine[], foods: Map<string, F
 /** A recipe's own page (REC-02): every recipe can be read in full, shared
  *  ones included: what it is for, its ingredients with amounts in their
  *  units, scaled to any number of portions (REC-06), the steps, and its
- *  figures a portion and for the portions shown. From here: change it (own
- *  ones), make a variation, put it in a task's note, plan it as a meal, put
- *  what is missing on the shopping list, copy or export it (REC-20). */
+ *  figures a portion and for the portions shown. Its main action, Plan as a
+ *  meal, is at the foot; the rest are in the ⋮ by its name (v17): change it
+ *  (own ones), make a variation, put it in a task's note, put what is
+ *  missing on the shopping list, export it (REC-20). */
 export function RecipeView({ recipe: given, lines, foods, userId, onClose, onEdit, onVariation }: {
   recipe: Recipe
   lines: RecipeLine[]
@@ -96,7 +98,8 @@ export function RecipeView({ recipe: given, lines, foods, userId, onClose, onEdi
 
   useEffect(() => {
     if (panel) return
-    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose() }
+    // Escape closes the ⋮ first, when it is open, and the page after.
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape' && !document.querySelector('.rcp .pm-menu')) onClose() }
     document.addEventListener('keydown', onKey)
     return () => document.removeEventListener('keydown', onKey)
   }, [onClose, panel])
@@ -112,11 +115,24 @@ export function RecipeView({ recipe: given, lines, foods, userId, onClose, onEdi
     <>
       <div className="sheet-scrim" onClick={onClose} />
       <div className="bottom-sheet rcp" role="dialog" aria-modal="true" aria-labelledby={titleId}>
-        <h2 id={titleId}>{recipe.name}</h2>
+        <div className="rcp-head">
+          <h2 id={titleId}>{recipe.name}</h2>
+          {!panel && (
+            <MoreMenu className="rcp-more" label={`More for ${recipe.name}`} items={[
+              mine && { label: 'Edit', onSelect: () => onEdit(recipe) },
+              !!userId && { label: 'Make a variation', onSelect: () => onVariation(recipe) },
+              !!profile && { label: 'Add to a task’s note', onSelect: () => setPanel('task') },
+              !!profile && !isReady(recipe) && { label: 'Add to shopping list', onSelect: () => setPanel('shop') },
+              { label: 'Export…', onSelect: () => setPanel('export') },
+            ]} />
+          )}
+        </div>
         <p className="rcp-sub">
           {[roleLabel(recipe.role), `${qtyText(batch)} ${batch === 1 ? 'portion' : 'portions'} a batch`, recipe.cook_minutes ? `${recipe.cook_minutes} min` : null].filter(Boolean).join(' · ')}
-          {' · '}
-          {mine ? <SharingStatus recipe={recipe} withNote={false} /> : recipe.owner_id ? 'Shared by someone' : 'GetIt’s recipe'}
+          {/* Who can see it, only when it is not the usual: one's own recipes
+              are private unless proposed (v17: no "Private" chip). */}
+          {mine ? (statusOf(recipe).tone !== 'plain' && <> · <SharingStatus recipe={recipe} withNote={false} /></>)
+            : <> · {recipe.owner_id ? 'Shared by someone' : 'GetIt’s recipe'}</>}
         </p>
         {mine && sharing === 'rejected' && recipe.review_note && <p className="rcp-warn">Not accepted: {recipe.review_note}</p>}
 
@@ -190,14 +206,9 @@ export function RecipeView({ recipe: given, lines, foods, userId, onClose, onEdi
             {attribution && <p className="rcp-credit">{attribution}.</p>}
             {done && <p className="rcp-done" role="status">{done}</p>}
 
-            <div className="rcp-actions">
-              {mine && <button type="button" className="btn btn-primary" onClick={() => onEdit(recipe)}>Edit</button>}
-              {userId && <button type="button" className="btn" onClick={() => onVariation(recipe)}>Make a variation</button>}
-              {profile && <button type="button" className="btn" onClick={() => setPanel('task')}>Add to a task’s note</button>}
-              {profile && <button type="button" className="btn" onClick={() => setPanel('meal')}>Plan as a meal</button>}
-              {profile && !isReady(recipe) && <button type="button" className="btn" onClick={() => setPanel('shop')}>Add to shopping list</button>}
-              <button type="button" className="btn" onClick={() => setPanel('export')}>Export</button>
+            <div className="sheet-actions">
               <button type="button" className="btn" onClick={onClose}>Close</button>
+              {profile && <button type="button" className="btn btn-primary grow" onClick={() => setPanel('meal')}>Plan as a meal</button>}
             </div>
           </>
         )}
