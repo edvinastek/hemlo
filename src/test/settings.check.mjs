@@ -49,7 +49,11 @@ is('swipe falls back to on', nav.swipe, true)
 is('an unknown bar style falls back to one row', readSettings({ settings: { nav: { style: 'spiral' } } }).nav.style, 'row')
 const col = readSettings({ settings: { colours: { on: false, modules: { habits: '#3F6B4A', training: 'red', 'x y': '#000000' } } } }).colours
 is('colours: only #rrggbb for real keys, lower-cased', col, { on: false, modules: { habits: '#3f6b4a' } })
-is('changing the bar style keeps the order', mergeSettings(readSettings({ settings: { nav: { order: ['plan'] } } }), { nav: { style: 'drawer' } }).nav, { style: 'drawer', order: ['plan'], hidden: [], swipe: true, pinned: [] })
+is('changing the bar style keeps the order', mergeSettings(readSettings({ settings: { nav: { order: ['plan'] } } }), { nav: { style: 'drawer' } }).nav, { style: 'drawer', order: ['plan'], hidden: [], swipe: true, pinned: [], chosen: true })
+is('a stored row is not taken as a choice: before v17 every profile stored it', readSettings({ settings: { nav: { style: 'row' } } }).nav.chosen, false)
+is('…unless it says it was chosen', readSettings({ settings: { nav: { style: 'row', chosen: true } } }).nav.chosen, true)
+is('any other style was picked by someone', readSettings({ settings: { nav: { style: 'fan' } } }).nav.chosen, true)
+is('nothing stored: not chosen', readSettings({}).nav.chosen, false)
 is('the hub is a bar style', readSettings({ settings: { nav: { style: 'hub' } } }).nav.style, 'hub')
 is('pinned pages: page keys only, never Today, Plan or More, the newest two', readSettings({ settings: { nav: { pinned: ['today', 'food', 'm:sleep', 'm:habits', 'x y'] } } }).nav.pinned, ['m:sleep', 'm:habits'])
 

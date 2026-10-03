@@ -15,13 +15,10 @@ const STYLES: { key: NavStyle; label: string }[] = [
   { key: 'hub', label: 'Hub' },
 ]
 
-/** From this many pages besides Today, Plan and More, the hub style is
- *  suggested: a bar of more than five is a crowd (NAV-20). */
-const HUB_FROM = 5
-
-/** The page bar: its style, which pages it shows and in what order, and
- *  whether a sideways swipe turns the page. Pages come from the modules that
- *  are on (listed below this in More); Today, Plan and More are always there. */
+/** Settings → Page bar: its style, which pages it shows and in what order,
+ *  and whether a sideways swipe turns the page. Pages come from the modules
+ *  that are on; Today, Plan and Settings are always there. Until a style is
+ *  picked, the app picks one (CALM-04); picking one keeps it. */
 export function NavSettings() {
   const profile = useApp((s) => s.profile)
   const pages = usePages()
@@ -31,8 +28,8 @@ export function NavSettings() {
 
   const all = pages?.all ?? []
   const hidden = new Set(nav.hidden)
-  const moduleCount = all.filter((p) => p.module).length
-  const hub = nav.style === 'hub'
+  const style = pages?.style ?? nav.style
+  const hub = style === 'hub'
   // Only the pages between Plan and More move; Today and Plan lead and More
   // closes whatever is stored, so moving them would do nothing.
   const movable = all.filter((p) => !isFixed(p.key))
@@ -53,25 +50,26 @@ export function NavSettings() {
 
   return (
     <div className="nv">
-      <p className="section-title">Page bar</p>
       <div className="setting-row nv-block">
         <div>
           <div className="row-name">Style</div>
           <div className="row-meta">
-            How the pages sit at the bottom of the screen. Today and Plan always come first.
-            {hub
-              ? ' Hub: Today, Plan, up to two pages you pin, Stats, and the Modules page with everything else.'
-              : moduleCount >= HUB_FROM ? ` With ${moduleCount} modules on, Hub keeps the bar short: the rest wait on the Modules page.` : ''}
+            {nav.chosen ? 'Your choice.' : 'Picked for you: the row while five pages fit, the hub beyond.'}
           </div>
           <div className="nv-styles" role="radiogroup" aria-label="Page bar style">
             {STYLES.map((s) => (
-              <button key={s.key} type="button" role="radio" aria-checked={nav.style === s.key}
-                className="nv-style" onClick={() => save({ style: s.key })}>
+              <button key={s.key} type="button" role="radio" aria-checked={style === s.key}
+                className="nv-style" onClick={() => save({ style: s.key, chosen: true })}>
                 <Preview style={s.key} />
                 <span>{s.label}</span>
               </button>
             ))}
           </div>
+          {nav.chosen && (
+            <button type="button" className="btn nv-reset" onClick={() => save({ style: 'row', chosen: false })}>
+              Let GetIt pick
+            </button>
+          )}
         </div>
       </div>
 
@@ -81,9 +79,8 @@ export function NavSettings() {
             <div className="row-name">Pages</div>
             <div className="row-meta">
               {nav.pinned.length
-                ? `Pinned: ${nav.pinned.map((k) => all.find((p) => p.key === k)?.label).filter(Boolean).join(' and ')}. `
-                : 'Nothing pinned yet. '}
-              Hold a module on the Modules page and choose Pin to bar.
+                ? `Pinned: ${nav.pinned.map((k) => all.find((p) => p.key === k)?.label).filter(Boolean).join(' and ')}.`
+                : 'Pin up to two from the Modules page.'}
             </div>
           </div>
           <Link className="btn" to="/modules">Modules</Link>
@@ -92,10 +89,7 @@ export function NavSettings() {
       <div className="setting-row nv-block">
         <div>
           <div className="row-name">Pages</div>
-          <div className="row-meta">
-            Each module that is on has a page. Move them to change the order; switch one off to keep it
-            off the bar without turning its module off.
-          </div>
+          <div className="row-meta">Their order, and which are on the bar. What does not fit waits on the Modules page.</div>
           <ul className="nv-pages" aria-label="Pages on the bar">
             {all.map((p) => {
               const fixed = isFixed(p.key)
@@ -136,10 +130,7 @@ export function NavSettings() {
       <div className="setting-row">
         <div>
           <div className="row-name">Swipe between pages</div>
-          <div className="row-meta">
-            Swipe sideways on a page to open the next one on the bar. Swipes on the days, the tabs and
-            wide tables still move those.
-          </div>
+          <div className="row-meta">Sideways on a page opens the next one on the bar.</div>
         </div>
         <button type="button" className="switch" role="switch" aria-checked={nav.swipe}
           aria-label="Swipe between pages" onClick={() => save({ swipe: !nav.swipe })} />
