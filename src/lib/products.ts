@@ -5,9 +5,9 @@ import { supabase } from './supabase'
 import { edit } from './write'
 import { isNative } from './native'
 import {
-  LIMITS, MAX_WAIT_MS, TTL, RateLimiter, TtlCache, cleanQuery, deletedWith, foodFields, foodWithBarcode, normaliseBarcode,
-  offCountry, offLang, pricesUrl, productFoodId, productUrl, readPrices, readProduct, readSearch, searchKey, searchUrl,
-  type Engine, type PriceRow, type Product,
+  LIMITS, MAX_WAIT_MS, TTL, RateLimiter, TtlCache, cleanQuery, deletedWith, foodFields, foodWithBarcode, lookupFound, normaliseBarcode,
+  offCountry, offLang, pricesUrl, productFoodId, productFromFood, productUrl, readPrices, readProduct, readSearch, searchKey, searchUrl,
+  USER_AGENT, type Engine, type PriceRow, type Product,
 } from './products-rules'
 import type { Food } from './types'
 
@@ -76,7 +76,7 @@ async function getJson(url: string, kind: Kind): Promise<unknown | null> {
       // Straight from the phone: no browser rules apply, and the request may
       // name the app as Open Food Facts asks.
       const res = await CapacitorHttp.get({
-        url, headers: { 'User-Agent': `GetIt/${version} (Android; app.getit.planner)`, Accept: 'application/json' },
+        url, headers: { 'User-Agent': USER_AGENT, Accept: 'application/json' },
         connectTimeout: 15000, readTimeout: 15000, responseType: 'json',
       })
       status = res.status
@@ -165,9 +165,9 @@ export async function productByBarcode(code: string, where: Where): Promise<Prod
   const clean = normaliseBarcode(code)
   if (!clean) throw new ProductProblem('failed', 'That is not a barcode: check the digits.')
   return remembered(`p:${where.lang}:${clean}`, (p) => (p ? TTL.product : TTL.missing), async () => {
-    const json = await getJson(productUrl(clean, where.lang, version), 'product') as { status?: number; product?: unknown } | null
-    if (!json || json.status === 0 || !json.product) return null
-    return readProduct({ ...(json.product as object), code: clean }, where.lang)
+    const json = await getJson(productUrl(clean, where.lang, version), 'product') as { product?: unknown } | null
+    if (!lookupFound(json)) return null
+    return readProduct({ ...(json!.product as object), code: clean }, where.lang)
   })
 }
 
@@ -233,4 +233,18 @@ export async function productSalt(): Promise<string | null> {
   const { data: after } = await supabase.auth.getUser()
   const kept = after.user?.user_metadata?.product_salt
   return ok(kept) ? kept : made
+}
+
+/** What a scanned barcode is, for anywhere food is added (PROD-02): the
+ *  food already kept with it (the person's own first, then a shared one),
+ *  else the product on Open Food Facts (not yet kept), else nothing.
+ *  Throws a ProductProblem when Open Food Facts cannot be asked. */
+export async function lookUpBarcode(code: string, userId: string | null, where: Where): Promise<
+  { food: Food; product: Product } | { food: null; product: Product } | null
+> {
+  const mine = await foodByBarcode(code, userId)
+  const own = mine ? productFromFood(mine) : null
+  if (mine && own) return { food: mine, product: own }
+  const product = await productByBarcode(code, where)
+  return product ? { food: null, product } : null
 }

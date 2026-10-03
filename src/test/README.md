@@ -84,7 +84,9 @@ Types, then every check that needs nothing but Node. CI runs the same command.
   (online, nothing waiting to be sent; the phone's unlock with a screen lock and a saved token, the password otherwise).
 - `products` — supermarket products from Open Food Facts: barcodes (EAN-13, EAN-8, UPC-A and UPC-E, the check digit,
   one spelling per product), a product from a lookup or either search read into a food's figures per 100 g (kcal
-  worked out from kJ when that is all there is, fibre's other spellings, unknown left unknown, never salt or sugar),
+  worked out from kJ when that is all there is, fibre's other spellings, unknown left unknown), the rest of the EU
+  label (kJ, saturates, mono- and polyunsaturates, sugars, polyols, starch, salt or sodium × 2.5, alcohol from % vol),
+  the table in the label's order, per 100 ml for drinks, Nutri-Score, the v3 lookup and the app's User-Agent,
   the pack size from grams, millilitres or "6 x 50 g", shop names tidied ("Ah" is Albert Heijn), the food row it
   becomes and finding one already kept (or deleted) with that barcode, packs into grams for stock, shared prices
   (the latest per shop, per kilo, the day, offers), and the limiter and cache that keep under Open Food Facts' limits.
@@ -111,6 +113,16 @@ Types, then every check that needs nothing but Node. CI runs the same command.
 - `afterdone` — "ask after done" templates: the marker line in a note, what Fill in, Skip and Later leave behind.
 - `repeat` — the one repeat control's choices: the rule each stands for from a first day (the 2nd or last Wednesday,
   the 14th, 14 October), numbers kept and capped, picked days, and every choice reading back as itself.
+- `mealrules` — meals with no fixed slots: the person's meal names (and the old four), a typed name finding its meal,
+  keys for new meals, default and own times, what each item is (a food, a recipe or ready meal, numbers) and comes to
+  (unknown never 0), a day grouped into meals (cards for the person's meals, by time, "Any time" last, skipped and
+  eaten meals), the meal's task title, id and status, copying meals to other days, the add sheet's first step (which
+  meal, when, eaten already), recent foods, go-tos at this hour and the last amount, the plate's amounts in a unit or
+  grams, and sizing the main meal.
+- `savedmeals` — saved meals read strictly from the Nutrition module's settings, made from a meal, logged back as
+  items, added, renamed (no two with one name), removed and sorted.
+- `readymeal` — ready meals: a portion as the whole pack or the stated serving, the recipe of one line it is kept as,
+  and the one already made for the same food found again.
 
 ## Browser checks
 
