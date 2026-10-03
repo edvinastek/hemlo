@@ -252,8 +252,12 @@ export function toWidgetView(view: Pick<StatsView, 'id' | 'name' | 'chart' | 'me
   const unit = v ? unitFor(v.info, v.spec.summary) : ''
   const dec = v ? decimalsFor(v.info, v.spec.summary) : 0
   const overall = result.grand[0] ?? null
-  const target = data.target
+  // The person's own daily target (protein) when the view sets none.
+  const target = data.target ?? data.targets?.filter((t): t is number => t != null).at(-1) ?? null
   const shown = data.series.find((s) => !s.hidden) ?? data.series[0]
+  // Days still to come are left off the end: the widget shows what happened.
+  let last = data.future.length
+  while (last > 0 && data.future[last - 1] && (shown?.values[last - 1] ?? null) == null) last--
   const out: StatsWidgetView = {
     id: view.id,
     name: view.name,
@@ -262,7 +266,7 @@ export function toWidgetView(view: Pick<StatsView, 'id' | 'name' | 'chart' | 'me
     sub: [v ? (v.spec.label ?? v.info.label) : view.name, rangeText, target != null ? `target ${formatValue(target, unit, dec)}` : '']
       .filter(Boolean).join(' · '),
     points: kind === 'bars' || kind === 'line'
-      ? (shown?.values ?? []).map((value, i) => ({ label: data.labels[i] ?? '', value: value == null ? null : Math.round(value * 100) / 100, colour: shown?.colour }))
+      ? (shown?.values ?? []).slice(0, last).map((value, i) => ({ label: data.labels[i] ?? '', value: value == null ? null : Math.round(value * 100) / 100, colour: shown?.colour }))
       : [],
     target,
     link: `/stats?view=${encodeURIComponent(view.id)}`,

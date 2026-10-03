@@ -238,7 +238,7 @@ const splitData = chartData(pivot(viewSpec(splitView, today), facts, tasksCat, t
 is('a split: a series per column, one hidden', splitData.series.map((s) => [s.label, s.hidden, s.values]), [['Home', true, [1]], ['Work', false, [1]]])
 is('the chart in words', describe(res, 'This week'), 'Tasks done, this week: 1 overall. Highest 1 (Mon 21 Sep); lowest 0 (Tue 22 Sep). Minutes done: 0 min.')
 const w = toWidgetView({ ...view, name: 'Done', chart: { ...view.chart, type: 'bar' } }, res, data, 'This week', 'Day')
-is('the widget: bars, a figure, a tap that opens the view', [w.kind, w.headline, w.points.length, w.link, w.sub], ['bars', '1', 7, '/stats?view=t1', 'Tasks done · This week'])
+is('the widget: bars up to today (Mon to Thu), a figure, a tap that opens the view', [w.kind, w.headline, w.points.length, w.link, w.sub], ['bars', '1', 4, '/stats?view=t1', 'Tasks done · This week'])
 const ring = toWidgetView({ ...view, chart: { ...view.chart, type: 'ring' }, measures: [{ source: 'tasks:completion', summary: 'avg' }] },
   pivot({ ...viewSpec(view, today), values: [{ measure: 'tasks:completion', summary: 'avg' }], rows: 'none' }, facts, tasksCat, today), data, 'This week', 'Day')
 is('a ring shows the share as progress', [ring.kind, ring.headline, ring.progress], ['ring', '50%', 0.5])
