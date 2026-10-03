@@ -254,6 +254,10 @@ export interface ChoreLike {
   start_date: string | null
   end_date: string | null
   paused?: boolean
+  /** A pause with dates (030): a holiday from one day to another. Off by
+   *  itself after its last day; the days in between are not counted. */
+  paused_from?: string | null
+  paused_until?: string | null
   assignees?: string[]
   rotation?: 'none' | 'each_time' | 'each_week' | 'least_recent'
 }
@@ -271,6 +275,16 @@ export interface ChoreState {
   /** How due a flexible chore is: 0 just done, 1 due, above 1 overdue. Never "failed". */
   dueness: number
   lastDone: string | null
+  /** Paused on this day, for good or until a date. */
+  paused?: boolean
+}
+
+/** Is the chore paused on this day: switched to paused, or inside a pause
+ *  with dates? */
+export function chorePausedOn(c: Pick<ChoreLike, 'paused' | 'paused_from' | 'paused_until'>, day: string): boolean {
+  if (c.paused) return true
+  if (!isDay(c.paused_until) || day > c.paused_until) return false
+  return !isDay(c.paused_from) || day >= c.paused_from
 }
 
 /** Where a chore stands on a day. Fixed chores fall due on their rule's
@@ -282,12 +296,17 @@ export function choreState(c: ChoreLike, day: string, logs: ChoreDone[]): ChoreS
   const doneToday = lastDone === day
   const start = isDay(c.start_date) ? c.start_date : (lastDone ?? day)
   const empty: ChoreState = { shows: doneToday, doneToday, next: null, overdueDays: 0, dueness: 0, lastDone }
-  if (c.paused || (c.end_date && day > c.end_date)) return empty
+  if (chorePausedOn(c, day)) return { ...empty, paused: true, next: isDay(c.paused_until) && !c.paused ? addDays(c.paused_until, 1) : null }
+  if (c.end_date && day > c.end_date) return empty
+  // A holiday that is over: what fell due during it is let go (fixed), and
+  // the clock of an "after" or flexible chore stood still while it lasted.
+  const pauseEnd = isDay(c.paused_until) && c.paused_until < day ? c.paused_until : null
   if (c.mode === 'fixed') {
     if (!c.rule) return empty
     const s: Schedule = { rule: c.rule, rule_config: c.rule_config ?? {}, start_date: start, end_date: c.end_date }
     // The most recent day it fell due, up to today, and whether it was done since.
-    const back = daysIn(s, addDays(day, -60), day)
+    const lookFrom = addDays(day, -60)
+    const back = daysIn(s, pauseEnd && pauseEnd >= lookFrom ? addDays(pauseEnd, 1) : lookFrom, day)
     const lastDue = back.at(-1) ?? null
     const open = lastDue != null && !(lastDone != null && lastDone >= lastDue)
     const next = open ? lastDue : nextOn(s, addDays(day, 1))
@@ -295,7 +314,10 @@ export function choreState(c: ChoreLike, day: string, logs: ChoreDone[]): ChoreS
     return { shows: open || doneToday, doneToday, next: open ? day : next, overdueDays: overdue, dueness: open ? 1 : 0, lastDone }
   }
   const every = Math.max(1, Math.floor(c.every_days ?? 7))
-  const from = lastDone ?? addDays(start, -every)
+  let from = lastDone ?? addDays(start, -every)
+  if (pauseEnd && isDay(c.paused_from) && from < c.paused_from) {
+    from = addDays(from, toDayNumber(pauseEnd) - toDayNumber(c.paused_from) + 1)
+  }
   const dueOn = addDays(from, every)
   const late = toDayNumber(day) - toDayNumber(dueOn)
   const dueness = Math.max(0, (toDayNumber(day) - toDayNumber(from)) / every)

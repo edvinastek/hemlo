@@ -10,7 +10,9 @@ Types, then every check that needs nothing but Node. CI runs the same command.
 - `body` — weigh-in parsing, the 7-day trend, when targets are recalculated.
 - `series` — repeat rules (every N days and days picked by hand included), laying out days, "only this one" and
   "this and following", and the planned repeats shown past the eight weeks the fill turns into tasks.
-- `tracking` — habit schedules and streaks, supplement slots.
+- `tracking` — habit schedules and streaks, supplement slots; with version 16 any schedule's streak (days, weeks or
+  times), the forgiving strength %, the month and year history grids, a pinned checklist ticked per day, count words,
+  time of day, the person's own supplement slots and a schedule per supplement.
 - `review` — which tasks the evening review offers, and what each action does.
 - `import` — reading the Excel workbook, ingredient lines, matching foods.
 - `allowlist` — the invite-list script.
@@ -18,7 +20,8 @@ Types, then every check that needs nothing but Node. CI runs the same command.
 - `work` — work hours and the commute as repeating series, night shifts included; which series are kept, stopped or started.
 - `settings` — personal settings always come out whole and sane.
 - `timeframe` — a task's length as minutes or as an end time, across midnight.
-- `notes` — the note's checklists, bullets, headings and bold; ticking; the toolbar.
+- `notes` — the note's checklists, bullets, headings and bold; ticking; the toolbar; moving items up, down or by
+  drag with the items under them, indenting, ticked items drawn last, and the codes the editor keeps out of sight.
 - `quickfood` — meals as plain numbers (per 100 g and other sizes), and which figures the food pages and Today show.
 - `stock` — typing and showing amounts, the −/+ steps, what an eaten meal takes and gives back, what a trip puts in stock.
 - `pages` — which pages the bar has for which modules, their order, hidden pages, where a swipe lands, which addresses go to Today, and how each bar style shares the pages out.
@@ -111,6 +114,13 @@ Types, then every check that needs nothing but Node. CI runs the same command.
 - `afterdone` — "ask after done" templates: the marker line in a note, what Fill in, Skip and Later leave behind.
 - `repeat` — the one repeat control's choices: the rule each stands for from a first day (the 2nd or last Wednesday,
   the 14th, 14 October), numbers kept and capped, picked days, and every choice reading back as itself.
+- `notetemplates` — note templates: fill-ins ({date}, {weekday}, {time}, {title}, {day count}), the plain-word chips,
+  putting a template in a note or asking for it after the task, keeping the list (add, edit, order, remove and undo);
+  recipes in notes: the block found again, "Update from recipe" only when the recipe changed (ticks kept), several
+  recipes' ingredients added up.
+- `household` — chores as a person reads them: calm words that never say overdue, the due-ness bar, the page's
+  sections and rooms, a holiday pause with dates, light days and a daily cap for flexible chores, members' names,
+  the starter packs.
 
 ## Browser checks
 
