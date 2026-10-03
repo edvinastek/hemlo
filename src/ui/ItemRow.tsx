@@ -24,7 +24,7 @@ interface Props {
   expanded: boolean
   /** A tap on the name: open it (or, when open in place, close it). */
   onTitle: () => void
-  /** The tick: a task, a habit, a chore, a supplement slot. */
+  /** The tick: a task, a habit, a chore, a supplement slot, a planned payment. */
   onTick: () => void
   onPush: (minutes: number) => void
   /** A count habit's new amount. */
@@ -168,7 +168,7 @@ function Controls(p: Props) {
       </div>
     )
   }
-  if (item.kind === 'habit' || item.kind === 'chore' || item.kind === 'supplements') {
+  if (item.kind === 'habit' || item.kind === 'chore' || item.kind === 'supplements' || item.kind === 'payment') {
     const partly = item.kind === 'supplements' && !item.done && (item.parts ?? []).some((x) => x.done)
     return (
       <div className="row-right">

@@ -21,7 +21,7 @@ import { HolidayChips, HolidayLegend, HolidayMark } from '../ui/HolidayMark'
 import { calendarsIn, useFollowedEvents, useSubscriptions, type FollowedItem } from '../lib/calendar-links'
 import { FollowedLegend, FollowedSheet, FollowedWeekItem } from '../ui/FollowedEvents'
 import { useDayItems } from '../lib/day-items'
-import { inbox as inboxOf, type DayItem } from '../lib/day-items-rules'
+import { inbox as inboxOf, tapRoute, type DayItem } from '../lib/day-items-rules'
 import { addDays } from '../lib/schedule-rules'
 import { dayLabel, mondayOf } from '../lib/copy-rules'
 import {
@@ -173,6 +173,9 @@ export function Plan() {
     + followedOn(day).reduce((sum, f) => sum + f.minutes, 0)
 
   function openItem(it: DayItem) {
+    // A shopping trip task opens the list (SHOP-22).
+    const route = tapRoute(it)
+    if (route) return navigate(route)
     if (it.task) return setEditing({ task: it.task, isNew: false })
     // Everything else opens on its own module's page.
     const page = it.kind === 'habit' ? 'habits' : it.kind === 'chore' ? 'household' : it.kind === 'supplements' ? 'supplements'

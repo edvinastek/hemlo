@@ -5,7 +5,7 @@ import { readSettings } from '../lib/settings'
 import { useDayItems } from '../lib/day-items'
 import {
   railGroups, nowSlot, noteFinished, finishedChecklist, habitChecklistCount, flipCheck, slotFlips, PART_EDGES,
-  type DayItem,
+  tapRoute, tickRoute, type DayItem,
 } from '../lib/day-items-rules'
 import { useTodayPrefs, saveTodayPrefs } from '../lib/today-prefs'
 import { localDay } from '../lib/review-rules'
@@ -15,6 +15,7 @@ import { pendingAfterDone } from '../lib/after-done-rules'
 import { toggleHabit, toggleSupplement, setHabitAmount, setHabitChecks } from '../lib/tracking'
 import { toggleChore } from '../lib/chores'
 import * as act from '../lib/rail-actions'
+import { sessionLinkForTask } from '../lib/training'
 import type { Task } from '../lib/types'
 import { DragList, type MenuAction, type RailEntry } from './DragList'
 import { ItemRow, type RowAction } from './ItemRow'
@@ -93,6 +94,7 @@ const MODULE_PAGE: Record<string, { to: string; label: string }> = {
   habits: { to: '/m/habits', label: 'Open Habits' },
   supplements: { to: '/m/supplements', label: 'Open Supplements' },
   household: { to: '/m/household', label: 'Open Household' },
+  finance: { to: '/m/finance', label: 'Open Finance' },
 }
 
 /** One day's items from every module, on one time rail (PLN-02, TOD-02): the
@@ -163,7 +165,18 @@ export function DayRail({ day, where, filter, emptyText }: {
   }
 
   async function tickItem(item: DayItem) {
-    if (item.task) return tickTask(item.task)
+    if (item.task) {
+      // A planned training session opens its session; finishing it there
+      // ticks the task (GEN-38). "Mark done" in ⋮ ticks it plainly.
+      const session = tickRoute(item, item.task.status === 'done' ? null : await sessionLinkForTask(item.task))
+      if (session) return navigate(session)
+      return tickTask(item.task)
+    }
+    if (item.kind === 'payment') {
+      const r = await act.tickPayment(profile!.id, item.ref.id, item.day, today)
+      if (r) offerUndo(`${item.title.replace(/ (due|expected)$/, '')} ${r.paid ? 'marked paid' : 'no longer paid'}`, r.undo)
+      return
+    }
     if (item.kind === 'habit') return void toggleHabit(item.ref.id, item.day)
     if (item.kind === 'chore') return void toggleChore(item.ref.id, item.day, userId)
     if (item.kind === 'supplements') {
@@ -204,6 +217,8 @@ export function DayRail({ day, where, filter, emptyText }: {
 
   function open(item: DayItem) {
     if (expanded === item.key) return setExpanded(null)
+    const route = tapRoute(item)
+    if (route) return navigate(route)
     if (item.task) return setSheet({ kind: 'edit', task: item.task, isNew: false })
     if (item.kind === 'event') return setSheet({ kind: 'record', moduleKey: 'agenda', id: item.ref.id })
     if (item.kind === 'record' && item.module_key) return setSheet({ kind: 'record', moduleKey: item.module_key, id: item.ref.id })
@@ -225,7 +240,12 @@ export function DayRail({ day, where, filter, emptyText }: {
     const t = item.task
     if (t) {
       const skipped = t.status === 'dropped'
+      const route = tapRoute(item)
       return [
+        ...(route ? [{ label: 'Open the shopping list', run: () => navigate(route) }] : []),
+        // A session task's tick opens the session; this ticks it without one.
+        ...(t.module_key === 'training' || t.source === 'workout'
+          ? [{ label: t.status === 'done' ? 'Mark not done' : 'Mark done', run: () => void tickTask(t) }] : []),
         { label: 'Edit', run: () => setSheet({ kind: 'edit', task: t, isNew: false }) },
         { label: 'Copy to…', run: () => setSheet({ kind: 'copy', task: t }) },
         { label: 'Duplicate', run: () => duplicate(t) },

@@ -13,6 +13,7 @@ import type { Task, Habit, HabitLog, Chore, ChoreLog, Supplement, SupplementLog,
 import { supplementGroups, DEFAULT_SLOTS, habitWhen, type SupplementSlotDef } from './tracking-rules.ts'
 import { heldBack, type ChorePrefs } from './chore-rules.ts'
 import { paymentDue, type Payment } from './finance-rules.ts'
+import { isTripTask, TRIP_ROUTE } from './shopping-rules.ts'
 
 export type DayItemKind = 'task' | 'habit' | 'chore' | 'supplements' | 'event' | 'record' | 'payment'
 
@@ -417,4 +418,21 @@ export function flipCheck(checks: number[], index: number, total: number): numbe
 export function slotFlips(parts: { id: string; done: boolean }[]): string[] {
   const open = parts.filter((p) => !p.done)
   return (open.length ? open : parts).map((p) => p.id)
+}
+
+/* ---------- what a tap and a tick do (GEN-38, TRN-05, SHOP-22) ------------- */
+
+/** Where a tap on an item's name goes instead of its sheet: a shopping trip
+ *  task opens the shopping list (SHOP-22). Its ⋮ menu still has Edit. */
+export function tapRoute(item: Pick<DayItem, 'task'>): string | null {
+  return item.task && isTripTask(item.task) ? TRIP_ROUTE : null
+}
+
+/** Where a tick goes instead of ticking: a planned training session not yet
+ *  done opens its session (GEN-38, TRN-05), and finishing the session ticks
+ *  the task. `sessionLink` is the task's session (training.ts), or null.
+ *  Unticking, and every other item, ticks as usual; the ⋮ menu keeps a
+ *  plain "Mark done". */
+export function tickRoute(item: Pick<DayItem, 'task' | 'done'>, sessionLink: string | null): string | null {
+  return item.task && !item.done && item.task.status !== 'done' && sessionLink ? sessionLink : null
 }

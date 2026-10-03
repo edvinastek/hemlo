@@ -8,7 +8,7 @@
 process.env.TZ = 'Europe/Amsterdam'
 import {
   dayItems, shows, carryOver, inbox, taskModule, railGroups, eventDays, localParts, nowSlot,
-  finishedChecklist, noteFinished, habitChecklistCount, flipCheck, slotFlips,
+  finishedChecklist, noteFinished, habitChecklistCount, flipCheck, slotFlips, tapRoute, tickRoute,
 } from '../lib/day-items-rules.ts'
 
 let fail = 0
@@ -155,6 +155,15 @@ const tasks = [
 ]
 is('carry-over: open tasks from earlier days, newest first', carryOver(tasks, SAT).map((t) => t.id), ['yday', 'old'])
 is('the Inbox: tasks with no day, in their order', inbox(tasks).map((t) => t.id), ['first', 'later'])
+
+// What a tap and a tick do: a shopping trip task opens the list; a planned
+// training session not yet done opens its session; anything else as usual.
+is('a trip task opens the shopping list', tapRoute({ task: task('trip', { source: 'shopping' }) }), '/shop')
+is('any other task opens its sheet', tapRoute({ task: task('t') }), null)
+is('a habit has no tap route', tapRoute({ task: undefined }), null)
+is('a session task ticked opens the session', tickRoute({ task: task('s', { status: 'todo' }), done: false }, '/m/training?session=r1&day=2026-10-03'), '/m/training?session=r1&day=2026-10-03')
+is('unticking a done session just unticks', tickRoute({ task: task('s', { status: 'done' }), done: true }, '/m/training?session=r1'), null)
+is('a task with no session ticks', tickRoute({ task: task('t'), done: false }, null), null)
 
 if (fail) { console.error(`\n${fail} failed`); process.exit(1) }
 console.log('\ndayitems: all good')

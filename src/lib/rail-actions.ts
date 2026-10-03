@@ -4,6 +4,7 @@ import { saveTask, setTaskDone } from './tasks'
 import { deleteOccurrence, moveToDays } from './series'
 import { reviewTask } from './review'
 import { pushTask } from './reorder-rules'
+import { deleteRecordRow, restoreRecordRow, togglePaid } from './finance'
 import type { Task } from './types'
 
 /** What the rail's buttons write, each through the same local-first path as
@@ -59,6 +60,15 @@ export async function pushToTime(task: Task, time: string): Promise<{ to: Task; 
 /** Tick or untick. */
 export async function tick(task: Task, done: boolean): Promise<Task> {
   return setTaskDone(task, done)
+}
+
+/** A planned payment ticked (FIN-04): paid writes its entry in Finance,
+ *  unticked removes that entry. Undo does the opposite. */
+export async function tickPayment(profileId: string, paymentId: string, day: string, today: string): Promise<{ paid: boolean; undo: Undo } | null> {
+  const r = await togglePaid(profileId, paymentId, day, today)
+  if (r.made) { const made = r.made; return { paid: true, undo: () => deleteRecordRow(made) } }
+  if (r.removed) { const removed = r.removed; return { paid: false, undo: () => restoreRecordRow(removed) } }
+  return null
 }
 
 /** Move to another day (Move to…), keeping or changing the time. */
