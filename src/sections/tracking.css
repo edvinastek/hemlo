@@ -181,3 +181,6 @@
 .supp-slot-row input[type="time"] { flex: 0 0 auto; width: 7.5em; }
 .supp-slot-row .track-ask { flex-basis: 100%; }
 .supp-head .track-count { padding-top: var(--space-2); }
+
+/* The time slots inside their sheet (v17: under the Supplements ⋮). */
+.mh-sheet .supp-slots { padding: 0; border-bottom: 0; }

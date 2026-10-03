@@ -195,10 +195,12 @@ function ProjectPage({ profileId, projectId, onClose }: { profileId: string; pro
         </div>
         <MoreMenu className="prj-menu" label={`More for ${projectName(p)}`} items={[{ label: 'Edit project', onSelect: () => setEditing(true) }]} />
       </header>
-      <div className="prj-progress is-big">
-        <span className={`kit-bar${prog.share === 1 ? ' is-done' : ''}`} aria-hidden><span style={{ width: `${(prog.share ?? 0) * 100}%` }} /></span>
-        <span className="row-meta">{describeProgress(prog)}{prog.share != null ? ` (${Math.round(prog.share * 100)}%)` : ''}</span>
-      </div>
+      {prog.all > 0 && (
+        <div className="prj-progress is-big">
+          <span className={`kit-bar${prog.share === 1 ? ' is-done' : ''}`} aria-hidden><span style={{ width: `${(prog.share ?? 0) * 100}%` }} /></span>
+          <span className="row-meta">{describeProgress(prog)}{prog.share != null ? ` (${Math.round(prog.share * 100)}%)` : ''}</span>
+        </div>
+      )}
 
       <h2 className="section-title">Tasks</h2>
       <form className="prj-add" onSubmit={(e) => void add(e)} aria-label="Add a task to this project">
