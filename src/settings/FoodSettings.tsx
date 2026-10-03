@@ -127,10 +127,7 @@ export function FoodSettings() {
       <div className="setting-row fs-meals-head">
         <div>
           <div className="row-name" id="fs-meals">Meals</div>
-          <div className="row-meta">
-            Optional. Without meals, food is logged by the time it was eaten, or under Any time. Name your own
-            meals to pick them when adding food, with a time each if you like; a time given on the day always wins.
-          </div>
+          <div className="row-meta">Optional: without them, food is logged by the time it was eaten.</div>
         </div>
       </div>
 

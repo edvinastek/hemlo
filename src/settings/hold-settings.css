@@ -1,7 +1,5 @@
-/* More → Hold times. Sans throughout: every word here is the app asking. */
+/* Settings → Planning → Hold times. Sans throughout: every word here is the app asking. */
 .hs { font-family: var(--font-sans); }
-.hs-why, .hs-note { margin: 0; padding: 0 var(--space-4) var(--space-2); font-size: 13px; color: var(--e-ink-soft); max-width: 60ch; }
-.hs-note { font-size: 12px; }
 .hs-row { display: grid; gap: 4px; padding: var(--space-2) var(--space-4); }
 .hs-label { font-size: 14px; color: var(--e-ink); }
 .hs-label b { font-weight: 600; font-variant-numeric: tabular-nums; }

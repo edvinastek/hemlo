@@ -14,7 +14,7 @@ import type { CalendarSubscription, Profile } from '../lib/types'
 import './colour-settings.css'
 import './calendar-links.css'
 
-/** More → Profile → Calendar links. Two directions, no Google account
+/** Settings → Calendars → Calendar links. Two directions, no Google account
  *  connected: a private link Google Calendar reads (GetIt → Google), and
  *  Google calendars followed by their secret address (Google → GetIt). */
 export function CalendarLinks() {
@@ -83,11 +83,7 @@ function FeedPanel({ profile }: { profile: Profile }) {
       <div className="setting-row cl-top">
         <div>
           <div className="row-name" id="cl-feed-title">Show GetIt in Google Calendar</div>
-          <div className="row-meta">
-            A private link to your tasks and events, from three months back to a year ahead. Meals, training,
-            weigh-ins, other health details and modules you built stay out. Google Calendar reads it every few hours; it cannot change
-            anything here.
-          </div>
+          <div className="row-meta">A private, read-only link to your tasks and events; health details stay out.</div>
           <div className="row-meta cl-state" role="status">
             {!online ? 'Needs a connection.' : status === null && !error ? 'Checking…'
               : on ? `On${status?.since ? ` · link made ${new Date(status.since).toLocaleDateString()}` : ''}` : 'Off'}
@@ -108,7 +104,6 @@ function FeedPanel({ profile }: { profile: Profile }) {
             <li>Beside <b>Other calendars</b> on the left, choose <b>+</b>, then <b>From URL</b>.</li>
             <li>Paste the link and choose <b>Add calendar</b>. It shows on your phone too.</li>
           </ol>
-          <p className="row-meta">Google refreshes it every few hours, sometimes less often, so a change here shows there later.</p>
         </div>
       )}
 
@@ -117,7 +112,7 @@ function FeedPanel({ profile }: { profile: Profile }) {
           <div className="setting-row">
             <div>
               <div className="row-name" id="cl-notes">Include task notes</div>
-              <div className="row-meta">Off unless you turn it on: a link passed on by mistake would show them.</div>
+              <div className="row-meta">Anyone with the link would see them.</div>
             </div>
             <button className="switch" role="switch" aria-checked={notes} aria-labelledby="cl-notes"
               onClick={() => void saveSettings(profile, { calendar: { feed_notes: !notes } })} />
@@ -165,10 +160,7 @@ function FollowPanel({ profile }: { profile: Profile }) {
       <div className="setting-row cl-top">
         <div>
           <div className="row-name" id="cl-follow-title">Calendars you follow</div>
-          <div className="row-meta">
-            Events from Google Calendar (or any calendar with an iCal address), on Today and in Plan. They are
-            read-only here, fetched when GetIt opens and every three hours while it is open, and kept on this device.
-          </div>
+          <div className="row-meta">Google Calendar or any iCal address, read-only, on Today and Plan.</div>
         </div>
         {!adding && <button className="btn" disabled={full} onClick={() => setAdding(true)}>Add</button>}
       </div>

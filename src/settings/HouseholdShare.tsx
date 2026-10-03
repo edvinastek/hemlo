@@ -62,7 +62,7 @@ export function HouseholdShare() {
   const label = (m: Member) => (m.me ? `${m.display_name ?? 'You'} (you)` : m.display_name ?? 'Someone without a name yet')
 
   async function share(i: Invite) {
-    const text = `Join my household in GetIt: in Settings (More), Profile, Household, choose Join a household and type ${i.code}. It works once, for two days.`
+    const text = `Join my household in GetIt: in Settings, Shopping and household, choose Join a household and type ${i.code}. It works once, for two days.`
     try {
       if (navigator.share) { await navigator.share({ text }); return }
       await navigator.clipboard.writeText(i.code)
@@ -76,10 +76,7 @@ export function HouseholdShare() {
       <div className="setting-row ss-block">
         <div>
           <div className="row-name">Shared with</div>
-          <div className="row-meta">
-            Everyone in the household shares the cupboard, the shopping list and its ticks, the prices and the chores.
-            Health, food logs and plans stay with each person.
-          </div>
+          <div className="row-meta">The cupboard, the list, prices and chores. Health and plans stay your own.</div>
           {!online && <p className="ss-note">Who is in the household shows once the phone is online.</p>}
           {online && members && (
             <ul className="ss-members">
@@ -112,7 +109,7 @@ export function HouseholdShare() {
         <form className="setting-row ss-block" onSubmit={(e: FormEvent) => { e.preventDefault(); void run(async () => { await setMyName(householdId, name); setRound((n) => n + 1); setNote({ text: 'Saved.' }) }) }}>
           <div>
             <label className="row-name" htmlFor="ss-my-name">Your name in the household</label>
-            <div className="row-meta">What the others see beside the chores you do and the people in the household.</div>
+            <div className="row-meta">What the others in the household see.</div>
             <div className="ss-inline">
               <input id="ss-my-name" value={name} onChange={(e) => setName(e.target.value)} maxLength={40} placeholder="Your name" />
               <button type="submit" className="btn" disabled={busy}>Save</button>
@@ -125,7 +122,7 @@ export function HouseholdShare() {
         <div className="setting-row ss-block">
           <div>
             <div className="row-name">Invite someone</div>
-            <div className="row-meta">A code for one person, for two days. They type it in More on their own phone.</div>
+            <div className="row-meta">A code for one person, for two days.</div>
             {invite ? (
               <div className="ss-code-box">
                 <p className="ss-code" aria-label={`Invite code ${invite.code.split('').join(' ')}`}>{invite.code}</p>

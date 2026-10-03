@@ -1,9 +1,5 @@
-/* More → Note templates. Rows like the other settings lists; the template
+/* Settings → Planning → Note templates. Rows like the other settings lists; the template
    being edited opens in its row. What the person wrote is serif. */
-.nt-intro {
-  padding: 0 var(--space-4) var(--space-2); margin: 0;
-  font-family: var(--font-sans); font-size: 12px; color: var(--e-ink-soft); max-width: 60ch;
-}
 .nt-search { padding: 0 var(--space-4) var(--space-2); }
 .nt-search input { width: 100%; min-width: 0; padding: 9px 10px; font-size: 15px; }
 .nt-list { list-style: none; margin: 0; padding: 0; }

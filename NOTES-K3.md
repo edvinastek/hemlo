@@ -22,3 +22,7 @@ Branch v17/k3, worktree /home/claude/wt17/k3. Harness: vite on 5303, script in s
   the description moved into the tile's ⋮ sheet (and the tile's title attribute); menu hints cut to what matters; the
   footnote moved into the Hide confirm; the link is always "Settings"; empty "Add a module" section hidden.
 - Step 5: NotesPage Export link → the note page's ⋮ (PageMenu + useExport).
+- Step 6: helper text cut to one short line per row (CALM-11/12) in Looks, CalendarLinks, HouseholdShare (share text
+  now names Settings → Shopping and household), Accounts, SignOut, Body (intro gone), Food (meals line), Hold (two
+  paragraphs gone), Holidays (intro gone, credit in About), NoteTemplates (intro gone), Profiles, Reminders, Review,
+  Data, Delete account (full text shows when opened). Comments say Settings → <page>.

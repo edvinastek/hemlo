@@ -81,7 +81,7 @@ export interface StatsSettings {
   show_disabled: boolean
 }
 
-/** Calendar links (More → Profile → Calendar links). */
+/** Calendar links (Settings → Calendars → Calendar links). */
 export interface CalendarSettings {
   /** Put task notes in the feed link Google Calendar reads. Off by default:
    *  a link passed on by mistake would show them to whoever has it. */

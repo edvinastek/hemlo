@@ -9,7 +9,7 @@ import { search } from '../lib/search-rules'
 import type { Profile } from '../lib/types'
 import './colour-settings.css'
 
-/** More → Profile: colour by module on or off, and each module's colour. A
+/** Settings → Looks: colour by module on or off, and each module's colour. A
  *  colour is chosen from the swatches (all readable on both the light and the
  *  dark page) or typed as a hex value, and Reset goes back to the default. */
 export function ColourSettings() {

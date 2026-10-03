@@ -13,7 +13,7 @@ import type { Profile } from '../lib/types'
 import './colour-settings.css'
 import './holiday-settings.css'
 
-/** More → Profile: the countries whose public holidays show on Today and in
+/** Settings → Calendars: the countries whose public holidays show on Today and in
  *  Plan, up to six, each in its own colour. Worked out on the phone, so they
  *  show offline too. With none chosen, the person's own country is offered
  *  with one tap. */
@@ -37,9 +37,6 @@ function HolidayList({ profile }: { profile: Profile }) {
   return (
     <>
       <p className="section-title">Public holidays</p>
-      <p className="hs-intro">
-        Shown on Today and in Plan, each country in its own colour. Up to {MAX_COUNTRIES} countries; they work offline.
-      </p>
 
       <div className="hs-list">
         {settings.countries.map((code) => {
@@ -73,8 +70,7 @@ function HolidayList({ profile }: { profile: Profile }) {
       ) : (
         <p className="hs-intro">That is six. Remove one to add another.</p>
       )}
-      {/* The data's licence (CC BY-SA 3.0) asks for its source to be named. */}
-      <p className="hs-intro">Holiday dates from the date-holidays project, CC BY-SA 3.0.</p>
+      {/* The data's source and licence (CC BY-SA 3.0) are named in Settings → About. */}
     </>
   )
 }

@@ -5,7 +5,7 @@ import { beginAdd, emailOf, planSwitch, removeAccount, switchTo, useAccounts } f
 import { MAX_ACCOUNTS, type AccountView } from '../lib/accounts-rules'
 import './accounts.css'
 
-/** More → Data → Account: the accounts kept on this device, switching between
+/** Settings → Data and account → Account: the accounts kept on this device, switching between
  *  them, adding one and taking one off. The device holds one account's data at
  *  a time; switching downloads the other account's own. */
 export function Accounts() {
@@ -16,7 +16,6 @@ export function Accounts() {
   const [note, setNote] = useState<string | null>(null)
   const [asking, setAsking] = useState<string | null>(null)
   const [removing, setRemoving] = useState<string | null>(null)
-  const native = isNative()
 
   const others = list.filter((a) => a.userId !== currentId)
   const open = list.find((a) => a.userId === currentId)
@@ -103,11 +102,7 @@ export function Accounts() {
       <div className="setting-row">
         <div>
           <div className="row-name">Add another account</div>
-          <div className="row-meta">
-            Up to {MAX_ACCOUNTS} accounts on this device, one open at a time. {native
-              ? 'Switching asks for the phone’s fingerprint, face or PIN.'
-              : 'Switching asks for that account’s password.'} Signing out takes the open account off the list.
-          </div>
+          <div className="row-meta">Up to {MAX_ACCOUNTS} on this device, one open at a time.</div>
         </div>
         <button className="btn" disabled={busy !== null || !online} onClick={() => void add()}>
           {busy === 'add' ? 'Checking…' : 'Add'}
