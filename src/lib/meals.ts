@@ -151,7 +151,9 @@ async function unlogItem(row: MealPlanSlot) {
 }
 
 /** Eaten or not, one item at a time, with stock following when the person
- *  switched that on (stock.ts decides; a recipe's ingredients only). */
+ *  switched that on (stock.ts decides: a recipe's or ready meal's
+ *  ingredients, or one food's grams). Every food logged goes through here,
+ *  a meal planned or not (the add-food sheet adds eaten items to a day). */
 async function eatOne(row: MealPlanSlot, eaten: boolean, ctx: MealsCtx): Promise<MealPlanSlot> {
   if (!isContent(row)) return row
   // Already so: nothing to write.
@@ -314,15 +316,17 @@ export async function addItems(profileId: string, day: string, target: Target, i
 }
 
 /** Change an item: its amount, portions, numbers, or what it is. An eaten
- *  item's log follows (and its stock, for a recipe's portions). */
+ *  item's log follows, and so does its stock (a recipe's portions, one
+ *  food's grams, or what it is): what it took goes back and the new amount
+ *  is taken (stock.ts decides whether anything is counted at all). */
 export async function updateItem(row: MealPlanSlot, changes: Partial<MealPlanSlot>): Promise<MealPlanSlot> {
   const ctx = await ctxFor(row.profile_id)
   const eaten = row.status === 'eaten'
-  if (eaten && row.recipe_id) await consumeForMeal(row, -1)
+  if (eaten) await consumeForMeal(row, -1)
   const next = { ...row, ...changes }
   const saved = await saveSlot(next)
   if (eaten) {
-    if (row.recipe_id) await consumeForMeal({ ...saved, status: 'planned' }, 1)
+    await consumeForMeal({ ...saved, status: 'planned' }, 1)
     if (isContent(saved)) await logItem(saved, ctx)
     else await unlogItem(row)
   }

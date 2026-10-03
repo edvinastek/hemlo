@@ -86,6 +86,14 @@ export function applyDelta(have: number, delta: number): { next: number; moved: 
   return { next, moved: tidy(next - have) }
 }
 
+/** Whether eating something touches the stock: a recipe (a ready meal is
+ *  a recipe of one line) or one food with an amount. A meal typed as plain
+ *  numbers has no food and changes nothing. For meals and for food logged
+ *  outside a meal alike. */
+export function takesStock(row: { recipe_id?: string | null; food_id?: string | null; grams?: number | string | null }): boolean {
+  return !!row.recipe_id || (!!row.food_id && Number(row.grams) > 0)
+}
+
 /** What one planned meal uses, per food, in raw grams: the weight that was
  *  bought, which is the weight stock is kept in. Lines without a food (a
  *  pinch of salt typed as text) use nothing. */

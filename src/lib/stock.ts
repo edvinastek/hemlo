@@ -2,7 +2,7 @@ import { db, getMeta, setMeta } from './db'
 import { queueChange } from './sync'
 import { edit } from './write'
 import { readSettings } from './settings'
-import { applyDelta, cleanMin, cleanNote, cleanPlace, mealNeeds, putBack, stockStep, takeOut, tidy, MAX_GRAMS } from './stock-rules'
+import { applyDelta, cleanMin, cleanNote, cleanPlace, mealNeeds, putBack, stockStep, takeOut, takesStock, tidy, MAX_GRAMS } from './stock-rules'
 import { readUnits, stockUnitColumns } from './units-rules'
 import type { Food, FoodLogEntry, MealPlanSlot, Stock } from './types'
 
@@ -132,7 +132,7 @@ const takenKey = (slotId: string) => `stock:taken:${slotId}`
  *  most people cook from a rough cupboard and do not want it to count for
  *  them. A meal typed as plain numbers has no food and changes nothing. */
 export async function consumeForMeal(slot: MealPlanSlot, sign: 1 | -1): Promise<void> {
-  if (!slot.recipe_id && !(slot.food_id && Number(slot.grams) > 0)) return
+  if (!takesStock(slot)) return
   if (sign === 1 && slot.status === 'eaten') return
   if (sign === -1 && slot.status !== 'eaten') return
   await consume(slot.profile_id, takenKey(slot.id), () => slotNeeds(slot), sign)
@@ -143,7 +143,7 @@ export async function consumeForMeal(slot: MealPlanSlot, sign: 1 | -1): Promise<
  *  by whoever writes the food log, once per change; a second call with the
  *  same sign does nothing, because what was taken is remembered per entry. */
 export async function consumeForLog(entry: Pick<FoodLogEntry, 'id' | 'profile_id' | 'food_id' | 'recipe_id' | 'grams' | 'portions'>, sign: 1 | -1): Promise<void> {
-  if (!entry.recipe_id && !(entry.food_id && Number(entry.grams) > 0)) return
+  if (!takesStock(entry)) return
   const key = takenKey(`log:${entry.id}`)
   if (sign === 1 && (await getMeta<Record<string, number> | null>(key, null))) return
   await consume(entry.profile_id, key, async () => {

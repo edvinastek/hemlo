@@ -1,7 +1,7 @@
 // Checks the stock rules: reading and showing amounts, the −/+ steps, what a
 // meal takes and gives back, and what a finished trip puts in the cupboard.
 import {
-  toGrams, formatGrams, inUnit, unitFor, stepFor, nudge, applyDelta, mealNeeds, takeOut, putBack,
+  toGrams, formatGrams, inUnit, takesStock, unitFor, stepFor, nudge, applyDelta, mealNeeds, takeOut, putBack,
   boughtGrams, sortStock, filterStock, cleanNote, stockStep, MAX_GRAMS,
   cleanPlace, placesFrom, daysUntil, dateText, expiringSoon, readDate, belowMin, cleanMin, groupKey, sortByPlace, stockCover,
 } from '../lib/stock-rules.ts'
@@ -140,6 +140,13 @@ is('places in the offered order, none last', sortByPlace([
 // Cooking from what is here (STK-06).
 is('how much of a recipe is in stock', stockCover(new Map([['rice', 100], ['egg', 100]]), new Map([['rice', 300], ['egg', 50]])), { share: 0.75, missing: ['egg'] })
 is('nothing needed covers nothing', stockCover(new Map(), new Map()).share, 0)
+
+// What eating touches: a recipe or ready meal, or one food with grams;
+// numbers typed with no food change nothing.
+is('a recipe takes from stock', takesStock({ recipe_id: 'r', food_id: null, grams: null }), true)
+is('one food with grams does', takesStock({ recipe_id: null, food_id: 'f', grams: '120' }), true)
+is('one food with no amount does not', takesStock({ recipe_id: null, food_id: 'f', grams: 0 }), false)
+is('typed numbers do not', takesStock({ recipe_id: null, food_id: null, grams: 300 }), false)
 
 console.log(fail ? `\n${fail} check(s) failed` : '\nall checks passed')
 process.exit(fail ? 1 : 0)
