@@ -35,6 +35,9 @@ export interface TemplateMeal {
   grams: number | null
   unit: string | null
   unit_qty: number | null
+  /** The meal's task on the day ("Dinner: stew"), when it had one, so a
+   *  dropped template brings the meal onto the day's list too. */
+  task_title: string | null
 }
 
 export interface PlanTemplate {
@@ -91,6 +94,7 @@ function readMeal(x: unknown, maxDay: number): TemplateMeal | null {
     day, slot, recipe_id: recipe, food_id: food, portions: num(r.portions, 0.05, 100) ?? 1, time: time(r.time),
     label, kcal, protein_g: num(r.protein_g, 0, 2000), carbs_g: num(r.carbs_g, 0, 2000), fat_g: num(r.fat_g, 0, 2000),
     fiber_g: num(r.fiber_g, 0, 2000), grams: num(r.grams, 0, 100000), unit: text(r.unit, 40), unit_qty: num(r.unit_qty, 0, 10000),
+    task_title: text(r.task_title, 200),
   }
 }
 
@@ -166,6 +170,7 @@ export function templateFrom(
       time: m.slot_time ? m.slot_time.slice(0, 5) : null, label: m.label ?? null, kcal: m.kcal ?? null, protein_g: m.protein_g ?? null,
       carbs_g: m.carbs_g ?? null, fat_g: m.fat_g ?? null, fiber_g: m.fiber_g ?? null, grams: m.grams ?? null,
       unit: m.unit ?? null, unit_qty: m.unit_qty ?? null,
+      task_title: tasks.find((t) => t.source === 'meal' && t.source_ref === m.id && !t.deleted_at)?.title ?? null,
     }))
     .slice(0, MAX_TEMPLATE_MEALS)
   const clean = name.trim().slice(0, 60) || (kind === 'week' ? 'Week' : 'Day')
@@ -179,7 +184,7 @@ export const dropStart = (t: Pick<PlanTemplate, 'kind'>, day: string) =>
 
 /** The rows a template makes when dropped: tasks and meals with their days.
  *  The caller gives them ids and an owner. */
-export function dropTemplate(t: PlanTemplate, day: string): { tasks: Partial<Task>[]; meals: Partial<MealPlanSlot>[] } {
+export function dropTemplate(t: PlanTemplate, day: string): { tasks: Partial<Task>[]; meals: (Partial<MealPlanSlot> & { task_title: string | null })[] } {
   const start = dropStart(t, day)
   return {
     tasks: t.tasks.map((x, i) => ({
@@ -191,7 +196,7 @@ export function dropTemplate(t: PlanTemplate, day: string): { tasks: Partial<Tas
       status: 'planned' as const, slot_time: m.time, label: m.label, kcal: m.kcal, protein_g: m.protein_g, carbs_g: m.carbs_g,
       fat_g: m.fat_g, fiber_g: m.fiber_g, grams: m.grams,
       ...(m.unit ? { unit: m.unit, unit_qty: m.unit_qty } : {}),
-      sort_order: 0, deleted_at: null,
+      sort_order: 0, deleted_at: null, task_title: m.task_title,
     })),
   }
 }

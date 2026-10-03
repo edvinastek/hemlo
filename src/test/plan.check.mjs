@@ -77,7 +77,7 @@ const task = (over) => ({
 const tasks = [
   task({ id: 'a', title: 'Laundry', planned_time: '10:00:00', duration_min: 45, category: 'Home', notes: '- [x] Whites\n- [ ] Darks' }),
   task({ id: 'b', title: 'Standup', series_id: 's' }),
-  task({ id: 'c', title: 'Dinner: stew', source: 'meal' }),
+  task({ id: 'c', title: 'Dinner: stew', source: 'meal', source_ref: 'm', planned_time: '18:30' }),
   task({ id: 'd', title: 'Plan the week', planned_date: '2026-10-11', planned_time: '19:00' }),
   task({ id: 'e', title: 'Gone', deleted_at: 'x' }),
 ]
@@ -90,7 +90,7 @@ const day = templateFrom('Sunday reset', 'day', '2026-10-05', tasks, meals, { re
 eq('a day template keeps the day\'s own tasks', day.tasks.map((t) => t.title), ['Laundry'])
 eq('ticks cleared, time and length kept', [day.tasks[0].notes, day.tasks[0].time, day.tasks[0].minutes, day.tasks[0].section],
   ['- [ ] Whites\n- [ ] Darks', '10:00', 45, 'Home'])
-eq('meals with food come along', day.meals.map((m) => [m.slot, m.portions, m.time]), [['dinner', 2, '18:30']])
+eq('meals with food come along, with their task\'s title', day.meals.map((m) => [m.slot, m.portions, m.time, m.task_title]), [['dinner', 2, '18:30', 'Dinner: stew']])
 eq('its id comes from its name', day.id, 'sunday-reset')
 eq('repeats when asked', templateFrom('R', 'day', '2026-10-05', tasks, meals, { repeats: true, meals: false }, []).tasks.map((t) => t.title), ['Laundry', 'Standup'])
 const week = templateFrom('Week', 'week', '2026-10-05', tasks, [], { repeats: false, meals: false }, [])
