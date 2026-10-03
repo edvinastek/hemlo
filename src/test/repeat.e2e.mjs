@@ -64,12 +64,12 @@ async function findDay(scroller, day) {
   return button
 }
 
-// 1. Pick dates: today starts picked; two more are tapped, one far ahead.
+// 1. Days picked by hand: today starts picked; two more are tapped, one far ahead.
 await p.click('.fab')
 await p.fill('.bottom-sheet input[placeholder="Mobility"]', 'Repeat picked days')
 await p.fill('.bottom-sheet input[type=time]', '08:00')
 await p.click('.bottom-sheet button[aria-label="Repeat"]')
-await p.click('.bottom-sheet [role=option]:has-text("Pick dates")')
+await p.click('.bottom-sheet [role=option]:has-text("Days picked by hand")')
 is('the calendar opens in the sheet', await p.locator('.bottom-sheet .ts-dates .ms').count(), 1)
 is('the task day starts picked', (await p.locator('.ts-dates-head span').textContent()).trim(), '1 day picked')
 is('it is a pressed button', await p.locator(`.ts-dates [data-day="${DAY}"]`).getAttribute('aria-pressed'), 'true')

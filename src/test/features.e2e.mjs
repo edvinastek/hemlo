@@ -66,7 +66,8 @@ is('editing renames it', await p.locator('.row', { hasText: 'Mobility and stretc
 
 await p.locator('.row', { hasText: 'Mobility and stretch' }).locator('.row-name button').click()
 await p.click('.bottom-sheet button:has-text("Delete")')
-await p.click('.bottom-sheet button:has-text("Delete for good")')
+// Delete asks once more on the same spot, then offers Undo.
+await p.click('.bottom-sheet .sheet-actions button:has-text("Delete")')
 await p.waitForTimeout(800)
 is('deleting removes it', await p.locator('.row', { hasText: 'Mobility' }).count(), 0)
 

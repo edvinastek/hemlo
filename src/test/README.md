@@ -9,7 +9,9 @@ Types, then every check that needs nothing but Node. CI runs the same command.
 - `notify` — quiet hours across midnight, reminder wording.
 - `body` — weigh-in parsing, the 7-day trend, when targets are recalculated.
 - `series` — repeat rules (every N days and days picked by hand included), laying out days, "only this one" and
-  "this and following", and the planned repeats shown past the eight weeks the fill turns into tasks.
+  "this and following", and the planned repeats shown past the eight weeks the fill turns into tasks. A series
+  from the one repeat control (every kind a task takes, after N times, picked days' own bounds), whether its rule
+  changed, and a rule changed for all days or from one day on (which days keep their task).
 - `tracking` — habit schedules and streaks, supplement slots.
 - `review` — which tasks the evening review offers, and what each action does.
 - `import` — reading the Excel workbook, ingredient lines, matching foods.
@@ -111,6 +113,22 @@ Types, then every check that needs nothing but Node. CI runs the same command.
 - `afterdone` — "ask after done" templates: the marker line in a note, what Fill in, Skip and Later leave behind.
 - `repeat` — the one repeat control's choices: the rule each stands for from a first day (the 2nd or last Wednesday,
   the 14th, 14 October), numbers kept and capped, picked days, and every choice reading back as itself.
+- `copy` — Copy to… (copy-rules.ts): the remembered choices read back sanely; the shortcuts (Tomorrow or the day
+  after, every weekday left this week, the same day next week, the next week or four); days picked, cleaned and
+  toggled (never a day or week onto itself, weeks as Mondays, at most a year); what a copy holds (same notes,
+  ticks cleared, none, a note template filled in or left as its ask-after-done marker; same, new or no time;
+  section, length and lock kept or not; always a fresh one-off); what a day or week copy brings (not meal or
+  shopping tasks, repeats only when asked and never onto a day their series fills, meals with food, after what
+  the day holds); the words after a copy.
+- `plan` — Plan's views (plan-view-rules.ts): the view and day in the address; the week of 1 to 14 days (whole
+  weeks from Monday, other lengths from the day), its arrows and words; the waking day, minutes planned, heat
+  and busy-ness in words; the Inbox's hand-sorted order; task sections only from modules that are on, plus the
+  person's own; the Plan choices kept in the core module's settings. Day and week templates
+  (plan-templates-rules.ts): made from a day or week (ticks cleared, meals with their task's title, repeats only
+  when asked), stored and read back strictly, dropped onto a day or that day's week.
+- `tasksheet` — the task sheet's pure parts (task-sheet-rules.ts): Duplicate keeps what was set and starts fresh;
+  Save as template keeps title, length, section, lock, note and repeat; a new task from a template, its note
+  template filled for the day.
 
 ## Browser checks
 
@@ -123,7 +141,7 @@ export SB=<Supabase access token>  TEST_PASSWORD=<random>
 export TEST_EMAIL=e2e-a@example.invalid TEST_NEW_EMAIL=e2e-b@example.invalid TEST_FEAT_EMAIL=e2e-c@example.invalid
 export TEST_ONBOARD_EMAIL=e2e-d@example.invalid TEST_MODULES_EMAIL=e2e-e@example.invalid
 node scripts/test-accounts.mjs create $TEST_EMAIL $TEST_NEW_EMAIL $TEST_FEAT_EMAIL $TEST_ONBOARD_EMAIL $TEST_MODULES_EMAIL
-for t in onboarding features offline privacy tracking widget tasksheet repeat reorder food stock daytabs modules views nav holidays stats transfer books sharing accounts calendarlinks products units landscape layout tour; do node src/test/$t.e2e.mjs || break; done
+for t in onboarding features offline privacy tracking widget tasksheet repeat plan reorder food stock daytabs modules views nav holidays stats transfer books sharing accounts calendarlinks products units landscape layout tour; do node src/test/$t.e2e.mjs || break; done
 node scripts/test-accounts.mjs delete $TEST_EMAIL $TEST_NEW_EMAIL $TEST_FEAT_EMAIL $TEST_ONBOARD_EMAIL $TEST_MODULES_EMAIL
 ```
 
@@ -147,6 +165,9 @@ to the test accounts, because they run against the live project.
   weeks the series fills), what Postgres holds, "every few days", Plan's Year as scrolling months with the
   far day marked as a planned repeat and opening its week, and the header's calendar reaching three years
   back and five ahead.
+- `plan` — at 360 px: the Inbox from its address, a task captured with no day, "Plan for…" Tomorrow and Undo
+  sending it back; a task on the Week view opened, copied to the next day with ticks cleared (Postgres holds
+  two independent tasks), Back closing the sheet, and a three-day week.
 - `reorder` — at 360 px: hold and drag on Today (timed tasks swap times, untimed ones slide into place), the sheet
   that asks before a clash, Move up and Move down in the ⋮ menu, taps still tick and open, a held drag never
   swipes the page; on Plan's week, two days swapped (a locked task stays) and one task dragged onto a day.
