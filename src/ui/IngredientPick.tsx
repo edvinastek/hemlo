@@ -4,6 +4,7 @@ import { foodSearchText } from '../lib/eu-label-rules'
 import { readUnits } from '../lib/units-rules'
 import type { Food } from '../lib/types'
 import './pickers.css'
+import { ScanIcon } from './BarcodeScan'
 import './recipes.css'
 
 /** How many matches show before "Show all" (GEN-10: pickers show the best
@@ -55,6 +56,7 @@ export function IngredientPick({ foods, userId, onPick, onNewFood, onText, onSca
         <input type="search" role="combobox" aria-expanded={!!typed} aria-controls={listId} aria-autocomplete="list"
           aria-label="Add an ingredient" placeholder="Add an ingredient: type to find it" autoComplete="off"
           value={query} onChange={(e) => { setQuery(e.target.value); setActive(0); setAll(false) }} onKeyDown={onKey} />
+        <button type="button" className="ip-scan" aria-label="Scan a barcode" title="Scan a barcode" onClick={onScan}><ScanIcon /></button>
       </div>
       {typed && (
         <ul id={listId} className="ip-list" role="listbox" aria-label="Foods found">
@@ -81,13 +83,15 @@ export function IngredientPick({ foods, userId, onPick, onNewFood, onText, onSca
           )}
         </ul>
       )}
-      {/* Always at the end, so a food that is not there is one tap away. */}
-      <div className="ip-actions">
-        {typed && <button type="button" className="btn" onClick={() => { onNewFood(typed); setQuery('') }}>Add “{typed}” as a new food</button>}
-        {typed && <button type="button" className="btn" onClick={() => { onText(typed); setQuery('') }}>Keep “{typed}” as text</button>}
-        <button type="button" className="btn" onClick={onScan}>Scan barcode</button>
-        <button type="button" className="btn" onClick={onFind}>Find in stores</button>
-      </div>
+      {/* At the end of what is found, so a food that is not there is one tap
+          away; the scanner is in the field (v17). */}
+      {typed && (
+        <div className="ip-actions">
+          <button type="button" className="btn" onClick={() => { onNewFood(typed); setQuery('') }}>Add “{typed}” as a new food</button>
+          <button type="button" className="btn" onClick={() => { onText(typed); setQuery('') }}>Keep “{typed}” as text</button>
+          <button type="button" className="btn" onClick={onFind}>Find in stores</button>
+        </div>
+      )}
     </div>
   )
 }
