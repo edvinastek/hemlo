@@ -17,3 +17,14 @@ Running log (newest last).
   Stock: one "Add to stock" field with scan in it; amount/unit/place/date/note after a food is picked; filter from 16
   items; grouping, "take from stock when meals are eaten" and Export → ⋮. Stores: 4 chains + More shops, no paragraphs,
   offers link per shop (official pages), Your aisles folded and only with a shop.
+- Step 3: Settings → Shopping and HouseholdShare: one short helper line per row; "Take from stock when meals are
+  eaten" switch added to Settings → Shopping (it is also in the Stock ⋮). e2e selectors updated: stock.e2e (Add to
+  stock label, summary details, recently bought after focus, the switch via ⋮), units.e2e (label), features.e2e
+  (the list's rows and summary instead of the long-gone table).
+- Step 4: quick price Undo restores the price it replaced (notePriceUndoable in shopping.ts); recently bought tiles
+  stay once shown (hiding on blur moved the page under a tap).
+- After counts (360 px, page controls above the fold, nav apart, list rows and aisle headers apart):
+  List 10 → 8, Stock 14 → 6 (7 with the filter, 16+ items), Stores no shops 20 → 9, Stores with shops 18 → 11,
+  Settings → Shopping 12 → 13 (one more row: the stock switch; no paragraph over one line).
+- PRICE-05 (sharing a price with Open Prices) not built: see the report for what it needs.
+- Verified: npx tsc -b, npm run check (with price), npx vite build. Harness deleted; shots in shots17/k5.
