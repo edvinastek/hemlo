@@ -7,3 +7,5 @@ Running log, newest last. Harness: scratchpad/harness-k1 (port 5301), shots in s
 - Plan: PageHead got `menu` and `title` props. Page ⋮ per view; Day pager gone; Week: ‹ range › only, Days shown sheet, Select in ⋮; Key toggle for legends (and ↻ note); Month heading = month with ‹ › on the title line; no + on Year (add in ⋮) and Inbox; Inbox search from 8, hold-and-let-go selects; followed calendar chips → ⋮.
 - Task sheet staged with MoreOptions; ⋮ in header; Copy replaces the sheet while open (no sheet on sheet). Copy sheet: Options summary. NoteEditor: tools on focus, Insert ▾ in label line, start-from-template pill → Insert menu.
 - e2e updated: plan, reorder, tasksheet.
+- Verified in the harness (since deleted): Push… sheet + Undo, push buttons toggle, layout toggle, Show filter, carry-over ⋮, Inbox count in ⋮, Tomorrow peek, open-row More…, Week Days shown / Select / Key, Month ‹ › and Key, Day ⋮, Inbox hold-to-select and ⋮ Select, task sheet ⋮ Copy (one sheet at a time) and Save as template, landscape and wide (nothing off the side, no page errors). Light and dark shots in shots17/k1.
+- Final: tsc -b, npm run check, vite build all pass.
