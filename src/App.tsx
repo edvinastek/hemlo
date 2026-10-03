@@ -25,6 +25,7 @@ import { useSwipe } from './ui/useSwipe'
 import { useAccounts, watchAccounts } from './lib/accounts'
 import { Switching } from './screens/Switching'
 import { watchCalendarFollows } from './lib/calendar-links'
+import { watchLooks } from './lib/looks'
 
 export default function App() {
   const { session, profile, recovering, setSession, setProfile, setProfiles } = useApp()
@@ -48,6 +49,8 @@ export default function App() {
   // while the app is open.
   // The accounts kept on this device follow the open one (see accounts.ts).
   useEffect(() => { listenForAuthLinks(); watchLifecycle(); watchAccounts() }, [])
+  // The chosen theme, mode and text size, following the open profile.
+  useEffect(() => watchLooks(), [])
   const switching = useAccounts((s) => s.switching)
   const adding = useAccounts((s) => s.adding)
 

@@ -17,6 +17,8 @@ interface GetItWidget {
   update(options: { snapshot: string }): Promise<void>
   takeTicks(): Promise<{ ticks: WidgetTick[] }>
   clear(): Promise<void>
+  /** The app's theme for every widget (WidgetLooks as JSON). */
+  setLooks(options: { looks: string }): Promise<void>
   addListener(event: 'tick', listener: () => void): Promise<PluginListenerHandle>
 }
 
@@ -125,3 +127,9 @@ onResetLocal(async () => {
   // An update already on its way to the phone lands first, then this clears it.
   await Widget.clear()
 })
+
+/** The theme's colours for the widgets (LOOK-09): they redraw at once. */
+export async function sendWidgetLooks(json: string) {
+  if (!available()) return
+  try { await Widget.setLooks({ looks: json }) } catch { /* an older app build without it */ }
+}

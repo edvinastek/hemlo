@@ -77,3 +77,43 @@ export function latestTicks(ticks: WidgetTick[]): WidgetTick[] {
   for (const t of [...ticks].sort((a, b) => a.at.localeCompare(b.at))) last.set(`${t.kind}:${t.id}:${t.day}`, t)
   return [...last.values()]
 }
+
+/* ---------- the widgets' colours (LOOK-09, WID-13) ------------------------- */
+
+/** The colours a home-screen widget draws with, as '#rrggbb'. */
+export interface WidgetPalette {
+  paper: string; ink: string; soft: string; rule: string; rail: string
+  accent: string; done: string; warn: string; tint: string
+}
+
+/** The app's theme for the widgets: both shades, so a widget on "follow the
+ *  phone" can switch with the home screen without the app running. */
+export interface WidgetLooks {
+  v: 1
+  mode: 'system' | 'light' | 'dark' | 'black'
+  light: WidgetPalette
+  /** The dark shade, or the black one when the person chose black. */
+  dark: WidgetPalette
+}
+
+const HEX6 = /^#[0-9a-f]{6}$/i
+/** A theme's tokens as a widget palette; anything not a plain colour falls
+ *  back to the default theme's, so the widget never draws with garbage. */
+export function widgetPalette(t: Partial<Record<keyof WidgetPalette, string>>, fallback: WidgetPalette): WidgetPalette {
+  const out = { ...fallback }
+  for (const k of Object.keys(fallback) as (keyof WidgetPalette)[]) {
+    const v = t[k]
+    if (typeof v === 'string' && HEX6.test(v)) out[k] = v.toLowerCase()
+  }
+  return out
+}
+
+/** The default theme's colours, the ones the widget had before themes. */
+export const WIDGET_LIGHT: WidgetPalette = {
+  paper: '#f8f4ed', ink: '#201e1b', soft: '#6c665b', rule: '#e4ddcd', rail: '#cfc6b3',
+  accent: '#b4442a', done: '#3f6b4a', warn: '#975809', tint: '#efe9dd',
+}
+export const WIDGET_DARK: WidgetPalette = {
+  paper: '#15141b', ink: '#f0eae0', soft: '#9b9489', rule: '#2b2a2f', rail: '#3a3842',
+  accent: '#d9674a', done: '#7fb389', warn: '#e0a049', tint: '#221f27',
+}
