@@ -62,18 +62,20 @@
 .lk-error { margin: 0; font-family: var(--font-sans); font-size: 12px; color: var(--e-warn); }
 .lk-note { margin: 0; font-family: var(--font-sans); font-size: 13px; color: var(--e-ink); background: var(--e-tint); border-radius: var(--radius-md); padding: 8px 10px; }
 
-/* Segmented choices: wrap onto two lines rather than run off a small screen. */
-.lk-seg { display: flex; flex-wrap: wrap; border: 1px solid var(--e-rule); border-radius: var(--radius-md); overflow: hidden; }
+/* Segmented choices: four equal parts; a long label wraps inside its part
+   rather than pushing one choice onto a line of its own. */
+.lk-seg { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); border: 1px solid var(--e-rule); border-radius: var(--radius-md); overflow: hidden; }
 .lk-seg button {
-  flex: 1 1 auto; min-height: 44px; padding: 8px 12px;
-  font-family: var(--font-sans); font-size: 14px; color: var(--e-ink);
-  border-right: 1px solid var(--e-rule); background: transparent;
+  min-width: 0; min-height: 48px; padding: 6px 4px;
+  font-family: var(--font-sans); font-size: 14px; line-height: 1.2; color: var(--e-ink);
+  border-right: 1px solid var(--e-rule); background: transparent; overflow-wrap: anywhere;
 }
 .lk-seg button:last-child { border-right: 0; }
 .lk-seg button[aria-checked="true"] { background: var(--e-accent); color: var(--e-paper); font-weight: 600; }
 
 /* Icons: as the launcher draws them. */
-.lk-icons { display: grid; grid-template-columns: repeat(auto-fill, minmax(64px, 1fr)); gap: var(--space-2); }
+.lk-icons { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--space-2); max-width: 420px; }
+@media (min-width: 640px) { .lk-icons { grid-template-columns: repeat(9, minmax(0, 1fr)); max-width: none; } }
 .lk-icon {
   display: flex; flex-direction: column; align-items: center; gap: 4px; min-width: 0;
   padding: 6px 2px; border: 2px solid transparent; border-radius: var(--radius-md); background: transparent;
