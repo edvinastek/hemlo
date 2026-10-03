@@ -8,7 +8,6 @@ import { saveSettings } from '../lib/write'
 import { syncTrip, today } from '../lib/shopping'
 import { describeDays, listWindow, windowText } from '../lib/shopping-rules'
 import { WEEK_ORDER } from '../lib/schedule-rules'
-import { HouseholdShare } from './HouseholdShare'
 import './shopping-settings.css'
 
 const SHORT = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
@@ -137,7 +136,6 @@ export function ShoppingSettings() {
         <button type="button" className="btn" onClick={async () => { await setMeta('shop:tab', 'Stores'); navigate('/shop') }}>Open Stores</button>
       </div>
 
-      <HouseholdShare />
     </>
   )
 }

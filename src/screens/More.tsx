@@ -19,6 +19,7 @@ import { TodayCardsSettings } from '../settings/TodayCardsSettings'
 import { FoodSettings } from '../settings/FoodSettings'
 import { BodySettings } from '../settings/BodySettings'
 import { ShoppingSettings } from '../settings/ShoppingSettings'
+import { HouseholdShare } from '../settings/HouseholdShare'
 import { NavSettings } from '../settings/NavSettings'
 import { ColourSettings } from '../settings/ColourSettings'
 import { LooksSettings } from '../settings/Looks'
@@ -29,7 +30,7 @@ import { RecipeReview } from '../settings/RecipeReview'
 import { Accounts } from '../settings/Accounts'
 import { Profiles } from '../settings/Profiles'
 import { SignOut } from '../settings/SignOut'
-import { findSettings, SETTINGS_SECTIONS, type SettingEntry } from '../lib/settings-index-rules'
+import { findSettings, SETTINGS_INDEX, SETTINGS_SECTIONS, type SettingEntry } from '../lib/settings-index-rules'
 import { conflictLine } from '../lib/sync-rules'
 import { search } from '../lib/search-rules'
 import { Tip } from '../ui/Tip'
@@ -62,6 +63,13 @@ export function More() {
   const [query, setQuery] = useState('')
   const [jump, setJump] = useState<SettingEntry | null>(null)
   const found = findSettings(query)
+  // ?find=<title> opens that setting's tab and scrolls to it (the Chores
+  // page's "Invite someone" opens Household).
+  const findAsked = params.get('find')
+  useEffect(() => {
+    const e = SETTINGS_INDEX.find((x) => x.title === findAsked)
+    if (e) { setSection(e.section); setEditing(null); setJump(e) }
+  }, [findAsked])
 
   // After a search result opens its tab, scroll to its heading or row.
   useEffect(() => {
@@ -223,6 +231,7 @@ function ProfilePanel() {
       <BodySettings />
       <FoodSettings />
       <ShoppingSettings />
+      <HouseholdShare />
     </>
   )
 }

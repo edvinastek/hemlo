@@ -1,5 +1,7 @@
 import { useEffect, useState, type FormEvent } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { useApp } from '../lib/store'
+import { useModulesOn } from '../lib/day'
 import {
   cancelInvites, createInvite, householdMembers, joinHousehold, leaveHousehold, ownsHousehold, removeMember, setMyName,
   type Invite, type Member,
@@ -10,10 +12,15 @@ import './shopping-settings.css'
 /** Sharing the cupboard, the shopping list and the chores with the people
  *  you live with (STK-05, HSE-12): the owner makes a code, the other person
  *  types it in. Who is in a household is the server's to say, so this part
- *  needs a connection; everything shared works offline once joined. */
+ *  needs a connection; everything shared works offline once joined. Shown
+ *  while Shopping or Household is on: those are what a household shares.
+ *  "Your name in the household" is the Chores page's field while Household
+ *  is on (one place to change it), and here otherwise. */
 export function HouseholdShare() {
   const profile = useApp((s) => s.profile)
   const online = useApp((s) => s.online)
+  const on = useModulesOn()
+  const navigate = useNavigate()
   const householdId = profile?.household_id ?? null
   const [members, setMembers] = useState<Member[] | null>(null)
   const [owner, setOwner] = useState(false)
@@ -39,7 +46,9 @@ export function HouseholdShare() {
     return () => { live = false }
   }, [householdId, online, round])
 
-  if (!profile || !householdId) return null
+  if (!profile || !householdId || !on || !(on.has('shopping') || on.has('household'))) return null
+  const choresOn = on.has('household')
+  const myName = (members ?? []).find((m) => m.me)?.display_name ?? null
 
   async function run(fn: () => Promise<void>) {
     setBusy(true)
@@ -53,7 +62,7 @@ export function HouseholdShare() {
   const label = (m: Member) => (m.me ? `${m.display_name ?? 'You'} (you)` : m.display_name ?? 'Someone without a name yet')
 
   async function share(i: Invite) {
-    const text = `Join my household in GetIt: More → Shopping → Join a household, and type ${i.code}. It works once, for two days.`
+    const text = `Join my household in GetIt: in Settings (More), Profile, Household, choose Join a household and type ${i.code}. It works once, for two days.`
     try {
       if (navigator.share) { await navigator.share({ text }); return }
       await navigator.clipboard.writeText(i.code)
@@ -89,7 +98,17 @@ export function HouseholdShare() {
         </div>
       </div>
 
-      {online && members && (
+      {online && members && choresOn && (
+        <div className="setting-row ss-block">
+          <div>
+            <div className="row-name">Your name in the household</div>
+            <div className="row-meta">{myName ? `“${myName}”. ` : 'Not given yet. '}It is changed on the Chores page, beside the chores you do.</div>
+          </div>
+          <button type="button" className="btn" onClick={() => navigate('/m/household?fold=names')}>Change it</button>
+        </div>
+      )}
+
+      {online && members && !choresOn && (
         <form className="setting-row ss-block" onSubmit={(e: FormEvent) => { e.preventDefault(); void run(async () => { await setMyName(householdId, name); setRound((n) => n + 1); setNote({ text: 'Saved.' }) }) }}>
           <div>
             <label className="row-name" htmlFor="ss-my-name">Your name in the household</label>

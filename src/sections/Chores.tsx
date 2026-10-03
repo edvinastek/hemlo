@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { useLocation } from 'react-router-dom'
+import { useLocation, useNavigate } from 'react-router-dom'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { format } from 'date-fns'
 import { useApp } from '../lib/store'
@@ -66,7 +66,10 @@ export function Chores({ profileId, day }: { profileId: string; day: string }) {
   const [view, setView] = useState<'when' | 'room'>('when')
   const [open, setOpen] = useState<string | null>(null)
   const [sheet, setSheet] = useState<Chore | 'new' | null>(null)
-  const [fold, setFold] = useState<null | 'names' | 'holiday' | 'packs'>(null)
+  // ?fold=names opens the names (Settings → Household links here, so a
+  // person's name is changed in one place).
+  const asked = new URLSearchParams(useLocation().search).get('fold')
+  const [fold, setFold] = useState<null | 'names' | 'holiday' | 'packs'>(asked === 'names' ? 'names' : null)
 
   if (!data || !householdId) return null
   const { chores, logs, old, prefs, members } = data
@@ -400,6 +403,7 @@ function HolidayFold({ profileId, chores, prefs, today }: { profileId: string; c
 /** Names in the household (HSE-07): each member names themselves; the
  *  name shows on the chores they are given and the ones they did. */
 function Names({ householdId, userId, members, online, profileName }: { householdId: string; userId: string | null; members: Member[]; online: boolean; profileName: string }) {
+  const navigate = useNavigate()
   const mine = members.find((m) => m.user_id === userId)?.display_name ?? ''
   const [name, setName] = useState(mine)
   const [msg, setMsg] = useState<string | null>(null)
@@ -423,9 +427,16 @@ function Names({ householdId, userId, members, online, profileName }: { househol
       ) : (
         <ul className="chore-hist">{members.map((m) => <li key={m.user_id}>{memberName(members, m.user_id, userId)}{m.user_id === userId ? ' (you)' : ''}{m.role === 'owner' ? ' · owner' : ''}</li>)}</ul>
       )}
-      {members.length <= 1 && (
-        <p className="tp-empty">Inviting someone into the household from the app is not here yet; until it is, chores are yours alone.</p>
-      )}
+      <p className="tp-empty">
+        {members.length <= 1
+          ? 'Only you so far. Invite the people you live with and the chores, the cupboard and the shopping list are shared with them.'
+          : 'Invite someone else, or leave the household, under Settings, Household.'}
+      </p>
+      <div className="track-actions">
+        <button type="button" className="btn" onClick={() => navigate('/more?section=Profile&find=Household')}>
+          {members.length <= 1 ? 'Invite someone' : 'Household settings'}
+        </button>
+      </div>
     </div>
   )
 }

@@ -27,6 +27,7 @@ export const SETTINGS_INDEX: SettingEntry[] = [
   { title: 'Calendar links', section: 'Profile', words: 'google calendar feed ical ics subscribe follow' },
   { title: 'Body and goal', section: 'Profile', words: 'height date of birth activity goal weight cut bulk recomp' },
   { title: 'What to count', section: 'Profile', words: 'food nutrients calories protein carbs fat fibre' },
+  { title: 'Household', section: 'Profile', words: 'household share invite join leave members family partner flatmate code chores cupboard list name' },
   { title: 'Colours', section: 'Looks', words: 'colour color module colours theme' },
   { title: 'Make GetIt yours', section: 'Looks', words: 'theme dark light mode icon text size looks' },
   { title: 'Who reminds you', section: 'Reminders', words: 'name persona reminder notifications' },
