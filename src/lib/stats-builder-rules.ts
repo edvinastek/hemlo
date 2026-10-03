@@ -588,3 +588,118 @@ export function changeCard<T extends CardLike>(cards: T[], at: number, change: P
 
 /** A measure as a card key: card keys allow letters, digits, _, : and -. */
 export const CARD_KEY = /^[a-z0-9_:-]{1,60}$/i
+
+/* ---------- what a module's Today card says (TOD-20, TOD-21) ------------------ */
+
+export interface CardInput {
+  moduleKey: string
+  /** A single measure ('nutrition:protein_g') instead of the module's summary. */
+  measureKey?: string | null
+  /** The module's name. */
+  name: string
+  day: string
+  today: string
+  /** Facts of the seven days up to and including the day. */
+  facts: Fact[]
+  catalogue: Measure[]
+  /** The day's items as Today lists them (due habits, chores, supplement slots). */
+  items: { kind: string; module_key: string | null; done: boolean; title: string; time: string | null; parts?: { done: boolean }[] }[]
+  /** Things still to get on the shopping list. */
+  listCount?: number
+  /** The latest weigh-in on or before the day. */
+  weight?: { day: string; value: number } | null
+  /** The nutrient the card shows when none is chosen. */
+  nutrient?: string
+}
+
+export interface CardText {
+  label: string
+  /** The one glanceable figure: "82 / 140 g", "3 due", "7.2 h". */
+  headline: string
+  sub: string | null
+  /** 0 to 1 when there is a target or a list to get through. */
+  progress: number | null
+}
+
+const fmt = (v: number, decimals = 0) => v.toLocaleString('en-GB', { maximumFractionDigits: decimals })
+const daysAgo = (from: string, to: string) => Math.round((toDayNumber(to) - toDayNumber(from)))
+
+/** The words on a module's card for a day: one figure, and one quieter line. */
+export function cardText(c: CardInput): CardText {
+  const today = (key: string) => c.facts.filter((f) => f.measure === key && f.day === c.day).reduce((a, f) => a + f.value, 0)
+  const has = (key: string) => c.facts.some((f) => f.measure === key && f.day === c.day)
+  const week = (key: string) => c.facts.filter((f) => f.measure === key).reduce((a, f) => a + f.value, 0)
+  const ofModule = c.items.filter((i) => i.module_key === c.moduleKey)
+  if (c.measureKey) {
+    const m = c.catalogue.find((x) => x.key === c.measureKey)
+    if (!m) return { label: c.name, headline: '–', sub: 'No longer kept', progress: null }
+    const v = cellValue(m, { measure: m.key, summary: m.ratio || m.combine !== 'sum' ? (m.summary === 'sum' ? 'avg' : m.summary) : 'sum' }, c.facts, [c.day], c.today)
+    const target = m.targets?.[c.day] ?? null
+    const unit = m.unit === '%' ? '%' : m.unit && m.unit !== 'time' ? ` ${m.unit}` : ''
+    if (v == null) return { label: m.label, headline: 'Nothing yet', sub: target != null ? `Target ${fmt(target)}${unit}` : null, progress: target ? 0 : null }
+    return {
+      label: m.label,
+      headline: target != null ? `${fmt(v, m.decimals)} / ${fmt(target)}${unit}` : `${fmt(v, m.decimals)}${unit}`,
+      sub: target != null ? (v >= target ? 'Target reached' : `${fmt(target - v)}${unit} to go`) : null,
+      progress: target ? Math.min(1, v / target) : null,
+    }
+  }
+  switch (c.moduleKey) {
+    case 'tasks': {
+      const planned = today('tasks:planned'); const done = today('tasks:done')
+      return { label: 'Tasks', headline: planned ? `${done} of ${planned} done` : 'Nothing planned', sub: planned && done === planned ? 'All done' : null, progress: planned ? done / planned : null }
+    }
+    case 'habits': case 'household': {
+      const kind = c.moduleKey === 'habits' ? 'habit' : 'chore'
+      const list = c.items.filter((i) => i.kind === kind)
+      const done = list.filter((i) => i.done).length
+      if (kind === 'chore') {
+        const due = list.length - done
+        return { label: 'Chores', headline: due ? `${due} ${due === 1 ? 'chore' : 'chores'} due` : list.length ? 'All done' : 'None due', sub: done ? `${done} done today` : null, progress: list.length ? done / list.length : null }
+      }
+      return { label: 'Habits', headline: list.length ? `${done} of ${list.length} done` : 'None due today', sub: null, progress: list.length ? done / list.length : null }
+    }
+    case 'supplements': {
+      const parts = c.items.filter((i) => i.kind === 'supplements').flatMap((i) => i.parts ?? [])
+      const done = parts.filter((p) => p.done).length
+      return { label: 'Supplements', headline: parts.length ? `${done} of ${parts.length} taken` : 'None today', sub: null, progress: parts.length ? done / parts.length : null }
+    }
+    case 'nutrition': {
+      const n = c.nutrient && NUTRIENT_NAMES[c.nutrient] ? c.nutrient : 'kcal'
+      return cardText({ ...c, measureKey: `nutrition:${n}` })
+    }
+    case 'sleep': {
+      if (!has('sleep:hours')) return { label: 'Sleep', headline: 'Not logged', sub: null, progress: null }
+      const h = c.facts.filter((f) => f.measure === 'sleep:hours' && f.day === c.day).map((f) => f.value)
+      const q = c.facts.filter((f) => f.measure === 'sleep:quality' && f.day === c.day).map((f) => f.value)
+      return { label: 'Sleep', headline: `${fmt(h.reduce((a, b) => a + b, 0) / h.length, 1)} h`, sub: q.length ? `Quality ${fmt(q[0], 1)}` : null, progress: null }
+    }
+    case 'health': {
+      if (!c.weight) return { label: 'Weight', headline: 'No weigh-in yet', sub: null, progress: null }
+      const ago = daysAgo(c.weight.day, c.day)
+      return { label: 'Weight', headline: `${fmt(c.weight.value, 1)} kg`, sub: ago === 0 ? 'Today' : ago === 1 ? 'Yesterday' : `${ago} days ago`, progress: null }
+    }
+    case 'training': {
+      const sets = today('training:sets')
+      const sessions = week('training:sessions')
+      return { label: 'Training', headline: sets ? `${sets} ${sets === 1 ? 'set' : 'sets'} today` : 'No sets yet', sub: `${sessions} ${sessions === 1 ? 'session' : 'sessions'} in 7 days`, progress: null }
+    }
+    case 'agenda': {
+      const events = ofModule.filter((i) => i.kind === 'event')
+      const next = events.find((e) => !e.done && e.time) ?? events[0]
+      const n = Math.max(events.length, today('agenda:events'))
+      return { label: 'Agenda', headline: n ? `${n} ${n === 1 ? 'event' : 'events'}` : 'No events', sub: next ? `${next.time ? `${next.time.slice(0, 5)} ` : ''}${next.title}` : null, progress: null }
+    }
+    case 'shopping': {
+      const n = c.listCount ?? 0
+      return { label: 'Shopping', headline: n ? `${n} ${n === 1 ? 'item' : 'items'} to get` : 'List is empty', sub: null, progress: null }
+    }
+  }
+  // Learning, Finance, Projects and built modules: today's first figure
+  // that has something, else its records.
+  const measures = c.catalogue.filter((m) => m.module === c.moduleKey && !m.part)
+  const withData = measures.find((m) => m.unit && has(m.key) && !m.key.endsWith(':count')) ?? measures.find((m) => has(m.key))
+  if (!withData) return { label: c.name, headline: 'Nothing today', sub: null, progress: null }
+  const v = today(withData.key)
+  return { label: c.name, headline: `${fmt(v, withData.decimals)}${withData.unit ? ` ${withData.unit}` : ''}`, sub: withData.label, progress: null }
+}

@@ -16,6 +16,7 @@ import type { Food, ModuleRecord, RecipeLine } from './types'
 import { choreFacts, clockHours, habitFacts, sleepHours, type Range } from './stats-rules'
 import { measureCatalogue, NUTRIENT_NAMES, viewModules, viewSpec, type Measure, type ModuleInput } from './stats-builder-rules'
 import { addDays } from './schedule-rules'
+import { loadDayItems } from './day-items'
 import { daysWith, pivot, spanDays, type Fact, type PivotResult } from './pivot-rules'
 import type { StatsView } from './stats-view-rules'
 
@@ -31,9 +32,10 @@ export interface StatsModule extends ModuleInput { on: boolean }
 /** The modules Stats reads: every module that is on and has "Count in
  *  Stats" on (GEN-03), plus the switched-off ones when the person asks to
  *  see them. Tasks are the planner's own and always count. */
-export async function statsModules(profileId: string, settings: ProfileSettings, showDisabled: boolean): Promise<{ shown: StatsModule[]; hiddenOff: number }> {
+export async function statsModules(profileId: string, settings: ProfileSettings, showDisabled: boolean, everyOn = false): Promise<{ shown: StatsModule[]; hiddenOff: number }> {
   const entries = (await moduleDefs(profileId)).filter((e) => !['stats', 'custom', 'core'].includes(e.def.key))
-  const counted = entries.filter((e) => moduleView(settings.module_views, e.def.key).stats)
+  // Today's cards are the person's own pick, so they read every module that is on.
+  const counted = entries.filter((e) => everyOn || moduleView(settings.module_views, e.def.key).stats)
   const shown = counted.filter((e) => e.enabled || showDisabled)
   return {
     shown: shown.map((e) => ({
@@ -46,8 +48,8 @@ export async function statsModules(profileId: string, settings: ProfileSettings,
 
 /** Every measure the counted modules keep, with the person's own nutrient
  *  targets attached to the nutrients (for "% of days on target"). */
-export async function loadCatalogue(profileId: string, settings: ProfileSettings, showDisabled: boolean, span?: Range): Promise<{ catalogue: Measure[]; modules: StatsModule[]; hiddenOff: number }> {
-  const { shown, hiddenOff } = await statsModules(profileId, settings, showDisabled)
+export async function loadCatalogue(profileId: string, settings: ProfileSettings, showDisabled: boolean, span?: Range, everyOn = false): Promise<{ catalogue: Measure[]; modules: StatsModule[]; hiddenOff: number }> {
+  const { shown, hiddenOff } = await statsModules(profileId, settings, showDisabled, everyOn)
   const catalogue = measureCatalogue(shown, settings.nutrients)
   if (span && shown.some((m) => m.key === 'nutrition')) {
     const targets = await nutrientTargets(profileId, span)
@@ -549,4 +551,52 @@ export function usePeriodFacts(profileId: string | undefined, span: Range | null
     const facts = await loadFacts(profileId, span, today, modules)
     return { facts, catalogue, modules, hiddenOff }
   }, [profileId, span?.start, span?.end, today, showDisabled])
+}
+
+/* ---------- Today's pinned cards (TOD-20, TOD-21) ------------------------------ */
+
+export interface TodayCardData {
+  /** Modules switched on (cards of others never show). */
+  enabled: Set<string>
+  names: Map<string, string>
+  facts: Fact[]
+  catalogue: Measure[]
+  items: { kind: string; module_key: string | null; done: boolean; title: string; time: string | null; parts?: { done: boolean }[] }[]
+  listCount: number
+  weight: { day: string; value: number } | null
+  nutrient: string
+}
+
+/** Everything the module cards on Today need for one day, live. */
+export function useTodayCardData(profileId: string | undefined, day: string, today: string, wanted: string[]): TodayCardData | undefined {
+  return useLiveQuery(async () => {
+    if (!profileId) return undefined
+    const profile = await db.profile.get(profileId)
+    if (!profile) return undefined
+    const settings = readSettings(profile)
+    const span = { start: addDays(day, -6), end: day }
+    const { catalogue, modules } = await loadCatalogue(profileId, settings, false, span, true)
+    const on = modules.filter((m) => m.on)
+    const need = on.filter((m) => wanted.includes(m.key))
+    const facts = wanted.length ? await loadFacts(profileId, span, today, need, ['tasks', ...need.map((m) => m.key)]) : []
+    const items = wanted.some((k) => ['habits', 'household', 'supplements', 'agenda'].includes(k))
+      ? (await loadDayItems(profileId, profile.household_id, day, day, 'today', today)).map((i) => ({ kind: i.kind, module_key: i.module_key, done: i.done, title: i.title, time: i.time, parts: i.parts }))
+      : []
+    const listCount = wanted.includes('shopping')
+      ? (await db.shopping_entry.where('household_id').equals(profile.household_id).toArray()).filter((r) => !r.deleted_at && !r.checked).length
+      : 0
+    let weight: TodayCardData['weight'] = null
+    if (wanted.includes('health')) {
+      for (const r of live(await db.body_log.where('profile_id').equals(profileId).toArray())) {
+        if (r.weight_kg == null || r.log_date > day) continue
+        if (!weight || r.log_date > weight.day) weight = { day: r.log_date, value: Number(r.weight_kg) }
+      }
+    }
+    return {
+      enabled: new Set(on.map((m) => m.key)),
+      names: new Map(on.map((m) => [m.key, m.name])),
+      facts, catalogue, items, listCount, weight,
+      nutrient: settings.nutrients.includes('protein_g') ? 'protein_g' : settings.nutrients[0] ?? 'kcal',
+    }
+  }, [profileId, day, today, wanted.join(',')])
 }

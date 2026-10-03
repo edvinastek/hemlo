@@ -5,7 +5,7 @@ import { readStatsViews, readStatsView, MAX_VIEWS, MAX_MEASURES } from '../lib/s
 import {
   measureCatalogue, recordMeasures, cardMeasures, groupingsFor, summariesFor, summaryName, viewSpan, rangeName, spanName,
   rangeChoice, newViewId, autoChart, blankView, viewSpec, viewModules, migrateSource, putView, duplicateView, moveView,
-  removeView, TEMPLATES, templatesFor, fromTemplate, cardsFor, addCard, moveCard, changeCard, plural, cardFigure, patterns,
+  removeView, TEMPLATES, templatesFor, fromTemplate, cardsFor, addCard, moveCard, changeCard, plural, cardFigure, patterns, cardText,
 } from '../lib/stats-builder-rules.ts'
 import { formatValue, shortNumber, niceScale, readable, splitColour, chartData, labelStep, describe, toWidgetView } from '../lib/chart-rules.ts'
 import { contrast, PAPER } from '../lib/colours-rules.ts'
@@ -185,6 +185,19 @@ is('no more than six', addCard(Array.from({ length: 6 }, (_, i) => ({ ...cards[0
 is('moved', moveCard(cards, 0, 1).map((c) => c.key), ['training', 'nutrition', 'v1'])
 is('not moved past the end', moveCard(cards, 2, 1), cards)
 is('made large and weekend only', changeCard(cards, 1, { size: 'large', show: 'weekends' })[1], { kind: 'module', key: 'training', size: 'large', show: 'weekends' })
+
+/* ---------- what a Today card says ---------- */
+const nutCat = measureCatalogue([{ key: 'nutrition', name: 'Nutrition' }], ['kcal', 'protein_g'])
+nutCat.find((m) => m.key === 'nutrition:protein_g').targets = { [today]: 140 }
+const base = { day: today, today, catalogue: nutCat, items: [], name: 'Nutrition' }
+const protein = [{ measure: 'nutrition:protein_g', day: today, value: 50, module: 'nutrition' }, { measure: 'nutrition:protein_g', day: today, value: 32.4, module: 'nutrition' }]
+is('protein against the target', cardText({ ...base, moduleKey: 'nutrition', nutrient: 'protein_g', facts: protein }), { label: 'Protein eaten', headline: '82 / 140 g', sub: '58 g to go', progress: 82.4 / 140 })
+is('nothing eaten yet is not 0 g', cardText({ ...base, moduleKey: 'nutrition', nutrient: 'protein_g', facts: [] }).headline, 'Nothing yet')
+is('chores due', cardText({ ...base, moduleKey: 'household', name: 'Household', facts: [], items: [{ kind: 'chore', module_key: 'household', done: false, title: 'Bins', time: null }, { kind: 'chore', module_key: 'household', done: false, title: 'Dust', time: null }, { kind: 'chore', module_key: 'household', done: true, title: 'Mop', time: null }, { kind: 'chore', module_key: 'household', done: false, title: 'Bath', time: null }] }).headline, '3 chores due')
+is('sleep last night', cardText({ ...base, moduleKey: 'sleep', name: 'Sleep', facts: [{ measure: 'sleep:hours', day: today, value: 7.25, module: 'sleep' }] }).headline, '7.3 h')
+is('a weight from two days ago', cardText({ ...base, moduleKey: 'health', name: 'Health', facts: [], weight: { day: '2026-09-22', value: 78.24 } }), { label: 'Weight', headline: '78.2 kg', sub: '2 days ago', progress: null })
+is('tasks done of planned', cardText({ ...base, moduleKey: 'tasks', name: 'Tasks', facts: [{ measure: 'tasks:planned', day: today, value: 1 }, { measure: 'tasks:planned', day: today, value: 1 }, { measure: 'tasks:done', day: today, value: 1 }] }).headline, '1 of 2 done')
+is('a built module shows its first figure with something today', cardText({ ...base, moduleKey: 'u_abc123', name: 'Running', catalogue: measureCatalogue([{ key: 'u_abc123', name: 'Running', entities: [{ name: 'run', label: 'Run', fields: [{ name: 'day', label: 'Day', type: 'date' }, { name: 'km', label: 'Distance', type: 'number', unit: 'km' }] }] }], []), facts: [{ measure: 'u_abc123:run:km', day: today, value: 5.2 }, { measure: 'u_abc123:run:count', day: today, value: 1 }] }), { label: 'Running', headline: '5.2 km', sub: 'Distance', progress: null })
 
 /* ---------- charts ---------- */
 is('values written out', [formatValue(142.4, 'g'), formatValue(86, '%'), formatValue(23.5, 'time'), formatValue(24.75, 'time'), formatValue(1, 'days'), formatValue(3, 'days'), formatValue(null, 'g'), formatValue(2216.4, 'kcal'), formatValue(7.25, 'h', 1)],

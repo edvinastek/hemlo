@@ -153,3 +153,34 @@
 .sb-note { flex-basis: 100%; font-family: var(--font-sans); font-size: 12px; color: var(--e-ink-soft); }
 .sb-foot { margin-top: 0; }
 .sb-foot .btn { min-height: 44px; }
+
+/* ---------- Today's pinned cards ---------------------------------------------- */
+.tc { padding: var(--space-2) var(--space-4); }
+.tc-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--space-2); }
+@media (min-width: 760px) { .tc-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); } }
+.tc-card {
+  min-width: 0; display: grid; align-content: start; gap: 4px;
+  border: 1px solid var(--e-rule); border-left: 3px solid var(--st-accent, var(--e-accent));
+  border-radius: var(--radius-md); background: var(--e-paper); padding: var(--space-2) var(--space-3) var(--space-1);
+}
+.tc-card.is-large { grid-column: 1 / -1; }
+@media (min-width: 760px) { .tc-card.is-large { grid-column: span 2; } }
+.tc-head { display: flex; align-items: center; gap: var(--space-2); min-width: 0; }
+.tc-head .mm { margin: -8px -10px -8px auto; }
+.tc-label { flex: 1; min-width: 0; font-family: var(--font-sans); font-size: 12px; color: var(--e-ink-soft); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.tc-figure { margin: 0; font-family: var(--font-sans); font-size: 20px; font-weight: 600; color: var(--e-ink); line-height: 1.2; overflow-wrap: anywhere; }
+.tc-sub { margin: 0; font-family: var(--font-sans); font-size: 12px; color: var(--e-ink-soft); overflow-wrap: anywhere; }
+.tc-meter { height: 6px; border-radius: var(--radius-pill); background: color-mix(in srgb, var(--st-accent, var(--e-accent)) 18%, var(--e-paper)); overflow: hidden; }
+.tc-meter span { display: block; height: 100%; background: var(--st-accent, var(--e-accent)); border-radius: var(--radius-pill); }
+.tc-action { justify-self: start; min-height: 44px; font-family: var(--font-sans); font-size: 13px; font-weight: 600; color: var(--e-ink); text-decoration: underline; }
+.tc-edit { padding: 0 var(--space-4) var(--space-2); display: grid; gap: var(--space-2); }
+.bottom-sheet .tc-edit { padding: 0; }
+.tc-edit-list { list-style: none; margin: 0; padding: 0; display: grid; gap: var(--space-2); }
+.tc-edit-row { display: grid; gap: var(--space-2); padding: var(--space-2) var(--space-3); border: 1px solid var(--e-rule); border-radius: var(--radius-md); background: var(--e-paper); user-select: none; -webkit-user-select: none; }
+.tc-edit-row.is-lifted { border-color: var(--e-ink); background: var(--e-tint); }
+.tc-edit-row.is-target { border-style: dashed; border-color: var(--e-ink-soft); }
+.tc-edit-row .dd { flex: 1 1 120px; }
+.tc-edit-head { display: flex; align-items: center; gap: var(--space-2); min-width: 0; }
+.tc-grip { color: var(--e-ink-soft); font-size: 18px; cursor: grab; }
+.tc-edit-name { flex: 1; min-width: 0; display: grid; font-family: var(--font-sans); font-size: 15px; color: var(--e-ink); overflow-wrap: anywhere; }
+.tc-add { flex: 1 1 200px; }
