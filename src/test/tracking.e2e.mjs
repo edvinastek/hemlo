@@ -2,7 +2,7 @@ import * as XLSX from 'xlsx'
 import { writeFileSync, mkdtempSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { need, sql, checks, open, signIn, profileOf, today, localCount, drained, APP } from './e2e.mjs'
+import { need, sql, checks, open, signIn, profileOf, today, localCount, drained, modulesOn, APP } from './e2e.mjs'
 
 // The features added for the closed test, clicked through as a tester would:
 // a weigh-in, habits and supplements, the same habit ticked offline on two
@@ -45,22 +45,22 @@ const goPage = async (path) => {
   await p.waitForTimeout(1200)
 }
 await goPage('m/habits')
-await p.click('button:has-text("Add a habit")')
-await p.fill('input[aria-label="Habit name"]', 'Stretch')
-await p.click('.track-form button:has-text("Add")')
-await p.locator('button[aria-label="Stretch, not done"]').waitFor()
-await p.fill('input[aria-label="Habit name"]', 'Water')
-await p.click('.track-form button:has-text("Add")')
-await p.click('.track-form button:has-text("Done")')
+const addHabit = async (name) => {
+  await p.click('button.track-add:has-text("Add a habit")')
+  await p.fill('.track-sheet input[placeholder="Mobility"]', name)
+  await p.click('.track-sheet button[type=submit]')
+  await p.locator(`button[aria-label="${name}, not done"]`).waitFor()
+}
+await addHabit('Stretch')
+await addHabit('Water')
 await p.click('button[aria-label="Stretch, not done"]')
 // The next step reloads the page; let the tick reach the server first.
 await settle(p)
 await goPage('m/supplements')
-await p.click('button:has-text("Add a supplement")')
-await p.fill('input[aria-label="Supplement name"]', 'Vitamin D')
-await p.fill('input[aria-label="Dose"]', '25 µg')
-await p.click('.track-form button:has-text("Add")')
-await p.click('.track-form button:has-text("Done")')
+await p.click('button.track-add:has-text("Add a supplement")')
+await p.fill('.track-sheet input[placeholder="Vitamin D"]', 'Vitamin D')
+await p.fill('.track-sheet input[placeholder="25 µg"]', '25 µg')
+await p.click('.track-sheet button[type=submit]')
 await p.click('button[aria-label="Vitamin D, not taken"]')
 await settle(p)
 await goPage('')
@@ -74,6 +74,53 @@ r = await one(`select
 is('both habits reached the server', r.habits, 2)
 is('the habit tick reached the server', r.ticks, 1)
 is('the supplement tick reached the server', r.taken, 1)
+
+// 2b. Version 16: a habit on chosen days with a pinned checklist (HAB-01,
+//     HAB-10), edited after it was made (HAB-02); a supplement's schedule
+//     (SUP-03); a household chore from a starter pack, ticked (HSE-03, HSE-10).
+await goPage('m/habits')
+await p.click('button.track-add:has-text("Add a habit")')
+await p.fill('.track-sheet input[placeholder="Mobility"]', 'Mobility')
+await p.click('.track-sheet button[aria-label="Repeat"]')
+await p.click('.track-sheet [role=option]:has-text("Weekly on chosen days")')
+for (const d of ['Mon', 'Wed', 'Fri']) {
+  const b = p.locator('.track-sheet .ts-day', { hasText: d })
+  if (await b.getAttribute('aria-pressed') !== 'true') await b.click()
+}
+for (const d of ['Tue', 'Thu', 'Sat', 'Sun']) {
+  const b = p.locator('.track-sheet .ts-day', { hasText: d })
+  if (await b.getAttribute('aria-pressed') === 'true') await b.click()
+}
+await p.fill('.track-sheet textarea[aria-label="Pinned note"]', '- [ ] Hips\n- [ ] Shoulders')
+await p.click('.track-sheet button[type=submit]')
+await settle(p)
+r = await one(`select rule, rule_config::text cfg, note from public.habit where ${mine} and name = 'Mobility' and deleted_at is null`)
+is('a habit on chosen days', [r.rule, r.cfg], ['weekly', '{"weekdays": [1, 3, 5]}'])
+is('with its pinned note', r.note, '- [ ] Hips\n- [ ] Shoulders')
+// Its schedule changed after it was made: weekends.
+if (await p.locator('.track-fold:has-text("Not due")').count()) await p.click('.track-fold:has-text("Not due")')
+await p.click('button[aria-label="More for Mobility"]')
+await p.click('.track-open button:has-text("Edit")')
+await p.click('.track-sheet button[aria-label="Repeat"]')
+await p.click('.track-sheet [role=option]:has-text("Weekends")')
+await p.click('.track-sheet button[type=submit]')
+await settle(p)
+is('the schedule can be changed later', (await one(`select rule from public.habit where ${mine} and name = 'Mobility'`)).rule, 'weekends')
+await p.click('button[aria-label="More for Mobility"]').catch(() => {})
+await p.click('.track-open button:has-text("Archive")')
+await settle(p)
+
+await modulesOn(email, ['household'])
+await goPage('m/household')
+await p.click('.chore-pack:has-text("Studio flat")')
+await p.click('button:has-text("Add 9 chores")')
+await settle(p, 1500)
+r = await one(`select count(*) n from public.chore c join public.profile pr on pr.household_id = c.household_id where pr.${mine.replace('profile_id', 'id')} and c.deleted_at is null`)
+is('a starter pack adds its chores to the household', Number(r.n), 9)
+await p.click('button[aria-label="Wash up, not done"]')
+await settle(p)
+r = await one(`select count(*) n from public.chore_log l join public.chore c on c.id = l.chore_id where c.name = 'Wash up' and l.done_on = '${day}' and l.deleted_at is null and l.done_by is not null`)
+is('ticking a chore records who did it', Number(r.n), 1)
 
 // 3. Two phones, both offline, both tick Water. One tick survives, nothing refused.
 const B = await open()

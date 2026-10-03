@@ -14,5 +14,12 @@ Notes and templates, habits, household chores, supplements.
 7. HAB-23. 8. e2e file, screenshots, verification.
 
 ## Done
+- Rules + checks (tracking, notes, notetemplates, household, schedule pause) — committed.
+- Migration 030 + security.sql (145 pass on pgb/55440) — committed.
+- Notes UI: NoteEditor Insert menu, TemplatePicker, RecipeInsert, NotesPage moves/ticked last, settings/NoteTemplates — committed.
+- Habits page + HabitSheet; HAB-23 (def-rules habits.daily -> always; retireHabitsDailyRule) — committed.
+- Supplements page + slots + SupplementSheet; day-items feed (slots, chore prefs, member names, day part) — committed.
+- Chores page + ChoreSheet + packs + holiday/light days + names + old records; ModulePage line — committed.
 
 ## Left
+- full npm run check, vite build, e2e tracking file, screenshots, report.
