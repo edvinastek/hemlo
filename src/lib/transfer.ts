@@ -15,7 +15,7 @@ import { moduleDef, moduleDefs } from '../modules/defs'
 import { addRecord, isoToLocal, listRecords } from '../modules/records'
 import { computeFormulas, mainField } from '../modules/def-rules'
 import type { FieldDef } from '../modules/types'
-import type { Profile, Series, SeriesException, Task } from './types'
+import type { CalendarEvent, Profile, Series, SeriesException, Task } from './types'
 import { parseUnitsText, readUnits, unitsText } from './units-rules'
 import {
   buildCalendar, calendarEvent, minutesBetween, parseIcs, recordEvent, seriesEvents, taskEvent, uidFor, type IcsEvent, type ParsedEvent,
@@ -311,20 +311,29 @@ async function taskEvents(profile: Profile, range: Range | null): Promise<IcsEve
   return out
 }
 
+/** Whether an event belongs in a file cut to a range: a one-off by its first
+ *  day; a repeating one while any of its days can fall in the range. */
+function eventInRange(e: Pick<CalendarEvent, 'rule' | 'end_date'>, startDay: string, range: Range | null): boolean {
+  if (!e.rule) return inRange(startDay, range)
+  return !range || (startDay <= range.to && (!e.end_date || e.end_date >= range.from))
+}
+
 async function icsEvents(profile: Profile, userId: string | null, d: Dataset, range: Range | null, chosen?: string[]): Promise<IcsEvent[]> {
   if (d.store === 'tasks') return taskEvents(profile, range)
   if (d.store === 'calendar') {
     const events = await taskEvents(profile, range)
     for (const e of (await ownEvents(profile.id))) {
       const start = isoToLocal(e.starts_at)
-      if (!start || !inRange(start.slice(0, 10), range)) continue
-      const ev = calendarEvent({ ...e, start_day: start.slice(0, 10), end_day: isoToLocal(e.ends_at)?.slice(0, 10) ?? null })
+      if (!start || !eventInRange(e, start.slice(0, 10), range)) continue
+      const ev = calendarEvent({ ...e, start_day: start.slice(0, 10), start_time: start.slice(11, 16), end_day: isoToLocal(e.ends_at)?.slice(0, 10) ?? null })
       if (ev) events.push(ev)
     }
     return events
   }
   // Any dated record: named by its main field, its other fields written out.
-  const rows = (await readRows(profile, d, userId)).filter((r) => r.date && inRange(r.date, range))
+  // A repeating event counts from its first day on.
+  const rows = (await readRows(profile, d, userId)).filter((r) => r.date && (d.entity === 'calendar_event' && r.source
+    ? eventInRange(r.source as CalendarEvent, r.date, range) : inRange(r.date, range)))
   const fields = pickFields(d.fields, chosen)
   const { names } = await lookupsFor(profile, d.fields)
   const main = mainField(d.fields)
@@ -333,8 +342,8 @@ async function icsEvents(profile: Profile, userId: string | null, d: Dataset, ra
   const out: IcsEvent[] = []
   for (const r of rows) {
     if (d.entity === 'calendar_event' && r.source) {
-      const e = r.source as { id: string; title: string; starts_at: string; ends_at: string | null; all_day: boolean; location: string | null }
-      const ev = calendarEvent({ ...e, start_day: r.date!, end_day: isoToLocal(e.ends_at)?.slice(0, 10) ?? null })
+      const e = r.source as CalendarEvent
+      const ev = calendarEvent({ ...e, start_day: r.date!, start_time: isoToLocal(e.starts_at)?.slice(11, 16) ?? null, end_day: isoToLocal(e.ends_at)?.slice(0, 10) ?? null })
       if (ev) out.push(ev)
       continue
     }

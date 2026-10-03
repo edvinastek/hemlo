@@ -1270,6 +1270,85 @@ begin
   execute 'reset role';
 end $$;
 
+-- Repeating own events (031, integration, AGN-03): an event keeps the one
+-- repeat engine's rule, its last day or its number of times; nothing else
+-- goes in, a followed calendar's event never repeats, and RLS is unchanged.
+do $$
+declare n int; e uuid; f uuid; sub uuid;
+begin
+  perform set_config('role', 'authenticated', true);
+  perform set_config('request.jwt.claims', json_build_object('sub', (select b from _ids), 'role', 'authenticated')::text, true);
+  insert into calendar_event (profile_id, title, starts_at, ends_at, rule, rule_config, end_date, count)
+    select pb, 'Choir 031', timestamptz '2026-10-06 17:00:00+00', timestamptz '2026-10-06 18:30:00+00', 'weekly', '{"weekdays":[2]}'::jsonb, date '2026-12-15', null
+    from _ids returning id into e;
+  insert into _r (check_name, expected, actual) values
+    ('An own event keeps its repeat', 'weekly 2026-12-15', (select rule || ' ' || end_date::text from calendar_event where id = e));
+  update calendar_event set end_date = null, count = 10 where id = e;
+  get diagnostics n = row_count;
+  insert into _r (check_name, expected, actual) values ('An event can repeat a number of times instead', '1', n::text);
+  begin
+    update calendar_event set rule = 'fortnightly' where id = e;
+    insert into _r (check_name, expected, actual) values ('An event''s rule must be one the app knows', 'denied', 'allowed');
+  exception when others then
+    insert into _r (check_name, expected, actual) values ('An event''s rule must be one the app knows', 'denied', 'denied');
+  end;
+  begin
+    update calendar_event set rule = 'times_per_week' where id = e;
+    insert into _r (check_name, expected, actual) values ('An event''s rule must give days ("N times a week" does not)', 'denied', 'allowed');
+  exception when others then
+    insert into _r (check_name, expected, actual) values ('An event''s rule must give days ("N times a week" does not)', 'denied', 'denied');
+  end;
+  begin
+    update calendar_event set rule_config = '[1,2]'::jsonb where id = e;
+    insert into _r (check_name, expected, actual) values ('An event''s rule settings are an object', 'denied', 'allowed');
+  exception when others then
+    insert into _r (check_name, expected, actual) values ('An event''s rule settings are an object', 'denied', 'denied');
+  end;
+  begin
+    update calendar_event set count = 0 where id = e;
+    insert into _r (check_name, expected, actual) values ('An event repeats at least once when counted', 'denied', 'allowed');
+  exception when others then
+    insert into _r (check_name, expected, actual) values ('An event repeats at least once when counted', 'denied', 'denied');
+  end;
+  begin
+    update calendar_event set count = 100000 where id = e;
+    insert into _r (check_name, expected, actual) values ('An event''s count has a ceiling', 'denied', 'allowed');
+  exception when others then
+    insert into _r (check_name, expected, actual) values ('An event''s count has a ceiling', 'denied', 'denied');
+  end;
+  begin
+    update calendar_event set end_date = date '2026-09-01' where id = e;
+    insert into _r (check_name, expected, actual) values ('An event''s repeat cannot end before it starts', 'denied', 'allowed');
+  exception when others then
+    insert into _r (check_name, expected, actual) values ('An event''s repeat cannot end before it starts', 'denied', 'denied');
+  end;
+  execute 'reset role';
+
+  -- A followed calendar's event (kept on the device, but the server's rule
+  -- stands too) can never carry a repeat of its own.
+  insert into calendar_subscription (profile_id, name, url) select pb, 'Club 031', 'https://example.com/club.ics' from _ids returning id into sub;
+  insert into calendar_event (profile_id, title, starts_at, subscription_id, external_uid)
+    select pb, 'Match 031', timestamptz '2026-10-10 12:00:00+00', sub, 'match-031@club' from _ids returning id into f;
+  begin
+    update calendar_event set rule = 'weekly' where id = f;
+    insert into _r (check_name, expected, actual) values ('A followed calendar''s event cannot repeat here', 'denied', 'allowed');
+  exception when others then
+    insert into _r (check_name, expected, actual) values ('A followed calendar''s event cannot repeat here', 'denied', 'denied');
+  end;
+
+  -- M, someone else, sees none of B's repeat and changes none of it.
+  perform set_config('role', 'authenticated', true);
+  perform set_config('request.jwt.claims', json_build_object('sub', (select m from _ids), 'role', 'authenticated')::text, true);
+  insert into _r (check_name, expected, actual) values
+    ('Someone else cannot read another''s repeating event', '0', (select count(*) from calendar_event where id = e)::text);
+  update calendar_event set rule = null, count = null where id = e;
+  get diagnostics n = row_count;
+  insert into _r (check_name, expected, actual) values ('Someone else cannot change another''s repeat', '0', n::text);
+  execute 'reset role';
+  insert into _r (check_name, expected, actual) values
+    ('The repeat is as B left it', 'weekly 10', (select rule || ' ' || count::text from calendar_event where id = e));
+end $$;
+
 select n, check_name, expected, actual, case when expected = actual then 'ok' else 'FAIL' end as result
 from _r order by n;
 

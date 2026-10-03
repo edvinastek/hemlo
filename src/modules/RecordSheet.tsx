@@ -9,9 +9,10 @@ import { Tip } from '../ui/Tip'
 import type { ModuleRecord } from '../lib/types'
 import type { EntityDef, FieldDef, ModuleDef } from './types'
 import { RATING_MAX, checklistCount, computeFormulas, firstDateField, isDateLike, spanMinutes } from './def-rules'
-import { addRecord, deleteRecord, lookupKey, restoreRecord, updateRecord, type Lookups, type Rec } from './records'
+import { addRecord, deleteRecord, lookupKey, restoreRecord, setEventRepeat, updateRecord, type Lookups, type Rec } from './records'
 import { RECORD_REPEAT_KINDS } from './repeat-rules'
 import { recordRepeat, setRecordRepeat } from './record-repeat'
+import { EVENT_RULE_KINDS } from '../lib/day-items-rules'
 import './modules.css'
 
 /** A record's form, made from its fields. Every field type has its control:
@@ -250,10 +251,16 @@ export function RecordSheet({ def, entity, profileId, rec, day, lookups, onClose
   const [errors, setErrors] = useState<Record<string, string>>({})
   const [busy, setBusy] = useState(false)
   const noun = entity.label.toLowerCase()
-  // Repeats belong to records in the shared store; Agenda, Sleep, Training
-  // and goals keep theirs in tables of their own.
+  // Repeats belong to records in the shared store (they make tasks), and to
+  // the person's own agenda events (AGN-03), which keep their rule on the
+  // event itself; a followed calendar's event is that calendar's. Sleep,
+  // Training and goals do not repeat here.
   const canRepeat = !entity.table
-  const [repeat, setRepeat] = useState<RepeatValue>(NO_REPEAT)
+  const isEvent = entity.table === 'calendar_event' && !rec?.row.subscription_id
+  const [repeat, setRepeat] = useState<RepeatValue>(() => (isEvent && rec?.row.rule ? {
+    rule: rec.row.rule as RepeatValue['rule'], rule_config: (rec.row.rule_config ?? {}) as RepeatValue['rule_config'],
+    end_date: (rec.row.end_date as string | null) ?? null, count: (rec.row.count as number | null) ?? null,
+  } : NO_REPEAT))
   const [repeatWas, setRepeatWas] = useState<RepeatValue>(NO_REPEAT)
   useEffect(() => {
     if (!rec || !canRepeat) return
@@ -276,6 +283,7 @@ export function RecordSheet({ def, entity, profileId, rec, day, lookups, onClose
       if (canRepeat && (repeat.rule || repeatWas.rule)) {
         await setRecordRepeat(profileId, def, entity, res.rec.row as unknown as ModuleRecord, repeat)
       }
+      if (isEvent) await setEventRepeat(res.rec.id, repeat)
       onClose()
     } finally { setBusy(false) }
   }
@@ -308,6 +316,17 @@ export function RecordSheet({ def, entity, profileId, rec, day, lookups, onClose
               <p className="mf-hint">
                 Each time it comes round it is an item on Today and Plan
                 {dateF ? `, from ${format(parseISO(start), 'd MMM yyyy')}` : ', from today'}. Ticking it off ticks that day only.
+              </p>
+            )}
+          </div>
+        )}
+        {isEvent && fields.length > 0 && (
+          <div className="mf-repeat">
+            <RepeatPicker value={repeat} onChange={setRepeat} start={start} today={today}
+              kinds={[...EVENT_RULE_KINDS]} allowCount noneLabel="Does not repeat" />
+            {repeat.rule && (
+              <p className="mf-hint">
+                On Today, Plan and in your calendar file on every day it repeats, at the same time and for as long. Changing it here changes every time.
               </p>
             )}
           </div>

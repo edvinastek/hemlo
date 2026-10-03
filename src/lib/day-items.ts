@@ -2,7 +2,7 @@ import { useLiveQuery } from 'dexie-react-hooks'
 import { db } from './db'
 import { enabledModules } from './day'
 import { readSettings } from './settings'
-import { dayItems, type DayItem, type Where } from './day-items-rules'
+import { dayItems, eventMayTouch, type DayItem, type Where } from './day-items-rules'
 import { addDays } from './schedule-rules'
 import { useApp } from './store'
 import type { ModuleRecord } from './types'
@@ -28,8 +28,9 @@ export async function loadDayItems(profileId: string, householdId: string, from:
     db.chore.where('household_id').equals(householdId).toArray(),
     db.supplement.where('profile_id').equals(profileId).toArray(),
     // Stored in UTC: a day either side, and the rules sort out the local days.
+    // A repeating one from its first day on (eventMayTouch).
     db.calendar_event.where('profile_id').equals(profileId)
-      .filter((e) => !e.deleted_at && e.starts_at.slice(0, 10) <= addDays(to, 1) && (e.ends_at ?? e.starts_at).slice(0, 10) >= addDays(from, -1)).toArray(),
+      .filter((e) => !e.deleted_at && eventMayTouch(e, from, to)).toArray(),
     db.module_record.where('record_date').between(from, to, true, true).filter((r) => r.profile_id === profileId).toArray(),
   ])
   const habitIds = habits.map((h) => h.id)

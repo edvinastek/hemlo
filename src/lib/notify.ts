@@ -6,7 +6,7 @@ import { isNative } from './native'
 import { useApp } from './store'
 import { enabledModules } from './day'
 import { readSettings } from './settings'
-import { dayItems, type DayItem } from './day-items-rules'
+import { dayItems, eventMayTouch, type DayItem } from './day-items-rules'
 import { reviewSettings } from './review'
 import { saveTask } from './tasks'
 import { toggleHabit } from './tracking'
@@ -86,7 +86,7 @@ async function upcoming(profileId: string, now: Date, settings: ReminderSettings
     db.habit.where('profile_id').equals(profileId).toArray(),
     db.chore.where('household_id').equals(profile.household_id).toArray(),
     db.calendar_event.where('profile_id').equals(profileId)
-      .filter((e) => !e.deleted_at && !e.subscription_id && e.starts_at.slice(0, 10) <= to && (e.ends_at ?? e.starts_at).slice(0, 10) >= from).toArray(),
+      .filter((e) => !e.deleted_at && !e.subscription_id && eventMayTouch(e, from, to)).toArray(),
     db.module_record.where('record_date').between(from, to, true, true).filter((r) => r.profile_id === profileId).toArray(),
     db.habit_log.where('log_date').between(format(addDays(now, -7), 'yyyy-MM-dd'), to, true, true).toArray(),
     db.chore_log.toArray(),

@@ -98,10 +98,13 @@ Deno.serve(async (req) => {
         .eq('profile_id', profileId).is('deleted_at', null).eq('active', true)
         .order('id')),
       // A day either side of the window: the window is in the person's zone.
+      // A repeating event (031) is read from before the window too; the
+      // rules keep it while any of its days can fall in the window.
       all<FeedEvent>(() => db.from('calendar_event')
-        .select('id, title, starts_at, ends_at, all_day, location, subscription_id')
+        .select('id, title, starts_at, ends_at, all_day, location, subscription_id, rule, rule_config, end_date, count')
         .eq('profile_id', profileId).is('deleted_at', null).is('subscription_id', null)
-        .gte('starts_at', `${addDays(from, -1)}T00:00:00Z`).lte('starts_at', `${addDays(to, 1)}T23:59:59Z`).order('id')),
+        .lte('starts_at', `${addDays(to, 1)}T23:59:59Z`)
+        .or(`starts_at.gte."${addDays(from, -1)}T00:00:00Z",rule.not.is.null`).order('id')),
     ])
     const exceptions: FeedException[] = []
     const ids = series.filter((s) => !isHealthSeries(s)).map((s) => s.id)

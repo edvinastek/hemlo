@@ -7,6 +7,7 @@ import type { EntityDef, FieldDef, ModuleDef, ViewDef } from './types'
 import { computeFormulas, firstDateField, isDateLike, mainField } from './def-rules'
 import { updateRecord, type Lookups, type Rec } from './records'
 import { formatValue } from './RecordSheet'
+import { eventTimes } from '../lib/day-items-rules'
 
 /** The views a module page draws, each from the same records. */
 
@@ -118,24 +119,33 @@ export function CalendarView({ entity, view, recs, lookups, onOpen, onAdd }: {
   const [month, setMonth] = useState(() => startOfMonth(new Date()))
   const [picked, setPicked] = useState<string | null>(null)
   const dateF = entity.fields.find((f) => f.name === view.dateField && isDateLike(f)) ?? firstDateField(entity.fields)
+  const days = useMemo(() => eachDayOfInterval({ start: startOfWeek(month, { weekStartsOn: 1 }), end: endOfWeek(endOfMonth(month), { weekStartsOn: 1 }) }), [month])
   const byDay = useMemo(() => {
     const map = new Map<string, Rec[]>()
     if (!dateF) return map
+    const first = format(days[0], 'yyyy-MM-dd')
+    const last = format(days[days.length - 1], 'yyyy-MM-dd')
     for (const r of recs) {
+      // A repeating own event (AGN-03) is on every day it starts in view.
+      if (entity.table === 'calendar_event' && r.row.rule && !r.row.subscription_id) {
+        for (const t of eventTimes(r.row as never, first, last)) if (t.first >= first) map.set(t.first, [...(map.get(t.first) ?? []), r])
+        continue
+      }
       const v = r.values[dateF.name]
       if (typeof v !== 'string' || v.length < 10) continue
       const d = v.slice(0, 10)
       map.set(d, [...(map.get(d) ?? []), r])
     }
-    for (const list of map.values()) list.sort((a, b) => String(a.values[dateF.name]).localeCompare(String(b.values[dateF.name])))
+    // By the clock (a repeat's own time of day), then by name.
+    const clock = (r: Rec) => String(r.values[dateF.name] ?? '').slice(11)
+    for (const list of map.values()) list.sort((a, b) => clock(a).localeCompare(clock(b)) || String(a.values[dateF.name]).localeCompare(String(b.values[dateF.name])))
     return map
-  }, [recs, dateF])
+  }, [recs, dateF, days, entity.table])
 
   if (!dateF) {
     return <p className="empty">This calendar has no date to go by. Add a date field under Edit module, then pick it for this view.</p>
   }
 
-  const days = eachDayOfInterval({ start: startOfWeek(month, { weekStartsOn: 1 }), end: endOfWeek(endOfMonth(month), { weekStartsOn: 1 }) })
   const todayKey = format(new Date(), 'yyyy-MM-dd')
   const pickedRecs = picked ? byDay.get(picked) ?? [] : []
 

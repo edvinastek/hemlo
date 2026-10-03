@@ -80,6 +80,11 @@ export interface FeedEvent {
   location: string | null
   subscription_id?: string | null
   deleted_at?: string | null
+  /** A repeating own event's rule (031, AGN-03). */
+  rule?: string | null
+  rule_config?: Record<string, unknown> | null
+  end_date?: string | null
+  count?: number | null
 }
 
 export interface FeedInput {
@@ -229,10 +234,24 @@ export function feedEvents(i: FeedInput): IcsEvent[] {
     if (e.deleted_at || e.subscription_id) continue
     const start = Date.parse(e.starts_at)
     if (Number.isNaN(start)) continue
-    const startDay = utcToWall(start, zone).date
-    if (startDay < from || startDay > to) continue
+    const wall = utcToWall(start, zone)
+    const startDay = wall.date
     const end = e.ends_at ? Date.parse(e.ends_at) : NaN
-    const ev = calendarEvent({ ...e, start_day: startDay, end_day: Number.isNaN(end) ? null : utcToWall(end, zone).date })
+    const endDay = Number.isNaN(end) ? null : utcToWall(end, zone).date
+    if (e.rule) {
+      // A repeating own event (AGN-03) goes once with its rule, cut to the
+      // window as a repeating task is: from its first day there to its last.
+      const cut = windowedSeries({ id: e.id, title: e.title, rule: e.rule, rule_config: e.rule_config ?? {}, start_date: startDay,
+        end_date: e.end_date ?? null, occurrence_count: e.count ?? null, time_of_day: null } as unknown as FeedSeries, from, to)
+      if (!cut) continue
+      const length = endDay && endDay > startDay ? Math.round((Date.parse(`${endDay}T00:00:00Z`) - Date.parse(`${startDay}T00:00:00Z`)) / 86400000) : 0
+      const ev = calendarEvent({ ...e, rule: cut.rule, rule_config: cut.rule_config, end_date: cut.end_date, count: null,
+        start_day: cut.start_date, start_time: wall.time, end_day: endDay ? addDays(cut.start_date, length) : null })
+      if (ev) out.push(ev)
+      continue
+    }
+    if (startDay < from || startDay > to) continue
+    const ev = calendarEvent({ ...e, rule: null, start_day: startDay, end_day: endDay })
     if (ev) out.push(ev)
   }
   return out

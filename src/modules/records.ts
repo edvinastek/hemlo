@@ -221,6 +221,21 @@ export async function updateRecord(profileId: string, def: ModuleDef, entity: En
   return { ok: true, rec: fromRecord(next) }
 }
 
+/** How an own agenda event repeats (AGN-03), set from the event sheet: the
+ *  rule, its last day or its number of times; "Does not repeat" clears all
+ *  of it. Only what changed is sent. A followed calendar's event is left
+ *  alone: it is that calendar's. */
+export async function setEventRepeat(id: string, value: { rule: string | null; rule_config: object; end_date: string | null; count?: number | null }): Promise<void> {
+  const row = await db.calendar_event.get(id)
+  if (!row || row.subscription_id) return
+  const next = value.rule
+    ? { rule: value.rule, rule_config: value.rule_config ?? {}, end_date: value.end_date ?? null, count: value.count ?? null }
+    : { rule: null, rule_config: {}, end_date: null, count: null }
+  const changes = Object.fromEntries(Object.entries(next)
+    .filter(([k, v]) => JSON.stringify((row as unknown as Record<string, unknown>)[k] ?? (k === 'rule_config' ? {} : null)) !== JSON.stringify(v)))
+  if (Object.keys(changes).length) await edit('calendar_event', row, changes as never)
+}
+
 /** Deleting keeps the row with a date on it, so the deletion reaches every device. */
 export async function deleteRecord(profileId: string, def: ModuleDef, entity: EntityDef, rec: Rec): Promise<void> {
   if (rec.row.subscription_id) return

@@ -204,12 +204,23 @@ export interface EventLike {
   /** The local day of starts_at and ends_at, worked out by the caller. */
   start_day: string
   end_day: string | null
+  /** The local clock time of starts_at ('HH:mm'), for a repeating event. */
+  start_time?: string | null
+  /** How the person's own event repeats (AGN-03): the one repeat engine's rule. */
+  rule?: string | null
+  rule_config?: SeriesLike['rule_config'] | null
+  end_date?: string | null
+  count?: number | null
 }
 
 /** An agenda event. Timed ones keep their exact moment, in UTC; an all-day
- *  one runs from its first local day to the day after its last. */
+ *  one runs from its first local day to the day after its last. A
+ *  repeating one is written with its RRULE (AGN-03); its time is then the
+ *  person's own wall-clock time, as a repeating task's is, so it stays at
+ *  19:00 when the clocks change. */
 export function calendarEvent(e: EventLike): IcsEvent | null {
   const base = { uid: uidFor(e.id), summary: e.title || 'Untitled', location: e.location || null }
+  if (e.rule) return repeatingEvent(e, base)
   if (e.all_day) {
     if (!DATE.test(e.start_day)) return null
     const last = e.end_day && DATE.test(e.end_day) && e.end_day > e.start_day ? e.end_day : e.start_day
@@ -223,6 +234,32 @@ export function calendarEvent(e: EventLike): IcsEvent | null {
     start: { kind: 'utc', iso: new Date(start).toISOString() },
     end: { kind: 'utc', iso: new Date(Number.isNaN(endMs) || endMs < start ? start + 3600000 : endMs).toISOString() },
   }
+}
+
+/** A repeating agenda event as one event with its rule: it starts on the
+ *  first day the rule really gives (a calendar counts the start as one
+ *  time), keeps its length, and ends on its last day or after its count. */
+function repeatingEvent(e: EventLike, base: Pick<IcsEvent, 'uid' | 'summary' | 'location'>): IcsEvent | null {
+  if (!DATE.test(e.start_day)) return null
+  const series: SeriesLike = {
+    id: e.id, title: e.title, rule: e.rule!, rule_config: e.rule_config ?? {}, start_date: e.start_day,
+    end_date: e.end_date && DATE.test(e.end_date) ? e.end_date : null, occurrence_count: e.count ?? null, time_of_day: null,
+  }
+  const time = !e.all_day && e.start_time && TIME.test(e.start_time) ? e.start_time : null
+  const rule = seriesRule(series, !time)
+  const first = firstDay(series)
+  if (!rule || !first || (series.end_date && first > series.end_date)) return null
+  const lastDay = e.end_day && DATE.test(e.end_day) && e.end_day > e.start_day ? e.end_day : e.start_day
+  const days = Math.round((Date.parse(`${lastDay}T00:00:00Z`) - Date.parse(`${e.start_day}T00:00:00Z`)) / 86400000)
+  if (!time) {
+    return { ...base, start: { kind: 'date', date: first }, end: { kind: 'date', date: addDays(first, days + 1) },
+      rrule: rule.rrule, rdates: rule.rdates.map((d) => ({ kind: 'date', date: d })) }
+  }
+  const startMs = Date.parse(e.starts_at)
+  const endMs = e.ends_at ? Date.parse(e.ends_at) : NaN
+  const minutes = Number.isNaN(startMs) || Number.isNaN(endMs) || endMs <= startMs ? 60 : Math.round((endMs - startMs) / 60000)
+  return { ...base, start: { kind: 'local', date: first, time }, end: { kind: 'local', ...addMinutes(first, time, minutes) },
+    rrule: rule.rrule, rdates: rule.rdates.map((d) => ({ kind: 'local', date: d, time })) }
 }
 
 /** A dated record of any module: its name, its day (and time, if it has

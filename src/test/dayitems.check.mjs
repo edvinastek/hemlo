@@ -9,6 +9,7 @@ process.env.TZ = 'Europe/Amsterdam'
 import {
   dayItems, shows, carryOver, inbox, taskModule, railGroups, eventDays, localParts, nowSlot,
   finishedChecklist, noteFinished, habitChecklistCount, flipCheck, slotFlips, tapRoute, tickRoute,
+  eventTimes, eventMayTouch, eventSchedule, eventRepeatWords,
 } from '../lib/day-items-rules.ts'
 
 let fail = 0
@@ -164,6 +165,29 @@ is('a habit has no tap route', tapRoute({ task: undefined }), null)
 is('a session task ticked opens the session', tickRoute({ task: task('s', { status: 'todo' }), done: false }, '/m/training?session=r1&day=2026-10-03'), '/m/training?session=r1&day=2026-10-03')
 is('unticking a done session just unticks', tickRoute({ task: task('s', { status: 'done' }), done: true }, '/m/training?session=r1'), null)
 is('a task with no session ticks', tickRoute({ task: task('t'), done: false }, null), null)
+
+// Repeating own events (AGN-03): on every day the rule gives, at the same
+// local time across the change to winter time, with their length, ending on
+// a day or after a number of times; followed events never repeat here.
+// Tuesday 6 October 2026, 19:00 in Amsterdam (summer time) is 17:00 UTC.
+const choir = { id: 'choir', profile_id: 'p', title: 'Choir', starts_at: '2026-10-06T17:00:00.000Z', ends_at: '2026-10-06T18:30:00.000Z', all_day: false,
+  location: 'Venlo', deleted_at: null, updated_at: 'x', rule: 'weekly', rule_config: { weekdays: [2] }, end_date: null, count: null }
+const weeks = eventTimes(choir, '2026-10-01', '2026-11-05').map((t) => [t.first, t.time])
+is('a weekly event on each Tuesday, still 19:00 after the clocks go back', weeks,
+  [['2026-10-06', '19:00'], ['2026-10-13', '19:00'], ['2026-10-20', '19:00'], ['2026-10-27', '19:00'], ['2026-11-03', '19:00']])
+is('not before its first day', eventTimes(choir, '2026-09-01', '2026-10-05'), [])
+is('ending on a day', eventTimes({ ...choir, end_date: '2026-10-20' }, '2026-10-01', '2026-12-31').map((t) => t.first), ['2026-10-06', '2026-10-13', '2026-10-20'])
+is('ending after a number of times', eventTimes({ ...choir, count: 2 }, '2026-10-01', '2026-12-31').map((t) => t.first), ['2026-10-06', '2026-10-13'])
+const weekend = { ...choir, id: 'cabin', starts_at: '2026-10-02T22:00:00.000Z', ends_at: '2026-10-04T22:00:00.000Z', all_day: true, rule: 'monthly', rule_config: {} }
+is('a long event keeps its length on each repeat', eventTimes(weekend, '2026-11-04', '2026-11-04').map((t) => [t.first, t.last]), [['2026-11-03', '2026-11-05']])
+is('a followed calendar\'s event never repeats here', [eventSchedule({ ...choir, subscription_id: 's' }), eventTimes({ ...choir, subscription_id: 's' }, '2026-10-13', '2026-10-13')], [null, []])
+is('"N times a week" is not an event repeat', eventSchedule({ ...choir, rule: 'times_per_week', rule_config: { times: 2 } }), null)
+const rep = dayItems(['2026-10-20'], 'plan', { ...mixed, today: '2026-10-20', events: [choir] }).find((x) => x.kind === 'event')
+is('on Plan on a later Tuesday, with its time, length and repeat in words', [rep.key, rep.time, rep.minutes, rep.meta], ['event:choir:2026-10-20', '19:00', 90, 'Venlo · Repeats weekly on Tue'])
+is('not on a Wednesday', dayItems(['2026-10-21'], 'plan', { ...mixed, today: '2026-10-21', events: [choir] }).some((x) => x.kind === 'event'), false)
+is('the readers keep a repeating event long after its first day', [eventMayTouch(choir, '2027-03-01', '2027-03-07'), eventMayTouch({ ...choir, end_date: '2026-12-01' }, '2027-03-01', '2027-03-07'), eventMayTouch({ ...choir, rule: null }, '2027-03-01', '2027-03-07')],
+  [true, false, false])
+is('no words for a one-off', eventRepeatWords({ ...choir, rule: null }), '')
 
 if (fail) { console.error(`\n${fail} failed`); process.exit(1) }
 console.log('\ndayitems: all good')

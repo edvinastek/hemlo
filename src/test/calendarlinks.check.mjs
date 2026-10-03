@@ -69,6 +69,9 @@ const input = {
     { id: 'e-google', title: 'From Google', starts_at: '2026-10-11T12:00:00.000Z', ends_at: null, all_day: false, location: null, subscription_id: 'sub-1' },
     { id: 'e-gone', title: 'Deleted event', starts_at: '2026-10-12T12:00:00.000Z', ends_at: null, all_day: false, location: null, deleted_at: STAMP },
     { id: 'e-allday', title: 'Holiday', starts_at: '2026-10-19T22:00:00.000Z', ends_at: '2026-10-21T22:00:00.000Z', all_day: true, location: null },
+    // Repeating own events (031): one started long before the window is in; one that ended before it is not.
+    { id: 'e-choir', title: 'Choir', starts_at: '2025-01-07T18:00:00.000Z', ends_at: '2025-01-07T19:30:00.000Z', all_day: false, location: null, rule: 'weekly', rule_config: { weekdays: [2] } },
+    { id: 'e-ended', title: 'Old course', starts_at: '2025-01-07T18:00:00.000Z', ends_at: null, all_day: false, location: null, rule: 'weekly', rule_config: { weekdays: [2] }, end_date: '2025-03-01' },
   ],
 }
 const evs = feedEvents(input)
@@ -85,6 +88,9 @@ eq('deleted events are not in', titles.includes('Deleted event'), false)
 eq('an all-day event keeps its local days', [evs.find((e) => e.summary === 'Holiday').start, evs.find((e) => e.summary === 'Holiday').end],
   [{ kind: 'date', date: '2026-10-20' }, { kind: 'date', date: '2026-10-23' }])
 eq('notes stay out by default, from tasks and series alike', evs.some((e) => e.description), false)
+eq('a repeating own event started long ago is in once, cut to the window, at its local time', [titles.filter((t) => t === 'Choir').length, evs.find((e) => e.summary === 'Choir')?.rrule, evs.find((e) => e.summary === 'Choir')?.start],
+  [1, 'FREQ=WEEKLY;BYDAY=TU;WKST=MO;UNTIL=20270928T235959', { kind: 'local', date: '2026-06-30', time: '19:00' }])
+eq('one that ended before the window is not', titles.includes('Old course'), false)
 eq('with notes on, they go out', feedEvents({ ...input, notes: true }).filter((e) => e.description).map((e) => e.summary).sort(), ['Dentist', 'Gym', 'Taxes'])
 eq('a task keeps its section', evs.find((e) => e.summary === 'Dentist').categories, ['Work'])
 const file = buildFeed(input)

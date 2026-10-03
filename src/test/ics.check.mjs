@@ -61,6 +61,22 @@ eq('agenda event keeps its exact moment, in UTC', [ev.start, ev.end], [{ kind: '
 const trip = calendarEvent({ id: 'e2', title: 'Holiday', starts_at: '2026-10-01T00:00', ends_at: '2026-10-03T00:00', all_day: true, location: null, start_day: '2026-10-01', end_day: '2026-10-03' })
 eq('a three-day event ends the day after its last day', [trip.start, trip.end], [{ kind: 'date', date: '2026-10-01' }, { kind: 'date', date: '2026-10-04' }])
 
+// A repeating own event (AGN-03): its rule, at its own wall-clock time, from
+// the first day the rule gives, keeping its length; ending on a day or after N.
+const choir = calendarEvent({ id: 'e3', title: 'Choir', starts_at: '2026-10-06T17:00:00.000Z', ends_at: '2026-10-06T18:30:00.000Z', all_day: false, location: null,
+  start_day: '2026-10-06', start_time: '19:00', end_day: '2026-10-06', rule: 'weekly', rule_config: { weekdays: [2] }, end_date: null, count: null })
+eq('a weekly event repeats at its local time', [choir.rrule, choir.start, choir.end],
+  ['FREQ=WEEKLY;BYDAY=TU;WKST=MO', { kind: 'local', date: '2026-10-06', time: '19:00' }, { kind: 'local', date: '2026-10-06', time: '20:30' }])
+eq('until a day', calendarEvent({ id: 'e3', title: 'Choir', starts_at: '2026-10-06T17:00:00.000Z', ends_at: null, all_day: false, location: null,
+  start_day: '2026-10-06', start_time: '19:00', end_day: null, rule: 'weekly', rule_config: { weekdays: [2] }, end_date: '2026-12-15', count: null }).rrule, 'FREQ=WEEKLY;BYDAY=TU;WKST=MO;UNTIL=20261215T235959')
+const camp = calendarEvent({ id: 'e4', title: 'Camp', starts_at: '2026-10-01T00:00', ends_at: '2026-10-02T00:00', all_day: true, location: null,
+  start_day: '2026-10-01', end_day: '2026-10-02', rule: 'yearly', rule_config: {}, count: 3 })
+eq('an all-day yearly event keeps its two days, three times', [camp.rrule, camp.start, camp.end],
+  ['FREQ=YEARLY;BYMONTH=10;BYMONTHDAY=1;COUNT=3', { kind: 'date', date: '2026-10-01' }, { kind: 'date', date: '2026-10-03' }])
+const thu = calendarEvent({ id: 'e5', title: 'Swim', starts_at: '2026-10-06T17:00:00.000Z', ends_at: null, all_day: false, location: null,
+  start_day: '2026-10-06', start_time: '19:00', end_day: null, rule: 'weekly', rule_config: { weekdays: [4] } })
+eq('it starts on the first day the rule gives, an hour long', [thu.start, thu.end], [{ kind: 'local', date: '2026-10-08', time: '19:00' }, { kind: 'local', date: '2026-10-08', time: '20:00' }])
+
 // ---- the file ----------------------------------------------------------------
 const file = buildCalendar([taskEvent(task()), taskEvent(task({ id: 't2', planned_time: null })), ev], { stamp: STAMP, name: 'GetIt, week 40', timezone: AMS })
 eq('lines end in CRLF', file.split('\r\n').length > 5 && !/[^\r]\n/.test(file), true)

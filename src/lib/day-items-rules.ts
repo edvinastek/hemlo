@@ -3,7 +3,7 @@
  *  events, events of calendars they follow, and dated records of modules
  *  that keep them. Today and Plan both draw this list, so they can never
  *  disagree about what a day holds. Pure: rows in, items out. */
-import { habitDay, habitSchedule, choreState, choreAssignee, describeChore, describeSchedule, occursOn, addDays, type HabitDay } from './schedule-rules.ts'
+import { habitDay, habitSchedule, choreState, choreAssignee, describeChore, describeSchedule, occursOn, addDays, cleanRule, daysIn, toDayNumber, type HabitDay, type Schedule } from './schedule-rules.ts'
 import { moduleView, type ModuleView } from './module-view-rules.ts'
 import { checklistProgress } from './notes.ts'
 import type { Task, Habit, HabitLog, Chore, ChoreLog, Supplement, SupplementLog, CalendarEvent, ModuleRecord } from './types'
@@ -223,8 +223,10 @@ export function dayItems(days: string[], where: Where, s: DayItemSources): DayIt
       if (e.deleted_at) continue
       const followed = !!e.subscription_id
       if (!shows(followed ? null : 'agenda', where, s)) continue
-      const span = eventDays(e)
-      if (!span || day < span.first || day > span.last) continue
+      // A repeating own event is on each day its rule gives (AGN-03); the
+      // time that starts on this day first, if two overlap.
+      const span = eventTimes(e, day, day).sort((a, b) => Number(b.first === day) - Number(a.first === day))[0]
+      if (!span) continue
       // Its own clock time on its first day; on the days after, a long event
       // fills the day and sits at the top with the all-day ones.
       const allDay = e.all_day || day !== span.first
@@ -234,7 +236,7 @@ export function dayItems(days: string[], where: Where, s: DayItemSources): DayIt
       out.push({
         key: `event:${e.id}:${day}`, kind: 'event', day, time, minutes, title: e.title,
         module_key: followed ? null : 'agenda', done: false, state: null,
-        meta: [allDay ? 'All day' : '', e.location, followed ? e.calendar_name ?? 'Followed calendar' : ''].filter(Boolean).join(' · '),
+        meta: [allDay ? 'All day' : '', e.location, followed ? e.calendar_name ?? 'Followed calendar' : '', eventRepeatWords(e)].filter(Boolean).join(' · '),
         ref: { table: 'calendar_event', id: e.id }, readonly: followed,
         allDay, colour: followed ? e.calendar_colour ?? null : null,
       })
@@ -323,6 +325,57 @@ export function eventDays(e: Pick<CalendarEvent, 'starts_at' | 'ends_at' | 'all_
   // A broken end, or one before the start, is just the first day.
   if (last < start.day) last = start.day
   return { first: start.day, last, time: start.time }
+}
+
+/* ---------- repeating own events (AGN-03) --------------------------------- */
+
+/** The repeat kinds an event can have: every kind with days of its own
+ *  ("N times a week" has none). */
+export const EVENT_RULE_KINDS = ['daily', 'weekdays', 'weekends', 'weekly', 'every_n_weeks', 'monthly', 'monthly_nth', 'yearly', 'dates'] as const
+
+type EventLike = Pick<CalendarEvent, 'starts_at' | 'ends_at' | 'all_day'> & Partial<Pick<CalendarEvent, 'rule' | 'rule_config' | 'end_date' | 'count' | 'subscription_id'>>
+
+/** An own event's repeat as the one repeat engine's schedule, from its first
+ *  local day; null when it does not repeat. A followed calendar's event
+ *  never repeats here: its calendar lays out every time itself. */
+export function eventSchedule(e: EventLike): Schedule | null {
+  if (!e.rule || e.subscription_id || !(EVENT_RULE_KINDS as readonly string[]).includes(e.rule)) return null
+  const span = eventDays(e)
+  if (!span) return null
+  const r = cleanRule(e.rule, e.rule_config ?? {})
+  if (!r.rule) return null
+  return { rule: r.rule, rule_config: r.rule_config, start_date: span.first, end_date: e.end_date ?? null, occurrence_count: e.count ?? null }
+}
+
+/** Every time an event happens that touches the days from..to: its local
+ *  first and last day and its clock time. A long event keeps its length on
+ *  every repeat; the clock time stays the same local time all year. One
+ *  time for an event that does not repeat. */
+export function eventTimes(e: EventLike, from: string, to: string): { first: string; last: string; time: string }[] {
+  const span = eventDays(e)
+  if (!span) return []
+  const s = eventSchedule(e)
+  if (!s) return span.first <= to && span.last >= from ? [span] : []
+  const length = toDayNumber(span.last) - toDayNumber(span.first)
+  return daysIn(s, addDays(from, -length), to).map((first) => ({ first, last: addDays(first, length), time: span.time }))
+}
+
+/** Whether an event may touch the days from..to, judged from its stored UTC
+ *  moments (a day either side, for the person's zone) and its repeat. For
+ *  the readers, before the rules work out the local days. */
+export function eventMayTouch(e: EventLike, from: string, to: string): boolean {
+  const starts = e.starts_at.slice(0, 10)
+  if (starts > addDays(to, 1)) return false
+  if (e.rule && !e.subscription_id) return !e.end_date || e.end_date >= addDays(from, -1)
+  return (e.ends_at ?? e.starts_at).slice(0, 10) >= addDays(from, -1)
+}
+
+/** "Repeats weekly on Tue", for an event's line; nothing when it does not repeat. */
+export function eventRepeatWords(e: EventLike): string {
+  const s = eventSchedule(e)
+  if (!s) return ''
+  const words = describeSchedule({ rule: s.rule, rule_config: s.rule_config, start_date: s.start_date, end_date: s.end_date ?? null })
+  return `Repeats ${words.charAt(0).toLowerCase()}${words.slice(1)}`
 }
 
 /** How the person reads a day: one timeline by the clock, or grouped into
