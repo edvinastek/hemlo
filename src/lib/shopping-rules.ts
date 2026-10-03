@@ -11,7 +11,7 @@
  *  says what one weighs. */
 
 import { rawGrams } from './calc.ts'
-import { fold } from './search-rules.ts'
+import { fold, search } from './search-rules.ts'
 import { addDays, weekdayOf, WEEK_ORDER } from './schedule-rules.ts'
 import {
   addCounts, countOf, findUnit, formatCount, formatQty, gramsLabel, plainFractions, readQty, readUnits, wholeToBuy,
@@ -232,6 +232,33 @@ export function matchFood(name: string, foods: FoodChoice[]): string | null {
   const close = foods.filter((f) => (f.mine || f.inStock || (f.recent ?? 0) > 0) && nameKey(f.name).startsWith(`${key} `))
     .sort((a, b) => rank(a) - rank(b))
   return close[0]?.id ?? null
+}
+
+/** One thing the add box can suggest: a food, or a name bought before. */
+export interface AddChoice { key: string; name: string; food_id: string | null; mine?: boolean; inStock?: boolean; recent?: number; onList?: boolean }
+
+/** What the add box suggests as the person types (GEN-13, the one search):
+ *  the household's own things first (bought before, in stock, their own
+ *  foods), then any food, every typed word in any order, accents ignored.
+ *  The amount typed is left out of the search ("2 kg appl" finds Apples).
+ *  One entry per item; the name typed exactly is not suggested back. */
+export function addSuggestions(typed: string, choices: AddChoice[], limit = 6): AddChoice[] {
+  const parsed = parseItem(typed)
+  const name = parsed?.name ?? ''
+  if (fold(name).length < 2) return []
+  const seen = new Set<string>()
+  const own = (c: AddChoice) => !!(c.mine || c.inStock || (c.recent ?? 0) > 0)
+  const ranked = search(choices.map((c) => ({ ...c, mine: own(c) })), name)
+  const out: AddChoice[] = []
+  for (const c of ranked) {
+    const k = c.food_id ?? `name:${nameKey(c.name)}`
+    if (seen.has(k) || seen.has(`name:${nameKey(c.name)}`)) continue
+    seen.add(k); seen.add(`name:${nameKey(c.name)}`)
+    if (nameKey(c.name) === nameKey(name) && !c.food_id) continue
+    out.push(choices.find((x) => x.key === c.key) ?? c)
+    if (out.length >= limit) break
+  }
+  return out
 }
 
 // ---- aisles -------------------------------------------------------------------------

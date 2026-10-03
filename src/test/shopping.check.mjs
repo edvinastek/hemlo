@@ -9,6 +9,7 @@ import {
   forShop, sameShop, onList, groupList, reorderWithin, nextSort, mergeAmounts, recentTiles, currencyFor, formatMoney,
   readPrice, perKilo, priceLabel, itemCost, tripTotal, pickPrice, nextShoppingDay, listWindow, describeDays, tripTitle,
   planTrip, listNames, windowText, isTripTask, readShoppingModule, DEFAULT_AISLES, OTHER,
+  addSuggestions,
 } from '../lib/shopping-rules.ts'
 import { suggestShops, cleanShopName, CHAINS } from '../lib/shops-rules.ts'
 
@@ -281,6 +282,21 @@ is('shops already kept are not offered', suggestShops('NL', ['albert heijn']).so
 is('the search narrows them', suggestShops('NL', [], 'hoog').map((s) => s.name), ['Hoogvliet'])
 is('a chain typed in lower case is written its way', cleanShopName('  albert   heijn '), 'Albert Heijn')
 is('a typed shop is kept as typed', cleanShopName('Market stall'), 'Market stall')
+
+// The add box's suggestions: the one search, own things first, the amount left out.
+const choices = [
+  { key: 'f1', name: 'Apple, raw', food_id: 'f1' },
+  { key: 'f2', name: 'Apples (Jonagold)', food_id: 'f2', recent: 3 },
+  { key: 'n1', name: 'Apple juice', food_id: null, recent: 1 },
+  { key: 'f3', name: 'Pineapple', food_id: 'f3' },
+  { key: 'f4', name: 'Crème fraîche', food_id: 'f4', mine: true },
+  { key: 'f2b', name: 'Apples (Jonagold)', food_id: 'f2' },
+]
+is('own and recent first, then starts-with, the amount ignored', addSuggestions('2 kg appl', choices).map((c) => c.key), ['n1', 'f2', 'f1', 'f3'])
+is('accents ignored', addSuggestions('creme', choices).map((c) => c.name), ['Crème fraîche'])
+is('one entry per food', addSuggestions('jonagold', choices).length, 1)
+is('nothing for one letter', addSuggestions('a', choices), [])
+is('a name typed exactly is not offered back', addSuggestions('apple juice', choices).map((c) => c.key), [])
 
 if (fail) { console.log(`\n${fail} failed`); process.exit(1) }
 console.log('\nall shopping checks passed')

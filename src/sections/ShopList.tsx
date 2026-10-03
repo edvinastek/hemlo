@@ -3,13 +3,13 @@ import { useLiveQuery } from 'dexie-react-hooks'
 import { db } from '../lib/db'
 import { useApp } from '../lib/store'
 import {
-  addItem, addRecent, addRecipesToList, changeItem, clearBasket, loadShopping, matchTyped, notePrice,
+  addItem, addRecent, addRecipesToList, changeItem, clearBasket, foodChoices, loadShopping, matchTyped, notePrice,
   putInStock, removeItem, removePrice, saveModuleSettings, setOrder, tick, today, type ShoppingView,
 } from '../lib/shopping'
 import {
   amountText, cleanLabel, currencyFor, forShop, formatMoney, groupList, guessAisle, itemKey, LIST_MAX, NOTE_MAX, NAME_MAX,
   itemCost, onList, parseAmount, parseItem, pickPrice, priceLabel, readPrice, reorderWithin, resolveAisle, sameShop, shopAisles,
-  tripTotal, windowText, type ListItem,
+  tripTotal, windowText, addSuggestions, type AddChoice, type ListItem,
 } from '../lib/shopping-rules'
 import { search } from '../lib/search-rules'
 import { gramsLabel } from '../lib/units-rules'
@@ -292,19 +292,36 @@ function AddBox({ profile, view, list, addRef, onScan, onRecipes }: {
   const parsed = parseItem(text)
   const aisle = parsed ? resolveAisle(guessAisle(parsed.name), view.module.aisles) : null
 
-  async function submit(e: FormEvent) {
-    e.preventDefault()
+  // Suggestions as the person types (GEN-13): the one search over the
+  // household's own things first (bought before, in stock, their foods),
+  // then every food. Picking one adds it with the amount typed.
+  const foods = useLiveQuery(() => foodChoices(profile.household_id, userId), [profile.household_id, userId], [])
+  const choices = useMemo<AddChoice[]>(() => {
+    const onIt = new Set(view.items.filter((i) => !i.checked).map((i) => itemKey(i)))
+    const named = view.entries.filter((e) => !e.deleted_at && !e.food_id && e.name)
+      .map((e) => ({ key: `n:${e.id}`, name: e.name!, food_id: null, recent: e.bought_at ? 1 : 0, onList: onIt.has(itemKey(e)) }))
+    return [...foods.map((f) => ({ key: f.id, name: f.name, food_id: f.id, mine: f.mine, inStock: f.inStock, recent: f.recent, onList: onIt.has(f.id) })), ...named]
+  }, [foods, view.items, view.entries])
+  const suggestions = useMemo(() => addSuggestions(text, choices), [text, choices])
+
+  async function put(name: string, foodId: string | null) {
     if (!parsed || busy) return
     setBusy(true)
     try {
-      const food = await matchTyped(profile.household_id, userId, parsed.name)
-      const r = await addItem(profile, { ...parsed, food_id: food?.id ?? null, list })
-      offerUndo(r.merged ? `More ${parsed.name} on the list` : `${parsed.name} on the list`, r.undo)
+      const r = await addItem(profile, { ...parsed, name, food_id: foodId, list })
+      offerUndo(r.merged ? `More ${name} on the list` : `${name} on the list`, r.undo)
       setText('')
       addRef.current?.focus()
     } finally {
       setBusy(false)
     }
+  }
+
+  async function submit(e: FormEvent) {
+    e.preventDefault()
+    if (!parsed || busy) return
+    const food = await matchTyped(profile.household_id, userId, parsed.name)
+    await put(parsed.name, food?.id ?? null)
   }
 
   return (
@@ -314,6 +331,18 @@ function AddBox({ profile, view, list, addRef, onScan, onRecipes }: {
           placeholder="Add an item: 2 kg apples, 6 eggs" aria-label="Add an item" autoComplete="off" enterKeyHint="done" />
         <button type="submit" className="btn btn-primary" disabled={!parsed || busy}>Add</button>
       </div>
+      {suggestions.length > 0 && (
+        <ul className="shop-suggest" aria-label="Suggestions">
+          {suggestions.map((c) => (
+            <li key={c.key}>
+              <button type="button" disabled={busy} onClick={() => void put(c.name, c.food_id)}>
+                <span className="shop-serif">{c.name}</span>
+                <span className="shop-suggest-why">{c.onList ? 'on the list' : c.inStock ? 'in stock' : (c.recent ?? 0) > 0 ? 'bought before' : c.mine ? 'your food' : ''}</span>
+              </button>
+            </li>
+          ))}
+        </ul>
+      )}
       <p className="stock-hint shop-add-read" aria-live="polite">
         {parsed
           ? [parsed.name, parsed.qty !== null ? amountText(parsed) : '', aisle && aisle !== 'Other' ? aisle : ''].filter(Boolean).join(' · ')

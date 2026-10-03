@@ -1,10 +1,11 @@
-import { useState, type CSSProperties, type FormEvent } from 'react'
+import { useMemo, useState, type CSSProperties, type FormEvent } from 'react'
 import { useApp } from '../lib/store'
 import { readSettings } from '../lib/settings'
 import { saveSettings } from '../lib/write'
 import { MODULES } from '../modules/registry'
 import { SWATCHES, DEFAULT_COLOURS, contrastNote, parseHex, withColour } from '../lib/colours-rules'
 import { useModuleColours } from '../lib/colours'
+import { search } from '../lib/search-rules'
 import type { Profile } from '../lib/types'
 import './colour-settings.css'
 
@@ -22,6 +23,7 @@ function Colours({ profile }: { profile: Profile }) {
   const colours = useModuleColours()
   const { built, enabled } = colours
   const [open, setOpen] = useState<string | null>(null)
+  const [query, setQuery] = useState('')
 
   // Work and the evening colour a day without being modules, so they always
   // have a row; then the modules that are on, in the Modules list's order,
@@ -32,6 +34,15 @@ function Colours({ profile }: { profile: Profile }) {
     ...built.map((m) => m.key).filter((k) => enabled.includes(k)),
     'evening',
   ]
+
+  // A long list gets the one search (GEN-13): by the module's name or its
+  // colour's name. With nothing typed, the list keeps its own order.
+  const findable = keys.length > 8
+  const shown = useMemo(() => {
+    if (!query.trim()) return keys
+    const items = keys.map((k) => ({ key: k, name: colours.label(k), extra: SWATCHES.find((x) => x.hex === colours.of(k))?.name ?? '' }))
+    return search(items, query).map((x) => x.key)
+  }, [keys.join(','), query, colours]) // eslint-disable-line react-hooks/exhaustive-deps
 
   async function set(key: string, hex: string | null) {
     await saveSettings(profile, { colours: withColour(settings.colours, key, hex) })
@@ -49,8 +60,15 @@ function Colours({ profile }: { profile: Profile }) {
           onClick={() => saveSettings(profile, { colours: { on: !settings.colours.on } })} />
       </div>
 
+      {findable && (
+        <div className="cs-find">
+          <input type="search" value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Find a module or a colour"
+            aria-label="Find a module or a colour" autoComplete="off" />
+        </div>
+      )}
       <div className={settings.colours.on ? 'cs-list' : 'cs-list is-off'}>
-        {keys.map((k) => (
+        {shown.length === 0 && <p className="cs-none">Nothing called “{query.trim()}”.</p>}
+        {shown.map((k) => (
           <ColourRow key={k} name={colours.label(k)}
             hex={colours.of(k)} chosen={k in settings.colours.modules}
             shared={keys.filter((o) => o !== k && colours.of(o) === colours.of(k)).map(colours.label)}

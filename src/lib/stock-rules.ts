@@ -6,6 +6,7 @@
 
 import { rawGrams } from './calc.ts'
 import { findUnit, nudgeCount, type FoodUnit } from './units-rules.ts'
+import { matches, words } from './search-rules.ts'
 import type { Food, RecipeLine } from './types'
 
 export type Unit = 'g' | 'kg'
@@ -177,14 +178,13 @@ export function sortStock<T extends Pick<StockView, 'section' | 'name'>>(rows: T
     || a.name.localeCompare(b.name))
 }
 
-/** Every word typed must appear in the name, the aisle or the note. */
+/** Every word typed must appear in the name, the aisle or the note: the one
+ *  search's matching (search-rules.ts), so accents and case do not matter.
+ *  The rows keep their order (the walk round the shop). */
 export function filterStock<T extends Pick<StockView, 'name' | 'section' | 'note'>>(rows: T[], query: string): T[] {
-  const words = query.toLowerCase().split(/\s+/).filter(Boolean)
-  if (words.length === 0) return rows
-  return rows.filter((r) => {
-    const hay = `${r.name} ${r.section} ${r.note ?? ''}`.toLowerCase()
-    return words.every((w) => hay.includes(w))
-  })
+  const ws = words(query)
+  if (ws.length === 0) return rows
+  return rows.filter((r) => matches({ name: r.name, extra: `${r.section} ${r.note ?? ''}` }, ws))
 }
 
 /** A note as stored: trimmed, empty is none, cut to what the database takes. */
