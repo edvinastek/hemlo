@@ -165,3 +165,18 @@
 .track-swatch.is-none { background: var(--e-tint); border-color: var(--e-rule); }
 .track-swatch.is-none[aria-checked="true"] { border-color: var(--e-ink); }
 .form-grid input.track-mark-in { width: 9em; }
+
+/* Supplements: a slot's head carries its count and one "Take all". */
+.supp-head { display: flex; align-items: center; gap: var(--space-2); padding-right: var(--space-4); }
+.supp-head .track-group { flex: 1; min-width: 0; }
+.supp-all {
+  font-family: var(--font-sans); font-size: 13px; min-height: 36px; padding: 4px 12px; margin-top: var(--space-2);
+  border: 1px solid var(--e-rule); border-radius: var(--radius-pill); color: var(--e-ink);
+}
+.supp-all[aria-pressed="true"] { background: var(--e-tint); }
+.supp-slots { display: grid; gap: var(--space-2); padding: var(--space-3) var(--space-4); border-bottom: 1px solid var(--e-rule); }
+.supp-slot-row { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2); }
+.supp-slot-row input { min-width: 0; padding: 8px 10px; font-size: 15px; }
+.supp-slot-row input.serif { flex: 1 1 140px; font-family: var(--font-serif); }
+.supp-slot-row input[type="time"] { flex: 0 0 auto; width: 7.5em; }
+.supp-slot-row .track-ask { flex-basis: 100%; }

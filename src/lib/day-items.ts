@@ -6,6 +6,11 @@ import { dayItems, type DayItem, type Where } from './day-items-rules'
 import { addDays } from './schedule-rules'
 import { useApp } from './store'
 import type { ModuleRecord } from './types'
+// Habits, chores and supplements (engineer B): slots, chore preferences and
+// members' names for the day's items.
+import { supplementSlots } from './tracking'
+import { cachedMembers, chorePrefs } from './household'
+import { memberName } from './chore-rules'
 
 /** Reads everything the day-items rules need for a range of days from the
  *  local copy, and lays the days out (day-items-rules.ts). One reader for
@@ -36,6 +41,8 @@ export async function loadDayItems(profileId: string, householdId: string, from:
     db.calendar_subscription.where('profile_id').equals(profileId).toArray(),
   ])
   const calName = new Map(subscriptions.map((c) => [c.id, c.name]))
+  const [slots, prefs, members] = await Promise.all([supplementSlots(profileId), chorePrefs(profileId), cachedMembers(householdId)])
+  const me = profile?.user_id ?? null
   const days: string[] = []
   for (let d = from; d <= to; d = addDays(d, 1)) days.push(d)
   return dayItems(days, where, {
@@ -44,6 +51,9 @@ export async function loadDayItems(profileId: string, householdId: string, from:
     events: events.map((e) => ({ ...e, calendar_name: e.subscription_id ? calName.get(e.subscription_id) ?? null : null })),
     records,
     recordTitle: recordTitle,
+    supplementSlots: slots,
+    chorePrefs: prefs,
+    memberName: (id) => memberName(members, id, me),
   })
 }
 

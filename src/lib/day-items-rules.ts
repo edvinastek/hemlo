@@ -6,6 +6,11 @@
 import { habitDay, habitSchedule, choreState, choreAssignee, describeChore, describeSchedule, occursOn, type HabitDay } from './schedule-rules.ts'
 import { moduleView, type ModuleView } from './module-view-rules.ts'
 import type { Task, Habit, HabitLog, Chore, ChoreLog, Supplement, SupplementLog, CalendarEvent, ModuleRecord } from './types'
+// Habits, chores and supplements (engineer B): the person's supplement slots
+// and schedules, flexible chores held back on light days or past a cap, and a
+// habit's part of the day.
+import { supplementGroups, DEFAULT_SLOTS, habitWhen, type SupplementSlotDef } from './tracking-rules.ts'
+import { heldBack, type ChorePrefs } from './chore-rules.ts'
 
 export type DayItemKind = 'task' | 'habit' | 'chore' | 'supplements' | 'event' | 'record'
 
@@ -66,6 +71,10 @@ export interface DayItemSources {
   recordTitle?: (r: ModuleRecord) => string
   /** Household member id to their name, for chores. */
   memberName?: (id: string) => string
+  /** The person's supplement slots (default Morning, Midday, Evening). */
+  supplementSlots?: SupplementSlotDef[]
+  /** Light days and a daily cap for flexible chores. */
+  chorePrefs?: ChorePrefs
 }
 
 /** Section to module, the same mapping the colours use. */
@@ -75,8 +84,6 @@ const SECTION_MODULE: Record<string, string> = {
 export const taskModule = (t: Pick<Task, 'module_key' | 'category'>): string | null =>
   t.module_key ?? (t.category ? SECTION_MODULE[t.category] ?? null : null)
 
-const SLOT_ORDER = ['morning', 'midday', 'evening'] as const
-const SLOT_LABEL: Record<string, string> = { morning: 'Morning', midday: 'Midday', evening: 'Evening' }
 const hhmm = (t: string | null | undefined) => (t ? t.slice(0, 5) : null)
 
 /** Is a module allowed here? Off modules never show (GEN-01); on ones
@@ -130,13 +137,16 @@ export function dayItems(days: string[], where: Where, s: DayItemSources): DayIt
         out.push({
           key: `habit:${h.id}:${day}`, kind: 'habit', day, time: hhmm(h.time_of_day), minutes: null,
           title: h.name, module_key: 'habits', done: state === 'done' || state === 'met', state,
-          meta: describeSchedule(habitSchedule(h)) + (state === 'met' ? ' · done this week' : ''),
+          meta: [describeSchedule(habitSchedule(h)), !h.time_of_day && habitWhen(h).label !== 'Any time' ? habitWhen(h).label : '',
+            state === 'met' ? 'done this week' : ''].filter(Boolean).join(' · '),
           ref: { table: 'habit', id: h.id }, readonly: false, note: h.note ?? null,
           target: h.target ?? null, amount: log?.amount ?? null, unit: h.unit ?? null,
         })
       }
     }
     if (shows('household', where, s)) {
+      const choreItems: DayItem[] = []
+      const modes = new Map(s.chores.map((c) => [c.id, c.mode]))
       for (const c of s.chores) {
         if (c.deleted_at) continue
         const logs = choreLogs.get(c.id) ?? []
@@ -152,7 +162,7 @@ export function dayItems(days: string[], where: Where, s: DayItemSources): DayIt
         if (!st.shows) continue
         const who = choreAssignee(c, day, logs).map((id) => s.memberName?.(id) ?? '').filter(Boolean)
         const overdue = st.overdueDays > 0 ? `${st.overdueDays} ${st.overdueDays === 1 ? 'day' : 'days'} waiting` : ''
-        out.push({
+        choreItems.push({
           key: `chore:${c.id}:${day}`, kind: 'chore', day, time: hhmm(c.time_of_day), minutes: c.minutes,
           title: c.name, module_key: 'household', done: st.doneToday, state: st.overdueDays > 0 ? 'overdue' : (st.doneToday ? 'done' : 'due'),
           meta: [c.room, describeChore(c), overdue, who.join(', ')].filter(Boolean).join(' · '),
@@ -160,20 +170,22 @@ export function dayItems(days: string[], where: Where, s: DayItemSources): DayIt
           overdueDays: st.overdueDays, dueness: st.dueness, assignees: who,
         })
       }
+      // Flexible chores wait on a light day, and past the day's cap only the
+      // most due are kept (HSE-09).
+      const held = s.chorePrefs ? heldBack(choreItems.map((i) => ({ id: i.ref.id, mode: modes.get(i.ref.id) ?? 'fixed', dueness: i.dueness ?? 0, doneToday: i.done })), day, s.chorePrefs) : new Set<string>()
+      out.push(...choreItems.filter((i) => !held.has(i.ref.id)))
     }
     if (shows('supplements', where, s)) {
-      const live = s.supplements.filter((x) => x.active && !x.deleted_at)
-      for (const slot of [...SLOT_ORDER, null]) {
-        const items = live.filter((x) => (slot ? x.time_slot === slot : !SLOT_ORDER.includes(x.time_slot as typeof SLOT_ORDER[number])))
-        if (!items.length) continue
-        const parts = items.sort((a, b) => a.sort_order - b.sort_order || a.name.localeCompare(b.name))
-          .map((x) => ({ id: x.id, name: x.name, dose: x.dose_text, done: suppDone.has(`${x.id}|${day}`) }))
+      // The person's own slots, each at its time; only what is due that day.
+      for (const g of supplementGroups(s.supplements, s.supplementSlots ?? DEFAULT_SLOTS, day)) {
+        const parts = g.rows.map((x) => ({ id: x.id, name: x.name, dose: x.dose_text, done: suppDone.has(`${x.id}|${day}`) }))
         const n = parts.filter((p) => p.done).length
+        const key = g.slot?.key ?? 'any'
         out.push({
-          key: `supplements:${slot ?? 'any'}:${day}`, kind: 'supplements', day, time: null, minutes: null,
-          title: `${slot ? SLOT_LABEL[slot] : 'Any time'} supplements`, module_key: 'supplements',
+          key: `supplements:${key}:${day}`, kind: 'supplements', day, time: g.slot?.time ?? null, minutes: null,
+          title: `${g.label} supplements`, module_key: 'supplements',
           done: n === parts.length, state: null, meta: `${n} of ${parts.length}`,
-          ref: { table: 'supplement', id: slot ?? 'any' }, readonly: false, parts,
+          ref: { table: 'supplement', id: key }, readonly: false, parts,
         })
       }
     }
