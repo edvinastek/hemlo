@@ -1,5 +1,6 @@
 /* The undo bar: above the page bar, clear of the round + button on the right
-   (52 px wide plus its margin), on top of the page but under open sheets. */
+   (52 px wide plus its margin), on top of the page. With a sheet open it
+   moves above the sheet (Undo.tsx places it), never over its buttons. */
 .undo-bar {
   position: fixed; z-index: 30;
   left: var(--space-4); right: calc(52px + var(--space-4) * 2);
@@ -18,3 +19,7 @@
 .undo-close { min-width: 40px; min-height: 40px; font-size: 20px; color: var(--e-paper); opacity: 0.8; }
 .undo-btn:disabled { opacity: 0.6; }
 @media (min-width: 900px) { .undo-bar { bottom: var(--space-6); max-width: 480px; } }
+/* Over an open sheet: above its scrim, the full width (the + is under the
+   scrim then), placed over the sheet's top edge by Undo.tsx. */
+.undo-bar.is-over-sheet { z-index: 45; right: var(--space-4); }
+@media (min-width: 900px) { .undo-bar.is-over-sheet { right: auto; width: min(480px, calc(100% - var(--space-4) * 2)); } }
