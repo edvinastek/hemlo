@@ -11,6 +11,7 @@ import { loadDayItems } from './day-items'
 import { statsWidgetViews } from './stats-widget'
 import { trimStatsSnapshot, type StatsWidgetSnapshot } from './stats-widget-rules'
 import { latestTicks, slotIds, snapshotFromItems, widgetPath, type WidgetSnapshot, type WidgetTick } from './widget-rules'
+import type { QuickAddItem } from './widget-quickadd-rules'
 import { useApp } from './store'
 
 /** The Android home-screen widgets (android/…/widget): "GetIt · Today" and
@@ -28,6 +29,9 @@ interface GetItWidget {
   setLooks(options: { looks: string }): Promise<void>
   /** Every saved stats view, worked out (StatsWidgetSnapshot as JSON). */
   updateStats(options: { snapshot: string }): Promise<void>
+  /** The + menu's first entries (QuickAddItem[] as JSON), for the quick-add
+   *  widget and the launcher shortcuts (NAV-24, WID-11). */
+  setQuickAdd(options: { items: string }): Promise<void>
   addListener(event: 'tick', listener: () => void): Promise<PluginListenerHandle>
 }
 
@@ -178,6 +182,23 @@ function openWidgetLink(url: string) {
   window.dispatchEvent(new PopStateEvent('popstate'))
 }
 
+let lastQuick = ''
+let quickTimer: number | undefined
+
+/** The + menu's first entries, for the quick-add widget and the launcher
+ *  shortcuts. Sent a moment after they settle (the menu's modules and the
+ *  person's order load one after the other), and only when they changed. */
+export function sendQuickAdd(items: QuickAddItem[]) {
+  if (!available() || items.length === 0) return
+  const json = JSON.stringify(items)
+  window.clearTimeout(quickTimer)
+  quickTimer = window.setTimeout(() => {
+    if (json === lastQuick) return
+    lastQuick = json
+    Widget.setQuickAdd({ items: json }).catch(() => { lastQuick = '' })
+  }, 800)
+}
+
 /** The theme's colours for the widgets (LOOK-09): they redraw at once. */
 export async function sendWidgetLooks(json: string) {
   if (!available()) return
@@ -188,6 +209,8 @@ export async function sendWidgetLooks(json: string) {
 // and any ticks still waiting, together with the rest of the device's data.
 onResetLocal(async () => {
   watchWidget(null)
+  window.clearTimeout(quickTimer)
+  lastQuick = ''
   if (!available()) return
   // An update already on its way to the phone lands first, then this clears it.
   await Widget.clear()
