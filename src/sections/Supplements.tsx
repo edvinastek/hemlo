@@ -13,6 +13,7 @@ import {
   supplementStock, type SupplementSlotDef,
 } from '../lib/tracking-rules'
 import { MoreOptions } from '../ui/MoreOptions'
+import { MICROS, doseText, readDoseNutrients, readMicroText, storedMicros, type MicroCode, type Micros } from '../lib/micros-rules'
 import { describeSchedule } from '../lib/schedule-rules'
 import { PlusGlyph, TickGlyph } from './Habits'
 import { Dropdown } from '../ui/Dropdown'
@@ -255,6 +256,9 @@ export function SupplementSheet({ profileId, supplement, slots, today, nextOrder
   // the start of today, so ticks keep taking doses off (SUP-05).
   const [left, setLeft] = useState(stockNow != null ? String(stockNow) : '')
   const [refill, setRefill] = useState(String(supplement?.refill_days ?? REFILL_DAYS))
+  // What a dose counts towards (SUP-07), as typed: nutrient and amount.
+  const [counts, setCounts] = useState<{ code: MicroCode; amount: string }[]>(() =>
+    Object.entries(readDoseNutrients(supplement?.nutrients)).map(([code, v]) => ({ code: code as MicroCode, amount: String(v) })))
   const set = <K extends keyof Supplement>(k: K, v: Supplement[K]) => setDraft((d) => ({ ...d, [k]: v }))
   const start = draft.start_date ?? today
   const repeat: RepeatValue = { rule: draft.rule ?? 'daily', rule_config: draft.rule_config ?? {}, end_date: draft.end_date ?? null }
@@ -266,13 +270,20 @@ export function SupplementSheet({ profileId, supplement, slots, today, nextOrder
     if (n !== null && !(Number.isInteger(n) && n >= 0 && n < 100000)) return setError('Doses in stock is a whole number, or empty to keep no count.')
     const r = Number(refill)
     if (n !== null && !(Number.isInteger(r) && r >= 0 && r <= 365)) return setError('Remind me is a number of days from 0 to 365.')
+    const nutrients: Micros = {}
+    for (const c of counts) {
+      const v = readMicroText(c.amount)
+      const m = MICROS.find((x) => x.code === c.code)!
+      if (v === 'bad' || v === null) return setError(`${m.name}: the amount in one dose, in ${m.unit}.`)
+      nutrients[c.code] = v
+    }
     // A count is written only when it was typed or changed, so ticks since keep counting.
     const stock = n === null ? { stock_count: null, stock_from: null, refill_days: null }
       : n === stockNow && supplement?.stock_from ? { stock_count: supplement.stock_count ?? null, stock_from: supplement.stock_from, refill_days: r }
         : { ...stockFromNow(n, takenToday, today), refill_days: r }
     try {
       const everyDay = (draft.rule ?? 'daily') === 'daily' && !(draft.rule_config?.n && draft.rule_config.n > 1)
-      await saveSupplement({ ...draft, ...stock, rule: everyDay ? null : draft.rule, rule_config: everyDay ? {} : draft.rule_config ?? {} }, supplement)
+      await saveSupplement({ ...draft, ...stock, nutrients: storedMicros(nutrients), rule: everyDay ? null : draft.rule, rule_config: everyDay ? {} : draft.rule_config ?? {} }, supplement)
       onClose()
     } catch (e) {
       setError(e instanceof Error ? e.message : 'It could not be saved.')
@@ -293,9 +304,10 @@ export function SupplementSheet({ profileId, supplement, slots, today, nextOrder
         <span className="ts-field-name">When in the day</span>
         <Dropdown label="Time slot" value={draft.time_slot ?? ''} options={slotOptions} onChange={(v) => set('time_slot', v || null)} />
       </div>
-      <MoreOptions open={!!(draft.rule || draft.start_date || draft.end_date || left)}
+      <MoreOptions open={!!(draft.rule || draft.start_date || draft.end_date || left || counts.length)}
         summary={[draft.rule ? describeSchedule({ rule: draft.rule, rule_config: draft.rule_config ?? {}, start_date: start, end_date: draft.end_date ?? null }) : null,
-          draft.start_date ? `from ${draft.start_date}` : null, left ? `${left} in stock` : null].filter(Boolean).join(' · ') || null}>
+          draft.start_date ? `from ${draft.start_date}` : null, left ? `${left} in stock` : null,
+          counts.length ? doseText(Object.fromEntries(counts.map((c) => [c.code, Number(c.amount.replace(',', '.')) || 0]))) : null].filter(Boolean).join(' · ') || null}>
         <RepeatPicker value={repeat} start={start} today={today} kinds={[...SUPP_KINDS]} allowNone={false}
           onChange={(v) => setDraft((d) => ({ ...d, rule: v.rule, rule_config: v.rule_config, end_date: v.end_date }))} />
         <label title="Leave empty for from now on. With a last day too, it is taken only in between (vitamin D in winter).">Taken from
@@ -309,6 +321,7 @@ export function SupplementSheet({ profileId, supplement, slots, today, nextOrder
             <input inputMode="numeric" value={refill} disabled={!left} onChange={(e) => setRefill(e.target.value.replace(/[^\d]/g, ''))} />
           </label>
         </div>
+        <DoseNutrients counts={counts} onChange={(c) => { setCounts(c); setError(null) }} />
       </MoreOptions>
       {error && <p className="track-error" role="alert">{error}</p>}
       <div className="sheet-actions">
@@ -316,5 +329,39 @@ export function SupplementSheet({ profileId, supplement, slots, today, nextOrder
         <button type="submit" className="btn btn-primary" disabled={!draft.name.trim()}>Save</button>
       </div>
     </TrackSheet>
+  )
+}
+
+/** "Counts towards" (SUP-07): the vitamins and minerals one dose gives, each
+ *  with its amount in the nutrient's unit (vitamin D 25 µg). A ticked dose
+ *  adds them to the day's totals, which show when the person has chosen to
+ *  see those nutrients (Settings → Food). */
+function DoseNutrients({ counts, onChange }: { counts: { code: MicroCode; amount: string }[]; onChange: (c: { code: MicroCode; amount: string }[]) => void }) {
+  const free = MICROS.filter((m) => !counts.some((c) => c.code === m.code))
+  return (
+    <div className="supp-counts" role="group" aria-labelledby="supp-counts-name">
+      <span className="ts-field-name" id="supp-counts-name">Counts towards</span>
+      {counts.map((c, i) => {
+        const m = MICROS.find((x) => x.code === c.code)!
+        return (
+          <div key={c.code} className="supp-count">
+            <Dropdown<MicroCode> label="Nutrient" value={c.code}
+              options={[m, ...free].map((x) => ({ value: x.code, label: x.name }))}
+              onChange={(code) => onChange(counts.map((x, j) => (j === i ? { ...x, code } : x)))} />
+            <span className="supp-amount">
+              <input inputMode="decimal" value={c.amount} placeholder="25" aria-label={`${m.name} in one dose, ${m.unit}`}
+                onChange={(e) => onChange(counts.map((x, j) => (j === i ? { ...x, amount: e.target.value } : x)))} />
+              <span aria-hidden="true">{m.unit}</span>
+            </span>
+            <button type="button" className="track-step" aria-label={`Remove ${m.name}`} onClick={() => onChange(counts.filter((_, j) => j !== i))}>×</button>
+          </div>
+        )
+      })}
+      {free.length > 0 && (
+        <button type="button" className="slot-link supp-count-add" onClick={() => onChange([...counts, { code: free.find((m) => m.code === 'vd')?.code ?? free[0].code, amount: '' }])}>
+          {counts.length ? 'Add another' : 'Add a vitamin or mineral'}
+        </button>
+      )}
+    </div>
   )
 }

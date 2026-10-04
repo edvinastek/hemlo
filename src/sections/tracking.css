@@ -190,3 +190,12 @@
 
 /* v18 (SUP-05): a supplement running low says so in the warning colour. */
 .track-low { color: var(--e-warn); }
+
+/* What a supplement's dose counts towards (SUP-07), inside More options. */
+.supp-counts { display: grid; gap: var(--space-2); }
+.supp-count { display: grid; grid-template-columns: minmax(0, 1fr) auto auto; gap: var(--space-2); align-items: center; }
+.supp-amount { display: inline-flex; align-items: center; gap: 4px; font-family: var(--font-sans); font-size: 14px; color: var(--e-ink-soft); }
+.supp-amount input { width: 5.5em; min-height: 44px; padding: 6px 8px; font-size: 15px; }
+.supp-count-add { justify-self: start; min-height: 44px; }
+.supp-counts > .ts-field-name { font-family: var(--font-sans); font-size: 13px; color: var(--e-ink-soft); }
+.supp-count .track-step { width: 44px; height: 44px; }
