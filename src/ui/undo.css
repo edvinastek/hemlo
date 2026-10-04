@@ -18,6 +18,10 @@
 }
 .undo-close { min-width: 40px; min-height: 40px; font-size: 20px; color: var(--e-paper); opacity: 0.8; }
 .undo-btn:disabled { opacity: 0.6; }
+/* An offer (offerAction) may take two lines: it is a question to read. */
+.undo-bar.is-offer { padding-top: var(--space-1); padding-bottom: var(--space-1); }
+.undo-bar.is-offer .undo-label { white-space: normal; line-height: 1.3; }
+.undo-bar.is-offer .undo-btn { white-space: nowrap; }
 @media (min-width: 900px) { .undo-bar { bottom: var(--space-6); max-width: 480px; } }
 /* Over an open sheet: above its scrim, the full width (the + is under the
    scrim then), placed over the sheet's top edge by Undo.tsx. */

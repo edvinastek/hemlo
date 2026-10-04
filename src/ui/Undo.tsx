@@ -8,7 +8,7 @@ import './undo.css'
 
 const SHOW_MS = 8000
 
-interface UndoOffer { id: number; label: string; undo: () => unknown }
+interface UndoOffer { id: number; label: string; undo: () => unknown; action?: string }
 interface UndoState { offer: UndoOffer | null; busy: boolean }
 
 const useUndo = create<UndoState>(() => ({ offer: null, busy: false }))
@@ -16,6 +16,14 @@ let next = 1
 
 export function offerUndo(label: string, undo: () => unknown) {
   useUndo.setState({ offer: { id: next++, label, undo }, busy: false })
+}
+
+/** The same bar offering one next step instead of Undo ("Put in stock"),
+ *  when a sheet would be too much (SHOP-22): it never covers a sheet or
+ *  stacks on one, and it goes by itself. What the step does may offer its
+ *  own Undo, which replaces this bar. */
+export function offerAction(label: string, action: string, run: () => unknown) {
+  useUndo.setState({ offer: { id: next++, label, undo: run, action }, busy: false })
 }
 
 export function clearUndo() {
@@ -59,9 +67,10 @@ export function UndoBar() {
 
   useEffect(() => {
     if (!offer) return
+    // An offer to read and decide on stays a little longer than an Undo.
     const t = window.setTimeout(() => {
       if (useUndo.getState().offer?.id === offer.id) clearUndo()
-    }, SHOW_MS)
+    }, offer.action ? SHOW_MS * 1.5 : SHOW_MS)
     return () => window.clearTimeout(t)
   }, [offer])
 
@@ -79,9 +88,9 @@ export function UndoBar() {
 
   return (
     <div className="undo-live" aria-live="polite">
-      <div className={`undo-bar${sheetTop !== null ? ' is-over-sheet' : ''}`} role="status" style={placeOver(sheetTop)}>
+      <div className={`undo-bar${sheetTop !== null ? ' is-over-sheet' : ''}${offer.action ? ' is-offer' : ''}`} role="status" style={placeOver(sheetTop)}>
         <span className="undo-label">{offer.label}</span>
-        <button type="button" className="undo-btn" disabled={busy} onClick={() => void run()}>Undo</button>
+        <button type="button" className="undo-btn" disabled={busy} onClick={() => void run()}>{offer.action ?? 'Undo'}</button>
         <button type="button" className="undo-close" aria-label="Dismiss" onClick={clearUndo}>×</button>
       </div>
     </div>
