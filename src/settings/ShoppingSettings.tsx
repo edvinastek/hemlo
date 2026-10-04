@@ -10,7 +10,6 @@ import { describeDays, listWindow, windowText } from '../lib/shopping-rules'
 import { WEEK_ORDER } from '../lib/schedule-rules'
 import { loadOffAccount, setSharing, signInOff, signOutOff, useOffAccount } from '../lib/open-prices-account'
 import { OFF_SIGN_UP, readUserName } from '../lib/open-prices-rules'
-import { offerUndo } from '../ui/Undo'
 import './shopping-settings.css'
 
 const SHORT = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
@@ -180,12 +179,8 @@ function OpenPricesSharing() {
   }
 
   async function toggle() {
-    const was = on
-    await setSharing(!was)
+    await setSharing(!on)
     setSaid(null)
-    // Turning it off signs out, which Undo cannot sign back in: it turns
-    // the switch back on, ready to sign in again.
-    offerUndo(was ? 'Price sharing turned off' : 'Price sharing turned on', () => setSharing(was))
   }
 
   return (

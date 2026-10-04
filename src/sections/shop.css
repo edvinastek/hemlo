@@ -247,6 +247,8 @@
 .op-place-where { font-family: var(--font-sans); font-size: 12px; color: var(--e-ink-soft); overflow-wrap: anywhere; }
 .op-osm { justify-self: start; min-height: 44px; padding: 0; }
 .op-kind { display: inline-flex; justify-self: start; }
+.op-kind button { min-height: 44px; padding: 0 var(--space-4); }
+.op-shared { min-height: 44px; display: inline-flex; align-items: center; }
 .op-photo-btns { display: flex; flex-wrap: wrap; gap: var(--space-2); }
 .op-photo-btns .btn { min-height: 44px; }
 .op-preview { max-width: 100%; max-height: 180px; border-radius: var(--radius-md); border: 1px solid var(--e-rule); justify-self: start; object-fit: contain; }

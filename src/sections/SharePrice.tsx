@@ -225,7 +225,7 @@ export function SharePrice({ profile, name, price, code, perMl, onClose }: {
       </div>
 
       <div className="shop-field">
-        <span className="shop-label" id="op-photo">Photo of the</span>
+        <span className="shop-label" id="op-photo">Photo</span>
         <div className="stock-units op-kind" role="group" aria-labelledby="op-photo">
           <button type="button" aria-pressed={kind === 'PRICE_TAG'} onClick={() => setKind('PRICE_TAG')}>Price tag</button>
           <button type="button" aria-pressed={kind === 'RECEIPT'} onClick={() => setKind('RECEIPT')}>Receipt</button>

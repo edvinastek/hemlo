@@ -636,7 +636,7 @@ function PriceBody({ profile, view, item, filter, shown, code, perMl, onSaved }:
               <li key={r.id} className={can || mark ? 'has-share' : undefined}>
                 <span className="shop-price-shop">{r.shop}</span>
                 <span className="shop-price">{priceLabel(r, currency, perMl)}{r.noted_on ? ` · ${dayText(r.noted_on)}` : ''}</span>
-                {mark && <a className="op-shared" href={sharedPriceUrl(mark.id)} target="_blank" rel="noopener noreferrer">Shared</a>}
+                {mark && <a className="op-shared" href={sharedPriceUrl(mark.id)} target="_blank" rel="noopener noreferrer" aria-label={`Shared with Open Prices: see the price at ${r.shop}`}>Shared</a>}
                 {can && (
                   <button type="button" className="slot-link op-share-btn" onClick={() => setSharingId(r.id)}
                     aria-label={`Share the price at ${r.shop} with Open Prices`}>Share</button>
