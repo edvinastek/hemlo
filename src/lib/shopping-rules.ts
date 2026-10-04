@@ -190,8 +190,8 @@ export function entryGrams(e: { qty?: number | null; unit?: string | null; grams
  *  linked to a food gets the one amount field every screen uses
  *  (ui/AmountInput.tsx): a number and the food's choices. Those are packs
  *  (when the pack size is known), a plain count in the food's own word when
- *  it has no units ("6 apples"), grams and kilos (millilitres and litres for
- *  a drink) and its own units ("egg"). A shop word the item was saved in
+ *  it has neither units nor a pack size ("6 apples"), grams and kilos
+ *  (millilitres and litres for a drink) and its own units ("egg"). A shop word the item was saved in
  *  ("2 bottles") stays on offer, so opening an item never changes it.
  *
  *  Keys: 'packs', 'n' (a plain count), 'g', 'kg', 'u:egg' (a unit of the
@@ -203,9 +203,10 @@ export function listAmountChoices(food: FoodLike, keep: { qty?: number | null; u
   const out: AmountChoice[] = []
   const pack = Number(food.pack_size_g)
   if (pack > 0) out.push({ key: 'packs', label: 'packs', g: pack, unit: null })
-  // A plain count, for a food with no units, or one saved that way.
+  // A plain count ("6 apples") for a food with neither units nor a pack
+  // size: one sold in packs is counted in packs ("2 milk" is 2 packs).
   const bare = !!keep && !keep.unit && Number(keep.qty) > 0 && units.length !== 1
-  if (!units.length || bare) out.push({ key: 'n', label: foodWord(food.name), g: 0, unit: { name: foodWord(food.name), g: 0 } })
+  if (!(pack > 0) && (!units.length || bare)) out.push({ key: 'n', label: foodWord(food.name), g: 0, unit: { name: foodWord(food.name), g: 0 } })
   out.push({ key: 'g', label: food.per_ml ? 'ml' : 'g', g: 1, unit: null })
   out.push({ key: 'kg', label: food.per_ml ? 'l' : 'kg', g: 1000, unit: null })
   for (const u of units) out.push({ key: unitKey(u.name), label: u.name, g: u.g, unit: u })
@@ -237,10 +238,11 @@ export function amountToField(e: { qty?: number | null; unit?: string | null; gr
     if (own) return { text: formatQty(qty), key: own.key }
     if (has(`w:${unit}`)) return { text: formatQty(qty), key: `w:${unit}` }
   }
-  // A plain count: the food's one unit when it has one, else the count.
+  // A plain count: the food's one unit when it has one, else its packs,
+  // else the count.
   const units = choices.filter((c) => c.key.startsWith('u:'))
   if (!unit && units.length === 1) return { text: formatQty(qty), key: units[0].key }
-  return { text: formatQty(qty), key: has('n') ? 'n' : first }
+  return { text: formatQty(qty), key: has('packs') ? 'packs' : has('n') ? 'n' : first }
 }
 
 /** What the list keeps for the number and choice typed, in the same shape

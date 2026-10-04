@@ -306,7 +306,9 @@ is('a name typed exactly is not offered back', addSuggestions('apple juice', cho
   const apples = { name: 'Apples', pack_size_g: null, units: [] }
   const keys = (cs) => cs.map((c) => c.key)
   is('eggs: grams, kilos and the egg', keys(listAmountChoices(eggs)), ['g', 'kg', 'u:egg'])
-  is('rice: packs, a plain count, grams, kilos', keys(listAmountChoices(rice)), ['packs', 'n', 'g', 'kg'])
+  is('rice: packs, grams, kilos (counted in packs, not "rices")', keys(listAmountChoices(rice)), ['packs', 'g', 'kg'])
+  is('milk: packs, ml, l', keys(listAmountChoices(milk)), ['packs', 'g', 'kg'])
+  is('"2 milk" typed as a plain count opens as 2 packs', amountToField({ qty: 2, unit: null }, listAmountChoices(milk, { qty: 2, unit: null })), { text: '2', key: 'packs' })
   is('apples: the count is in apples', listAmountChoices(apples).find((c) => c.key === 'n').label, 'apple')
   is('milk is in ml and l', listAmountChoices(milk).filter((c) => c.key === 'g' || c.key === 'kg').map((c) => c.label), ['ml', 'l'])
   is('a shop word saved stays on offer', keys(listAmountChoices(rice, { qty: 2, unit: 'bag' })).at(-1), 'w:bag')
