@@ -64,7 +64,9 @@ await new Promise((ok) => server.listen(PORT, '127.0.0.1', ok))
 const BASE = `http://127.0.0.1:${PORT}`
 
 // 3. Shoot.
-const browser = await chromium.launch(process.env.CHROMIUM ? { executablePath: process.env.CHROMIUM } : {})
+// Chromium's own calls home (updates, sync, field trials) off too.
+const QUIET = ['--disable-background-networking', '--disable-component-update', '--disable-sync', '--no-pings', '--disable-domain-reliability', '--metrics-recording-only']
+const browser = await chromium.launch({ args: QUIET, ...(process.env.CHROMIUM ? { executablePath: process.env.CHROMIUM } : {}) })
 fs.mkdirSync(OUT, { recursive: true })
 const problems = []
 
@@ -80,7 +82,7 @@ async function shoot(scheme, shots) {
   await page.clock.setFixedTime(DEMO_NOW)
   page.on('pageerror', (e) => problems.push(`${scheme}: ${e.message}`))
   await page.goto(`${BASE}/`)
-  await page.waitForSelector('.bottom-nav', { timeout: 30_000 })
+  await page.waitForSelector('.bottom-nav', { timeout: 120_000 })
   await page.waitForTimeout(1500)
   for (const [file, go] of shots) {
     await go(page)

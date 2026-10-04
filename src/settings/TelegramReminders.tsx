@@ -4,6 +4,7 @@ import { refreshPlan } from '../lib/lifecycle'
 import { startTelegramLink, telegramBot, telegramStatus, unlinkTelegram } from '../lib/telegram'
 import { LINK_MINUTES } from '../lib/telegram-rules'
 import './shopping-settings.css'
+import './telegram.css'
 
 /** Settings → Reminders → Telegram (REM-05): reminders as Telegram messages,
  *  opt-in. Link shows a one-time t.me link; tapping Start in Telegram links

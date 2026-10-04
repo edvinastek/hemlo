@@ -1,0 +1,4 @@
+/* Telegram reminders (REM-05). "Open Telegram" is a link styled as the main
+   button; a settings row colours its link buttons as ink (more.css), which on
+   the accent would be unreadable. */
+.setting-row a.btn.btn-primary { color: var(--e-paper); }

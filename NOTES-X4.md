@@ -12,9 +12,6 @@ Running log. Newest at the bottom of each section.
 7. scripts/store-shots.mjs, run, commit store/screenshots.
 8. Requirements status, verification.
 
-## Decisions
-- (filled in as made)
-
 ## Log
 - 038 written and applied twice on the local DB; cron block tried with stub cron/net/vault schemas (one job, right URL, secret read from Vault). security.sql: 30 Telegram rows + 1 deletion row; 284 ok, 0 FAIL.
 - telegram-rules.ts (src/lib, copied to _shared), telegram-webhook and telegram-send (handler.ts node-testable, index.ts Deno). telegram.check.mjs passes; handlers type-checked ad hoc with tsc (no Deno here).
