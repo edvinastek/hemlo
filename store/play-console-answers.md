@@ -1,8 +1,10 @@
 # Play Console answers for GetIt
 
 Every form Google Play asks for before a release, with the answer that matches
-what the app does as of version 0.2.0. If a feature changes what is collected,
-change this file in the same commit and update the form in Play Console.
+what the app does as of **version 18** (checked 4 October 2026 against the code,
+the merged Android manifest and `src/legal/policy.ts`). If a feature changes
+what is collected, change this file, the policy and `docs/privacy/` in the same
+commit, and update the form in Play Console.
 
 ## App details
 
@@ -14,12 +16,13 @@ change this file in the same commit and update the form in Play Console.
 | App or game | App |
 | Free or paid | Free. A free app can never become paid; in-app subscriptions stay possible |
 | Category | Productivity |
-| Listing text and graphics | `store/listing.json`, `store/icon-512.png`, `store/feature-graphic.png`, `store/screenshots/` |
+| Listing text and graphics | `store/listing.json`, `store/icon-512.png`, `store/feature-graphic.png`, `store/screenshots/` (see "Screenshots" below) |
 
 ## App content
 
 ### Privacy policy
-`https://<your-site>/privacy.html` (built from `src/legal/policy.ts` by `npm run build:site`).
+`https://<site-name>.netlify.app/privacy.html` (built from `src/legal/policy.ts` by `npm run build:site`, hosted by
+Netlify; see `docs/android-release.md`).
 
 ### App access
 Choose **All or some functionality is restricted**, then add one set of credentials:
@@ -27,7 +30,9 @@ Choose **All or some functionality is restricted**, then add one set of credenti
 - Name: Reviewer account
 - Username: a reviewer address you control, for example `play-review@<your-domain>`
 - Password: a long random one, used for nothing else
-- Other information: "Sign in with this email and password. No second factor is used. The planner, meal plan and shopping list are available after signing in."
+- Other information: "Sign in with this email and password. No second factor is used. The planner, meal plan,
+  shopping list and every module are available after signing in. Sharing a price with Open Prices is optional and
+  needs the reviewer's own Open Food Facts account; nothing else needs one."
 
 Before submitting, add that address to the invite list, create the account in the app, and open the confirmation email:
 
@@ -39,10 +44,11 @@ insert into private.signup_allowlist (email) values ('play-review@<your-domain>'
 No, the app does not contain ads.
 
 ### Content rating (IARC questionnaire)
-Category: **All other app types**. Answer No to violence, sexual content, profanity,
-drugs, alcohol, tobacco, gambling, and to "users can interact or exchange content"
-(household sharing is invitation-only and not built yet). No location sharing, no
-digital purchases. Expected result: suitable for all ages (PEGI 3 / Everyone).
+Category: **All other app types**. Answer No to violence, sexual content, profanity, drugs, alcohol, tobacco and
+gambling. Answer **Yes** to "users can interact or exchange content": members of a household share a shopping
+list, a stock list, prices and chores, and a recipe can be proposed to everyone (it is read by the owner before it
+is shown). No chat, no free messaging between strangers, no location sharing, no digital purchases. Expected result:
+suitable for all ages (PEGI 3 / Everyone) with the interactive element "Users Interact".
 
 ### Target audience
 **18 and over** only. The app is not designed for children and must not appear in the Families programme.
@@ -54,48 +60,106 @@ No.
 No.
 
 ### Financial features
-None.
+**My app doesn't provide any financial features.** Finance in GetIt is a personal record the person types (what
+they spent and received, budgets, planned payments). It does not connect to a bank, move money, give loans or
+advice, or trade anything. (If the form's wording has changed, choose the option for "no financial services".)
 
 ### Health apps declaration
 Tick:
 - **Nutrition and weight management**
 - **Activity and fitness**
+- **Sleep management** (the Sleep module logs sleep and works out sleep debt)
 
-Do not tick anything medical: GetIt does not diagnose, treat or monitor any condition,
-and the listing says it gives no medical advice. It does not use Health Connect.
+Do not tick anything medical: GetIt does not diagnose, treat or monitor any condition, and the listing says it
+gives no medical advice. It does not use Health Connect.
 
 ### Data safety
 
 **Does your app collect or share any of the required user data types?** Yes.
-**Is all of the user data collected by your app encrypted in transit?** Yes (HTTPS to Supabase).
-**Do you provide a way for users to request that their data is deleted?** Yes: in the app, and at `https://<your-site>/delete.html`.
+**Is all of the user data collected by your app encrypted in transit?** Yes (HTTPS to Supabase, Open Food Facts,
+Open Prices and OpenStreetMap; Google's scanner uses HTTPS too).
+**Do you provide a way for users to request that their data is deleted?** Yes: in the app (Settings → Data and
+account → Delete account), and at `https://<site-name>.netlify.app/delete.html`.
 
-Nothing is **shared**. Supabase stores data as a processor on GetIt's behalf, which Google does not count as sharing.
+#### Collected
 
-| Category | Data type | Collected | Optional? | Purpose |
-| --- | --- | --- | --- | --- |
-| Personal info | Email address | Yes | Required | Account management, App functionality |
-| Personal info | Name | Yes | Optional | App functionality |
-| Personal info | Other info (date of birth, sex) | Yes | Optional | App functionality |
-| Health and fitness | Health info (weight, waist, food eaten, targets, sleep) | Yes | Optional | App functionality |
-| Health and fitness | Fitness info (training sessions and sets) | Yes | Optional | App functionality |
-| App activity | Other user-generated content (tasks, notes, recipes, shopping lists) | Yes | Optional | App functionality |
+| Category | Data type | Collected | Optional? | Purpose | What it is in GetIt |
+| --- | --- | --- | --- | --- | --- |
+| Personal info | Email address | Yes | Required | Account management, App functionality | The sign-in address. |
+| Personal info | Name | Yes | Optional | App functionality | The profile name; the name a member shows in a household. |
+| Personal info | Other info | Yes | Optional | App functionality | Date of birth and sex, for the calorie and protein targets. |
+| Financial info | Purchase history | Yes | Optional | App functionality | What the person types in Finance as spent, and the prices they type for shopping items. |
+| Financial info | Other financial info | Yes | Optional | App functionality | Income, budgets and planned payments typed in Finance. |
+| Health and fitness | Health info | Yes | Optional | App functionality | Weight, waist, food eaten, targets, sleep, supplements. |
+| Health and fitness | Fitness info | Yes | Optional | App functionality | Training sessions, sets and exercises. |
+| Photos and videos | Photos | Yes | Optional | App functionality | Photos added to records in a module the person built (private storage); a photo of a price tag or receipt, sent to Open Prices only when the person shares a price. |
+| Location | Approximate location | Yes | Optional | App functionality | The country and town the person types in their profile (for shops, prices and public holidays), and the shop's place when they share a price. Never the device's location: GetIt has no location permission. |
+| Calendar | Calendar events | Yes | Optional | App functionality | Events the person puts in their own agenda; the addresses of calendars they follow (those calendars' events stay on the device). |
+| App activity | Other user-generated content | Yes | Optional | App functionality | Tasks, notes, recipes, shopping lists, stock, module records, household chores. |
+| App info and performance | Diagnostics | Yes | Optional | Analytics | Collected by Google's ML Kit code scanner (in Google Play services) when the person scans a barcode: performance figures and error codes, for Google's own diagnostics. GetIt itself collects none. |
+| Device or other IDs | Device or other IDs | Yes | Optional | Analytics | The same ML Kit scanner: a per-installation identifier "not intended to uniquely identify a user or physical device", for Google's diagnostics ([ML Kit data disclosure](https://developers.google.com/ml-kit/android-data-disclosure)). |
 
-Not collected: location, contacts, photos, files, messages, calendar, device IDs,
-crash logs, diagnostics, web browsing, financial info, audio, identifiers for ads.
-No data is processed ephemerally; none is used for advertising or analytics.
+Not collected: precise location, contacts, messages, audio, files and docs, web browsing, installed apps, crash
+logs, identifiers for ads, credit score, payment info. No data is used for advertising, and none is processed
+only ephemerally.
 
-If crash reporting is ever added, **App info and performance → Crash logs** must be added here first.
+#### Shared
+
+**No data is shared.** Explain if asked:
+
+- Supabase stores data as a processor on GetIt's behalf, which Google does not count as sharing.
+- Product searches and barcodes sent to Open Food Facts, and prices looked up on Open Prices, are requests the
+  person makes, and they carry no personal data beyond what any website sees.
+- A price shared with Open Prices (optional, off by default) is sent only when the person taps Share on that price,
+  after the app says it will be public: Google's guidance does not count "transfers based on a specific user action,
+  where the user reasonably expects the data to be shared" as sharing. The policy describes it in full.
+- ML Kit "does not transfer this data to third parties" (ML Kit data disclosure).
+
+If crash reporting or any analytics is ever added, **App info and performance** must be updated here first.
 
 ### Account deletion
-- In-app: More → Data → Delete account
-- Web: `https://<your-site>/delete.html`
-- Deleting some data without deleting the account: No (not offered as a separate request).
+- In-app: Settings → Data and account → Delete account
+- Web: `https://<site-name>.netlify.app/delete.html`
+- Deleting some data without deleting the account: Yes, in the app (any record can be deleted; Finance, modules,
+  habits and the rest each have their own delete), and by email to the contact address for anything else.
 
 ### Permissions
-Only normal permissions are used: internet, showing notifications (Android 13+ asks the
-user), and restarting reminders after the phone reboots. The exact-alarm permissions
-are removed from the manifest on purpose, so no permission declaration is needed.
+From the merged manifest (version 18). All are normal permissions except notifications, which Android 13 and later
+asks the person for:
+
+| Permission | Why |
+| --- | --- |
+| `INTERNET`, `ACCESS_NETWORK_STATE` | Sync, and knowing when the phone is offline. |
+| `POST_NOTIFICATIONS` | Reminders, only if the person turns them on. |
+| `RECEIVE_BOOT_COMPLETED` | Setting reminders again after a restart. |
+| `WAKE_LOCK` | Held briefly by the notification library so a reminder arrives on time. |
+| `USE_BIOMETRIC`, `USE_FINGERPRINT` | Only to confirm switching between accounts kept on the phone. |
+| `app.getit.planner.DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION` | Added by AndroidX; only GetIt holds it. |
+
+Removed on purpose (`tools:node="remove"` in `android/app/src/main/AndroidManifest.xml`): `CAMERA` (barcodes go
+through Google's code scanner; photos through the camera app or Android's photo picker, which need no
+permission), `SCHEDULE_EXACT_ALARM` and `USE_EXACT_ALARM`. No location, contacts, microphone, storage or phone
+permission, so no permission declaration form is needed.
+
+## Store listing
+
+Text in `store/listing.json` (short description at most 80 characters, full description at most 4000).
+
+### Screenshots (for the owner, after the closed test starts)
+
+Phone, portrait, 1080 × 2400 or similar, light theme, from the reviewer account with sample data (no real health
+figures). Eight, in this order:
+
+1. Today: the time rail with a few tasks, a meal and a habit; the round + visible.
+2. Plan: the week view with a few days planned.
+3. Food: a day's meals with the calorie and protein bars.
+4. A recipe with its ingredients and figures per portion.
+5. Shopping: the list by aisle, with a price on a row and the summary line ("5 to get · €12.40 + 2 unpriced").
+6. Stock: the cupboard grouped by place, with "Use soon".
+7. Stats: one saved view (a habit or tasks done; not a weight chart).
+8. Settings → Modules: the modules list, to show it is opt-in.
+
+Optional, for a 7-inch tablet listing: Today and Plan side by side in landscape. Keep the feature graphic as it is.
 
 ## Release
 

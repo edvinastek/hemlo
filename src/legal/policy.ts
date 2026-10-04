@@ -56,7 +56,7 @@ export function privacySections(): Section[] {
         'If you follow a calendar (Settings → Calendars): its name, colour and secret address, and when it was last fetched. When you stop following it, the address is erased at once. If you make a link for Google Calendar: only a scrambled form (a hash) of the link, from which the link cannot be worked out.',
         'When you agreed to the storing of your health details, to which version of this policy, and which later version you have read.',
         'Technical logs of requests to the server, including your IP address and the type of device or browser, kept for security.',
-        'GetIt has no advertising, no analytics, no tracking and no third-party code that receives your data. It never sells your data or shares it for anyone else’s use.',
+        'GetIt has no advertising, no analytics and no tracking. Apart from Google’s barcode scanner (below), no third-party code in the app receives anything. GetIt never sells your data or shares it for anyone else’s use.',
       ],
     },
     {
@@ -83,7 +83,7 @@ export function privacySections(): Section[] {
         'Supermarket products: when you search for a product, scan or type a barcode, or open a product’s page, the words you searched or the barcode go straight from your device to Open Food Facts (openfoodfacts.org), and to its price list Open Prices for the prices people have shared. Both are run by Open Food Facts, a French non-profit, as their own public services. Nothing else is sent: no account, name, email address or health details, and GetIt’s server is not involved. Like any website they see your IP address and the type of device; product pictures are loaded from them too. Their privacy policy is at world.openfoodfacts.org/privacy. A product you add becomes one of your own foods, stored like the others.',
         'Food figures come from the Dutch food composition table NEVO (RIVM) and, for a few foods and units, USDA FoodData Central. They are built into GetIt: looking a food up sends nothing anywhere.',
         'A recipe read from a web address: your device fetches that page itself, so the website sees your IP address, as when you open it in a browser. Nothing else is sent.',
-        'In the Android app a barcode is read by Google’s code scanner, part of Google Play services on the phone: it hands GetIt only the number, so GetIt never has the camera picture and needs no camera permission. Google may receive anonymous figures about how its scanner works, under Google’s own terms. In a browser that can read barcodes itself, the camera picture stays on the device and stops when you close the scanner.',
+        'In the Android app a barcode is read by Google’s code scanner, part of Google Play services on the phone: it hands GetIt only the number, so GetIt never has the camera picture and needs no camera permission. Google’s scanner sends Google figures about how it works (the phone’s model, the app’s name and version, and an identifier for this installation that does not name you), for Google’s own diagnostics, under Google’s own terms. In a browser that can read barcodes itself, the camera picture stays on the device and stops when you close the scanner.',
       ],
     },
     {
