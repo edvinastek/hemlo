@@ -48,6 +48,14 @@ Types, then every check that needs nothing but Node. CI runs the same command.
 - `policynotice` — the in-app notice that the privacy policy changed (v18, G2 #16): told when the policy is newer than
   the version agreed to at sign-up and the one last read (with the account or on this device), never for a broken or
   future version; the date in words.
+- `telegram` — reminders through Telegram (v19, REM-05): the link address and bot name, Telegram's updates read
+  (/start with and without a code, /stop, blocking the bot; groups, other messages and edits ignored), what goes to
+  Telegram and what stays on the phone (planned meals and workouts, body and sleep tasks, refill counts, payment
+  amounts), the list the app hands over, which reminders a run sends and one message per chat; and both server
+  functions (supabase/functions/telegram-webhook and telegram-send, handler.ts) run with Telegram and the database
+  stood in for: the secret headers, linking once within 10 minutes, unlinking, a reminder never sent twice (a second
+  run, three runs at once, an answer that never came), a refusal tried again, a blocked bot unlinked, and the bot's
+  token, chat ids and reminder texts never printed. No Deno, no network.
 - `openprices` — sharing a price with Open Prices (v18, PRICE-05): the app named on every write, signing in (the form
   sent, an email caught first, the token read back), which own prices can be shared (a barcode, one pack, a day not in
   the future), the shop's place from Open Prices' own places and from OpenStreetMap's search (shops only, each once,
