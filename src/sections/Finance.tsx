@@ -1,5 +1,6 @@
 import { useMemo, useRef, useState } from 'react'
 import { format, parseISO } from 'date-fns'
+import { useNavigate } from 'react-router-dom'
 import { useModuleDef } from '../modules/defs'
 import {
   deleteRecordRow, renameCategoryEverywhere, restoreRecordRow, saveCategories, saveEntry, saveFinanceSettings, savePayment,
@@ -33,6 +34,7 @@ const short = (d: string) => format(parseISO(d), 'EEE d MMM')
  *  with budgets and the currency, and the module's own views. The + adds an
  *  entry the fast way: the amount, then a tap on a category. */
 export function Finance({ profileId }: { profileId: string; day: string }) {
+  const navigate = useNavigate()
   const def = useModuleDef('finance')
   const settings = useFinanceSettings(profileId)
   const entries = useEntries(profileId)
@@ -46,7 +48,9 @@ export function Finance({ profileId }: { profileId: string; day: string }) {
 
   return (
     <>
-      <ModuleMenu views={views} active={tab} onView={setTab} />
+      {/* A bank's export goes through the one import (Settings → Data), set to Finance (FIN-06). */}
+      <ModuleMenu views={views} active={tab} onView={setTab}
+        items={[{ label: 'Import from your bank…', onSelect: () => navigate(`/more?page=data&dataset=${encodeURIComponent('m:finance:entry')}`) }]} />
       <ModuleTabs tabs={tabs} active={tab} onTab={setTab} />
       {tab === 'overview' && <Overview def={def ?? null} profileId={profileId} s={settings} entries={entries} payments={payments.map((p) => p.payment)} onAdd={() => setQuick(true)}
         onBudgets={() => setTab('categories')} />}

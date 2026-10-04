@@ -312,6 +312,28 @@ Types, then every check that needs nothing but Node. CI runs the same command.
   pages, a rating of 1 to 5), progress and pages in words, what starting and finishing a book set, the list's order,
   books finished in a year, a reading task that asks for the "Reading reflection" once done, and minutes studied per
   day and per subject.
+- `studyreview` — (v19, LRN-05) the review schedule: a study session's reviews 1, 3, 7, 14 and 30 days on, a later
+  session counting as the review (a late one clearing all that had fallen due), a finished chain starting afresh, a
+  review over 30 days late lapsing, subjects matched without case, one entry per subject, earliest first.
+- `bodymeasures` — (v19, HLT-04, HLT-05) Health's ready-made measures (hips, chest, arm, thigh, body fat; none offered
+  twice), the measures a page shows, each one averaged in Stats, a measure over time (one point a day, comma decimals),
+  its latest and change in words, one record a day; the weigh-in day read safely (any day by default), Today offering
+  the weigh-in on that day only (one logged always shows), and the days its reminder comes (not once weighed).
+- `phases` — (v19, TRN-07) training phases: the last day from weeks, weeks from days, what a phase must have (a name,
+  a first day, 1 to 52 whole weeks, one of the swatches), bands across a year (clipped, overlapping ones on their own
+  lane, a phase from the year before or into the next marked), the phase and week of a day, and the words used.
+- `bankcsv` — (v19, FIN-06) bank exports read into Finance through the generic import, from the invented files in
+  `src/test/fixtures/`: ING (comma and semicolon files, Af/Bij), Rabobank (signed comma amounts, Dutch and English
+  headings, its sequence number as the reference), ABN AMRO (the headerless .TAB and the spreadsheet's header, the
+  other party out of the description), Revolut (completed rows only, the fee as money out); amounts and days as each
+  bank writes them; identical rows both kept; a file read a second time adding nothing.
+- Also extended in v19 (X3): `learning` (weekly targets read safely, this week's progress, known subjects, the focus
+  timer kept as a start time and pauses: elapsed and left, pause and resume, its end, minutes to log, a stored timer
+  read back, the session it logs), `projects` (templates: the two built in, a project saved as one with days from its
+  start, made again from a new start, kept ones read safely), `moduledefs` (MOD-15: kinds of record added up to four,
+  links between them checked, a kind removed with its views and links, the page's tabs, where a link can point),
+  `looks` (LOOK-08 density, LOOK-12 font pairings and which themes offer all sans), `schedule` (the looks' new keys),
+  `daytabs` (the weigh-in day on Today's Body tab).
 
 Added when the ten version 16 branches were wired together (integration):
 

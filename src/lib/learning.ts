@@ -42,9 +42,12 @@ export async function syncStudyTasks(profileId: string): Promise<number> {
     changed++
     if (change === 'delete') { await deleteTask(task!); continue }
     if (change === 'create') {
+      // A session logged once it was done (the focus timer) is a ticked task.
+      const logged = r.data.logged === true
       await saveTask(blankTask(profileId, plan!.planned_date, {
         id, title: plan!.title, planned_time: plan!.planned_time, duration_min: plan!.duration_min,
         module_key: MODULE, category: 'Learning', source: 'module', source_ref: r.id,
+        ...(logged ? { status: 'done' as const, completed_at: now() } : {}),
       }))
       continue
     }
@@ -123,4 +126,34 @@ export function useReadingTasks(profileId: string | null | undefined, title: str
 export async function loadStudyMinutes(profileId: string, from: string, to: string, subject?: string): Promise<Record<string, number>> {
   const recs = (await db.module_record.where('[profile_id+module_key]').equals([profileId, MODULE]).toArray()).filter((r) => r.entity === 'study')
   return Object.fromEntries(Object.entries(studyMinutes(recs, subject)).filter(([d]) => d >= from && d <= to))
+}
+
+/* ---------- weekly targets, the review switch and the focus timer (LRN-05, LRN-06) ---- */
+
+/** Learning's own settings row, live: weekly targets and the review switch. */
+export function useLearningSettings(profileId: string | null | undefined): Record<string, unknown> | undefined {
+  return useLiveQuery(async () => (profileId
+    ? ((await db.module_instance.where('profile_id').equals(profileId).filter((m) => m.module_key === MODULE).first())?.settings ?? {})
+    : {}), [profileId])
+}
+
+/** Every Learning record, any kind, for the review schedule. */
+export async function allStudyRecords(profileId: string): Promise<ModuleRecord[]> {
+  return (await db.module_record.where('[profile_id+module_key]').equals([profileId, MODULE]).toArray()).filter((r) => r.entity === 'study')
+}
+
+/** Log a study session that has happened (a finished focus timer). */
+export async function logStudySession(profileId: string, data: { subject: string; block_date: string; start: string; minutes: number; logged: true }): Promise<ModuleRecord> {
+  const row: ModuleRecord = { id: crypto.randomUUID(), profile_id: profileId, module_key: MODULE, entity: 'study', data: { ...data, source: null },
+    record_date: data.block_date, created_at: now(), updated_at: now(), deleted_at: null }
+  await db.module_record.put(row)
+  await queueChange('module_record', row, ['profile_id', 'module_key', 'entity', 'data', 'record_date', 'deleted_at'])
+  return row
+}
+
+/** Take back a logged session: the record and the ticked task it made. */
+export async function unlogStudySession(rec: ModuleRecord): Promise<void> {
+  await deleteLearningRecord(rec)
+  const task = await db.task.get(await uuidV5(`study:${rec.id}`, STUDY_TASK_NAMESPACE))
+  if (task && !task.deleted_at) await deleteTask(task)
 }

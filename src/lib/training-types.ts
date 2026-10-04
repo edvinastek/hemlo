@@ -61,3 +61,21 @@ export interface RoutineLine {
   updated_at: string
   deleted_at: string | null
 }
+
+/** A training phase (TRN-07): a named block of weeks ("Strength, 6 weeks"),
+ *  drawn as a band on Plan's Year view and on Training. The `phase` table of
+ *  migration 002, with colour, updated_at and deleted_at from 037. */
+export interface Phase {
+  id: string
+  profile_id: string
+  name: string
+  start_date: string
+  /** The last day of the phase: start + weeks × 7 − 1. */
+  end_date: string | null
+  /** '#rrggbb' from the swatches; null: the accent. */
+  colour: string | null
+  template: Record<string, unknown>
+  created_at?: string
+  updated_at?: string
+  deleted_at?: string | null
+}

@@ -7,6 +7,7 @@ import type { ProfileSettings } from './settings'
 import type { ModuleRow } from './types'
 import type { DayInput } from './day-tabs'
 import { builtinRuleOn } from '../modules/rule-switch'
+import { readWeighInPlan } from './body-measure-rules'
 
 /** The modules switched on for a profile. A built-in module counts only with
  *  a row that says it is on, the way More → Modules shows it. A module the
@@ -73,6 +74,7 @@ export async function loadDayInput(
     habits,
     supplements,
     weighIn: bodyRows > 0,
+    weighInDay: readWeighInPlan((await db.module_instance.where('profile_id').equals(profileId).filter((m) => m.module_key === 'health').first())?.settings).day,
     sleepLog: sleepRows > 0,
     review: review.length,
     records: records.map((r) => r.module_key),

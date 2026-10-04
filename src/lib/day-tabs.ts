@@ -1,6 +1,7 @@
 import { weekday } from './tracking-rules.ts'
 import { habitShows, type HabitLike } from './schedule-rules.ts'
 import { moduleLabel, taskModule } from './colours-rules.ts'
+import { offerWeighIn } from './body-measure-rules.ts'
 
 /** Which tabs Today shows for a day. Pure: no database, no React, so every
  *  rule is checked in src/test/daytabs.check.mjs; the reading is in day.ts.
@@ -72,6 +73,8 @@ export interface DayInput {
   habits: (HabitLike & { active: boolean; deleted_at?: string | null })[]
   supplements: { active: boolean; deleted_at?: string | null }[]
   weighIn: boolean
+  /** Health's weigh-in day, 0 (Sunday) to 6; null or missing: any day (HLT-05). */
+  weighInDay?: number | null
   sleepLog: boolean
   /** How many open tasks the evening review lists for the day. */
   review: number
@@ -110,7 +113,8 @@ export function isWork(t: Pick<DayTask, 'category'>): boolean {
 export function bodyParts(input: DayInput): BodyPart[] {
   const on = onToday(input)
   const parts: BodyPart[] = []
-  if (on.has('health') && (input.weighIn || input.day === input.today)) parts.push('health')
+  // The weigh-in shows on its day only, when one is chosen (HLT-05); one logged always shows.
+  if (on.has('health') && offerWeighIn({ day: input.weighInDay ?? null }, input.day, input.today, input.weighIn)) parts.push('health')
   if (on.has('habits') && input.habits.some((h) => h.active && !h.deleted_at && habitShows(h, input.day, []))) {
     parts.push('habits')
   }

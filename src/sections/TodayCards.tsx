@@ -13,6 +13,11 @@ import { offerUndo } from '../ui/Undo'
 import { useBackClose } from '../ui/useBackClose'
 import { CardsEditor, cardName } from '../settings/TodayCardsSettings'
 import { ViewBody, useSeriesColour } from './StatsView'
+import { useLiveQuery } from 'dexie-react-hooks'
+import { allStudyRecords } from '../lib/learning'
+import { reviewScheduleOn } from '../lib/learning-rules'
+import { REVIEW_CARD_KEY, reviewCardText, reviewsDue } from '../lib/study-review-rules'
+import { instanceFor } from '../modules/defs'
 import './stats.css'
 import { planToday } from '../lib/day-edge'
 
@@ -63,6 +68,9 @@ export function TodayCards({ day }: { day: string }) {
       <div className="tc-grid">
         {shown.map((c) => {
           const name = cardName(c, label, (id) => views.find((v) => v.id === id)?.name ?? null)
+          if (c.kind === 'module' && c.key === REVIEW_CARD_KEY) {
+            return <ReviewsTodayCard key={`m${c.key}`} card={c} profileId={profile.id} day={day} menu={menu(c, name)} />
+          }
           return c.kind === 'stats'
             ? <ViewTodayCard key={`s${c.key}`} card={c} view={views.find((v) => v.id === c.key)!} profileId={profile.id} today={today} menu={menu(c, name)} />
             : <ModuleTodayCard key={`m${c.key}`} card={c} name={name} day={day} today={today} data={data} menu={menu(c, name)} />
@@ -158,6 +166,35 @@ function ViewTodayCard({ card, view, profileId, today, menu }: {
         </>
       ) : <ViewBody view={view} outcome={outcome} compact />}
       <button type="button" className="tc-action" onClick={() => navigate(`/m/stats?view=${encodeURIComponent(view.id)}`)}>Open</button>
+    </article>
+  )
+}
+
+/** "3 reviews due" (LRN-05): Learning's review schedule on Today, as one of
+ *  the pinned cards rather than a surface of its own (CALM-02). It is put
+ *  here when the schedule is switched on, and draws nothing while it is off. */
+function ReviewsTodayCard({ card, profileId, day, menu }: {
+  card: TodayCard; profileId: string; day: string
+  menu: { label: string; onSelect: () => void; disabled?: boolean; danger?: boolean }[]
+}) {
+  const navigate = useNavigate()
+  const colourOf = useSeriesColour()
+  const due = useLiveQuery(async () => {
+    const inst = await instanceFor(profileId, 'learning')
+    return reviewScheduleOn(inst?.settings) ? reviewsDue(await allStudyRecords(profileId), day) : null
+  }, [profileId, day])
+  if (!due) return null
+  const t = reviewCardText(due)
+  return (
+    <article className={`tc-card is-${card.size}`} style={{ '--st-accent': colourOf('learning') } as CSSProperties} aria-label={t.label}>
+      <header className="tc-head">
+        <span className="st-dot" aria-hidden />
+        <span className="tc-label">{t.label}</span>
+        <MoreMenu label={`More for the ${t.label} card`} items={menu} />
+      </header>
+      <p className="tc-figure">{t.headline}</p>
+      {t.sub && <p className="tc-sub">{t.sub}</p>}
+      <button type="button" className="tc-action" onClick={() => navigate('/m/learning')}>Open Learning</button>
     </article>
   )
 }

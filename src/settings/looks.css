@@ -88,3 +88,5 @@
 .lk-check { display: grid; gap: 4px; padding: 10px 12px; border-radius: var(--radius-md); background: var(--e-tint); }
 .lk-check-head { font-family: var(--font-sans); font-size: 13px; font-weight: 600; color: var(--e-ink); }
 .lk-check .row-meta { margin: 0; }
+/* v19: two choices (rows, fonts) share the width. */
+.lk-seg.is-two { grid-template-columns: repeat(2, minmax(0, 1fr)); }

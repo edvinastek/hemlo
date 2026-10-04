@@ -70,8 +70,9 @@ export function FieldForm({ field, fields, index, onSave, onCancel, typeLocked, 
   onCancel: () => void
   /** A built-in field: only its label and the Stats flag change. */
   typeLocked?: boolean
-  /** Modules the person built, for a link to one of their records. */
-  modules?: { key: string; name: string }[]
+  /** Modules the person built, for a link to one of their records; with
+   *  `entity`, another kind of record of this module (MOD-15). */
+  modules?: { key: string; name: string; entity?: string }[]
 }) {
   const [label, setLabel] = useState(field?.label ?? '')
   const [type, setType] = useState<FieldType>(field?.type ?? 'text')
@@ -81,7 +82,10 @@ export function FieldForm({ field, fields, index, onSave, onCancel, typeLocked, 
   const [required, setRequired] = useState(!!field?.required)
   const [formula, setFormula] = useState(field?.formula ?? '')
   const [lookup, setLookup] = useState<LookupKind>(field?.lookup ?? 'food')
-  const [target, setTarget] = useState(field?.module ?? modules[0]?.key ?? '')
+  // A target is "<module key>#<kind>" (kind empty: the module's first).
+  const at = (m: { key: string; entity?: string }) => `${m.key}#${m.entity ?? ''}`
+  const [target, setTarget] = useState(field?.module ? `${field.module}#${field.entity ?? ''}` : modules[0] ? at(modules[0]) : '')
+  const [targetModule, targetEntity] = target.split('#')
   const [stats, setStats] = useState<StatsKind | 'none'>(field?.stats ?? 'none')
   const [touched, setTouched] = useState(false)
 
@@ -93,7 +97,7 @@ export function FieldForm({ field, fields, index, onSave, onCancel, typeLocked, 
   const candidate: FieldDef = {
     name, label: label.trim(), type,
     ...(hasOptions(type) ? { options } : {}),
-    ...(type === 'lookup' ? { lookup, ...(lookup === 'record' ? { module: target } : {}) } : {}),
+    ...(type === 'lookup' ? { lookup, ...(lookup === 'record' ? { module: targetModule, ...(targetEntity ? { entity: targetEntity } : {}) } : {}) } : {}),
     ...(type === 'formula' ? { formula: formula.trim() } : {}),
     ...(unit.trim() && ownUnit ? { unit: unit.trim() } : type === 'money' ? { unit: '€' } : {}),
     ...(required && type !== 'formula' && type !== 'boolean' ? { required: true } : {}),
@@ -152,9 +156,9 @@ export function FieldForm({ field, fields, index, onSave, onCancel, typeLocked, 
       )}
       {!typeLocked && type === 'lookup' && lookup === 'record' && (
         <div className="mf-field">
-          <span>Which module</span>
-          <Dropdown label="Which module" value={target || null} placeholder="Choose a module"
-            options={modules.map((m) => ({ value: m.key, label: m.name }))} onChange={setTarget} />
+          <span>Which records</span>
+          <Dropdown label="Which records" value={target || null} placeholder="Choose"
+            options={modules.map((m) => ({ value: at(m), label: m.name }))} onChange={setTarget} />
         </div>
       )}
       {!typeLocked && type === 'formula' && (

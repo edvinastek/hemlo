@@ -3,7 +3,11 @@
 import {
   studyPlan, studyChange, readBook, bookProgress, describePages, statusChange, orderBooks, finishedIn, readingTask,
   studyMinutes, minutesBySubject, describeMinutes,
+  readWeeklyTargets, withTarget, reviewScheduleOn, weekProgress, describeTarget, knownSubjects,
 } from '../lib/learning-rules.ts'
+import {
+  startFocus, elapsedMs, remainingMs, isFinished, pauseFocus, resumeFocus, endsAt, minutesToLog, clock, readFocus, focusRecord,
+} from '../lib/learning-focus-rules.ts'
 import { pendingAfterDone } from '../lib/after-done-rules.ts'
 
 let fail = 0
@@ -74,6 +78,49 @@ eq('minutes per day', studyMinutes(recs), { '2026-10-01': 45, '2026-10-02': 60, 
 eq('minutes per day for one subject, case aside', studyMinutes(recs, 'DUTCH'), { '2026-10-01': 45 })
 eq('minutes per subject in a range, most first', minutesBySubject(recs, '2026-10-01', '2026-10-31'), [{ subject: 'Maths', minutes: 60 }, { subject: 'Dutch', minutes: 45 }])
 eq('minutes in words', [describeMinutes(45), describeMinutes(90), describeMinutes(120)], ['45 min', '1 h 30 min', '2 h'])
+
+// Weekly targets and the review switch (LRN-05).
+eq('targets read safely: lower case keys, whole positive minutes',
+  readWeeklyTargets({ weekly_targets: { Dutch: 120, maths: '90', x: -5, y: 1.5, z: 99999 } }), { dutch: 120, maths: 90 })
+eq('no targets kept: none', readWeeklyTargets({}), {})
+eq('a target set and taken off', [withTarget({}, ' Dutch ', 120), withTarget({ dutch: 120 }, 'DUTCH', 0)], [{ dutch: 120 }, {}])
+eq('the review schedule is off unless switched on', [reviewScheduleOn({}), reviewScheduleOn({ review_schedule: 'yes' }), reviewScheduleOn({ review_schedule: true })], [false, false, true])
+const wk = weekProgress(recs, { dutch: 120, physics: 60 }, '2026-09-28', '2026-10-04')
+eq('this week: subjects with a target first, least done first, then studied ones',
+  wk, [{ subject: 'Physics', minutes: 0, target: 60 }, { subject: 'Dutch', minutes: 45, target: 120 }, { subject: 'Maths', minutes: 60, target: null }])
+eq('progress in words', [describeTarget(wk[1]), describeTarget(wk[2])], ['45 min of 2 h', '1 h'])
+eq('known subjects, latest first, targets included', knownSubjects(recs, { physics: 60 }), ['Maths', 'dutch', 'Physics'])
+
+// The focus timer (LRN-06): kept as a start time, never as a ticking counter.
+const t0 = Date.UTC(2026, 9, 4, 9, 0, 0)
+const min = 60_000
+const down = startFocus(' Dutch ', 'down', 25, t0)
+eq('a countdown starts with its length', [down.subject, down.length_min, down.mode], ['Dutch', 25, 'down'])
+eq('ten minutes in: 10 focused, 15 left', [elapsedMs(down, t0 + 10 * min), remainingMs(down, t0 + 10 * min)], [10 * min, 15 * min])
+eq('it ends 25 minutes after the start', endsAt(down), t0 + 25 * min)
+eq('not finished at 24, finished at 25', [isFinished(down, t0 + 24 * min), isFinished(down, t0 + 25 * min)], [false, true])
+eq('long after the end it still counts only 25', minutesToLog(down, t0 + 300 * min), 25)
+const paused = pauseFocus(down, t0 + 10 * min)
+eq('paused: time stands still', elapsedMs(paused, t0 + 40 * min), 10 * min)
+eq('paused: no end to notify', endsAt(paused), null)
+eq('paused: never finished', isFinished(paused, t0 + 400 * min), false)
+const resumed = resumeFocus(paused, t0 + 40 * min)
+eq('resumed after 30 minutes: the pause is left out', [elapsedMs(resumed, t0 + 45 * min), endsAt(resumed)], [15 * min, t0 + 55 * min])
+eq('pausing twice keeps the first pause', pauseFocus(paused, t0 + 20 * min).paused_at, t0 + 10 * min)
+const up = startFocus('Maths', 'up', null, t0)
+eq('counting up has no length, no end and no time left', [up.length_min, endsAt(up), remainingMs(up, t0 + min)], [null, null, null])
+eq('counting up: 52.6 minutes logs 53', minutesToLog(up, t0 + 52.6 * min), 53)
+eq('under half a minute logs nothing', minutesToLog(up, t0 + 20_000), 0)
+eq('a custom length is kept within a day', [startFocus('x', 'down', 0, t0).length_min, startFocus('x', 'down', 5000, t0).length_min], [1, 1440])
+eq('no subject: Study', startFocus('  ', 'up', null, t0).subject, 'Study')
+eq('the clock', [clock(0), clock(65_000), clock(25 * min), clock(3_725_000)], ['0:00', '1:05', '25:00', '1:02:05'])
+eq('a stored timer read back', readFocus(JSON.parse(JSON.stringify(resumed))), resumed)
+eq('a broken stored timer is no timer', [readFocus(null), readFocus({ subject: 'x', started_at: 'soon', mode: 'up' }), readFocus({ subject: 'x', started_at: 1, mode: 'down', length_min: 0 })], [null, null, null])
+const local = (ms) => ({ day: new Date(ms).toISOString().slice(0, 10), time: new Date(ms).toISOString().slice(11, 16) })
+eq('a finished timer leaves a logged study session on the day and time it started',
+  focusRecord(down, t0 + 30 * min, local), { subject: 'Dutch', block_date: '2026-10-04', start: '09:00', minutes: 25, logged: true })
+eq('stopped within half a minute: nothing to log', focusRecord(up, t0 + 10_000, local), null)
+eq('a logged session still makes its (ticked) task', studyPlan(block({ subject: 'Dutch', block_date: '2026-10-04', start: '09:00', minutes: 25, logged: true }), true)?.planned_date, '2026-10-04')
 
 if (fail) { console.log(`\n${fail} failed`); process.exit(1) }
 console.log('\nall learning checks passed')

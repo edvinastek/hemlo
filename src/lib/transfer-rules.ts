@@ -795,7 +795,8 @@ export function headersFor(fields: FieldDef[]): string[] {
 /** The format a file is in, from its name. */
 export function formatOfFile(name: string): Format | null {
   const ext = name.toLowerCase().split('.').pop() ?? ''
-  if (ext === 'csv' || ext === 'tsv' || ext === 'txt') return 'csv'
+  // .tab: ABN AMRO's download, tab-separated (FIN-06).
+  if (ext === 'csv' || ext === 'tsv' || ext === 'txt' || ext === 'tab') return 'csv'
   if (ext === 'xlsx' || ext === 'xls' || ext === 'xlsm' || ext === 'ods') return 'xlsx'
   if (ext === 'json') return 'json'
   if (ext === 'ics' || ext === 'ical' || ext === 'ifb' || ext === 'icalendar') return 'ics'

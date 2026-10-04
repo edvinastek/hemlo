@@ -18,7 +18,8 @@ import { Finance } from '../sections/Finance'
 import { Learning } from '../sections/Learning'
 import { Health } from '../sections/Health'
 import type { ModuleDef, ViewDef } from './types'
-import { PAGE_VIEW_TYPES } from './def-rules'
+import { PAGE_VIEW_TYPES, entityTabs } from './def-rules'
+import { ModuleTabs } from '../sections/ModuleKit'
 import { setModuleEnabled, useModuleDef } from './defs'
 import { useLookups, useRecords, type Lookups, type Rec } from './records'
 import { CopyToDaySheet, useListTools } from './RecordTools'
@@ -136,7 +137,13 @@ function Body({ def, profileId, onEdit }: { def: ModuleDef; profileId: string; o
 type Sheet = { rec?: Rec; day?: string; entity: string; copy?: Record<string, unknown> } | null
 
 function Generic({ def, profileId, onEdit, head }: { def: ModuleDef; profileId: string; onEdit: () => void; head: ReactNode }) {
-  const views = def.views.filter((v) => !v.hidden && def.entities.some((e) => e.name === v.entity))
+  const all = def.views.filter((v) => !v.hidden && def.entities.some((e) => e.name === v.entity))
+  // Several kinds of record (MOD-15): a tab for each (two to four, CALM-05);
+  // the views of the kind shown are under the ⋮.
+  const tabs = entityTabs(def)
+  const [kind, setKind] = useState<string | undefined>(tabs[0]?.entity)
+  const tab = tabs.find((t) => t.entity === kind) ?? tabs[0]
+  const views = tab ? tab.views : all
   const [activeKey, setActive] = useState<string | undefined>(views[0]?.key)
   const view = views.find((v) => v.key === activeKey) ?? views[0]
   const entity = def.entities.find((e) => e.name === view?.entity) ?? def.entities[0]
@@ -192,6 +199,10 @@ function Generic({ def, profileId, onEdit, head }: { def: ModuleDef; profileId: 
       <ModuleMenu views={views.length > 1 ? views.map((v) => ({ key: v.key, name: v.name })) : undefined} active={view?.key} onView={(k) => { sel.stop(); setActive(k) }}
         items={tools.menu}
         exportSource={{ dataset: `m:${def.key}:${entity.name}` }} calendar={type === 'calendar' || entity.table === 'calendar_event'} />
+      {tabs.length > 0 && tab && (
+        <ModuleTabs tabs={tabs.map((t) => ({ key: t.entity, name: plural(t.name) }))} active={tab.entity} label="Kinds of record"
+          onTab={(k) => { sel.stop(); setQuery(''); setKind(k); setActive(undefined) }} />
+      )}
       {view && views[0] && view.key !== views[0].key && <ViewBar name={view.name} onClose={() => setActive(views[0].key)} />}
       {recs === undefined || shown === undefined ? null : empty && type !== 'form' ? (
         // One add on the page: the round + (CALM-01); the empty page offers the

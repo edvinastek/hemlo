@@ -27,3 +27,7 @@
 .hlt-another { margin-left: auto; min-height: 40px; padding: 0 var(--space-1); color: var(--e-accent); font-family: var(--font-sans); font-size: 14px; }
 .hlt-another:focus-visible { outline: 2px solid var(--e-accent); outline-offset: 1px; border-radius: var(--radius-sm); }
 .hlt-range-seg button { padding: 6px 12px; min-height: 36px; font-size: 13px; }
+
+/* v19: body measures (HLT-04), each with a chart on a tap. */
+.hlt-measure .kit-open:disabled { opacity: 1; cursor: default; }
+.hlt-mchart { grid-column: 1 / -1; margin: 0; }

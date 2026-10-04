@@ -6,7 +6,7 @@ import type {
   ModuleRow, ModuleRecord, CalendarEvent, CalendarSubscription, Goal, SleepLog, WorkoutLog,
   ShoppingEntry, Chore, ChoreLog,
 } from './types'
-import type { Exercise, Routine, RoutineLine } from './training-types'
+import type { Exercise, Phase, Routine, RoutineLine } from './training-types'
 import type { Milestone } from './projects-types'
 import type { ShopPrice } from './shopping-types'
 import type { PriceCacheRow } from './price-rules'
@@ -44,6 +44,7 @@ class GetItDB extends Dexie {
   chore_log!: Table<ChoreLog, string>
   exercise!: Table<Exercise, string>
   routine!: Table<Routine, string>
+  phase!: Table<Phase, string>
   routine_line!: Table<RoutineLine, string>
   milestone!: Table<Milestone, string>
   shop_price!: Table<ShopPrice, string>
@@ -145,6 +146,11 @@ class GetItDB extends Dexie {
     // Not a synced table: the photo itself goes to Storage.
     this.version(14).stores({
       photo: 'path, profile_id, state',
+    })
+    // Version 17 (v19, X3): training phases (TRN-07), the server's phase
+    // table, synced like routines.
+    this.version(17).stores({
+      phase: 'id, profile_id, start_date',
     })
   }
 }

@@ -5,6 +5,7 @@
 import {
   THEMES, ICONS, SEEDS, PAIRS, TEXT_SIZES, resolveTheme, checkTokens, guard, expand, ownBase, nudge, shadeFor, textZoom,
   cssVars, cssText, adjustedNote, iconShapes, iconFor, themeDef, OWN, SYSTEM, DEFAULT_THEME, DEFAULT_ICON, hsl,
+  DENSITIES, densityValue, FONT_PAIRINGS, pairingsFor, pairingIn, layoutVars,
 } from '../lib/theme-rules.ts'
 import { SWATCHES, contrast, contrastNote, setPagePapers } from '../lib/colours-rules.ts'
 
@@ -153,6 +154,18 @@ for (const kind of ['rows', 'tick', 'week']) {
   })
   is(`${kind}: every mark inside the safe zone`, out.length, 0)
 }
+
+// Density (LOOK-08) and font pairing (LOOK-12).
+is('density: Comfortable first, Compact', DENSITIES.map((d) => [d.key, d.value]), [['comfortable', 1], ['compact', 0.5]])
+is('the default changes nothing on the root', layoutVars('comfortable', 'paired'), { '--density': '', '--font-serif': '' })
+is('compact sets the one density number', layoutVars('compact', 'paired')['--density'], '0.5')
+is('an unknown density is comfortable', densityValue('roomy'), 1)
+is('pairings: serif and sans, all sans', FONT_PAIRINGS.map((p) => p.label), ['Serif and sans', 'All sans'])
+is('Notebook keeps the serif: it offers no other pairing', pairingsFor('notebook'), ['paired'])
+is('Slate, Mono, High contrast and Harbour offer all sans', ['slate', 'mono', 'contrast', 'harbour'].map((k) => pairingsFor(k).includes('sans')), [true, true, true, true])
+is('your own colour and the phone\'s may be all sans', [pairingsFor(OWN), pairingsFor(SYSTEM)], [['paired', 'sans'], ['paired', 'sans']])
+is('all sans chosen, then a theme without it: the serif comes back', [pairingIn('slate', 'sans'), pairingIn('notebook', 'sans')], ['sans', 'paired'])
+is('all sans sets the serif variable to the sans the app already has', layoutVars('comfortable', 'sans')['--font-serif'], '"IBM Plex Sans", system-ui, sans-serif')
 
 console.log(fail ? `\n${fail} failed` : '\nall passed')
 process.exit(fail ? 1 : 0)

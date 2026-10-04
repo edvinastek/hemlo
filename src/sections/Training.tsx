@@ -16,6 +16,7 @@ import { DefView, DeleteButton, ModuleTabs, Sheet, defTabs, localToday, useSearc
 import { ModuleMenu, useHideModuleHead } from '../modules/ModuleHead'
 import { TrainingSession } from './TrainingSession'
 import { TrainingExercises } from './TrainingExercises'
+import { PhasesSheet, YearPhases } from './TrainingPhases'
 import './training.css'
 
 /** The Training page: routines to start or plan, a session logged set by
@@ -44,6 +45,7 @@ export function Training({ profileId }: { profileId: string; day: string }) {
   const [tab, setTab] = useTab('training', [...tabs, ...views])
   // A session is a page of its own: the module head steps aside.
   useHideModuleHead(!!sessionId)
+  const [phases, setPhases] = useState(false)
 
   if (sessionId) {
     return <TrainingSession profileId={profileId} routineId={sessionId === 'free' ? null : sessionId} day={sessionDay}
@@ -55,8 +57,11 @@ export function Training({ profileId }: { profileId: string; day: string }) {
   return (
     <>
       <ModuleMenu views={views} active={tab} onView={setTab}
-        items={[{ label: 'Log a session without a routine', onSelect: () => start(null) }]} />
+        items={[{ label: 'Log a session without a routine', onSelect: () => start(null) }, { label: 'Phases…', onSelect: () => setPhases(true) }]} />
       <WeekFigures profileId={profileId} today={today} />
+      {/* The year's phases (TRN-07), once there are any. */}
+      {tab === 'routines' && <YearPhases profileId={profileId} year={Number(today.slice(0, 4))} current onOpen={() => setPhases(true)} />}
+      {phases && <PhasesSheet profileId={profileId} onClose={() => setPhases(false)} />}
       <ModuleTabs tabs={tabs} active={tab} onTab={setTab} />
       {tab === 'routines' && <Routines profileId={profileId} today={today} onStart={start} />}
       {tab === 'exercises' && <TrainingExercises profileId={profileId} />}

@@ -1,4 +1,5 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
+import { useSearchParams } from 'react-router-dom'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { format as formatDate } from 'date-fns'
 import { useApp } from '../lib/store'
@@ -16,7 +17,7 @@ const RANGES: { value: RangeKind; label: string }[] = [
   { value: 'year', label: 'That year' },
   { value: 'custom', label: 'From… to…' },
 ]
-const ACCEPT: Record<Format, string> = { csv: '.csv,.tsv,.txt', xlsx: '.xlsx,.xls,.ods', json: '.json', ics: '.ics,.ical', txt: '' }
+const ACCEPT: Record<Format, string> = { csv: '.csv,.tsv,.txt,.tab', xlsx: '.xlsx,.xls,.ods', json: '.json', ics: '.ics,.ical', txt: '' }
 
 /** Settings, Data: Import and export. Pick what (a module's records, tasks,
  *  the calendar, notes, figures for charts, or the whole account), tick its
@@ -31,7 +32,12 @@ export function TransferSettings() {
     const { listDatasets } = await import('../lib/transfer')
     return listDatasets(profile.id)
   }, [profile?.id])
-  const [key, setKey] = useState<string>('tasks')
+  // /more?page=data&dataset=… opens on that dataset (Finance's "Import from your bank…").
+  const [params] = useSearchParams()
+  const asked = params.get('dataset')
+  const [key, setKey] = useState<string>(asked ?? 'tasks')
+  const top = useRef<HTMLParagraphElement>(null)
+  useEffect(() => { if (asked && datasets) top.current?.scrollIntoView({ block: 'start' }) }, [asked, !!datasets]) // eslint-disable-line react-hooks/exhaustive-deps
   const dataset = datasets?.find((d) => d.key === key) ?? datasets?.[0]
   const [fields, setFields] = useState<string[] | null>(null)
   const [fmt, setFmt] = useState<Format>('csv')
@@ -125,7 +131,7 @@ export function TransferSettings() {
 
   return (
     <>
-      <p className="section-title">Import and export</p>
+      <p className="section-title" ref={top}>Import and export</p>
       <div className="tx">
         <p className="tx-step"><b>1.</b> What</p>
         <div className="tx-row">

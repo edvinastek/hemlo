@@ -553,3 +553,15 @@ hr, .rule { border: 0; border-top: 1px solid var(--e-rule); margin: 0; }
 .qf-actions { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-3); }
 .qf-result { flex: 1; min-width: 0; margin: 0; }
 .slot .suggest { justify-self: start; text-align: left; font-family: var(--font-sans); font-size: 12px; color: var(--e-accent); }
+
+/* ---------- density (LOOK-08, v19) -------------------------------------------- */
+/* Rows Comfortable (1, the default) or Compact (0.5): looks.ts sets --density
+   on the root and every list row takes its padding and line height from it.
+   Tap targets stay at least 44 px. ":root" lifts these over the sections' own
+   row rules, which load later. */
+:root { --density: 1; }
+:root .row { padding-top: calc(var(--space-2) * var(--density)); padding-bottom: calc(var(--space-2) * var(--density)); min-height: calc(36px + 8px * var(--density)); }
+:root .kit-row, :root .setting-row { padding-top: calc(var(--space-3) * var(--density)); padding-bottom: calc(var(--space-3) * var(--density)); min-height: calc(40px + 8px * var(--density)); }
+:root .shop-row { min-height: calc(36px + 8px * var(--density)); }
+:root .row .row-name, :root .kit-row .row-name, :root .setting-row .row-name { line-height: calc(1.2 + 0.25 * var(--density)); }
+:root .row .row-meta, :root .kit-row .row-meta, :root .setting-row .row-meta { line-height: calc(1.15 + 0.25 * var(--density)); }

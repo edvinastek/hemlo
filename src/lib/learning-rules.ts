@@ -14,8 +14,9 @@ const TIME = /^([01]\d|2[0-3]):[0-5]\d/
 const text = (v: unknown) => (typeof v === 'string' && v.trim() ? v.trim() : null)
 
 /** The task a study block should have: on its day, at its start time if it
- *  has one, as long as the block. None without a day, when deleted, or when
- *  the rule is switched off. */
+ *  has one, as long as the block. None without a day, when deleted, when
+ *  the rule is switched off. A session logged once it was done (the focus
+ *  timer, `logged`) gets its task already ticked: see learning.ts. */
 export function studyPlan(r: StudyRec, ruleOn: boolean): StudyPlan | null {
   if (!ruleOn || r.deleted_at) return null
   const day = text(r.data.block_date) ?? r.record_date
@@ -173,4 +174,78 @@ export function describeMinutes(m: number): string {
   const h = Math.floor(m / 60)
   const r = Math.round(m % 60)
   return h ? `${h} h${r ? ` ${r} min` : ''}` : `${r} min`
+}
+
+/* ---------- weekly targets and the review switch (LRN-05) ------------------------- */
+
+/** Learning's own settings (module_instance.settings of 'learning'):
+ *  `weekly_targets` maps a subject (lower case) to minutes a week, and
+ *  `review_schedule` switches the 1-3-7-14-30 day reviews on. Both are off
+ *  until the person sets them, so the page stays as it was. */
+export const subjectKey = (s: string) => s.trim().toLowerCase()
+
+export function readWeeklyTargets(settings: unknown): Record<string, number> {
+  const raw = (settings && typeof settings === 'object' ? (settings as Record<string, unknown>).weekly_targets : null)
+  const out: Record<string, number> = {}
+  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return out
+  for (const [k, v] of Object.entries(raw as Record<string, unknown>)) {
+    const n = Number(v)
+    const key = subjectKey(k)
+    if (key && key.length <= 200 && Number.isInteger(n) && n > 0 && n <= 10080) out[key] = n
+  }
+  return out
+}
+
+/** The targets with one subject's changed: 0 or null takes it off. */
+export function withTarget(targets: Record<string, number>, subject: string, minutes: number | null): Record<string, number> {
+  const out = { ...targets }
+  const key = subjectKey(subject)
+  if (!key) return out
+  if (minutes && minutes > 0) out[key] = Math.min(10080, Math.round(minutes))
+  else delete out[key]
+  return out
+}
+
+export const reviewScheduleOn = (settings: unknown) =>
+  !!settings && typeof settings === 'object' && (settings as Record<string, unknown>).review_schedule === true
+
+export interface SubjectWeek { subject: string; minutes: number; target: number | null }
+
+/** This week's subjects: every one with a target, and every one studied this
+ *  week; those with a target first (least done first), then by minutes. */
+export function weekProgress(recs: StudyRec[], targets: Record<string, number>, monday: string, sunday: string): SubjectWeek[] {
+  const studied = minutesBySubject(recs, monday, sunday)
+  const names = new Map<string, string>()
+  // A subject's name as last written, so a target typed in lower case still shows "Dutch".
+  for (const r of [...recs].sort((a, b) => String(a.record_date ?? '').localeCompare(String(b.record_date ?? '')))) {
+    const s = text(r.data.subject)
+    if (s && !r.deleted_at) names.set(subjectKey(s), s)
+  }
+  const rows = new Map<string, SubjectWeek>()
+  for (const s of studied) rows.set(subjectKey(s.subject), { subject: s.subject, minutes: s.minutes, target: targets[subjectKey(s.subject)] ?? null })
+  for (const [k, t] of Object.entries(targets)) {
+    if (!rows.has(k)) rows.set(k, { subject: names.get(k) ?? k.charAt(0).toUpperCase() + k.slice(1), minutes: 0, target: t })
+  }
+  const share = (r: SubjectWeek) => (r.target ? r.minutes / r.target : Infinity)
+  return [...rows.values()].sort((a, b) => (a.target ? 0 : 1) - (b.target ? 0 : 1) || share(a) - share(b) || b.minutes - a.minutes || a.subject.localeCompare(b.subject))
+}
+
+/** "45 min of 2 h", "2 h 10 min of 2 h". */
+export const describeTarget = (w: SubjectWeek) => (w.target ? `${describeMinutes(w.minutes)} of ${describeMinutes(w.target)}` : describeMinutes(w.minutes))
+
+/** Every subject the person has used, latest spelling, most recent first,
+ *  for the focus timer's subject list. */
+export function knownSubjects(recs: StudyRec[], targets: Record<string, number> = {}): string[] {
+  const seen = new Map<string, { name: string; day: string }>()
+  for (const r of recs) {
+    if (r.deleted_at) continue
+    const s = text(r.data.subject)
+    if (!s) continue
+    const d = text(r.data.block_date) ?? r.record_date ?? ''
+    const k = subjectKey(s)
+    const was = seen.get(k)
+    if (!was || d >= was.day) seen.set(k, { name: s, day: d })
+  }
+  for (const k of Object.keys(targets)) if (!seen.has(k)) seen.set(k, { name: k.charAt(0).toUpperCase() + k.slice(1), day: '' })
+  return [...seen.values()].sort((a, b) => b.day.localeCompare(a.day) || a.name.localeCompare(b.name)).map((x) => x.name)
 }

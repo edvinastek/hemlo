@@ -24,6 +24,8 @@ export interface FieldDef {
   lookup?: 'food' | 'recipe' | 'exercise' | 'task' | 'goal' | 'record'
   /** For a 'record' link: the key of the module whose records it picks. */
   module?: string
+  /** For a 'record' link: which kind of that module's records (MOD-15); none: the first. */
+  entity?: string
   options?: string[]
   required?: boolean
   unit?: string

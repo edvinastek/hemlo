@@ -161,6 +161,13 @@ export const MODULES: ModuleDef[] = [
         { name: 'weight_kg', label: 'Weight', type: 'number', unit: 'kg', width: 100 },
         { name: 'waist_cm', label: 'Waist', type: 'number', unit: 'cm', width: 100 },
       ]},
+      // More body measures (HLT-04): kept as module records, so the person
+      // adds the fields they want in Edit module (a ready-made set of hips,
+      // chest, arm, thigh and body fat is offered there). With no number
+      // field yet, the Health page shows nothing of it.
+      { name: 'measure', label: 'Measure', fields: [
+        { name: 'measure_date', label: 'Date', type: 'date', required: true, width: 120 },
+      ]},
     ],
     views: [{ key: 'log', name: 'Weight', type: 'table', entity: 'body_log', columns: ['log_date','weight_kg','waist_cm'] }],
     rules: [

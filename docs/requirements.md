@@ -706,8 +706,8 @@ Columns: **ID**, **Requirement** (with "Done when" where a test is needed), **Pr
 | HLT-01 | Weigh-in per day (weight 30–300 kg, waist 40–250 cm), last 8 entries with change, a 7-day average line. | Must | Done | R1 |
 | HLT-02 | Weigh-ins for any past day can be added and edited from the Health page (today the page always shows today). | Must | Done (v16) | SR |
 | HLT-03 | **Trend weight** (time-weighted moving average) as the headline number, raw weights as dots; weekly rate and an estimated goal date. | Should | Done (v16) | SR |
-| HLT-04 | More body measures as optional fields (hips, chest, arm, body fat %), added in the module editor. | Could | Open | SR |
-| HLT-05 | Weigh-in day and reminder (the server's unused `weigh_in_day`). | Could | Open | SR |
+| HLT-04 | More body measures as optional fields (hips, chest, arm, body fat %), added in the module editor. | Could | Done (v19: a Measure record in Health; Edit module offers hips, chest, arm, thigh and body fat; each on the Health page with its change and chart, and in Stats) | SR |
+| HLT-05 | Weigh-in day and reminder (the server's unused `weigh_in_day`). | Could | Done (v19: Health ⋮ → Weigh-in day; Today offers the weigh-in on that day; a reminder at the chosen time; the reminder on a phone not yet tried) | SR |
 | HLT-06 | Height emptied in More is saved as empty, never 0. | Must | Done (v16) | SR |
 
 ## D17. Training (TRN)
@@ -720,7 +720,7 @@ Columns: **ID**, **Requirement** (with "Done when" where a test is needed), **Pr
 | TRN-04 | Prefill from last time, a "Previous" column, and a rest timer that starts on ticking a set. | Should | Done (v16) | SR |
 | TRN-05 | Planned sessions use the shared Repeat sheet and become tasks at their time (rule `session_task`, GEN-38); ticking opens the session. | Must | Done (v16) | SR |
 | TRN-06 | Training appears on Today and Plan only when its "Show on" switches are on (GEN-03); logging sets never adds anything to Today by itself. | Must | Done (v16) | R5 |
-| TRN-07 | Phases (e.g. 6-week blocks) on the Year view, from the unused `phase` table. | Could | Open | SR |
+| TRN-07 | Phases (e.g. 6-week blocks) on the Year view, from the unused `phase` table. | Could | Done (v19: Training ⋮ → Phases; bands on Training and Plan's Year view; 037) | SR |
 | TRN-08 | Stats: sessions, sets, volume, per exercise and muscle group, best sets. | Should | Done (v16) | R5 |
 
 ## D18. Sleep (SLP)
@@ -741,8 +741,8 @@ Columns: **ID**, **Requirement** (with "Done when" where a test is needed), **Pr
 | LRN-02 | Dated study blocks can become tasks (the day-task rule built modules have), and follow "Show on Today / Plan". | Must | Done (v16) | SR |
 | LRN-03 | A reading list (books: to read, reading, finished; pages; rating) as part of the module. | Should | Done (v16) | SR |
 | LRN-04 | Reading tasks offer the "Reading reflection" template after done (NOT-14). | Should | Done (v16) | R5 |
-| LRN-05 | Weekly target per subject with progress; optional review schedule (1–3–7–14–30 days) shown as "3 reviews due" on Today. | Could | Open | SR |
-| LRN-06 | A focus timer that logs minutes to a subject. | Could | Open | SR |
+| LRN-05 | Weekly target per subject with progress; optional review schedule (1–3–7–14–30 days) shown as "3 reviews due" on Today. | Could | Done (v19: targets and the review switch in Learning's ⋮; "Reviews due" card on Today; reviewsDue for Plan my day) | SR |
+| LRN-06 | A focus timer that logs minutes to a subject. | Could | Done (v19: from the + or a subject's ⋮; 25, 50, other or count up; logs a study session; the end notification on a phone not yet tried) | SR |
 
 ## D20. Agenda and calendar links (AGN)
 
@@ -765,7 +765,7 @@ Columns: **ID**, **Requirement** (with "Done when" where a test is needed), **Pr
 | PRJ-02 | A project holds **tasks** (a project field on tasks), shows progress (done / all) and its next task. | Must | Done (v16) | SR |
 | PRJ-03 | Milestones (dated points in a project) on Plan and the Year view (unused `milestone` table). | Should | Done (v18) | SR |
 | PRJ-04 | A board by status as a ready view. | Should | Done (v16) | SR |
-| PRJ-05 | Project templates with dates relative to a start date ("Move house", "Exam prep"). | Could | Open | SR |
+| PRJ-05 | Project templates with dates relative to a start date ("Move house", "Exam prep"). | Could | Done (v19) | SR |
 | PRJ-06 | **Goals** page: goals with a target date and a measure; projects, tasks and habits link to a goal; the Year view lists them (GEN-36, PLN-12). | Should | Done (v16) | R1 |
 
 ## D22. Finance (FIN)
@@ -777,7 +777,7 @@ Columns: **ID**, **Requirement** (with "Done when" where a test is needed), **Pr
 | FIN-03 | **Budgets** per category per month, with spent against budget. | Must | Done (v16) | SR |
 | FIN-04 | **Planned payments** (rent, subscriptions) with the shared Repeat sheet, shown on Today and Plan ("Rent due — mark paid"); marking paid creates the entry. | Should | Done (v16) | SR |
 | FIN-05 | Fast entry: amount first, then a category grid (recent first). | Should | Done (v16) | SR |
-| FIN-06 | Import bank CSV exports (ING, Rabobank, ABN AMRO, Revolut) with column mapping. | Could | Partly (generic CSV import) | SR |
+| FIN-06 | Import bank CSV exports (ING, Rabobank, ABN AMRO, Revolut) with column mapping. | Could | Done (v19: the bank recognised from its file in the generic import; a second import skips rows already here) | SR |
 
 ## D23. Household (HSE)
 
@@ -833,7 +833,7 @@ Columns: **ID**, **Requirement** (with "Done when" where a test is needed), **Pr
 | MOD-12 | More field kinds: rating (1–5 stars), percentage, money (with currency), photo, link to another built module, checklist, duration with start and end. | Should | Partly (v18: photo field built, bucket and policies proven on a Storage stand-in; to try on the live project and with a phone's camera) | SR |
 | MOD-13 | More presets: Water intake, Mood and energy, Medication, Period and cycle (private by default), Pet care, Car fuel, Language practice, Running log, Gratitude journal, Subscriptions. | Should | Done (v16) | SR |
 | MOD-14 | Records of built modules use the shared Repeat sheet for recurring records (e.g. plant watering) and follow the "Show on" switches. | Should | Done (v16) | SR |
-| MOD-15 | Up to 4 entities per module (the definition allows it; the builder makes one) with links between them. | Could | Open | SR |
+| MOD-15 | Up to 4 entities per module (the definition allows it; the builder makes one) with links between them. | Could | Done (v19: kinds of record added in Edit module, up to four, linked with "Links to"; a tab each) | SR |
 | MOD-16 | Share a module design (not its records) as a file, and import one. | Could | Done (v16) | SR |
 
 ## D26. Onboarding and starting layouts (ONB)
@@ -889,11 +889,11 @@ Columns: **ID**, **Requirement** (with "Done when" where a test is needed), **Pr
 | LOOK-05 | Contrast guard on every theme: text at least 4.5:1, lines, markers and chart strokes at least 3:1 against their background; a colour that fails is adjusted and the person told "Adjusted for readability". | Must | Done (v16) | SR |
 | LOOK-06 | Module colours per module (16 swatches or hex), checked against the chosen theme's paper. | Must | Done (v18) | R3 |
 | LOOK-07 | Text size: Small, Default, Large, Larger (also follows the phone's font size). | Should | Done (v16) | SR |
-| LOOK-08 | Density: Comfortable or Compact rows. | Could | Open | SR |
+| LOOK-08 | Density: Comfortable or Compact rows. | Could | Done (v19) | SR |
 | LOOK-09 | The widget follows the app's theme and mode. | Should | Done (v16) | SR |
 | LOOK-10 | **App icon choice**: 6–8 icons bundled in the app (see the design page), switched in Settings → Looks, with the warning that the launcher may take a few seconds and that pinned shortcuts may need re-adding. Exactly one icon is always enabled; the icon is never hidden. | Should | Done (v16) | R5 |
 | LOOK-11 | The adaptive icon has a **monochrome layer** so Android 13+ themed icons work. | Must | Done (v16) | SR |
-| LOOK-12 | The serif for what the person wrote and the sans for system text stay in every theme; a theme may offer an alternative pairing (e.g. all-sans). | Could | Open | SR |
+| LOOK-12 | The serif for what the person wrote and the sans for system text stay in every theme; a theme may offer an alternative pairing (e.g. all-sans). | Could | Done (v19: "All sans" offered by Harbour, Slate, Mono, High contrast, your colour and phone colours) | SR |
 | LOOK-20 | Themes and icons are free; nothing about looks is behind a payment. | Should | n/a | SR |
 
 ## D30. Reminders (REM)

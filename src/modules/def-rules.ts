@@ -180,6 +180,9 @@ export function cleanField(raw: unknown, before: FieldDef[] = []): FieldDef | nu
       const m = str(raw.module, 30)
       if (!BUILT_KEY.test(m)) return null
       f.module = m
+      // Which kind of that module's records (MOD-15); none: its first.
+      const en = str(raw.entity, 40)
+      if (en && FIELD_NAME.test(en)) f.entity = en
     }
   }
   if (hasOptions(type)) {
@@ -495,6 +498,9 @@ export function definitionProblem(def: ModuleDef): string | null {
     }
     if (e.fields.length && e.fields.every((f) => f.hidden)) return 'Keep at least one field showing.'
   }
+  if (def.entities.length > LIMITS.entities) return `At most ${LIMITS.entities} kinds of record.`
+  const link = linkProblem(def)
+  if (link) return link
   if (def.views.length > LIMITS.views) return `At most ${LIMITS.views} views.`
   if (def.views.length && def.views.every((v) => v.hidden)) return 'Keep at least one view switched on.'
   // The app's own views of a built-in module are its business; the ones a
@@ -985,4 +991,87 @@ export function suggestModules(text: string, list: ModuleWords[] = moduleKeyword
   const t = norm(text)
   if (!t.trim()) return []
   return list.filter((m) => m.keywords.some((k) => { const w = norm(k).trim(); return w && t.includes(` ${w} `) })).map((m) => m.key)
+}
+
+/* ---------- several kinds of record in one module (MOD-15) ------------------ */
+
+/** A built module may keep up to four kinds of record (LIMITS.entities): a
+ *  "Plant" and its "Waterings", a "Car" and its "Trips". A kind links to
+ *  another of the same module with the "link to" field kind (MOD-12), naming
+ *  the module and the kind (`module`, `entity`). On the page each kind is a
+ *  tab (at most four, CALM-05), its views under the ⋮. */
+
+/** What is wrong with the links inside a module: one to a kind that is not
+ *  there, or to its own kind. */
+export function linkProblem(def: ModuleDef): string | null {
+  for (const e of def.entities) {
+    for (const f of e.fields) {
+      if (f.type !== 'lookup' || f.lookup !== 'record' || f.module !== def.key) continue
+      const to = f.entity ?? def.entities[0]?.name
+      if (to === e.name) return `${f.label}: a record cannot link to its own kind; pick another.`
+      if (!def.entities.some((x) => x.name === to)) return `${f.label}: the kind of record it links to is gone.`
+    }
+  }
+  return null
+}
+
+/** A new kind of record: named from its label, one required Name field and
+ *  a list view, so it can be used at once. The reason instead when there is
+ *  no room or no name. */
+export function addEntity(def: ModuleDef, label: string): { def: ModuleDef } | { problem: string } {
+  const l = label.trim().slice(0, LIMITS.label)
+  if (!l) return { problem: 'Give the kind of record a name.' }
+  if (def.entities.length >= LIMITS.entities) return { problem: `A module keeps at most ${LIMITS.entities} kinds of record.` }
+  if (def.entities.some((e) => e.label.trim().toLowerCase() === l.toLowerCase())) return { problem: 'There is a kind with that name already.' }
+  if (def.views.length >= LIMITS.views) return { problem: `At most ${LIMITS.views} views; remove one first.` }
+  const name = fieldNameFrom(l, def.entities.map((e) => e.name))
+  let key = `list_${name}`.slice(0, 40)
+  for (let i = 2; def.views.some((v) => v.key === key); i++) key = `list_${name}_${i}`.slice(0, 40)
+  return {
+    def: {
+      ...def,
+      entities: [...def.entities, { name, label: l, fields: [{ name: 'name', label: 'Name', type: 'text', required: true }] }],
+      views: [...def.views, { key, name: l, type: 'list', entity: name }],
+    },
+  }
+}
+
+/** A kind taken out with its views and the links to it from the other kinds.
+ *  The first kind stays: a module keeps at least one. (Its records are kept
+ *  in the store; they come back if a kind of that name is added again.) */
+export function removeEntity(def: ModuleDef, name: string): ModuleDef {
+  if (def.entities.length <= 1 || def.entities[0].name === name) return def
+  const first = def.entities[0].name
+  return {
+    ...def,
+    entities: def.entities.filter((e) => e.name !== name).map((e) => ({
+      ...e,
+      fields: e.fields.filter((f) => !(f.type === 'lookup' && f.lookup === 'record' && f.module === def.key && (f.entity ?? first) === name)),
+    })),
+    views: def.views.filter((v) => v.entity !== name),
+  }
+}
+
+export interface EntityTab { entity: string; name: string; views: ViewDef[] }
+
+/** The tabs of a module page: one per kind of record when it has two to
+ *  four, each with its own views (the first is what the tab shows; the rest
+ *  are under ⋮ → Views). One kind: no tab row (CALM-05). A kind with no view
+ *  switched on gets a plain list. */
+export function entityTabs(def: Pick<ModuleDef, 'entities' | 'views'>): EntityTab[] {
+  if (def.entities.length < 2 || def.entities.length > LIMITS.entities) return []
+  return def.entities.map((e) => {
+    const own = def.views.filter((v) => !v.hidden && v.entity === e.name)
+    return { entity: e.name, name: e.label, views: own.length ? own : [{ key: `list:${e.name}`, name: e.label, type: 'list' as const, entity: e.name }] }
+  })
+}
+
+/** Where a link field can point: the other kinds of this module first, then
+ *  the other modules the person built (their first kind). */
+export function linkTargets(def: Pick<ModuleDef, 'key' | 'entities'>, entity: string, others: { key: string; name: string }[]):
+  { value: string; label: string; module: string; entity?: string }[] {
+  return [
+    ...def.entities.filter((e) => e.name !== entity).map((e) => ({ value: `${def.key}#${e.name}`, label: e.label, module: def.key, entity: e.name })),
+    ...others.filter((o) => o.key !== def.key).map((o) => ({ value: `${o.key}#`, label: o.name, module: o.key })),
+  ]
 }

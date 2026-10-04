@@ -16,8 +16,8 @@ const TABLES = [
   'profile', 'task', 'target', 'body_log', 'food_log', 'meal_plan_slot', 'module_instance',
   'series', 'habit', 'supplement',
   'module_record', 'calendar_event', 'goal', 'sleep_log', 'workout_log', 'calendar_subscription',
-  // 029: training routines, milestones.
-  'routine', 'milestone',
+  // 029: training routines, milestones. 037: training phases.
+  'routine', 'milestone', 'phase',
 ] as const
 
 /** Rows that belong to the profile through a parent row rather than directly. */
@@ -226,7 +226,7 @@ export async function importBundle(file: File, profileId: string, userId: string
   // Built modules before their switches and records point at them.
   for (const r of rows('module')) await put('module', r, { created_by: userId, builtin: false })
   const order = ['series', 'habit', 'supplement', 'module_instance', 'goal', 'routine', 'calendar_subscription', 'calendar_event', 'sleep_log', 'workout_log',
-    'module_record', 'milestone', 'target', 'body_log', 'task', 'food_log', 'meal_plan_slot']
+    'module_record', 'milestone', 'phase', 'target', 'body_log', 'task', 'food_log', 'meal_plan_slot']
   for (const name of order) {
     for (const r of rows(name)) await put(name, r, { profile_id: profileId })
   }
