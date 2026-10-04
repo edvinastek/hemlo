@@ -7,6 +7,11 @@
     <string name="health_privacy_kept">Each night it imports becomes a night on the Sleep page, kept with the rest of your GetIt data in your account so it is on your other devices too. GetIt never writes to Health Connect, never reads anything else from it, and never shares, sells or advertises with what it reads.</string>
     <string name="health_privacy_stop">You can take the permission back at any time in Health Connect. Nights already imported stay in GetIt until you delete them.</string>
     <string name="health_privacy_policy">Privacy policy</string>
+    <!-- The public privacy policy, the same one given in Play Console
+         (https://<site-name>.netlify.app/privacy.html). Health Connect asks
+         that this screen lead to it. Empty: the button opens the same policy
+         inside the app (More → About → Privacy policy). -->
+    <string name="health_privacy_url" translatable="false"></string>
     <string name="health_privacy_close">Close</string>
 
     <style name="HealthPrivacy" parent="@android:style/Theme.Material.Light.NoActionBar">
