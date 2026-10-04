@@ -23,6 +23,8 @@ import { QuickNumbers } from '../ui/QuickNumbers'
 import { offerUndo } from '../ui/Undo'
 import { useBuiltinRuleOn } from '../modules/rule-switch'
 import { useExport } from '../ui/ExportLink'
+import { dayRi, riLine } from '../lib/day-ri-rules'
+import { saveLabelChoice, useNutritionPrefs } from '../lib/nutrition-prefs'
 import { MoreMenu } from '../ui/MoreMenu'
 import { FoodPageMenu } from './FoodMenu'
 import type { Food, MealPlanSlot, Recipe, RecipeLine } from '../lib/types'
@@ -44,6 +46,14 @@ export function FoodDay({ day }: { day: string }) {
   const recipes = useLiveQuery(() => db.recipe.toArray(), [], [] as Recipe[])
   const lines = useLiveQuery(() => db.recipe_line.toArray(), [], [] as RecipeLine[])
   const look = useMemo(() => makeLookup(foods, recipes, lines), [foods, recipes, lines])
+  const foodMap = useMemo(() => new Map(foods.map((f) => [f.id, f])), [foods])
+  const linesByRecipe = useMemo(() => {
+    const m = new Map<string, RecipeLine[]>()
+    for (const l of lines) m.set(l.recipe_id, [...(m.get(l.recipe_id) ?? []), l])
+    return m
+  }, [lines])
+  // %RI, shown or hidden here and on a food's page alike (FOOD-06).
+  const prefs = useNutritionPrefs()
   const rows = useLiveQuery(async () => (profile ? slotsFor(profile.id, day) : []), [profile?.id, day], null)
   const eaten = useLiveQuery(async () => (profile ? dayTotals(profile.id, day) : null), [profile?.id, day], null)
   const target = useLiveQuery(async () => {
@@ -64,6 +74,7 @@ export function FoodDay({ day }: { day: string }) {
   const targetKcal = goal('kcal')
   const suggestion = sizeOn ? sizeMain(groups, settings.meals.main, targetKcal, look) : null
   const anything = groups.some((g) => g.items.length)
+  const ri = prefs.label.ri ? riLine(dayRi(groups.flatMap((g) => g.items), foodMap, linesByRecipe)) : null
 
   return (
     <div className="fd">
@@ -77,6 +88,7 @@ export function FoodDay({ day }: { day: string }) {
         <span>Eaten <b>{Math.round(eaten?.kcal ?? 0)}</b> kcal</span>
         {planned.unknown > 0 && <span>{planned.unknown} without calories</span>}
       </div>
+      {ri && <p className="fd-ri"><span className="visually-hidden">Planned, as a share of an adult’s reference intake: </span><span aria-hidden="true">Reference intake: </span>{ri}</p>}
 
       {copying && (
         <CopyDays from={day} label="this day’s food" onCancel={() => setCopying(false)}
@@ -98,6 +110,7 @@ export function FoodDay({ day }: { day: string }) {
       {adding && <AddFoodSheet day={day} meal={adding.meal} time={adding.time} onClose={() => setAdding(null)} />}
       <FoodPageMenu items={[
         anything && { label: 'Copy day to…', onSelect: () => setCopying(true) },
+        { label: prefs.label.ri ? 'Hide % of reference intake' : 'Show % of reference intake', onSelect: () => void saveLabelChoice(profile.id, { ...prefs.label, ri: !prefs.label.ri }) },
         exp.item,
       ]} sheets={exp.sheet} />
       {/* The page's one add (CALM-01): the add-food sheet, which guesses the meal. */}

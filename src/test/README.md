@@ -161,7 +161,12 @@ Types, then every check that needs nothing but Node. CI runs the same command.
   display names and units marked as additions; the old catalogue foods replaced, kept or hidden; and that the
   generated part of 027 is exactly what the script makes from the file.
 - `fooddata` — the generated catalogue itself: 2,328 NEVO foods with unique names and codes, parts never above their
-  wholes, energy matching the EU factors (or reviewed), units within limits, every replaced food pointing at a NEVO food.
+  wholes, energy matching the EU factors (or reviewed), units within limits, every replaced food pointing at a NEVO food;
+  and migration 035 (scripts/units-usda.mjs): USDA's units added to NEVO foods with their source, every Portie-online
+  unit kept as it was, sizes in order, the XL egg, the bagel and chicken thighs with figures that add up, Human milk
+  hidden, and the script's rules (Portie-online wins, at most eight units, plurals, ids).
+- `dayri` — the day's share of the reference intake (FOOD-06): foods, recipes by their lines and portions, quick
+  entries' own numbers, salt from sodium, skipped items left out, and "at least" where an item lacks a figure.
 - `eulabel` — the EU 1169/2011 label: Annex XIV energy factors, energy worked out from macros and checked against the
   stated figure, salt and sodium, %RI, figures as a label prints them, the attribution each source needs, and an own
   food's form read strictly.

@@ -3,6 +3,7 @@
    their 44–48 px. Tokens only, so light and dark both follow. */
 
 .fd-empty { margin: 0; padding: var(--space-4); font-family: var(--font-sans); font-size: 15px; color: var(--e-ink-soft); }
+.fd-ri { margin: 0; padding: 0 var(--space-4) var(--space-2); font-family: var(--font-sans); font-size: 13px; line-height: 1.4; color: var(--e-ink-soft); }
 
 .fd-meal { display: grid; gap: var(--space-2); padding: var(--space-3) var(--space-4); border-bottom: 1px solid var(--e-rule); min-width: 0; }
 .fd-meal.is-skipped .fd-name { color: var(--e-ink-soft); text-decoration: line-through; }
