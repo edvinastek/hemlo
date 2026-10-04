@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- A quick-add button's press: the phone's own ripple, kept inside the widget's rounded page. -->
+<ripple xmlns:android="http://schemas.android.com/apk/res/android" android:color="#33808080">
+    <item android:id="@android:id/mask">
+        <shape android:shape="rectangle">
+            <solid android:color="#FFFFFFFF" />
+            <corners android:radius="14dp" />
+        </shape>
+    </item>
+</ripple>

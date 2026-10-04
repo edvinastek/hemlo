@@ -58,10 +58,10 @@ public class StatsWidgetRenderTest {
         return b.toString();
     }
 
-    static final String UB_BLACK = "{\"v\":1,\"mode\":\"black\",\"light\":{\"paper\":\"#f6f2f5\",\"ink\":\"#0b0b0b\",\"soft\":\"#5e4f5d\",\"rule\":\"#dfd1de\",\"rail\":\"#b99bb8\",\"accent\":\"#531552\",\"done\":\"#3f6b4a\",\"warn\":\"#995100\",\"tint\":\"#ebe0ea\"},"
+    public static final String UB_BLACK = "{\"v\":1,\"mode\":\"black\",\"light\":{\"paper\":\"#f6f2f5\",\"ink\":\"#0b0b0b\",\"soft\":\"#5e4f5d\",\"rule\":\"#dfd1de\",\"rail\":\"#b99bb8\",\"accent\":\"#531552\",\"done\":\"#3f6b4a\",\"warn\":\"#995100\",\"tint\":\"#ebe0ea\"},"
         + "\"dark\":{\"paper\":\"#000000\",\"ink\":\"#f2ece6\",\"soft\":\"#a89aa6\",\"rule\":\"#261426\",\"rail\":\"#531552\",\"accent\":\"#ffa500\",\"done\":\"#8fd19e\",\"warn\":\"#ff7a6b\",\"tint\":\"#1a0b1a\"}}";
-    static final String LIGHT = "{\"v\":1,\"mode\":\"light\"}";
-    static final String DARK = "{\"v\":1,\"mode\":\"dark\"}";
+    public static final String LIGHT = "{\"v\":1,\"mode\":\"light\"}";
+    public static final String DARK = "{\"v\":1,\"mode\":\"dark\"}";
 
     private View shot(String name, String looks, String viewId, int widthDp, int heightDp) throws Exception {
         Context ctx = RuntimeEnvironment.getApplication();

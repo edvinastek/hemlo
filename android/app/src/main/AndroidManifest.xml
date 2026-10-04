@@ -208,6 +208,34 @@
         </activity>
 
         <!--
+          GetIt · Quick add (WID-11): buttons for the + menu's first entries,
+          each opening the app on that entry's sheet. It draws from the list
+          the app keeps on the phone and holds no data of its own.
+        -->
+        <receiver
+            android:name=".quickadd.QuickAddWidget"
+            android:label="@string/widget_quickadd_name"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data android:name="android.appwidget.provider" android:resource="@xml/widget_quickadd_info" />
+        </receiver>
+        <!--
+          The launcher shortcuts' way in (NAV-24): an invisible screen in a
+          task of its own that hands an ?add= link to the app and closes, so a
+          shortcut never restarts a running app. The launcher starts it, so it
+          is exported; it passes on nothing but ?add= links.
+        -->
+        <activity
+            android:name=".quickadd.QuickAddActivity"
+            android:theme="@android:style/Theme.NoDisplay"
+            android:taskAffinity=""
+            android:excludeFromRecents="true"
+            android:noHistory="true"
+            android:exported="true" />
+
+        <!--
           Barcodes are read by Google's code scanner in Play services, which
           opens its own camera screen and hands back only the number. Asking
           for it here has Google Play fetch the scanner with the app, so the
