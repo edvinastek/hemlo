@@ -88,3 +88,7 @@ import { CopySheet } from '../ui/CopySheet'
   supplements and health items (day-tabs BODY_MODULES). Sleep tab removed: "Log last night" / "Last night" is a rail
   item in the morning (time = bedtime + target hours, or the time woken), opening the sleep record sheet.
   sections/SleepDay.tsx is now unused (left in place; the lead may delete it).
+- GEN-06: Settings → Modules: switching a module off asks first (inline "Switch X off? … nothing is deleted") and
+  offers Undo (More.tsx Modules/Row; style in more.css).
+- GEN-10: RecipeView "Add to a task" picker: best 20 with "Show all N" (was 8). Other `.slice(0, 8)` in the app are
+  previews or tiles, not pickers (ShopList recents tiles, import previews, Chores history).
