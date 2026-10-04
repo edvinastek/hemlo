@@ -132,12 +132,12 @@ export function meetProfile(s: TipState, version: string, id: string, setUp: boo
 /* ---------- what moved where (NAV-26, CALM-18) ---------------------------------- */
 
 /** The version whose moves WHAT_MOVED lists. */
-export const MOVED_VERSION = '17'
+export const MOVED_VERSION = '18'
 /** Accounts made on or after this day started with this version: nothing
  *  moved for them, whichever device they open it on. Set to the release day. */
-export const MOVED_SINCE = '2026-10-04'
+export const MOVED_SINCE = '2026-10-06'
 
-/** Every function version 17 moved, and where it is now (CALM-18). */
+/** Every function versions 17 and 18 moved, and where it is now (CALM-18). */
 export const WHAT_MOVED: { was: string; now: string }[] = [
   { was: 'A page bar that scrolled', now: 'Five places at most, never scrolling. With more than five pages: Today, Plan, up to two pins and Modules, which holds the rest. A style you chose stays.' },
   { was: 'More', now: 'Called Settings everywhere. With the hub bar it is at the top of the Modules page.' },
@@ -177,7 +177,7 @@ export const WHAT_MOVED: { was: string; now: string }[] = [
   { was: 'Shop: the figures under the list', now: 'One line, “5 to get · €12.40 + 2 unpriced”; tap it for the rest.' },
   { was: 'Stock: Scan, filter, grouping, take from stock when eating', now: 'Scan is in the field; the filter shows from 16 items; grouping and the switch are in the page’s ⋮.' },
   { was: 'Stores: thirteen shop buttons', now: 'Four, and More shops; each shop has Offers ↗.' },
-  // v18 (W1): Today no longer draws a thing twice.
+  // Version 18: Today no longer draws a thing twice.
   { was: 'Today’s Sleep tab', now: 'Last night is an item on Today’s list in the morning; the Sleep page keeps the rest.' },
   { was: 'Habits and supplements drawn again under Today’s Body tab', now: 'They are items on Today’s list; the Body tab keeps the weigh-in and shows only them.' },
   { was: '+ Add food on Today’s Nutrition card', now: 'The round + adds food; the card opens Food.' },
