@@ -1,4 +1,4 @@
-import { useId, useMemo, useState, type FormEvent } from 'react'
+import { useId, useState, type FormEvent } from 'react'
 import { edit } from '../lib/write'
 import {
   LABEL, STATES, draftOf, energyFrom, readFoodForm, type FoodDraft, type FoodState, type LabelKey,
@@ -65,7 +65,7 @@ export function FoodEditor({ food, copyOf, name, barcode, userId, onClose, onSav
   const [contribute, setContribute] = useState(false)
   const [sharing, setSharing] = useState<{ food: Food; product: OffProduct } | null>(null)
   const canContribute = !food && isOffBarcode(barcode)
-  const moreOpen = useMemo(() => LABEL.some((r) => !MAIN.includes(r.key) && draft.figures[r.key]), [])
+  const [moreOpen, setMoreOpen] = useState(() => LABEL.some((r) => !MAIN.includes(r.key) && draft.figures[r.key]))
   const set = (change: Partial<FoodDraft>) => { setDraft((d) => ({ ...d, ...change })); setError(null) }
   const setFigure = (key: LabelKey, v: string) => set({ figures: { ...draft.figures, [key]: v } })
   /** Figures read from the label: they fill what is still empty, never what
@@ -82,10 +82,13 @@ export function FoodEditor({ food, copyOf, name, barcode, userId, onClose, onSav
       return next
     })
     if (Object.keys(read.micros).length) setMicrosOpen(true)
+    if (Object.keys(read.figures).some((k) => !MAIN.includes(k as LabelKey))) setMoreOpen(true)
     setError(null)
   }
 
-  useBackClose(onClose)
+  // Once saved and offering Open Food Facts, Back means "Not now": the food
+  // is kept and handed on as after any save.
+  useBackClose(() => { if (sharing) { onSaved?.(sharing.food); onClose() } else onClose() })
 
   const read = readFoodForm(draft)
   // What is set under More options, in a few words, while it is closed.
@@ -209,7 +212,7 @@ export function FoodEditor({ food, copyOf, name, barcode, userId, onClose, onSav
           <fieldset className="fe-label">
             <legend>As on the label, per {per}</legend>
             {MAIN.map(field)}
-            <details open={moreOpen}>
+            <details open={moreOpen} onToggle={(e) => setMoreOpen((e.target as HTMLDetailsElement).open)}>
               <summary>More figures: mono- and polyunsaturates, polyols, starch, alcohol</summary>
               {LABEL.filter((r) => !MAIN.includes(r.key)).map((r) => field(r.key))}
             </details>
