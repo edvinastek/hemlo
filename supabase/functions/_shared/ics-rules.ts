@@ -36,7 +36,16 @@ export interface IcsEvent {
   recurrenceId?: When | null
   categories?: string[]
   status?: 'CONFIRMED' | 'TENTATIVE' | 'CANCELLED' | null
+  /** GetIt's own lines (GEN-26), which other calendars pass over:
+   *  X-GETIT-KIND (habit, chore, supplement, payment) and X-GETIT-REPEAT, a
+   *  repeat no RRULE can say ("3 times a week", "7 days after it was last
+   *  done", "about every 7 days"). Reading the file back keeps them. */
+  getit?: { kind?: GetitKind | null; repeat?: string | null } | null
 }
+
+/** What a GetIt event was in the app, when it was not a task or an event. */
+export type GetitKind = 'habit' | 'chore' | 'supplement' | 'payment'
+export const GETIT_KINDS: GetitKind[] = ['habit', 'chore', 'supplement', 'payment']
 
 const pad = (n: number, w = 2) => String(n).padStart(w, '0')
 const DATE = /^\d{4}-\d{2}-\d{2}$/
@@ -153,6 +162,8 @@ export function buildCalendar(events: IcsEvent[], o: CalendarOptions): string {
     if (e.location) lines.push(prop('LOCATION', escapeText(e.location)))
     if (e.categories?.length) lines.push(prop('CATEGORIES', e.categories.map(escapeText).join(',')))
     if (e.status) lines.push(`STATUS:${e.status}`)
+    if (e.getit?.kind) lines.push(prop('X-GETIT-KIND', e.getit.kind))
+    if (e.getit?.repeat) lines.push(prop('X-GETIT-REPEAT', e.getit.repeat))
     lines.push('END:VEVENT')
   }
   lines.push('END:VCALENDAR')
@@ -274,7 +285,7 @@ export interface SeriesLike {
   id: string
   title: string
   rule: string
-  rule_config: { n?: number; weekdays?: number[]; day_of_month?: number; dates?: string[]; nth?: number; weekday?: number; month?: number; day?: number }
+  rule_config: { n?: number; weekdays?: number[]; day_of_month?: number; dates?: string[]; nth?: number; weekday?: number; month?: number; day?: number; times?: number; mode?: string }
   start_date: string
   end_date: string | null
   occurrence_count: number | null
@@ -306,6 +317,9 @@ export function firstDay(s: SeriesLike): string | null {
  *  series. Null when the rule is one this file does not know. */
 export function seriesRule(s: SeriesLike, allDay: boolean): { rrule: string | null; rdates: string[] } | null {
   const c = s.rule_config ?? {}
+  // Counted from the last time it was done (GEN-22): no calendar rule says
+  // that, so there is none; looseRepeat() writes it as GetIt's own line.
+  if (looseRepeat(s)) return null
   let parts: string[]
   switch (s.rule) {
     case 'daily': {
@@ -408,6 +422,87 @@ export function seriesEvents(s: SeriesLike, exceptions: ExceptionLike[] = [], de
     }
   }
   return out
+}
+
+/* ---------- repeats an RRULE cannot say (GEN-26) --------------------------- */
+
+const LOOSE_MODES = ['after', 'flexible']
+
+/** "MODE=AFTER;DAYS=7" for "7 days after it was last done", "MODE=FLEXIBLE;
+ *  DAYS=7" for "about every 7 days", "TIMES=3" for "3 times a week"; null
+ *  for every rule an RRULE says exactly. */
+export function looseRepeat(s: Pick<SeriesLike, 'rule' | 'rule_config'>): string | null {
+  const c = s.rule_config ?? {}
+  if (s.rule === 'daily' && c.mode && LOOSE_MODES.includes(c.mode)) {
+    return `MODE=${c.mode.toUpperCase()};DAYS=${Math.max(1, Math.floor(c.n ?? 7))}`
+  }
+  if (s.rule === 'times_per_week') return `TIMES=${Math.min(7, Math.max(1, Math.floor(c.times ?? 1)))}`
+  return null
+}
+
+/** X-GETIT-REPEAT read back into the app's rule, or null. */
+export function readLooseRepeat(value: string): { rule: 'daily' | 'times_per_week'; rule_config: { n?: number; mode?: 'after' | 'flexible'; times?: number } } | null {
+  const kv = Object.fromEntries(value.split(';').map((p) => p.split('=')).filter((p) => p.length === 2)
+    .map(([k, v]) => [k.trim().toUpperCase(), v.trim().toUpperCase()]))
+  const mode = kv.MODE?.toLowerCase()
+  const days = Math.floor(Number(kv.DAYS))
+  if (mode && LOOSE_MODES.includes(mode) && Number.isFinite(days) && days >= 1 && days <= 730) {
+    return { rule: 'daily', rule_config: { n: days, mode: mode as 'after' | 'flexible' } }
+  }
+  const times = Math.floor(Number(kv.TIMES))
+  if (!mode && Number.isFinite(times) && times >= 1 && times <= 7) return { rule: 'times_per_week', rule_config: { times } }
+  return null
+}
+
+/** Anything of a module that comes round (GEN-26): a habit, a chore, a
+ *  supplement, a planned payment. */
+export interface ScheduleLike {
+  id: string
+  kind: GetitKind
+  title: string
+  rule: string | null
+  rule_config: SeriesLike['rule_config'] | null
+  start_date: string
+  end_date: string | null
+  /** 'HH:mm', or null for the whole day. */
+  time: string | null
+  minutes?: number | null
+  notes?: string | null
+  /** For "after" and flexible: the day it is next due, where its one event goes. */
+  next?: string | null
+}
+
+/** One event for something that comes round: its rule as an RRULE (or its
+ *  days as RDATE) like a repeating task, or, for what no RRULE can say, one
+ *  event on the day it is next due ("after", flexible) or once a week from
+ *  the Monday of its first week ("3 times a week"), with GetIt's own line so
+ *  that reading the file back into GetIt gives the very same rule. No rule:
+ *  once, on its first day. Null when it never lands on a day. */
+export function scheduleEvent(x: ScheduleLike, defaultMinutes = 30): IcsEvent | null {
+  if (!DATE.test(x.start_date)) return null
+  const time = x.time && TIME.test(x.time.slice(0, 5)) ? x.time.slice(0, 5) : null
+  const getit = { kind: x.kind, repeat: x.rule ? looseRepeat({ rule: x.rule, rule_config: x.rule_config ?? {} }) : null }
+  const minutes = x.minutes && x.minutes > 0 ? x.minutes : defaultMinutes
+  const single = (day: string): IcsEvent | null => {
+    const e = taskEvent({ id: x.id, title: x.title, planned_date: day, planned_time: time, duration_min: minutes, notes: x.notes ?? null })
+    return e ? { ...e, getit } : null
+  }
+  if (!x.rule) return single(x.start_date)
+  if (x.rule === 'times_per_week') {
+    const monday = addDays(x.start_date, -((weekdayOf(x.start_date) + 6) % 7))
+    const until = x.end_date && DATE.test(x.end_date) ? `;UNTIL=${x.end_date.replace(/-/g, '')}` : ''
+    return {
+      uid: uidFor(x.id), summary: x.title || 'Untitled', description: x.notes || null,
+      start: { kind: 'date', date: monday }, end: { kind: 'date', date: addDays(monday, 1) },
+      rrule: `FREQ=WEEKLY;BYDAY=MO;WKST=MO${until}`, getit,
+    }
+  }
+  if (getit.repeat) return x.next && DATE.test(x.next) && (!x.end_date || x.next <= x.end_date) ? single(x.next) : null
+  const [master] = seriesEvents({
+    id: x.id, title: x.title, rule: x.rule, rule_config: x.rule_config ?? {}, start_date: x.start_date, end_date: x.end_date,
+    occurrence_count: null, time_of_day: time, task_template: { duration_min: minutes, notes: x.notes ?? null },
+  })
+  return master ? { ...master, getit } : null
 }
 
 /* ---------- reading -------------------------------------------------------- */
@@ -622,12 +717,30 @@ export function parseRule(value: string, zone: string, startParams: Record<strin
 /** The app's own series rule, when the calendar's rule says exactly the
  *  same thing; null when it does not (it is then laid out day by day). */
 export interface SeriesRule {
-  rule: 'daily' | 'weekdays' | 'weekly' | 'every_n_weeks' | 'monthly'
-  rule_config: { n?: number; weekdays?: number[]; day_of_month?: number }
+  rule: 'daily' | 'weekdays' | 'weekends' | 'weekly' | 'every_n_weeks' | 'monthly' | 'monthly_nth' | 'yearly' | 'dates'
+  rule_config: { n?: number; weekdays?: number[]; day_of_month?: number; nth?: number; weekday?: number; month?: number; day?: number; dates?: string[]; mode?: 'after' | 'flexible' }
 }
 
+/** Every rule the app writes (seriesRule) reads back as the same rule
+ *  (GEN-26): days, weekdays, weekends, chosen days every n weeks, a day of
+ *  the month (the 31st as "the last of the 28th to the 31st"), the 2nd
+ *  Tuesday or last Friday, a day of the year (29 February too). */
 export function mapRule(r: Rule, start: string): SeriesRule | null {
-  if (r.unsupported.length || r.bymonth.length) return null
+  if (r.unsupported.length) return null
+  const iv = r.interval > 1 ? { n: r.interval } : {}
+  if (r.freq === 'YEARLY') {
+    // Every year on a day: "BYMONTH=9;BYMONTHDAY=28", or nothing (the start's day).
+    if (r.byday.length) return null
+    if (!r.bymonth.length && !r.bymonthday.length && !r.bysetpos.length) {
+      return { rule: 'yearly', rule_config: { ...iv, month: Number(start.slice(5, 7)), day: Number(start.slice(8, 10)) } }
+    }
+    if (r.bymonth.length !== 1) return null
+    const days = [...r.bymonthday].sort((a, b) => a - b)
+    if (days.length === 1 && days[0] >= 1 && !r.bysetpos.length) return { rule: 'yearly', rule_config: { ...iv, month: r.bymonth[0], day: days[0] } }
+    if (r.bymonth[0] === 2 && days.join() === '28,29' && r.bysetpos.join() === '-1') return { rule: 'yearly', rule_config: { ...iv, month: 2, day: 29 } }
+    return null
+  }
+  if (r.bymonth.length) return null
   const plainDays = r.byday.every((d) => d.n === 0)
   if (r.freq === 'DAILY' && !r.byday.length && !r.bymonthday.length && !r.bysetpos.length) {
     return { rule: 'daily', rule_config: r.interval > 1 ? { n: r.interval } : {} }
@@ -636,21 +749,28 @@ export function mapRule(r: Rule, start: string): SeriesRule | null {
     const days = [...new Set(r.byday.map((d) => d.wd))].sort((a, b) => a - b)
     const picked = days.length ? days : [weekdayOf(start)]
     if (r.interval === 1 && picked.join() === '1,2,3,4,5') return { rule: 'weekdays', rule_config: {} }
+    if (r.interval === 1 && picked.join() === '0,6') return { rule: 'weekends', rule_config: {} }
     if (r.interval === 1) return { rule: 'weekly', rule_config: { weekdays: picked } }
     // Weeks counted from a Monday, as the app counts them.
     if (r.wkst === 1) return { rule: 'every_n_weeks', rule_config: { n: r.interval, weekdays: picked } }
     return null
   }
-  if (r.freq === 'MONTHLY' && r.interval === 1 && !r.byday.length) {
+  // "The 2nd Tuesday", "the last Friday", every n months.
+  if (r.freq === 'MONTHLY' && r.byday.length === 1 && !r.bymonthday.length && !r.bysetpos.length) {
+    const { n, wd } = r.byday[0]
+    if ((n >= 1 && n <= 5) || n === -1) return { rule: 'monthly_nth', rule_config: { ...iv, nth: n, weekday: wd } }
+    return null
+  }
+  if (r.freq === 'MONTHLY' && !r.byday.length) {
     const days = [...r.bymonthday].sort((a, b) => a - b)
     if (!days.length && !r.bysetpos.length) {
       const d = Number(start.slice(8, 10))
-      return d <= 28 ? { rule: 'monthly', rule_config: { day_of_month: d } } : null
+      return d <= 28 ? { rule: 'monthly', rule_config: { ...iv, day_of_month: d } } : null
     }
-    if (days.length === 1 && days[0] >= 1 && days[0] <= 28 && !r.bysetpos.length) return { rule: 'monthly', rule_config: { day_of_month: days[0] } }
+    if (days.length === 1 && days[0] >= 1 && days[0] <= 28 && !r.bysetpos.length) return { rule: 'monthly', rule_config: { ...iv, day_of_month: days[0] } }
     // "The last of the 28th to the 31st": the app's own "31st, or the last day".
     if (r.bysetpos.length === 1 && r.bysetpos[0] === -1 && days[0] === 28 && days.every((d, i) => d === 28 + i) && days.length >= 2) {
-      return { rule: 'monthly', rule_config: { day_of_month: days[days.length - 1] } }
+      return { rule: 'monthly', rule_config: { ...iv, day_of_month: days[days.length - 1] } }
     }
   }
   return null
@@ -807,6 +927,10 @@ export interface ParsedEvent {
   /** Every day, laid out, for a repeat the app cannot express (or when asked). */
   dates: string[]
   recurrenceId: string | null
+  /** GetIt's own lines, when the file came from GetIt (GEN-26): what it was
+   *  (a habit, a chore…) and a repeat no RRULE says, as the app's rule. */
+  kind?: GetitKind | null
+  repeat?: ReturnType<typeof readLooseRepeat>
 }
 
 export interface ReadOptions {
@@ -896,6 +1020,8 @@ export function parseIcs(text: string, o: ReadOptions): ReadResult {
         location: get('LOCATION') ? unescapeText(get('LOCATION')!.value).trim() || null : null,
         allDay, date: start.date, time: start.time, endDate, endTime, minutes,
         series: null, exdates: [...new Set(exdates)].sort(), dates: [], recurrenceId: rid?.date ?? null,
+        kind: GETIT_KINDS.find((k) => k === get('X-GETIT-KIND')?.value.trim().toLowerCase()) ?? null,
+        repeat: get('X-GETIT-REPEAT') ? readLooseRepeat(get('X-GETIT-REPEAT')!.value) : null,
       },
       rule, rdates, cancelled: status === 'CANCELLED', line: label,
     })
@@ -926,6 +1052,15 @@ export function parseIcs(text: string, o: ReadOptions): ReadResult {
       ev.exdates = [...removed].sort()
       out.push(ev)
       continue
+    }
+    // Days picked by hand: the start and its RDATEs are the app's 'dates' rule.
+    if (mapSeries && !r.rule && r.rdates.length) {
+      const dates = [...new Set([ev.date, ...r.rdates])].filter((d) => !removed.has(d)).sort()
+      if (dates.length && dates.length <= maxPer) {
+        ev.series = { rule: 'dates', rule_config: { dates }, start_date: dates[0], end_date: dates[dates.length - 1], occurrence_count: null }
+        out.push({ ...ev, date: dates[0], exdates: [] })
+        continue
+      }
     }
     if (r.rule || r.rdates.length) {
       let days = [ev.date]

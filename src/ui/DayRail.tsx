@@ -27,6 +27,8 @@ import { NotesPage } from './NotesPage'
 import { PlannedDay } from './PlannedDay'
 import { offerUndo } from './Undo'
 import { FirstTip } from './Tip'
+import { TaskSelectBar } from './TaskSelectBar'
+import { useSelection } from './useSelection'
 import { AfterDoneSheet, AskDoneSheet, MoveToSheet, OpenRecord, PushPickSheet, PushTimeSheet, dayWords } from './RailSheets'
 import './itemrow.css'
 
@@ -109,7 +111,7 @@ type Sheet =
   | { kind: 'pushpick'; task: Task }
   | { kind: 'ask'; title: string; yes: () => void }
   | { kind: 'after'; task: Task }
-  | { kind: 'record'; moduleKey: string; id: string }
+  | { kind: 'record'; moduleKey: string; id?: string; day?: string }
 
 /** Where a module's items are looked after, for "Open …" and a tap. */
 const MODULE_PAGE: Record<string, { to: string; label: string }> = {
@@ -125,13 +127,19 @@ const MODULE_PAGE: Record<string, { to: string; label: string }> = {
  *  "Any time"; or grouped into morning, afternoon and evening if the person
  *  picks that. Every row: a tap opens it, a short hold and a move drags a
  *  task, a longer hold opens it in place; the same actions in its ⋮ menu. */
-export function DayRail({ day, where, filter, emptyText }: {
+export function DayRail({ day, where, filter, emptyText, selecting = false, onSelecting }: {
   day: string
   where: 'today' | 'plan'
   /** Today's tabs show part of the day (Work, Evening, a module). */
   filter?: (item: DayItem) => boolean
   /** Said when there is nothing to show. */
   emptyText?: string
+  /** Select mode (GEN-52), started from the page's ⋮ ("Select tasks"):
+   *  holding a row here drags it or opens it in place (TOD-10), so the hold
+   *  does not start it. The page keeps the switch; Done, Back and Escape
+   *  hand it back through onSelecting(false). */
+  selecting?: boolean
+  onSelecting?: (on: boolean) => void
 }) {
   const profile = useApp((s) => s.profile)
   const userId = useApp((s) => s.session?.user.id ?? null)
@@ -151,6 +159,15 @@ export function DayRail({ day, where, filter, emptyText }: {
 
   const shown = useMemo(() => (items ? (filter ? items.filter(filter) : items) : null), [items, filter])
   const dayTasks = useMemo(() => (items ?? []).flatMap((i) => (i.task ? [i.task] : [])), [items])
+  // The tasks that can be picked: the ones shown, in the rail's order.
+  const selectable = useMemo(() => (shown ?? []).flatMap((i) => (i.task && !i.readonly ? [i.task] : [])), [shown])
+  const sel = useSelection(selectable, { hold: false, onChange: (on) => { if (!on) onSelecting?.(false) } })
+  useEffect(() => {
+    if (selecting && !sel.selecting) sel.start()
+    else if (!selecting && sel.selecting) sel.stop()
+    // Only the page's switch starts or ends it here.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selecting])
   // An item open in place that has gone (deleted, another tab) closes.
   useEffect(() => {
     if (expanded && shown && !shown.some((i) => i.key === expanded)) setExpanded(null)
@@ -243,7 +260,8 @@ export function DayRail({ day, where, filter, emptyText }: {
     if (route) return navigate(route)
     if (item.task) return setSheet({ kind: 'edit', task: item.task, isNew: false })
     if (item.kind === 'event') return setSheet({ kind: 'record', moduleKey: 'agenda', id: item.ref.id })
-    if (item.kind === 'record' && item.module_key) return setSheet({ kind: 'record', moduleKey: item.module_key, id: item.ref.id })
+    // A record, or Sleep's "Log last night" (no id yet: a new night on the day).
+    if (item.kind === 'record' && item.module_key) return setSheet({ kind: 'record', moduleKey: item.module_key, id: item.ref.id || undefined, day: item.day })
     const page = item.module_key ? MODULE_PAGE[item.module_key] : undefined
     if (page) navigate(page.to)
   }
@@ -290,7 +308,7 @@ export function DayRail({ day, where, filter, emptyText }: {
     if (item.kind === 'record' && item.module_key) {
       const key = item.module_key
       return [
-        { label: 'Open record', run: () => setSheet({ kind: 'record', moduleKey: key, id: item.ref.id }) },
+        { label: item.ref.id ? 'Open record' : item.title, run: () => setSheet({ kind: 'record', moduleKey: key, id: item.ref.id || undefined, day: item.day }) },
         { label: `Open ${colours.label(key)}`, run: () => navigate(`/m/${key}`) },
       ]
     }
@@ -322,9 +340,23 @@ export function DayRail({ day, where, filter, emptyText }: {
     <div className="day-rail">
       {/* Tips, one at a time (ONB-12, ONB-13): holding, the first time
           there is a task to hold; on Today, a few days in, Make GetIt yours. */}
-      <FirstTip ids={[...(entries.some((e) => e.type === 'item' && e.task && !e.static) ? ['first-hold'] : []), ...(where === 'today' ? ['make-yours'] : [])]} />
-      <div className={`rail${colours.on ? ' is-coloured' : ''}`}>
-        {empty && <p className="empty rail-empty">{emptyText ?? 'Nothing planned for this day yet. Add something with the + button.'}</p>}
+      {!sel.selecting && <FirstTip ids={[...(entries.some((e) => e.type === 'item' && e.task && !e.static) ? ['first-hold'] : []), ...(where === 'today' ? ['make-yours'] : [])]} />}
+      {sel.selecting && (
+        <ul className="rail-select" aria-label="Tasks to select">
+          {selectable.length === 0 && <li className="empty">No tasks on this day.</li>}
+          {selectable.map((t) => (
+            <li key={t.id}>
+              <label className={`rail-pick${t.status === 'done' ? ' is-done' : ''}`}>
+                <input type="checkbox" checked={sel.has(t.id)} onChange={() => sel.toggle(t.id)} />
+                <span className="rail-pick-time">{t.planned_time?.slice(0, 5) ?? ''}</span>
+                <span className="rail-pick-name">{t.title || 'Untitled task'}</span>
+              </label>
+            </li>
+          ))}
+        </ul>
+      )}
+      <div className={`rail${colours.on ? ' is-coloured' : ''}`} hidden={sel.selecting}>
+        {empty && <p className="empty rail-empty">{emptyText ?? 'Nothing planned for this day yet.'}</p>}
         <DragList
           entries={entries} day={dayTasks} date={day} work={settings.work}
           expanded={expanded}
@@ -356,7 +388,8 @@ export function DayRail({ day, where, filter, emptyText }: {
         />
       </div>
       {/* Past the eight weeks the series have filled: what will repeat here. */}
-      <PlannedDay profileId={profile.id} day={day} />
+      {!sel.selecting && <PlannedDay profileId={profile.id} day={day} />}
+      {sel.selecting && <TaskSelectBar sel={sel} shown={selectable} profileId={profile.id} />}
 
       {sheet?.kind === 'edit' && <TaskSheet task={sheet.task} isNew={sheet.isNew} onClose={() => setSheet(null)} />}
       {sheet?.kind === 'copy' && <CopySheet what={{ kind: 'task', task: sheet.task }} onClose={() => setSheet(null)} />}
@@ -378,7 +411,7 @@ export function DayRail({ day, where, filter, emptyText }: {
       )}
       {sheet?.kind === 'ask' && <AskDoneSheet title={sheet.title} onYes={sheet.yes} onClose={() => setSheet((s) => (s?.kind === 'ask' ? null : s))} />}
       {sheet?.kind === 'after' && <AfterDoneSheet task={sheet.task} onClose={() => setSheet(null)} />}
-      {sheet?.kind === 'record' && <OpenRecord moduleKey={sheet.moduleKey} id={sheet.id} onClose={() => setSheet(null)} />}
+      {sheet?.kind === 'record' && <OpenRecord moduleKey={sheet.moduleKey} id={sheet.id} day={sheet.day} onClose={() => setSheet(null)} />}
     </div>
   )
 }

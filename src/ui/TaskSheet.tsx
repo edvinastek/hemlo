@@ -91,7 +91,7 @@ function TaskForm({ task, isNew, onClose, onDuplicate }: {
   const set = <K extends keyof Task>(k: K, v: Task[K]) => setDraft((d) => ({ ...d, [k]: v }))
 
   useBackClose(onClose)
-  useBackClose(() => setNotesOpen(false), notesOpen)
+  // The note page closes itself on Back, keeping what was typed.
 
   const today = format(new Date(), 'yyyy-MM-dd')
   // Undefined while it is being read, null when there is none.
@@ -411,7 +411,7 @@ function TaskForm({ task, isNew, onClose, onDuplicate }: {
               {series !== undefined && (!inSeries || running) && (day ? (
                 <div className="ts-repeatbox">
                   <RepeatPicker key={`${series?.id ?? 'new'}:${pickerKey}`} value={repeat} onChange={setRepeatEdit} start={start} today={today}
-                    kinds={TASK_RULE_KINDS} allowCount noneLabel={inSeries ? 'Stop repeating' : 'Does not repeat'} />
+                    kinds={TASK_RULE_KINDS} allowCount loose noneLabel={inSeries ? 'Stop repeating' : 'Does not repeat'} />
                   {running && (
                     <button type="button" className="btn ts-stop" onClick={() => void askStop()}>Stop repeating</button>
                   )}
@@ -481,7 +481,7 @@ function TaskForm({ task, isNew, onClose, onDuplicate }: {
             {said && <p className="ts-repeat-rule" role="status">{said}</p>}
 
             {inSeries && confirmDelete && (
-              <p className="ts-repeat-rule">Deleting removes this day only. The series goes on.</p>
+              <p className="ts-repeat-rule">Deletes this day only; the series goes on.</p>
             )}
             <div className="sheet-actions">
               {!isNew && !confirmDelete && <button type="button" className="btn" onClick={() => setConfirmDelete(true)}>Delete</button>}

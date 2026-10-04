@@ -1,8 +1,9 @@
-import { useEffect, useRef, useState, type MouseEvent, type PointerEvent, type ReactNode } from 'react'
+import { useRef, useState, type MouseEvent, type PointerEvent, type ReactNode } from 'react'
 import { addDays, format, isSameDay, parseISO, startOfWeek } from 'date-fns'
 import { inRange, moveWeek } from '../lib/calendar-rules'
 import { MonthScroller } from './MonthScroller'
 import { useDayRange } from './useDayRange'
+import { useBackClose } from './useBackClose'
 import './pagehead.css'
 
 interface Props {
@@ -101,11 +102,8 @@ function DayPicker({ day, today, first, last, onPick, onClose }: {
   day: string; today: string; first: string; last: string
   onPick: (day: string) => void; onClose: () => void
 }) {
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose() }
-    document.addEventListener('keydown', onKey)
-    return () => document.removeEventListener('keydown', onKey)
-  }, [onClose])
+  // Back and Escape close it (CALM-10).
+  useBackClose(onClose)
 
   return (
     <>

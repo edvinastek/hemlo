@@ -129,3 +129,15 @@
 /* "Push…" from a row's ⋮: three big buttons in a small sheet. */
 .rail-pushes { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--space-2); margin-bottom: var(--space-2); }
 .rail-pushes .btn { min-height: 48px; font-size: 15px; }
+
+/* Select mode on the rail (v18, GEN-52): the day's tasks, each with a tick
+   box; the rail itself waits underneath. */
+.rail[hidden] { display: none; }
+.rail-select { list-style: none; margin: 0 0 var(--space-3); padding: 0; border-top: 1px solid var(--e-rule); }
+.rail-select > li { border-bottom: 1px solid var(--e-rule); }
+.rail-select > li.empty { padding: var(--space-3) 0; }
+.rail-pick { display: flex; align-items: center; gap: var(--space-3); min-height: 48px; padding: 0 var(--space-2); cursor: pointer; }
+.rail-pick input { width: 20px; height: 20px; flex: none; accent-color: var(--e-accent); }
+.rail-pick-time { flex: none; width: 3.2em; font-size: 13px; color: var(--e-ink-soft); font-variant-numeric: tabular-nums; }
+.rail-pick-name { flex: 1; min-width: 0; font-family: var(--font-serif); color: var(--e-ink); overflow-wrap: anywhere; }
+.rail-pick.is-done .rail-pick-name { color: var(--e-ink-soft); text-decoration: line-through; }

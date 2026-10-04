@@ -8,6 +8,7 @@ import { supabase } from '../lib/supabase'
 import { edit } from '../lib/write'
 import { MODULES } from '../modules/registry'
 import { setModuleEnabled } from '../modules/defs'
+import { offerUndo } from '../ui/Undo'
 import './more.css'
 import { ModuleEditor } from '../ui/ModuleEditor'
 import { BuiltModules } from '../modules/ModuleBuilder'
@@ -181,9 +182,21 @@ function Modules({ onEdit }: { onEdit: (key: string) => void }) {
   }, [profile?.id], [] as ModuleInstance[])
 
   const byKey = new Map(instances.map((i) => [i.module_key, i]))
+  // Switching off asks first and can be undone (GEN-06): it hides pages and
+  // items, and deletes nothing. Switching on needs no question.
+  const [asking, setAsking] = useState<string | null>(null)
 
   async function toggle(instance: ModuleInstance) {
-    await edit('module_instance', instance, { enabled: !instance.enabled })
+    if (instance.enabled) { setAsking(instance.module_key); return }
+    await edit('module_instance', instance, { enabled: true })
+  }
+  async function switchOff(instance: ModuleInstance, name: string) {
+    setAsking(null)
+    await edit('module_instance', instance, { enabled: false })
+    offerUndo(`${name} switched off`, async () => {
+      const now = await db.module_instance.get(instance.id)
+      if (now) await edit('module_instance', now, { enabled: true })
+    })
   }
   // A module newer than the profile (Stats, on an older account) has no
   // switch row yet: switching it on makes one.
@@ -213,7 +226,8 @@ function Modules({ onEdit }: { onEdit: (key: string) => void }) {
       <p className="section-title">On</p>
       {listed.filter((m) => byKey.get(m.key)?.enabled).map((m) => (
         <Row key={m.key} name={m.name} summary={m.summary} depth={m.depth}
-          instance={byKey.get(m.key)} onToggle={toggle} onEdit={() => onEdit(m.key)} />
+          instance={byKey.get(m.key)} onToggle={toggle} onEdit={() => onEdit(m.key)}
+          asking={asking === m.key} onKeep={() => setAsking(null)} onOff={(i) => void switchOff(i, m.name)} />
       ))}
 
       <p className="section-title">Available</p>
@@ -228,11 +242,14 @@ function Modules({ onEdit }: { onEdit: (key: string) => void }) {
   )
 }
 
-function Row({ name, summary, depth, instance, onToggle, onCreate, onEdit }: {
+function Row({ name, summary, depth, instance, onToggle, onCreate, onEdit, asking, onKeep, onOff }: {
   name: string; summary: string; depth: 'full' | 'light'
   instance?: ModuleInstance; onToggle: (i: ModuleInstance) => void; onCreate?: () => void; onEdit: () => void
+  /** Switching it off is being asked about (GEN-06). */
+  asking?: boolean; onKeep?: () => void; onOff?: (i: ModuleInstance) => void
 }) {
   return (
+    <>
     <div className="setting-row">
       <div>
         <div className="row-name">{name}</div>
@@ -252,6 +269,16 @@ function Row({ name, summary, depth, instance, onToggle, onCreate, onEdit }: {
         />
       </div>
     </div>
+    {asking && instance && (
+      <div className="hub-confirm more-module-off" role="alertdialog" aria-label={`Switch ${name} off`}>
+        <p>Switch {name} off? Its pages and items are hidden; nothing is deleted, and switching it on again brings everything back.</p>
+        <div className="sheet-actions">
+          <button type="button" className="btn" onClick={onKeep} autoFocus>Keep it on</button>
+          <button type="button" className="btn btn-primary grow" onClick={() => onOff?.(instance)}>Switch off</button>
+        </div>
+      </div>
+    )}
+    </>
   )
 }
 

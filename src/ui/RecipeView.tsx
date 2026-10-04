@@ -217,6 +217,9 @@ export function RecipeView({ recipe: given, lines, foods, userId, onClose, onEdi
   )
 }
 
+/** How many tasks the picker lists before "Show all" (GEN-10). */
+const PICK_LIMIT = 20
+
 /** Into a task's note (REC-20, NOT-20): the ingredients as a checklist for
  *  the portions shown, the steps and the figures, with a line that links back
  *  to the recipe. A new task on a day, or one already planned. */
@@ -233,7 +236,10 @@ function TaskPanel({ recipe, scaled, portions, figures, keys, profileId, onBack,
   const [opts, setOpts] = useState({ ingredients: true, steps: true, figures: true })
   const tasks = useLiveQuery(async () => (await db.task.where('profile_id').equals(profileId).toArray())
     .filter((t) => !t.deleted_at && t.status !== 'done' && (!t.planned_date || t.planned_date >= today)), [profileId], [] as Task[])
-  const found = search(tasks.map((t) => ({ t, name: t.title, extra: t.planned_date ?? '' })), query).slice(0, 8)
+  // THE search (GEN-10): the best 20, and "Show all" for the rest.
+  const [showAll, setShowAll] = useState(false)
+  const matches = search(tasks.map((t) => ({ t, name: t.title, extra: t.planned_date ?? '' })), query)
+  const found = showAll ? matches : matches.slice(0, PICK_LIMIT)
 
   const figureLine = `One portion: ${(['kcal', ...keys] as LabelKey[]).map((k) => `${k === 'kcal' ? Math.round(figures[k]?.value ?? 0) + ' kcal' : `${round1(figures[k]?.value ?? 0)} g ${figureName(k).toLowerCase()}`}`).join(' · ')}`
   const block = recipeToNote({ id: recipe.id, name: recipe.name, portions_per_batch: recipe.portions_per_batch, steps: recipe.steps },
@@ -268,7 +274,7 @@ function TaskPanel({ recipe, scaled, portions, figures, keys, profileId, onBack,
         </div>
       ) : (
         <>
-          <label>Find the task<input type="search" value={query} placeholder="Type a task’s name" onChange={(e) => { setQuery(e.target.value); setPicked(null) }} /></label>
+          <label>Find the task<input type="search" value={query} placeholder="Type a task’s name" onChange={(e) => { setQuery(e.target.value); setPicked(null); setShowAll(false) }} /></label>
           <ul className="rcp-list" aria-label="Tasks">
             {found.map(({ t }) => (
               <li key={t.id}>
@@ -277,6 +283,9 @@ function TaskPanel({ recipe, scaled, portions, figures, keys, profileId, onBack,
               </li>
             ))}
             {found.length === 0 && <li><span className="fe-note">No open task found.</span></li>}
+            {matches.length > found.length && (
+              <li><button type="button" className="slot-link" onClick={() => setShowAll(true)}>Show all {matches.length}</button></li>
+            )}
           </ul>
         </>
       )}

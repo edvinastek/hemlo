@@ -24,3 +24,9 @@
 .add-hide[aria-pressed="true"] { color: var(--e-ink); }
 .add-more { margin-top: var(--space-2); padding: 10px var(--space-1); min-height: 44px; font-size: 13px; color: var(--e-accent); }
 .add-rest { border-top: 1px solid var(--e-rule); margin-top: var(--space-1); }
+
+/* The weigh-in in the + menu's sheet (v18, HAB-22): its own section, edge
+   to edge in the sheet, the day as its only heading. */
+.qa-bare .section-title { padding-left: 0; padding-right: 0; padding-top: 0; }
+.qa-bare .weighin-form { padding: 0; }
+.qa-bare .empty { padding-left: 0; padding-right: 0; }

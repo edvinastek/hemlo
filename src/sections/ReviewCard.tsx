@@ -7,6 +7,7 @@ import {
   type ReviewAction,
 } from '../lib/review-rules'
 import { db } from '../lib/db'
+import { flexibleSeriesIds } from '../lib/series'
 import { carryOver } from '../lib/day-items-rules'
 import { carry, type CarryAction } from '../lib/rail-actions'
 import { TaskSheet } from '../ui/TaskSheet'
@@ -175,7 +176,7 @@ export function CarryOverRow({ profileId, today }: { profileId: string; today: s
   const tasks = useLiveQuery(async () => {
     const rows = await db.task.where('[profile_id+planned_date]')
       .between([profileId, ''], [profileId, addDays(today, -1)], true, true).toArray()
-    return carryOver(rows, today)
+    return carryOver(rows, today, await flexibleSeriesIds(profileId))
   }, [profileId, today], null)
 
   if (!tasks || tasks.length === 0) return null

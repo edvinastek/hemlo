@@ -33,13 +33,37 @@ export async function saveTask(task: Task, changed?: (keyof Task & string)[]) {
 /** Tick or untick, from Today or from the home-screen widget. A meal's task
  *  ticks its meal eaten too, and unticking un-eats it (GEN-31). */
 export async function setTaskDone(task: Task, done: boolean) {
+  // A flexible repeat waiting on today (GEN-22) is done today: it takes
+  // today's date, so it stays on today's list, ticked, and its history says
+  // when it was really done.
+  const today = localDayOf(null)
+  const catchUp = done && !!task.series_id && !!task.planned_date && task.planned_date < today
+    && await (await import('./series')).isFlexibleSeries(task.series_id)
   const row = await saveTask({
     ...task,
+    ...(catchUp ? { planned_date: today } : {}),
     status: done ? 'done' : 'todo',
     completed_at: done ? new Date().toISOString() : null,
-  }, ['status', 'completed_at'])
+  }, catchUp ? ['status', 'completed_at', 'planned_date'] : ['status', 'completed_at'])
   if (task.source === 'meal') await (await import('./meals')).mealTaskTicked(row, done)
+  if (task.series_id) await followTick(task, done)
   return row
+}
+
+/** A task of an "after completion" or flexible series (GEN-22): its tick
+ *  makes the next one, and unticking takes that one away again. Every tick
+ *  comes through here (Today, Plan, the widget, a reminder, the review). */
+export async function followTick(before: Task, done: boolean) {
+  const series = await import('./series')
+  if (done && before.status !== 'done') await series.followDone(before)
+  else if (!done && before.status === 'done') await series.unfollowDone(before, localDayOf(before.completed_at))
+}
+
+/** The person's day of a moment ('yyyy-MM-dd' on this phone), today when unknown. */
+function localDayOf(at: string | null): string {
+  const d = at ? new Date(at) : new Date()
+  const ok = Number.isFinite(d.getTime()) ? d : new Date()
+  return `${ok.getFullYear()}-${String(ok.getMonth() + 1).padStart(2, '0')}-${String(ok.getDate()).padStart(2, '0')}`
 }
 
 /** Deleting keeps the row with a date on it, so the deletion syncs to every

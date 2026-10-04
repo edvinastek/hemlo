@@ -5,9 +5,10 @@ import { blankTask, deleteTask, saveTask } from './tasks'
 import { edit } from './write'
 import type { PendingChange, Series, SeriesException, Task } from './types'
 import {
-  addDays, occurrenceId, plan, planRuleChange, ruleFromChoice, seriesBounds, seriesRuleFields, sortAfterRuleChange,
+  addDays, nextAfterDone, occurrenceId, plan, planRuleChange, ruleFromChoice, seriesBounds, seriesRuleFields, sortAfterRuleChange,
   WINDOW_DAYS, type RepeatKind, type RepeatShape, type RuleFields,
 } from './series-rules'
+import { looseOf } from './schedule-rules'
 
 /** The fields a series copies onto every task it makes, and the ones "this and
  *  following" carries forward. Date is never among them: moving one day is
@@ -121,18 +122,7 @@ async function fill(profileId: string, from: string): Promise<number> {
       const id = await occurrenceId(s.id, occ.base)
       if (await db.task.get(id)) continue
       const change = exceptions.find((e) => e.exception_date === occ.base && e.action === 'change')?.changes ?? {}
-      const task = blankTask(profileId, occ.date, {
-        id,
-        title: s.title,
-        series_id: s.id,
-        module_key: s.module_key,
-        planned_time: hhmm(s.time_of_day),
-        category: s.task_template?.category ?? null,
-        duration_min: s.task_template?.duration_min ?? null,
-        locked: s.task_template?.locked ?? false,
-        notes: s.task_template?.notes ?? null,
-        ...pick(change, SERIES_FIELDS),
-      })
+      const task = taskOf(s, occ.date, id, pick(change, SERIES_FIELDS))
       made.push({ task, fields: everyTaskField(task) })
       days.add(occ.date)
     }
@@ -141,6 +131,71 @@ async function fill(profileId: string, from: string): Promise<number> {
   await writeTasks(made)
   for (const s of live) await setMeta(throughKey(s.id), to)
   return made.length
+}
+
+/** A series' task for one day, from its template. */
+function taskOf(s: Series, day: string, id: string, extra: Partial<Task> = {}): Task {
+  return blankTask(s.profile_id, day, {
+    id,
+    title: s.title,
+    series_id: s.id,
+    module_key: s.module_key,
+    planned_time: hhmm(s.time_of_day),
+    category: s.task_template?.category ?? null,
+    duration_min: s.task_template?.duration_min ?? null,
+    locked: s.task_template?.locked ?? false,
+    notes: s.task_template?.notes ?? null,
+    ...extra,
+  })
+}
+
+/** After completion and flexible repeats (GEN-22): ticking a task of such a
+ *  series makes the next one, its number of days after the day it was done.
+ *  Only one is ever open: nothing is made while another of the series still
+ *  waits. The new task takes the shared id of its series and day, so two
+ *  phones ticking the same task make one row between them. Returns the task
+ *  made, or null. */
+export async function followDone(task: Task, doneOn: string = dayOf(new Date())): Promise<Task | null> {
+  if (!task.series_id) return null
+  const series = await db.series.get(task.series_id)
+  if (!series || !looseOf(series)) return null
+  const all = await seriesTasks(series.id, series.profile_id)
+  if (all.some((t) => t.id !== task.id && !t.deleted_at && t.status !== 'done' && t.status !== 'dropped' && !!t.planned_date)) return null
+  const day = nextAfterDone(series, doneOn, all.length)
+  if (!day) return null
+  const id = await occurrenceId(series.id, day)
+  const had = await db.task.get(id)
+  if (had && !had.deleted_at) return null
+  // Ticked, unticked and ticked again: the same row comes back.
+  const next = had ? { ...taskOf(series, day, id), sort_order: had.sort_order } : taskOf(series, day, id)
+  await writeTasks([{ task: next, fields: everyTaskField(next) }])
+  return next
+}
+
+/** The person's flexible series (GEN-22), whose tasks are never late: the
+ *  carry-over and the evening review leave them out. */
+export async function flexibleSeriesIds(profileId: string): Promise<Set<string>> {
+  const rows = await db.series.where('profile_id').equals(profileId).filter((x) => !x.deleted_at).toArray()
+  return new Set(rows.filter((x) => looseOf(x)?.mode === 'flexible').map((x) => x.id))
+}
+
+/** Is this a flexible series (GEN-22)? */
+export async function isFlexibleSeries(seriesId: string): Promise<boolean> {
+  const s = await db.series.get(seriesId)
+  return !!s && !s.deleted_at && looseOf(s)?.mode === 'flexible'
+}
+
+/** Unticked again: the next task that the tick made goes, if it is still
+ *  open (one already done stays: it happened). `doneOn` is the day the tick
+ *  was made. */
+export async function unfollowDone(task: Task, doneOn: string): Promise<void> {
+  if (!task.series_id) return
+  const series = await db.series.get(task.series_id)
+  const loose = series ? looseOf(series) : null
+  if (!series || !loose) return
+  const id = await occurrenceId(series.id, addDays(doneOn, loose.every))
+  const next = await db.task.get(id)
+  if (next && !next.deleted_at && next.status !== 'done') await deleteTask(next)
 }
 
 function pick(from: Record<string, unknown>, keys: readonly string[]): Partial<Task> {
@@ -436,7 +491,8 @@ export async function changeSeriesRule(
     }
     // This day itself: if the new rule no longer lands on it, it stays
     // where it is, as a one-off, rather than vanish under the person's eyes.
-    const own = sortAfterRuleChange(next, [{ id: after.id, base, done: false }], base).keep.length > 0
+    // Under "after" or "flexible" it is the one open time of the series.
+    const own = !!looseOf(next) || sortAfterRuleChange(next, [{ id: after.id, base, done: false }], base).keep.length > 0
     const self: Task = own ? after : { ...after, series_id: null }
     rows.push({ task: self, fields: [...new Set([...fields, ...(own ? [] : ['series_id' as const])])] })
     await writeTasks(rows)
@@ -466,4 +522,34 @@ export async function changeSeriesRule(
   ], false)
   const made = await materializeSeries(series.profile_id)
   if (made === 0 && navigator.onLine) void push()
+}
+
+/** "Change repeat" on several tasks at once (GEN-53). A task without a day
+ *  cannot repeat and is left as it is. A one-off starts a series from its
+ *  own day; a task in a series changes that whole series (as "all days" on
+ *  its sheet: what is past or done stays), once per series however many of
+ *  its days were picked; "does not repeat" stops a series today. */
+export async function repeatMany(tasks: Task[], value: RepeatShape, today: Date = new Date()): Promise<{ changed: number; noDay: number }> {
+  let changed = 0
+  let noDay = 0
+  const seen = new Set<string>()
+  for (const t of tasks) {
+    if (!t.planned_date) { noDay++; continue }
+    const now = (await db.task.get(t.id)) ?? t
+    if (now.series_id) {
+      // One change per series, however many of its days were picked.
+      if (seen.has(now.series_id)) { changed++; continue }
+      seen.add(now.series_id)
+      const series = await db.series.get(now.series_id)
+      if (series && !series.deleted_at) {
+        if (!value.rule) await stopSeries(series, today)
+        else await changeSeriesRule(now, now, [], value, 'all', today)
+        changed++
+        continue
+      }
+    }
+    if (!value.rule) continue
+    if (await startSeriesWith(now, value, false, [])) changed++
+  }
+  return { changed, noDay }
 }

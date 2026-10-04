@@ -26,6 +26,8 @@ const setSleep = async (on) => {
   await toMore()
   if ((await sleepOn()) !== on) {
     await p.click(`button[role=switch][aria-label="Turn Sleep ${on ? 'on' : 'off'}"]`)
+    // v18 (GEN-06): switching off asks first.
+    if (!on) await p.click('.more-module-off button:has-text("Switch off")')
     await p.waitForTimeout(800)
   }
 }

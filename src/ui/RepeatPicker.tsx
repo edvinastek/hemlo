@@ -3,7 +3,7 @@ import {
   cleanDates, dayName, describeSchedule, MAX_PICKED_DATES, ordinal, weekdayOf, WEEK_ORDER,
   type RuleConfig, type RuleKind,
 } from '../lib/schedule-rules'
-import { choiceOf, ruleFor, LONG_DAYS, MONTHS, type Choice } from '../lib/repeat-choice-rules'
+import { choiceOf, isLooseChoice, ruleFor, LONG_DAYS, LOOSE_DAYS, MONTHS, type Choice } from '../lib/repeat-choice-rules'
 import { Dropdown, type Option } from './Dropdown'
 import { MonthScroller } from './MonthScroller'
 import { useDayRange } from './useDayRange'
@@ -20,9 +20,13 @@ import type { RepeatValue } from '../lib/repeat-choice-rules'
  *  - `kinds` limits the list where a rule does not make sense (a task cannot
  *    be "3 times a week"; a habit can). By default every kind but
  *    times_per_week is offered.
- *  - `noneLabel` is what "does not repeat" is called here. */
+ *  - `noneLabel` is what "does not repeat" is called here.
+ *  - `loose` adds the two kinds counted from the last time it was done
+ *    (GEN-22): "Some days after it was last done" and "About every few
+ *    days". Tasks, habits and module records take them; chores have them
+ *    too, through their own mode. */
 export function RepeatPicker({
-  value, onChange, start, today, kinds, noneLabel = 'Does not repeat', allowEnd = true, allowCount = false, allowNone = true,
+  value, onChange, start, today, kinds, noneLabel = 'Does not repeat', allowEnd = true, allowCount = false, allowNone = true, loose = false,
 }: {
   value: RepeatValue
   onChange: (v: RepeatValue) => void
@@ -35,6 +39,8 @@ export function RepeatPicker({
   allowCount?: boolean
   /** Offer "does not repeat" (off for habits and supplements, which always have a schedule). */
   allowNone?: boolean
+  /** Offer "after it was last done" and "about every few days" (GEN-22). */
+  loose?: boolean
 }) {
   const { range } = useDayRange()
   const choice = choiceOf(value)
@@ -45,11 +51,14 @@ export function RepeatPicker({
   // What is typed in a number box, kept as text so it can be cleared while typing.
   const [nText, setNText] = useState(String(cfg.n ?? (choice === 'monthly' ? 1 : 2)))
   const [timesText, setTimesText] = useState(String(cfg.times ?? 3))
+  const [looseText, setLooseText] = useState(String(cfg.n ?? 7))
   const allowed = new Set<RuleKind>(kinds ?? ['daily', 'weekdays', 'weekends', 'weekly', 'every_n_weeks', 'monthly', 'monthly_nth', 'yearly', 'dates'])
   const options: Option<Choice>[] = ([
     allowNone && { value: 'never', label: noneLabel },
     allowed.has('daily') && { value: 'daily', label: 'Every day' },
     allowed.has('daily') && { value: 'every_n_days', label: 'Every few days' },
+    loose && { value: 'after', label: 'Some days after it was last done' },
+    loose && { value: 'flexible', label: 'About every few days' },
     allowed.has('weekdays') && { value: 'weekdays', label: 'Weekdays (Mon to Fri)' },
     allowed.has('weekends') && { value: 'weekends', label: 'Weekends' },
     allowed.has('weekly') && { value: 'weekly', label: 'Weekly on chosen days' },
@@ -69,6 +78,7 @@ export function RepeatPicker({
   function choose(c: Choice) {
     const next = ruleFor(c, start, cfg, today)
     setNText(String(next.rule_config.n ?? (c === 'monthly' ? 1 : 2)))
+    setLooseText(String(next.rule_config.n ?? 7))
     const keep = c !== 'never' && c !== 'dates'
     onChange({ ...next, end_date: keep ? value.end_date : null, count: keep ? value.count ?? null : null })
   }
@@ -131,6 +141,25 @@ export function RepeatPicker({
             onChange={(e) => typeN(e.target.value, choice === 'monthly' ? 1 : 2, choice === 'every_n_days' ? 365 : choice === 'every_n_weeks' ? 52 : 24)}
             onBlur={(e) => commitN(e.target.value, choice === 'monthly' ? 1 : 2, choice === 'every_n_days' ? 365 : choice === 'every_n_weeks' ? 52 : 24)} />
           <span>{choice === 'every_n_days' ? 'days' : choice === 'every_n_weeks' ? 'weeks' : 'months'}</span>
+        </label>
+      )}
+
+      {isLooseChoice(choice) && (
+        <label className="ts-every">
+          <span>{choice === 'after' ? 'Due' : 'About every'}</span>
+          <input type="number" inputMode="numeric" step={1} min={LOOSE_DAYS.min} max={LOOSE_DAYS.max} value={looseText}
+            aria-label={choice === 'after' ? 'Days after it was last done' : 'About how many days between'}
+            onChange={(e) => {
+              setLooseText(e.target.value)
+              const v = Number(e.target.value)
+              if (Number.isInteger(v) && v >= LOOSE_DAYS.min && v <= LOOSE_DAYS.max) set({ ...cfg, n: v })
+            }}
+            onBlur={(e) => {
+              const v = Math.min(LOOSE_DAYS.max, Math.max(LOOSE_DAYS.min, Math.floor(Number(e.target.value)) || 7))
+              setLooseText(String(v))
+              set({ ...cfg, n: v })
+            }} />
+          <span>{choice === 'after' ? 'days after it was last done' : 'days, never “late”'}</span>
         </label>
       )}
 

@@ -311,7 +311,7 @@ export function RecordSheet({ def, entity, profileId, rec, day, lookups, onClose
           <div className="mf-repeat">
             {!rec && <Tip id="record-repeat" />}
             <RepeatPicker value={repeat} onChange={setRepeat} start={start} today={today}
-              kinds={[...RECORD_REPEAT_KINDS]} noneLabel="Does not repeat" />
+              kinds={[...RECORD_REPEAT_KINDS]} loose noneLabel="Does not repeat" />
             {repeat.rule && (
               <p className="mf-hint">
                 Each time it comes round it is an item on Today and Plan

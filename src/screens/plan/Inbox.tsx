@@ -1,7 +1,6 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useMemo, useRef, useState } from 'react'
 import { blankTask, saveTask } from '../../lib/tasks'
 import { writeBatch } from '../../lib/batch'
-import { duplicateTasks } from '../../lib/copy'
 import { deleteTasks, moveWithUndo } from '../../lib/series'
 import { moveInList, sortChanges, topOfList } from '../../lib/plan-view-rules'
 import { dayLabel } from '../../lib/copy-rules'
@@ -13,7 +12,8 @@ import { useLongPress } from '../../ui/useLongPress'
 import { MoreMenu } from '../../ui/MoreMenu'
 import { DayPickSheet } from '../../ui/DayPickSheet'
 import { CopySheet, type CopyWhat } from '../../ui/CopySheet'
-import { SelectBar } from '../../ui/SelectBar'
+import { TaskSelectBar } from '../../ui/TaskSelectBar'
+import type { Selection } from '../../ui/useSelection'
 import { offerUndo } from '../../ui/Undo'
 import { useDayRange } from '../../ui/useDayRange'
 
@@ -29,28 +29,23 @@ const SEARCH_FROM = 8
  *  long; put in order by hand; and give a task a day with "Plan for…", or by
  *  holding it and dropping it on a day. Several at once (GEN-53): hold a
  *  task and let go without moving it, or "Select tasks" in Plan's ⋮
- *  (CALM-16). Every move, plan and delete can be undone. */
-export function Inbox({ profileId, tasks, onOpen, selecting, onSelecting }: {
+ *  (CALM-16); the bar is the one every task list has (TaskSelectBar).
+ *  Every move, plan and delete can be undone. */
+export function Inbox({ profileId, tasks, onOpen, sel }: {
   profileId: string; tasks: Task[]; onOpen: (t: Task) => void
-  /** Select mode, kept by Plan so its ⋮ can start it. */
-  selecting: boolean
-  onSelecting: (on: boolean) => void
+  /** Select mode, kept by Plan so its ⋮ can start it (useSelection). */
+  sel: Selection<Task>
 }) {
+  const selecting = sel.selecting
   const { today } = useDayRange()
   const [text, setText] = useState('')
   const [query, setQuery] = useState('')
   const [planning, setPlanning] = useState<Task[] | null>(null)
   const [copying, setCopying] = useState<CopyWhat | null>(null)
-  const [chosen, setChosen] = useState<Set<string>>(new Set())
   // Where a hold began, to tell a hold-and-let-go (select) from a drag.
   const holdFrom = useRef<{ x: number; y: number; moved: boolean } | null>(null)
-  // Select mode ended (here or from Plan's ⋮): nothing stays ticked.
-  useEffect(() => { if (!selecting) setChosen(new Set()) }, [selecting])
   const [held, setHeld] = useState<string | null>(null)
   const [over, setOver] = useState<Over>(null)
-  const [status, setStatus] = useState<{ text: string; bad?: boolean } | null>(null)
-  // Deleting several asks once more on the same button (GEN-53).
-  const [sure, setSure] = useState(false)
   const input = useRef<HTMLInputElement>(null)
 
   const shown = useMemo(() => (query.trim()
@@ -90,19 +85,11 @@ export function Inbox({ profileId, tasks, onOpen, selecting, onSelecting }: {
     if (!day) return
     const undo = await moveWithUndo(list.map((task) => ({ task, to: day })))
     offerUndo(list.length === 1 ? `“${list[0].title}” planned for ${dayLabel(day)}` : `${list.length} tasks planned for ${dayLabel(day)}`, undo)
-    setChosen(new Set())
   }
 
   async function remove(list: Task[]) {
     const undo = await deleteTasks(list)
     offerUndo(list.length === 1 ? 'Task deleted' : `${list.length} tasks deleted`, undo)
-    setChosen(new Set())
-  }
-
-  async function duplicate(list: Task[]) {
-    const r = await duplicateTasks(profileId, list)
-    offerUndo(r.summary, r.undo)
-    setStatus({ text: r.summary })
   }
 
   const hold = useLongPress<string>({
@@ -129,9 +116,7 @@ export function Inbox({ profileId, tasks, onOpen, selecting, onSelecting }: {
       setOver(null)
       // Held and let go where it was: select it, and start selecting.
       if (t && still && (!o || (o.kind === 'row' && tasks[o.index]?.id === t.id))) {
-        onSelecting(true)
-        setChosen(new Set([t.id]))
-        setStatus(null)
+        sel.start(t.id)
         return
       }
       if (!t || !o) return
@@ -141,13 +126,7 @@ export function Inbox({ profileId, tasks, onOpen, selecting, onSelecting }: {
     onCancel: () => { holdFrom.current = null; setHeld(null); setOver(null) },
   })
 
-  const toggle = (id: string) => setChosen((s) => {
-    const n = new Set(s)
-    if (n.has(id)) n.delete(id)
-    else n.add(id)
-    return n
-  })
-  const picked = tasks.filter((t) => chosen.has(t.id))
+  const toggle = (id: string) => sel.toggle(id)
   const heldTask = tasks.find((t) => t.id === held)
 
   return (
@@ -193,7 +172,7 @@ export function Inbox({ profileId, tasks, onOpen, selecting, onSelecting }: {
               <li key={t.id} data-inbox-row={i} className={`pi-row${held === t.id ? ' is-held' : ''}${isOver ? ' is-over' : ''}`}
                 {...(selecting ? {} : hold.bind(t.id))}>
                 {selecting && (
-                  <input type="checkbox" className="pi-check" checked={chosen.has(t.id)} aria-label={`Select ${t.title}`} onChange={() => toggle(t.id)} />
+                  <input type="checkbox" className="pi-check" checked={sel.has(t.id)} aria-label={`Select ${t.title}`} onChange={() => toggle(t.id)} />
                 )}
                 <button type="button" className="pi-name" onClick={() => (selecting ? toggle(t.id) : onOpen(t))}>
                   <span className="pi-title">{t.title || 'Untitled task'}</span>
@@ -218,18 +197,7 @@ export function Inbox({ profileId, tasks, onOpen, selecting, onSelecting }: {
         </ul>
       )}
 
-      {selecting && (
-        <SelectBar count={picked.length} noun="tasks" allShown={shown.length > 0 && shown.every((t) => chosen.has(t.id))} anyShown={shown.length > 0}
-          onAll={() => setChosen((s) => (shown.every((t) => s.has(t.id)) ? new Set([...s].filter((id) => !shown.some((t) => t.id === id))) : new Set([...s, ...shown.map((t) => t.id)])))}
-          onDone={() => { onSelecting(false); setChosen(new Set()) }} status={status}>
-          <button type="button" className="btn" disabled={!picked.length} onClick={() => setPlanning(picked)}>Plan for…</button>
-          <button type="button" className="btn" disabled={!picked.length} onClick={() => setCopying({ kind: 'tasks', tasks: picked })}>Copy to day…</button>
-          <button type="button" className="btn" disabled={!picked.length} onClick={() => void duplicate(picked)}>Duplicate</button>
-          <button type="button" className="btn sb-delete" disabled={!picked.length}
-            onClick={() => { if (!sure && picked.length > 1) { setSure(true); return } setSure(false); void remove(picked) }}
-            onBlur={() => setSure(false)}>{sure ? `Delete ${picked.length}? Tap again` : 'Delete'}</button>
-        </SelectBar>
-      )}
+      {selecting && <TaskSelectBar sel={sel} shown={shown} profileId={profileId} inbox />}
 
       {planning && (
         <DayPickSheet title={planning.length === 1 ? `Plan “${planning[0].title}” for…` : `Plan ${planning.length} tasks for…`}

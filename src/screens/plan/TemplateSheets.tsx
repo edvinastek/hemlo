@@ -53,7 +53,7 @@ export function SaveTemplateSheet({ kind, first, onClose }: { kind: 'day' | 'wee
           </label>
           <label className="cs-choice">
             <input type="checkbox" checked={repeats} onChange={(e) => setRepeats(e.target.checked)} />
-            <span><span className="cs-choice-name">Repeating tasks</span><span className="cs-choice-sub">As one-offs. Their series already have days of their own.</span></span>
+            <span><span className="cs-choice-name">Repeating tasks</span><span className="cs-choice-sub">As one-offs; their series have days of their own.</span></span>
           </label>
         </section>
         <div className="sheet-actions">

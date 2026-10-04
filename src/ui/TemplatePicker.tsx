@@ -34,7 +34,7 @@ export function TemplatePicker({ onPick, onClose, title = 'Insert a template' }:
           onChange={(e) => { setQuery(e.target.value); setAll(false) }} autoFocus />
       )}
       {templates.length === 0 ? (
-        <p className="tp-empty">No templates yet. Make one under More, Note templates, or use Save as template on any note.</p>
+        <p className="tp-empty">No templates yet: save any note as a template, or make one in Settings, Note templates.</p>
       ) : shown.length === 0 ? (
         <p className="tp-empty">No template has “{query.trim()}” in it.</p>
       ) : (

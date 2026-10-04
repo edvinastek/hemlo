@@ -5,7 +5,7 @@
 import {
   buildCalendar, escapeText, foldLine, unfold, parseLine, unescapeText, taskEvent, calendarEvent, seriesEvents,
   seriesRule, firstDay, parseIcs, parseRule, mapRule, expandRule, eventDays, wallToUtc, utcToWall, cleanZone,
-  durationMinutes, uidFor, PRODID,
+  durationMinutes, uidFor, PRODID, looseRepeat, readLooseRepeat, scheduleEvent,
 } from '../lib/ics-rules.ts'
 import { baseDates, addDays } from '../lib/series-rules.ts'
 
@@ -138,7 +138,7 @@ eq('a series ended before it started gives nothing', seriesEvents(s('weekly', { 
 const window = ['2026-09-01', '2028-12-31']
 const cases = [
   s('daily'), s('daily', { rule_config: { n: 4 } }), s('weekdays', { start_date: '2026-09-26' }),
-  s('weekly', { rule_config: { weekdays: [0, 6] } }), s('every_n_weeks', { start_date: '2026-09-27', rule_config: { n: 3, weekdays: [1, 4] } }),
+  s('weekly', { rule_config: { weekdays: [0, 3] } }), s('every_n_weeks', { start_date: '2026-09-27', rule_config: { n: 3, weekdays: [1, 4] } }),
   s('monthly', { start_date: '2026-09-10', rule_config: { day_of_month: 31 } }), s('monthly', { start_date: '2026-09-10', rule_config: { day_of_month: 30 } }),
   s('monthly', { start_date: '2027-01-30', rule_config: { day_of_month: 29 } }), s('monthly', { rule_config: { day_of_month: 3 } }),
   s('daily', { occurrence_count: 20 }), s('weekly', { end_date: '2027-03-01', rule_config: { weekdays: [2] } }),
@@ -162,7 +162,7 @@ eq('yearly, last Sunday of October', lay('FREQ=YEARLY;BYMONTH=10;BYDAY=-1SU;COUN
 eq('monthly on the 31st skips short months (the standard)', lay('FREQ=MONTHLY;BYMONTHDAY=31;COUNT=4', '2026-10-31'), ['2026-10-31', '2026-12-31', '2027-01-31', '2027-03-31'])
 eq('COUNT counts days before the window too', lay('FREQ=DAILY;COUNT=5', '2025-12-29'), ['2026-01-01', '2026-01-02'])
 eq('cap', lay('FREQ=DAILY', '2026-01-01', '2026-01-01', '2026-12-31', 3), ['2026-01-01', '2026-01-02', '2026-01-03'])
-eq('second Tuesday does not map to a series', mapRule(parseRule('FREQ=MONTHLY;BYDAY=2TU', AMS), '2026-10-13'), null)
+eq('second Tuesday maps to the app\'s own rule (v18)', mapRule(parseRule('FREQ=MONTHLY;BYDAY=2TU', AMS), '2026-10-13'), { rule: 'monthly_nth', rule_config: { nth: 2, weekday: 2 } })
 eq('every 2 weeks with Sunday-first weeks does not map', mapRule(parseRule('FREQ=WEEKLY;INTERVAL=2;BYDAY=SU,MO;WKST=SU', AMS), '2026-09-27'), null)
 eq('a bad rule is null', parseRule('FREQ=FORTNIGHTLY', AMS), null)
 
@@ -293,8 +293,7 @@ const weekend = byTitle('Weekend in Vilnius')
 eq('all-day over three days', [weekend.allDay, weekend.date, weekend.endDate, weekend.time], [true, '2026-10-10', '2026-10-12', null])
 eq('UTC event in Amsterdam time', [byTitle('Call with New York').date, byTitle('Call with New York').time, byTitle('Call with New York').minutes], ['2026-10-15', '15:00', 75])
 eq('New York zone in Amsterdam time, DURATION', [byTitle('9 in New York').time, byTitle('9 in New York').endTime], ['15:00', '16:00'])
-eq('second Tuesday is laid out up to UNTIL', byTitle('Book club').dates, ['2026-10-13', '2026-11-10', '2026-12-08'])
-eq('laid-out events carry no series', byTitle('Book club').series, null)
+eq('second Tuesday is kept as the app\'s rule, up to UNTIL (v18)', byTitle('Book club').series, { rule: 'monthly_nth', rule_config: { nth: 2, weekday: 2 }, start_date: '2026-10-13', end_date: '2027-01-10', occurrence_count: null })
 
 // The same file read in New York: times follow the reader.
 const ny = parseIcs(google, { zone: 'America/New_York', today: '2026-09-27' })
@@ -323,6 +322,57 @@ const many = ['BEGIN:VCALENDAR', ...Array.from({ length: 30 }, (_, i) => `BEGIN:
 const capped = parseIcs(many, { zone: AMS, today: '2026-09-27', maxEvents: 10 })
 eq('event cap', [capped.events.length, capped.problems.length], [10, 1])
 eq('hourly repeats are not followed', parseIcs('BEGIN:VCALENDAR\r\nBEGIN:VEVENT\r\nDTSTART:20261001T090000\r\nRRULE:FREQ=HOURLY\r\nSUMMARY:x\r\nEND:VEVENT\r\nEND:VCALENDAR', { zone: AMS, today: '2026-09-27' }).events[0].dates, [])
+
+// ---- v18 (GEN-26): every rule of the app back as itself ----------------------
+const roundRule = (c) => {
+  const first = firstDay(c)
+  const r = seriesRule(c, true)
+  return r.rrule ? mapRule(parseRule(r.rrule, AMS), first) : null
+}
+eq('weekends read back as weekends', roundRule(s('weekends', { start_date: '2026-10-03' })), { rule: 'weekends', rule_config: {} })
+eq('the 2nd Tuesday read back', roundRule({ ...s('monthly_nth', { start_date: '2026-10-13' }), rule_config: { nth: 2, weekday: 2 } }), { rule: 'monthly_nth', rule_config: { nth: 2, weekday: 2 } })
+eq('the last Friday every 2 months read back', roundRule({ ...s('monthly_nth', { start_date: '2026-10-30' }), rule_config: { nth: -1, weekday: 5, n: 2 } }), { rule: 'monthly_nth', rule_config: { n: 2, nth: -1, weekday: 5 } })
+eq('every 3 months on the 15th read back', roundRule({ ...s('monthly'), rule_config: { day_of_month: 15, n: 3 } }), { rule: 'monthly', rule_config: { n: 3, day_of_month: 15 } })
+eq('every 2 months on the 31st read back', roundRule({ ...s('monthly', { start_date: '2026-10-31' }), rule_config: { day_of_month: 31, n: 2 } }), { rule: 'monthly', rule_config: { n: 2, day_of_month: 31 } })
+eq('a birthday read back', roundRule(s('yearly', { start_date: '2026-03-05' })), { rule: 'yearly', rule_config: { month: 3, day: 5 } })
+eq('29 February read back', roundRule(s('yearly', { start_date: '2028-02-29' })), { rule: 'yearly', rule_config: { month: 2, day: 29 } })
+for (const c of [{ ...s('monthly_nth', { start_date: '2026-10-13' }), rule_config: { nth: 2, weekday: 2 } }, s('yearly', { start_date: '2028-02-29' }), s('weekends')]) {
+  const rule = parseRule(seriesRule(c, true).rrule, AMS)
+  eq(`same days both ways: ${seriesRule(c, true).rrule}`, expandRule(rule, firstDay(c), window[0], window[1], 5000).days, baseDates(c, window[1]).filter((d) => d >= window[0]))
+}
+const pickedFile = buildCalendar(seriesEvents(s('dates', { rule_config: { dates: ['2026-10-02', '2026-10-09', '2026-11-20'] } })), { stamp: STAMP })
+eq('days picked by hand come back as picked days', parseIcs(pickedFile, { zone: AMS, today: '2026-09-27' }).events[0].series,
+  { rule: 'dates', rule_config: { dates: ['2026-10-02', '2026-10-09', '2026-11-20'] }, start_date: '2026-10-02', end_date: '2026-11-20', occurrence_count: null })
+
+// Repeats an RRULE cannot say: GetIt's own line.
+eq('after: no RRULE', seriesRule(s('daily', { rule_config: { n: 7, mode: 'after' } }), false), null)
+eq('after: its own line', looseRepeat({ rule: 'daily', rule_config: { n: 7, mode: 'after' } }), 'MODE=AFTER;DAYS=7')
+eq('flexible: its own line', looseRepeat({ rule: 'daily', rule_config: { n: 10, mode: 'flexible' } }), 'MODE=FLEXIBLE;DAYS=10')
+eq('3 times a week: its own line', looseRepeat({ rule: 'times_per_week', rule_config: { times: 3 } }), 'TIMES=3')
+eq('a plain rule needs none', looseRepeat({ rule: 'weekly', rule_config: { weekdays: [1] } }), null)
+eq('read back: after', readLooseRepeat('MODE=AFTER;DAYS=7'), { rule: 'daily', rule_config: { n: 7, mode: 'after' } })
+eq('read back: 3 times a week', readLooseRepeat('times=3'), { rule: 'times_per_week', rule_config: { times: 3 } })
+eq('read back: nonsense is nothing', readLooseRepeat('MODE=SOMETIMES;DAYS=x'), null)
+eq('a loose series goes as its tasks, not as a repeat', seriesEvents(s('daily', { rule_config: { n: 7, mode: 'flexible' } })), [])
+
+// Habits, chores, supplements and payments (scheduleEvent).
+const habitX = { id: 'h1', kind: 'habit', title: 'Stretch', rule: 'weekly', rule_config: { weekdays: [1, 3] }, start_date: '2026-09-28', end_date: null, time: '07:30', minutes: 15 }
+const he = scheduleEvent(habitX)
+eq('a habit repeats with its RRULE', [he.rrule, he.start, he.getit], ['FREQ=WEEKLY;BYDAY=MO,WE;WKST=MO', { kind: 'local', date: '2026-09-28', time: '07:30' }, { kind: 'habit', repeat: null }])
+const tpw = scheduleEvent({ ...habitX, rule: 'times_per_week', rule_config: { times: 3 }, start_date: '2026-10-01', time: null })
+eq('3 times a week: weekly from its first Monday, all day, with its line', [tpw.rrule, tpw.start, tpw.getit.repeat], ['FREQ=WEEKLY;BYDAY=MO;WKST=MO', { kind: 'date', date: '2026-09-28' }, 'TIMES=3'])
+const choreX = scheduleEvent({ id: 'c1', kind: 'chore', title: 'Descale the kettle', rule: 'daily', rule_config: { n: 30, mode: 'after' }, start_date: '2026-01-01', end_date: null, time: null, next: '2026-10-20' })
+eq('an "after" chore: one event on its next day, with its line', [choreX.rrule ?? null, choreX.start, choreX.getit], [null, { kind: 'date', date: '2026-10-20' }, { kind: 'chore', repeat: 'MODE=AFTER;DAYS=30' }])
+eq('…none once it has ended', scheduleEvent({ id: 'c1', kind: 'chore', title: 'x', rule: 'daily', rule_config: { n: 30, mode: 'after' }, start_date: '2026-01-01', end_date: '2026-10-01', time: null, next: '2026-10-20' }), null)
+const payX = scheduleEvent({ id: 'p1', kind: 'payment', title: 'Rent due', rule: 'monthly', rule_config: { day_of_month: 1 }, start_date: '2026-10-01', end_date: null, time: null })
+eq('a planned payment: monthly', payX.rrule, 'FREQ=MONTHLY;BYMONTHDAY=1')
+eq('a payment once: one day', scheduleEvent({ id: 'p2', kind: 'payment', title: 'Car tax', rule: null, rule_config: null, start_date: '2026-11-15', end_date: null, time: null }).start, { kind: 'date', date: '2026-11-15' })
+const xfile = buildCalendar([he, tpw, choreX], { stamp: STAMP })
+eq('the file carries GetIt\'s lines', [xfile.includes('X-GETIT-KIND:habit'), xfile.includes('X-GETIT-REPEAT:TIMES=3'), xfile.includes('X-GETIT-REPEAT:MODE=AFTER;DAYS=30')], [true, true, true])
+const readBack = parseIcs(xfile, { zone: AMS, today: '2026-09-27' }).events
+eq('read back: the habit with its rule', [readBack[0].kind, readBack[0].series?.rule, readBack[0].series?.rule_config], ['habit', 'weekly', { weekdays: [1, 3] }])
+eq('read back: 3 times a week', [readBack[1].kind, readBack[1].repeat], ['habit', { rule: 'times_per_week', rule_config: { times: 3 } }])
+eq('read back: the "after" chore', [readBack[2].kind, readBack[2].date, readBack[2].repeat], ['chore', '2026-10-20', { rule: 'daily', rule_config: { n: 30, mode: 'after' } }])
 
 console.log(fail ? `\n${fail} failed` : '\nall passed')
 process.exit(fail ? 1 : 0)

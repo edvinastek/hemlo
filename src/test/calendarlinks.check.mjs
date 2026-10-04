@@ -315,5 +315,13 @@ eq('the app\'s own wording keeps "https://"; a real address is taken out', [
   withoutAddresses('error sending request for url (https://calendar.google.com/calendar/ical/x/private-abc/basic.ics)'),
 ], ['Only secure addresses (https://) can be followed.', 'error sending request for url (the address)'])
 
+// v18 (GEN-22, GEN-26): an "after" or flexible series has no calendar rule;
+// its tasks go out as they are, never as "every 7 days".
+const looseFeed = feedEvents({ ...input, events: [],
+  tasks: [task('t-water', 'Water the plants', '2026-10-02', null, { series_id: 's-water' }), task('t-water-old', 'Water the plants', '2026-09-25', null, { series_id: 's-water', status: 'done' })],
+  series: [{ id: 's-water', title: 'Water the plants', rule: 'daily', rule_config: { n: 7, mode: 'flexible' }, start_date: '2026-09-25', end_date: null,
+    occurrence_count: null, time_of_day: null, task_template: {}, active: true }], exceptions: [] })
+eq('a flexible series goes out as its tasks, with no RRULE', looseFeed.map((e) => [e.start.date, e.rrule ?? null]), [['2026-10-02', null], ['2026-09-25', null]])
+
 console.log(fail ? `\n${fail} failed` : '\nall checks passed')
 process.exit(fail ? 1 : 0)

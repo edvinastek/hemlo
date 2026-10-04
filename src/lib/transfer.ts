@@ -5,7 +5,7 @@ import { blankTask, saveTask } from './tasks'
 import { materializeSeries } from './series'
 import { plan as planSeries, addDays } from './series-rules'
 import { occurrenceId } from './series-rules'
-import { addHabit, addSupplement } from './tracking'
+import { addHabit, addSupplement, blankHabit, saveHabit, saveSupplement } from './tracking'
 import { saveWeighIn } from './body'
 import { exportBundle, importBundle } from './bundle'
 import { hasNote } from './notes'
@@ -15,11 +15,21 @@ import { moduleDef, moduleDefs } from '../modules/defs'
 import { addRecord, isoToLocal, listRecords } from '../modules/records'
 import { computeFormulas, mainField } from '../modules/def-rules'
 import type { FieldDef } from '../modules/types'
-import type { CalendarEvent, Profile, Series, SeriesException, Task } from './types'
+import type { CalendarEvent, Habit, Profile, Series, SeriesException, Supplement, Task } from './types'
+import { blankChore, saveChore } from './chores'
+import { choreOfRepeat } from './repeat-choice-rules'
+import type { RuleKind } from './schedule-rules'
 import { parseUnitsText, readUnits, unitsText } from './units-rules'
 import {
-  buildCalendar, calendarEvent, minutesBetween, parseIcs, recordEvent, seriesEvents, taskEvent, uidFor, type IcsEvent, type ParsedEvent,
+  buildCalendar, calendarEvent, looseRepeat, minutesBetween, parseIcs, recordEvent, scheduleEvent, seriesEvents, taskEvent, uidFor,
+  type GetitKind, type IcsEvent, type ParsedEvent, type ScheduleLike,
 } from './ics-rules'
+import { windowedSeries } from './calendar-links-rules'
+import { choreState, habitSchedule, looseOf, looseState } from './schedule-rules'
+import { isModuleOn } from './day'
+import { supplementSlots } from './tracking'
+import { readPayment } from './finance-rules'
+import { savePayment } from './finance'
 import {
   FORMATS, IMPORT_LIMITS, fileName, formatOfFile, googleDate, googleTime, headersFor, inRange, jsonTable, listDatasetsFrom,
   cellValue, noteText, parseCsv, planImport, rowKey, statsRows, taskStats, toCsv, toJson,
@@ -283,6 +293,12 @@ async function taskEvents(profile: Profile, range: Range | null): Promise<IcsEve
   const exceptions = new Map<string, SeriesException[]>()
   for (const s of series) exceptions.set(s.id, (await db.series_exception.where('series_id').equals(s.id).toArray()).filter(live))
   const out: IcsEvent[] = []
+  // "After" and flexible series (GEN-22) go as their tasks; the one still
+  // open carries the rule in GetIt's own line, so reading it back gives the
+  // same series (GEN-26).
+  const loose = new Map(series.map((s) => [s.id, looseRepeat(s)] as const).filter(([, r]) => !!r))
+  const withRule = (t: Task, e: IcsEvent | null): IcsEvent | null =>
+    e && t.series_id && loose.has(t.series_id) && t.status !== 'done' && t.status !== 'dropped' ? { ...e, getit: { repeat: loose.get(t.series_id) } } : e
   if (!range) {
     const repeating = new Set<string>()
     for (const s of series) {
@@ -291,12 +307,12 @@ async function taskEvents(profile: Profile, range: Range | null): Promise<IcsEve
     }
     for (const t of tasks) {
       if (t.series_id && repeating.has(t.series_id)) continue
-      const e = taskEvent(t)
+      const e = withRule(t, taskEvent(t))
       if (e) out.push(e)
     }
     return out
   }
-  for (const t of tasks) { const e = taskEvent(t); if (e) out.push(e) }
+  for (const t of tasks) { const e = withRule(t, taskEvent(t)); if (e) out.push(e) }
   // Repeats in the range that have no task yet (the fill runs eight weeks ahead).
   const have = new Set(tasks.filter((t) => t.series_id).map((t) => `${t.series_id}|${t.planned_date}`))
   for (const s of series) {
@@ -318,10 +334,95 @@ function eventInRange(e: Pick<CalendarEvent, 'rule' | 'end_date'>, startDay: str
   return !range || (startDay <= range.to && (!e.end_date || e.end_date >= range.from))
 }
 
+/* ---------- habits, chores, supplements and payments (GEN-26) -------------- */
+
+/** Everything of a module that comes round, as the calendar file needs it,
+ *  for the modules that are on: habits, the household's chores, supplements
+ *  and Finance's planned payments. */
+async function moduleSchedules(profile: Profile, kinds: GetitKind[] = ['habit', 'chore', 'supplement', 'payment']): Promise<ScheduleLike[]> {
+  const out: ScheduleLike[] = []
+  const now = today()
+  const want = async (k: GetitKind, key: string) => kinds.includes(k) && await isModuleOn(profile.id, key)
+  if (await want('habit', 'habits')) {
+    const habits = (await db.habit.where('profile_id').equals(profile.id).toArray()).filter((h) => live(h) && h.active)
+    const logs = habits.length ? await db.habit_log.where('habit_id').anyOf(habits.map((h) => h.id)).filter((l) => l.done).toArray() : []
+    for (const h of habits) {
+      const sc = habitSchedule(h)
+      const l = looseOf(sc)
+      const start = h.start_date ?? now
+      out.push({
+        id: h.id, kind: 'habit', title: h.name, rule: sc.rule, rule_config: sc.rule_config, start_date: start, end_date: sc.end_date ?? null,
+        time: h.time_of_day ?? null, notes: h.note ?? null,
+        next: l ? looseState(l, h.start_date ?? null, sc.end_date ?? null, now, logs.filter((x) => x.habit_id === h.id).map((x) => x.log_date)).next : null,
+      })
+    }
+  }
+  if (await want('chore', 'household')) {
+    const chores = (await db.chore.where('household_id').equals(profile.household_id).toArray()).filter((c) => live(c) && !c.paused)
+    const logs = chores.length ? await db.chore_log.where('chore_id').anyOf(chores.map((c) => c.id)).toArray() : []
+    for (const c of chores) {
+      const loose = c.mode !== 'fixed'
+      out.push({
+        id: c.id, kind: 'chore', title: c.name, rule: loose ? 'daily' : c.rule, start_date: c.start_date ?? now, end_date: c.end_date,
+        rule_config: loose ? { n: c.every_days ?? 7, mode: c.mode } : c.rule_config ?? {},
+        time: c.time_of_day ?? null, minutes: c.minutes, notes: c.note ?? null,
+        next: loose ? choreState(c, now, logs.filter((x) => x.chore_id === c.id)).next : null,
+      })
+    }
+  }
+  if (await want('supplement', 'supplements')) {
+    const slots = await supplementSlots(profile.id)
+    for (const x of (await db.supplement.where('profile_id').equals(profile.id).toArray()).filter((v) => live(v) && v.active)) {
+      out.push({
+        id: x.id, kind: 'supplement', title: x.name, notes: x.dose_text ?? null, rule: x.rule ?? 'daily', rule_config: x.rule_config ?? {},
+        start_date: x.start_date ?? now, end_date: x.end_date ?? null, time: slots.find((v) => v.key === x.time_slot)?.time ?? null, minutes: 5,
+      })
+    }
+  }
+  if (await want('payment', 'finance')) {
+    const rows = await db.module_record.where('[profile_id+module_key]').equals([profile.id, 'finance']).toArray()
+    for (const p of rows.filter((r) => r.entity === 'payment' && live(r)).map(readPayment)) {
+      if (!p.active || !p.start_date) continue
+      out.push({ id: p.id, kind: 'payment', title: `${p.name} ${p.kind === 'income' ? 'expected' : 'due'}`, rule: p.rule, rule_config: p.rule_config,
+        start_date: p.start_date, end_date: p.end_date, time: p.time, notes: p.note })
+    }
+  }
+  return out
+}
+
+/** One of them cut to the days asked for: a repeat from its first day there
+ *  to its last (as a feed does), the next day of an "after" or flexible one
+ *  only if it falls inside, a one-off by its day. */
+function scheduleInRange(x: ScheduleLike, range: Range | null): ScheduleLike | null {
+  if (!range) return x
+  if (!x.rule) return inRange(x.start_date, range) ? x : null
+  if (looseRepeat({ rule: x.rule, rule_config: x.rule_config ?? {} }) && x.rule !== 'times_per_week') return x.next && inRange(x.next, range) ? x : null
+  if (x.rule === 'times_per_week') {
+    if (x.start_date > range.to || (x.end_date && x.end_date < range.from)) return null
+    return { ...x, start_date: x.start_date > range.from ? x.start_date : range.from, end_date: x.end_date && x.end_date < range.to ? x.end_date : range.to }
+  }
+  const cut = windowedSeries({ id: x.id, title: x.title, rule: x.rule, rule_config: x.rule_config ?? {}, start_date: x.start_date,
+    end_date: x.end_date, occurrence_count: null, time_of_day: null }, range.from, range.to)
+  return cut ? { ...x, start_date: cut.start_date, end_date: cut.end_date, rule_config: cut.rule_config } : null
+}
+
+async function scheduleEvents(profile: Profile, range: Range | null, kinds?: GetitKind[]): Promise<IcsEvent[]> {
+  return (await moduleSchedules(profile, kinds)).map((x) => scheduleInRange(x, range)).flatMap((x) => {
+    const e = x ? scheduleEvent(x) : null
+    return e ? [e] : []
+  })
+}
+
+const STORE_KIND: Partial<Record<Dataset['store'], GetitKind>> = { habit: 'habit', supplement: 'supplement', chore: 'chore' }
+
 async function icsEvents(profile: Profile, userId: string | null, d: Dataset, range: Range | null, chosen?: string[]): Promise<IcsEvent[]> {
   if (d.store === 'tasks') return taskEvents(profile, range)
+  const kind = STORE_KIND[d.store] ?? (d.moduleKey === 'finance' && d.entity === 'payment' ? 'payment' : undefined)
+  if (kind) return scheduleEvents(profile, range, [kind])
   if (d.store === 'calendar') {
-    const events = await taskEvents(profile, range)
+    // The whole calendar: tasks, repeats, own events, and what the modules
+    // that are on bring round (habits, chores, supplements, payments).
+    const events = [...await taskEvents(profile, range), ...await scheduleEvents(profile, range)]
     for (const e of (await ownEvents(profile.id))) {
       const start = isoToLocal(e.starts_at)
       if (!start || !eventInRange(e, start.slice(0, 10), range)) continue
@@ -361,7 +462,12 @@ async function icsEvents(profile: Profile, userId: string | null, d: Dataset, ra
 
 /* ---------- importing ------------------------------------------------------ */
 
-interface SeriesPlan { rule: NonNullable<ParsedEvent['series']>; exdates: string[] }
+interface SeriesPlan {
+  rule: NonNullable<ParsedEvent['series']>
+  exdates: string[]
+  /** What it was in GetIt (GEN-26): it goes back there, not into a task. */
+  kind?: GetitKind | null
+}
 
 export interface ImportPreview {
   dataset: Dataset
@@ -412,7 +518,7 @@ export async function readImport(profile: Profile, userId: string | null, d: Dat
     const sheet = wb.SheetNames.find((n) => n.toLowerCase() === d.label.slice(0, 31).toLowerCase()) ?? wb.SheetNames[0]
     table = sheet ? XLSX.utils.sheet_to_json(wb.Sheets[sheet], { header: 1, raw: true, defval: null, blankrows: false }) as Cell[][] : []
   } else {
-    const keepSeries = d.store === 'tasks' || d.store === 'calendar'
+    const keepSeries = d.store === 'tasks' || d.store === 'calendar' || d.store === 'habit' || d.store === 'supplement' || d.store === 'chore'
     const read = parseIcs(await file.text(), { zone: zone(), today: today(), mapSeries: keepSeries, maxEvents: IMPORT_LIMITS.rows })
     notes.push(...read.problems)
     table = icsTable(d, read.events, series)
@@ -451,7 +557,17 @@ function icsTable(d: Dataset, events: ParsedEvent[], series: Map<number, SeriesP
     for (const e of events) {
       for (const day of days(e)) {
         if (rows.length >= IMPORT_LIMITS.rows) break
+        // A habit, chore, supplement or payment from a GetIt file (GEN-26):
+        // one row, its repeat kept, saved back into its own module.
+        if (e.kind) {
+          const rule = e.repeat ?? e.series ?? { rule: 'dates', rule_config: { dates: [day] } }
+          series.set(rows.length + 2, { rule: { ...rule, start_date: e.series?.start_date ?? day, end_date: e.series?.end_date ?? null, occurrence_count: null } as SeriesPlan['rule'], exdates: [], kind: e.kind })
+          rows.push(calendar ? [e.summary, day, e.time, null, null, e.allDay, e.description, e.location] : [e.summary, day, e.time, e.minutes, note(e)])
+          break
+        }
         if (e.series) series.set(rows.length + 2, { rule: e.series, exdates: e.exdates })
+        // "After" or flexible (GEN-22), from GetIt's own line (GEN-26).
+        else if (e.repeat?.rule === 'daily') series.set(rows.length + 2, { rule: { rule: 'daily', rule_config: e.repeat.rule_config, start_date: day, end_date: null, occurrence_count: null }, exdates: [] })
         const lastDay = e.endDate && e.allDay ? addDays(day, Math.max(0, minutesBetween({ date: e.date, time: '00:00' }, { date: e.endDate, time: '00:00' }) / 1440)) : null
         const end = !e.allDay && e.time && e.minutes !== null ? endOf(day, e.time, e.minutes) : null
         rows.push(calendar
@@ -460,6 +576,22 @@ function icsTable(d: Dataset, events: ParsedEvent[], series: Map<number, SeriesP
       }
     }
     return [header, ...rows]
+  }
+  // Habits, supplements and chores (GEN-26): each event is one, with its
+  // repeat, from an RRULE or GetIt's own line ("3 times a week", "after",
+  // flexible); an event that does not repeat is one on its own day.
+  if (d.store === 'habit' || d.store === 'supplement' || d.store === 'chore') {
+    // A file GetIt wrote says what each event was: only this module's are
+    // taken from it. Any other calendar's events are all taken.
+    const fromGetit = events.some((e) => !!e.kind)
+    for (const e of events) {
+      if (fromGetit && e.kind !== d.store) continue
+      if (rows.length >= IMPORT_LIMITS.rows) break
+      const rule = e.repeat ?? e.series ?? { rule: 'dates', rule_config: { dates: [e.date] } }
+      if (rule) series.set(rows.length + 2, { rule: { ...rule, start_date: e.series?.start_date ?? e.date, end_date: e.series?.end_date ?? null, occurrence_count: null } as SeriesPlan['rule'], exdates: [] })
+      rows.push([e.summary])
+    }
+    return [['name'], ...rows]
   }
   // A module's records: its main text field and its date (or date and time).
   const main = mainField(d.fields)
@@ -506,6 +638,8 @@ export async function saveImport(profile: Profile, userId: string | null, p: Imp
   let added = 0
   let failed = 0
   let made = 0
+  // Rows of a module already there by name (habits, supplements, chores, payments).
+  let already = 0
   const def = d.store === 'record' ? await moduleDef(d.moduleKey!, profile.id) : null
   const entity = def?.entities.find((e) => e.name === d.entity)
   const needsSeries = p.series.size > 0
@@ -514,7 +648,10 @@ export async function saveImport(profile: Profile, userId: string | null, p: Imp
     const v = row.values
     try {
       const repeat = p.series.get(row.line)
-      if (repeat && (d.store === 'tasks' || d.store === 'calendar')) {
+      const own = repeat?.kind ?? (d.store === 'habit' || d.store === 'supplement' || d.store === 'chore' ? d.store : null)
+      if (repeat && own) {
+        if (await saveScheduled(profile, own, str(v.name) ?? str(v.title) ?? '', repeat.rule, i, str(v.notes))) { made++; added++ } else already++
+      } else if (repeat && (d.store === 'tasks' || d.store === 'calendar')) {
         await saveSeries(profile.id, d, v, repeat)
         made++
         added++
@@ -526,10 +663,48 @@ export async function saveImport(profile: Profile, userId: string | null, p: Imp
     if (onProgress && (i % 25 === 0 || i === ready.length - 1)) onProgress(i + 1, ready.length)
   }
   if (needsSeries) await materializeSeries(profile.id)
-  return { added, failed, skipped: p.plan.rows.length - ready.length, series: made }
+  return { added, failed, skipped: p.plan.rows.length - ready.length + already, series: made }
 }
 
 const str = (v: unknown) => (typeof v === 'string' && v.trim() ? v.trim() : null)
+
+/** A habit, supplement, chore or planned payment read from a calendar file
+ *  (GEN-26), saved into its own module with its repeat. "3 times a week" is
+ *  a habit's own: a chore takes it as weekly, a supplement or a payment as
+ *  every day. */
+async function saveScheduled(profile: Profile, kind: GetitKind, name: string, rule: SeriesPlan['rule'], order: number, notes: string | null): Promise<boolean> {
+  const now = new Date().toISOString()
+  // One already there by that name is left as it is (a file read twice adds nothing).
+  const same = (n: string | null | undefined) => (n ?? '').trim().toLowerCase() === name.replace(/ (due|expected)$/i, '').trim().toLowerCase()
+  const have = kind === 'habit' ? (await db.habit.where('profile_id').equals(profile.id).toArray()).some((x) => live(x) && same(x.name))
+    : kind === 'supplement' ? (await db.supplement.where('profile_id').equals(profile.id).toArray()).some((x) => live(x) && same(x.name))
+      : kind === 'chore' ? (await db.chore.where('household_id').equals(profile.household_id).toArray()).some((x) => live(x) && same(x.name))
+        : (await db.module_record.where('[profile_id+module_key]').equals([profile.id, 'finance']).toArray()).some((r) => live(r) && r.entity === 'payment' && same(String(r.data?.name ?? '')))
+  if (have) return false
+  const tpw = (rule.rule as string) === 'times_per_week'
+  const kindOf = rule.rule as RuleKind
+  if (kind === 'habit') {
+    await saveHabit({ ...blankHabit(profile.id, rule.start_date, order), name: name || 'Habit', rule: kindOf as Habit['rule'],
+      rule_config: rule.rule_config, start_date: rule.start_date, end_date: rule.end_date })
+  } else if (kind === 'supplement') {
+    await saveSupplement({ id: crypto.randomUUID(), profile_id: profile.id, name: name || 'Supplement', dose_text: notes?.split('\n')[0].slice(0, 80) || null, time_slot: 'morning',
+      rule: tpw ? null : kindOf as Supplement['rule'], rule_config: tpw ? {} : rule.rule_config,
+      start_date: rule.start_date, end_date: rule.end_date, active: true, sort_order: order, updated_at: now, deleted_at: null })
+  } else if (kind === 'chore') {
+    // Chores keep "after" and flexible in their own columns.
+    const cols = choreOfRepeat({ rule: tpw ? 'weekly' : kindOf, rule_config: tpw ? {} : rule.rule_config, end_date: rule.end_date })
+    await saveChore(blankChore(profile.household_id, { ...cols, name: name || 'Chore', start_date: rule.start_date, sort_order: order }))
+  } else {
+    // "Rent due", "Salary expected": the words the export added say which.
+    const income = / expected$/i.test(name)
+    await savePayment(profile.id, {
+      name: name.replace(/ (due|expected)$/i, '') || 'Payment', amount: null, kind: income ? 'income' : 'expense', category: null,
+      rule: tpw ? 'daily' : kindOf === 'dates' && (rule.rule_config.dates ?? []).length <= 1 ? null : kindOf, rule_config: tpw ? {} : rule.rule_config,
+      start_date: rule.start_date, end_date: rule.end_date, time: null, note: null, active: true,
+    })
+  }
+  return true
+}
 const num = (v: unknown) => (typeof v === 'number' && Number.isFinite(v) ? v : null)
 
 async function saveRow(profile: Profile, userId: string | null, d: Dataset, v: Record<string, unknown>,

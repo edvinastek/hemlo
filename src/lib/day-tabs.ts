@@ -12,7 +12,10 @@ import { moduleLabel, taskModule } from './colours-rules.ts'
  *
  *  The rules, one per tab:
  *  - Body (weigh-in, habits, supplements; named after the one part when only
- *    one applies, so "Habits" on a planner with only habits on):
+ *    one applies, so "Habits" on a planner with only habits on). Since v18
+ *    it is a filter over the one list (habits and supplements are items on
+ *    the rail, not sections drawn a second time); only the weigh-in and the
+ *    targets are its own (competitor review 5.1 #2, 5.4):
  *      health on and (a weigh-in logged that day, or the day is today, the
  *      only day a weigh-in is taken); habits on and at least one active habit
  *      due that day; supplements on and at least one active supplement.
@@ -26,11 +29,12 @@ import { moduleLabel, taskModule } from './colours-rules.ts'
  *  - Evening: the review has something for the day (only on today or a day
  *    gone by: a day ahead has nothing to look back on yet), or tasks from
  *    18:00 or in the Night section.
- *  - Sleep: sleep on and a sleep log for that day, or the day is today (last
- *    night can be logged this morning).
+ *  - Sleep has no tab since v18: last night is an item on the rail in the
+ *    morning ("Log last night", day-items-rules), and the Sleep page keeps
+ *    the rest.
  *
  *  Order follows a day: Today, Body, Work, Training, the other modules,
- *  Evening, then Sleep. */
+ *  Evening. */
 
 export type BodyPart = 'health' | 'habits' | 'supplements'
 
@@ -145,8 +149,6 @@ export function dayTabs(input: DayInput): DayTab[] {
   const review = input.day <= input.today ? input.review : 0
   if (review > 0 || tasks.some(isEvening)) tabs.push({ key: 'evening', label: 'Evening' })
 
-  if (on.has('sleep') && (input.sleepLog || input.day === input.today)) tabs.push({ key: 'sleep', label: 'Sleep' })
-
   return uniqueLabels(tabs)
 }
 
@@ -171,10 +173,14 @@ export function activeTab(tabs: DayTab[], chosen: string): DayTab {
   return tabs.find((t) => t.key === chosen) ?? tabs[0]
 }
 
-/** The tasks a tab lists on the rail. Body and Sleep have their own sections
- *  instead of a rail. */
+/** The modules whose items the Body tab lists on the rail. */
+export const BODY_MODULES = ['health', 'habits', 'supplements']
+
+/** The tasks a tab lists on the rail. Body lists those of its modules, under
+ *  the weigh-in. */
 export function tabTasks<T extends DayTask>(tab: DayTab, tasks: T[]): T[] | null {
-  if (tab.key === 'body' || tab.key === 'sleep') return null
+  if (tab.key === 'body') return tasks.filter((t) => BODY_MODULES.includes(taskModule(t) ?? ''))
+  if (tab.key === 'sleep') return null
   if (tab.key === 'work') return tasks.filter(isWork)
   if (tab.key === 'evening') return tasks.filter(isEvening)
   if (tab.module) return tasks.filter((t) => taskModule(t) === tab.module)

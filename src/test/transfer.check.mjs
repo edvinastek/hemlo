@@ -143,8 +143,10 @@ eq('the meal plan has its day and is export only', [byKey('m:nutrition:meal_plan
 eq('stats are export only', byKey('stats').imports, [])
 eq('household chores come from the chore table, with their done history', [byKey('m:household:chore').store, byKey('m:household:chore_log').store, byKey('m:household:chore_log').dateField],
   ['chore', 'chore_log', 'done_on'])
-eq('both are saved only, as tables', [byKey('m:household:chore').imports, byKey('m:household:chore').formats, byKey('m:household:chore_log').formats],
-  [[], ['csv', 'xlsx', 'json'], ['csv', 'xlsx', 'json']])
+eq('the chores go to and come from a calendar file with their repeats (v18, GEN-26); the history is saved only', [byKey('m:household:chore').imports, byKey('m:household:chore').formats, byKey('m:household:chore_log').imports, byKey('m:household:chore_log').formats],
+  [['ics'], ['csv', 'xlsx', 'json', 'ics'], [], ['csv', 'xlsx', 'json']])
+eq('habits go to and come from a calendar file with their repeats (GEN-26)', [byKey('m:habits:habit').formats.includes('ics'), byKey('m:habits:habit').imports.includes('ics')], [true, true])
+eq('supplements too (GEN-26)', [byKey('m:supplements:supplement').formats.includes('ics'), byKey('m:supplements:supplement').imports.includes('ics')], [true, true])
 eq('natural keys', [byKey('m:sleep:sleep_log').natural, byKey('m:agenda:calendar_event').natural, byKey('m:learning:study').natural], [['log_date'], ['title', 'starts_at'], null])
 const built = { key: 'u_abc123', name: 'Reading', summary: '', depth: 'light', built: true, views: [], rules: [],
   entities: [{ name: 'book', label: 'Book', fields: [{ name: 'title', label: 'Title', type: 'text', required: true }, { name: 'finished', label: 'Finished', type: 'date' }] }] }

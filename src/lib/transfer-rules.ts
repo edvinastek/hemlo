@@ -200,7 +200,8 @@ export function listDatasetsFrom(modules: { def: ModuleDef; enabled: boolean }[]
       if (def.key === 'household' && e.name === 'chore' && !e.table) {
         out.push({
           key: `m:${def.key}:chore`, label: `${def.name} · Chores`, group: 'Modules', store: 'chore', moduleKey: def.key, entity: e.name,
-          fields: CHORE_EXPORT_FIELDS, dateField: null, formats: TABLE_FORMATS, imports: [], natural: null, off: !enabled,
+          // A calendar file keeps each chore's repeat, both ways (GEN-26).
+          fields: CHORE_EXPORT_FIELDS, dateField: null, formats: [...TABLE_FORMATS, 'ics'], imports: ['ics'], natural: ['name'], off: !enabled,
         }, {
           key: `m:${def.key}:chore_log`, label: `${def.name} · Done history`, group: 'Modules', store: 'chore_log', moduleKey: def.key,
           fields: CHORE_LOG_FIELDS, dateField: 'done_on', formats: TABLE_FORMATS, imports: [], natural: null, off: !enabled,
@@ -229,8 +230,10 @@ export function listDatasetsFrom(modules: { def: ModuleDef; enabled: boolean }[]
         entity: e.name,
         fields,
         dateField,
-        formats: dateField ? [...TABLE_FORMATS, 'ics'] : TABLE_FORMATS,
-        imports: store === 'meal_plan_slot' ? [] : icsIn ? [...TABLE_FORMATS, 'ics'] : TABLE_FORMATS,
+        // Habits and supplements go in a calendar file with their repeats
+        // (GEN-26), and come back from one with them.
+        formats: dateField || store === 'habit' || store === 'supplement' ? [...TABLE_FORMATS, 'ics'] : TABLE_FORMATS,
+        imports: store === 'meal_plan_slot' ? [] : icsIn || store === 'habit' || store === 'supplement' ? [...TABLE_FORMATS, 'ics'] : TABLE_FORMATS,
         natural: NATURAL[table ?? ''] ?? null,
         bounds: BOUNDS[table ?? ''],
         off: !enabled,

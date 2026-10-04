@@ -4,9 +4,10 @@ import { useLiveQuery } from 'dexie-react-hooks'
 import { format } from 'date-fns'
 import { CALENDAR_SETTINGS, subscriptionOf, useFollowedEvents, type FollowedItem } from '../lib/calendar-links'
 import type { CalendarEvent } from '../lib/types'
+import { useBackClose } from './useBackClose'
 import './followed.css'
 
-/** Events from calendars the person follows (More → Profile → Calendar
+/** Events from calendars the person follows (Settings → Profile → Calendar
  *  links). They are someone else's to change, so they read like the day's
  *  tasks but have no tick and open a sheet that only shows them. Their mark
  *  is a short upright bar in the calendar's colour: not a module's round dot,
@@ -69,6 +70,8 @@ export function FollowedLegend({ calendars }: { calendars: { id: string; name: s
 /** One followed event, shown and not edited: its time, place and calendar,
  *  and the way to that calendar's settings. */
 export function FollowedSheet({ event, onClose }: { event: CalendarEvent; onClose: () => void }) {
+  // Back and Escape close it (CALM-10).
+  useBackClose(onClose)
   const navigate = useNavigate()
   const sub = useLiveQuery(() => subscriptionOf(event), [event.subscription_id])
   const start = new Date(event.starts_at)

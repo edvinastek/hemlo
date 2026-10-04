@@ -19,6 +19,7 @@ import { cachedMembers, chorePrefs, fetchMembers, pauseAll, saveChorePrefs, send
 import { checklistProgress, hasNote, parseNote, toggleCheck } from '../lib/notes'
 import { clearTicks } from '../lib/template-rules'
 import { RepeatPicker, type RepeatValue } from '../ui/RepeatPicker'
+import { choreOfRepeat, repeatOfChore } from '../lib/repeat-choice-rules'
 import { NoteEditor } from '../ui/NoteEditor'
 import { Dropdown } from '../ui/Dropdown'
 import { offerUndo } from '../ui/Undo'
@@ -470,17 +471,16 @@ export function ChoreSheet({ householdId, chore, chores, members, userId, today,
   onClose: () => void
 }) {
   const [draft, setDraft] = useState<Chore>(() => chore ?? blankChore(householdId, { start_date: today, sort_order: nextOrder, rule: 'weekly', rule_config: {} }))
-  const [everyText, setEveryText] = useState(String(draft.every_days ?? 7))
   const [error, setError] = useState<string | null>(null)
   const set = <K extends keyof Chore>(k: K, v: Chore[K]) => setDraft((d) => ({ ...d, [k]: v }))
   const start = draft.start_date ?? today
   const rooms = useMemo(() => [...new Set([...roomsIn(chores), 'Kitchen', 'Bathroom', 'Living room', 'Bedroom', 'Garden'])], [chores])
-  const repeat: RepeatValue = { rule: draft.rule ?? 'weekly', rule_config: draft.rule_config ?? {}, end_date: draft.end_date }
+  // One repeat control (GEN-22): on set days, or after / about every few days.
+  const repeat: RepeatValue = repeatOfChore(draft)
   const people = members.length ? members : userId ? [{ user_id: userId, display_name: null }] : []
 
   async function save() {
-    const every = Math.floor(Number(everyText))
-    if (draft.mode !== 'fixed' && (!Number.isFinite(every) || every < 1 || every > 730)) return setError('Give a number of days from 1 to 730.')
+    const every = Math.floor(Number(draft.every_days ?? 7))
     if (draft.end_date && draft.end_date < start) return setError('The last day is before the first.')
     if (draft.paused_until && draft.paused_from && draft.paused_until < draft.paused_from) return setError('The pause ends before it starts.')
     const name = cleanName(draft.name)
@@ -507,18 +507,8 @@ export function ChoreSheet({ householdId, chore, chores, members, userId, today,
           <datalist id="chore-rooms">{rooms.map((r) => <option key={r} value={r} />)}</datalist>
         </label>
       </div>
-      <Choices label="How it comes round" value={draft.mode} onChange={(m) => set('mode', m)}
-        options={[{ value: 'fixed', label: 'On set days' }, { value: 'after', label: 'Days after it was done' }, { value: 'flexible', label: 'About every few days' }]} />
-      {draft.mode === 'fixed' ? (
-        <RepeatPicker value={repeat} start={start} today={today} kinds={[...CHORE_KINDS]} allowNone={false}
-          onChange={(v) => setDraft((d) => ({ ...d, rule: v.rule ?? 'weekly', rule_config: v.rule_config, end_date: v.end_date }))} />
-      ) : (
-        <label className="ts-every">
-          <span>{draft.mode === 'after' ? 'Due' : 'About every'}</span>
-          <input type="number" inputMode="numeric" min={1} max={730} value={everyText} onChange={(e) => setEveryText(e.target.value)} aria-label="Number of days" />
-          <span>{draft.mode === 'after' ? 'days after it was last done' : 'days, never “late”'}</span>
-        </label>
-      )}
+      <RepeatPicker value={repeat} start={start} today={today} kinds={[...CHORE_KINDS]} allowNone={false} loose
+        onChange={(v) => setDraft((d) => ({ ...d, ...choreOfRepeat(v) }))} />
       <div className="two">
         <label>Starts on
           <input type="date" value={start} onChange={(e) => set('start_date', e.target.value || today)} />

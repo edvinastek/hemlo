@@ -1,5 +1,5 @@
 import type { Series, SeriesException } from './types'
-import { ruleMatches, describeSchedule, cleanRule, weekdayOf as wdOf, type Schedule, type RuleConfig, type RuleKind as ScheduleKind } from './schedule-rules.ts'
+import { ruleMatches, describeSchedule, cleanRule, looseOf, weekdayOf as wdOf, type Schedule, type RuleConfig, type RuleKind as ScheduleKind } from './schedule-rules.ts'
 
 /** Pure date logic for recurring series: no database, no React, no clock.
  *
@@ -91,6 +91,9 @@ export function baseDates(s: RuleFields, until: string): string[] {
   let last = Math.min(toDayNumber(until), startNum + MAX_DAYS)
   if (s.end_date) last = Math.min(last, toDayNumber(s.end_date))
   const limit = s.occurrence_count != null && s.occurrence_count >= 0 ? s.occurrence_count : Infinity
+  // After completion and flexible (GEN-22): only the first day is laid out.
+  // Each next one is made when the one before is ticked (nextAfterDone).
+  if (looseOf(s)) return limit > 0 && startNum <= last ? [s.start_date] : []
   // Days picked by hand are already a list: no need to walk the calendar.
   if (s.rule === 'dates') {
     const lastDay = fromDayNumber(last)
@@ -350,11 +353,11 @@ export function repeatChanged(series: RuleFields, v: RepeatShape): boolean {
     const cfg = c.rule_config
     // Only the settings the kind reads.
     const keep: Record<string, (keyof RuleConfig)[]> = {
-      daily: ['n'], weekdays: [], weekends: [], weekly: ['weekdays'], every_n_weeks: ['n', 'weekdays'],
+      daily: ['n', 'mode'], weekdays: [], weekends: [], weekly: ['weekdays'], every_n_weeks: ['n', 'weekdays'],
       monthly: ['day_of_month', 'n'], monthly_nth: ['nth', 'weekday', 'n'], yearly: ['month', 'day'], dates: ['dates'], times_per_week: ['times'],
     }
     const out: Record<string, unknown> = {}
-    for (const k of keep[c.rule ?? ''] ?? []) if (cfg[k] != null && !(k === 'n' && cfg.n === 1)) out[k] = cfg[k]
+    for (const k of keep[c.rule ?? ''] ?? []) if (cfg[k] != null && !(k === 'n' && cfg.n === 1 && !cfg.mode)) out[k] = cfg[k]
     return JSON.stringify([c.rule, out])
   }
   if (norm(ca) !== norm(cb)) return true
@@ -371,6 +374,33 @@ export function repeatChanged(series: RuleFields, v: RepeatShape): boolean {
 export function planRuleChange(seriesStart: string, base: string, scope: 'all' | 'following'): { split: boolean; oldEnd: string | null } {
   if (scope === 'all' || base <= seriesStart) return { split: false, oldEnd: null }
   return { split: true, oldEnd: addDays(base, -1) }
+}
+
+/* ---------- after completion and flexible (GEN-22) ---------------------- */
+
+/** The day the next task of an "after" or flexible series goes on, once one
+ *  is done on `doneOn`: its number of days later. Null when the series is
+ *  not one of those, has ended by then, or has made all its times
+ *  (`made` counts the tasks it has made, done or not, deleted ones too:
+ *  a skipped time still used its place). */
+export function nextAfterDone(s: RuleFields & { active?: boolean; deleted_at?: string | null }, doneOn: string, made: number): string | null {
+  const loose = looseOf(s)
+  if (!loose || s.deleted_at || s.active === false) return null
+  const day = addDays(doneOn, loose.every)
+  if (s.end_date && day > s.end_date) return null
+  if (s.occurrence_count != null && made >= s.occurrence_count) return null
+  return day
+}
+
+/** How due a flexible task is on a day, the way a flexible chore is: 0 just
+ *  done, 1 due on the day it was made for, above 1 the longer it waits.
+ *  Its day was set `every` days after the last time, so that is where it
+ *  counts from. Null for any other task. */
+export function taskDueness(s: Pick<RuleFields, 'rule' | 'rule_config'> | null | undefined, plannedFor: string, day: string): number | null {
+  const loose = looseOf(s)
+  if (!loose || loose.mode !== 'flexible') return null
+  const since = toDayNumber(day) - toDayNumber(plannedFor) + loose.every
+  return Math.max(0, Math.round((since / loose.every) * 100) / 100)
 }
 
 /** Under a changed rule, which of the series' days still to come keep their

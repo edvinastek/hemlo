@@ -82,6 +82,9 @@ Types, then every check that needs nothing but Node. CI runs the same command.
   ranges (last n days, this week, month and year, custom; shifted back and on), the chart picked automatically, series
   colours checked for contrast on the page, the text summary, the widget shape, and Today's cards.
 - `ics` — calendar files (RFC 5545): tasks as floating local time or whole days, agenda events in UTC,
+  (v18, GEN-26: every rule of the app reads back as itself, weekends, the 2nd Tuesday, every n months, 29 February and
+  days picked by hand included; habits, chores, supplements and payments with their repeats; "after", flexible and
+  "3 times a week" in GetIt's own X-GETIT-REPEAT line, read back exactly)
   repeats as RRULE/RDATE/EXDATE with changed copies; folding at 75 bytes, escaping, CRLF, stable UIDs. A file
   shaped like a Google Calendar export read back in the reader's zone (TZID, UTC, whole days, DURATION,
   moved and cancelled repeats); every app rule written as RRULE lands on the same days both ways.
@@ -210,6 +213,14 @@ Types, then every check that needs nothing but Node. CI runs the same command.
 - `hold` — the two-stage hold: a tap opens, moving before the short hold is a scroll (never a drag), the short hold
   arms the drag and a move then drags, holding still to the long hold expands, letting go in between does nothing,
   rows that cannot be dragged only expand; when the clock next matters; the hold times kept sane.
+- `selection` — selecting several rows (v18, GEN-52/53): ticking one, "Select all shown" and "Clear shown" (rows
+  ticked under another search kept), the ticked rows in the list's order, rows that have gone dropped, the count in
+  words, and a bulk delete asking once more only for several.
+- `loose` — repeats counted from the last time it was done (v18, GEN-22): "after completion" and "flexible" in the one
+  repeat control (stored as a daily rule with a mode), on the chores' engine; habits due, their runs, strength and
+  history (a flexible habit is never "missed"); a task series lays out only its first day and the next is made a set
+  number of days after a tick (not past its end or number of times); a flexible task waits on today with how due it
+  is, never in the carry-over.
 - `notetemplates` — note templates: fill-ins ({date}, {weekday}, {time}, {title}, {day count}), the plain-word chips,
   putting a template in a note or asking for it after the task, keeping the list (add, edit, order, remove and undo);
   recipes in notes: the block found again, "Update from recipe" only when the recipe changed (ticks kept), several

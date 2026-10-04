@@ -11,6 +11,8 @@ import type { Task } from '../lib/types'
 import { TaskSheet } from './TaskSheet'
 import { AddFoodSheet } from './AddFoodSheet'
 import { OpenRecord, SHEET_TABLES } from './RailSheets'
+import { QuickAddSheet, type QuickAdd } from './AddSheets'
+import { useBackClose } from './useBackClose'
 import './addmenu.css'
 
 /** What choosing an entry opens. */
@@ -19,12 +21,14 @@ type Target =
   | { kind: 'food' }
   | { kind: 'record'; module: string; entity: string }
   | { kind: 'page'; to: string }
+  | { kind: 'quick'; what: QuickAdd }
 
 type Entry = AddEntry & { target: Target }
 
-/** Where a module whose main add lives on its own page goes. */
-const PAGE_OF: Record<string, string> = {
-  habits: '/m/habits', supplements: '/m/supplements', health: '/m/health', shopping: '/shop', household: '/m/household',
+/** The modules whose add sheet the + opens in place (HAB-22, decision #4):
+ *  the same sheet their page opens, without going to the page. */
+const QUICK_OF: Record<string, QuickAdd> = {
+  habits: 'habit', supplements: 'supplement', health: 'weighin', shopping: 'shopping', household: 'chore',
 }
 
 /** The round + on Today and Plan (GEN-50): a short menu of what the person
@@ -35,7 +39,9 @@ const PAGE_OF: Record<string, string> = {
  *  closes first, so a sheet never sits on a sheet (GEN-51).
  *
  *  Calm (v17): each entry is its name alone, no hint line under it; "Edit
- *  menu" sits at the bottom beside Close, out of the way of the choices. */
+ *  menu" sits at the bottom beside Close, out of the way of the choices.
+ *  v18: Habit, Chore, Supplement, Weigh-in and Shopping item open their add
+ *  sheet right here, not their page (HAB-22). */
 export function AddFab({ day, label = 'Add' }: { day: string; label?: string }) {
   const profile = useApp((s) => s.profile)
   const navigate = useNavigate()
@@ -62,7 +68,7 @@ export function AddFab({ day, label = 'Add' }: { day: string; label?: string }) 
         if (ent) out.push({ key: 'event', label: fixed!.label, hint: fixed!.hint, target: { kind: 'record', module: key, entity: ent.name } })
         continue
       }
-      if (fixed && PAGE_OF[key]) { out.push({ key: `m:${key}`, label: fixed.label, hint: fixed.hint, target: { kind: 'page', to: PAGE_OF[key] } }); continue }
+      if (fixed && QUICK_OF[key]) { out.push({ key: `m:${key}`, label: fixed.label, hint: fixed.hint, target: { kind: 'quick', what: QUICK_OF[key] } }); continue }
       const ent = e.def.entities.find((x) => !x.table || SHEET_TABLES.includes(x.table))
       if (!ent) continue
       out.push({ key: `m:${key}`, label: fixed?.label ?? ent.label, hint: fixed?.hint ?? e.def.name, target: { kind: 'record', module: key, entity: ent.name } })
@@ -72,6 +78,9 @@ export function AddFab({ day, label = 'Add' }: { day: string; label?: string }) 
   }, [defs])
 
   const { shown, more, hidden } = arrangeAdd(entries, prefs.add)
+  // Back and Escape close the menu (CALM-10).
+  const close = () => { setOpen(false); setEditing(false); setShowMore(false) }
+  useBackClose(close, open)
 
   if (!profile) return null
 
@@ -89,7 +98,6 @@ export function AddFab({ day, label = 'Add' }: { day: string; label?: string }) 
   }
 
   const change = (f: (a: typeof prefs.add) => typeof prefs.add) => void saveTodayPrefs(profile.id, (p) => ({ ...p, add: f(p.add) }))
-  const close = () => { setOpen(false); setEditing(false); setShowMore(false) }
 
   const row = (e: Entry, i: number, list: Entry[], isHidden = false) => (
     <li key={e.key} className="add-item">
@@ -124,8 +132,7 @@ export function AddFab({ day, label = 'Add' }: { day: string; label?: string }) 
       {open && (
         <>
           <div className="sheet-scrim" onClick={close} />
-          <div className="bottom-sheet add-sheet" role="dialog" aria-modal="true" aria-labelledby="add-title" data-no-swipe
-            onKeyDown={(e) => { if (e.key === 'Escape') close() }}>
+          <div className="bottom-sheet add-sheet" role="dialog" aria-modal="true" aria-labelledby="add-title" data-no-swipe>
             <h2 id="add-title">{editing ? 'Arrange this menu' : 'Add'}</h2>
             {editing && (
               <p className="add-why">{prefs.add.order.length ? 'Your order.' : 'Most used first.'} Hidden ones stay under More.</p>
@@ -161,6 +168,7 @@ export function AddFab({ day, label = 'Add' }: { day: string; label?: string }) 
 
       {target?.kind === 'task' && target.task && <TaskSheet task={target.task} isNew onClose={() => setTarget(null)} />}
       {target?.kind === 'food' && <AddFoodSheet day={day} onClose={() => setTarget(null)} />}
+      {target?.kind === 'quick' && <QuickAddSheet what={target.what} day={day} onClose={() => setTarget(null)} />}
       {target?.kind === 'record' && (
         <OpenRecord moduleKey={target.module} entityName={target.entity} day={day} onClose={() => setTarget(null)} />
       )}

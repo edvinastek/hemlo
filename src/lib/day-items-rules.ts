@@ -3,7 +3,7 @@
  *  events, events of calendars they follow, and dated records of modules
  *  that keep them. Today and Plan both draw this list, so they can never
  *  disagree about what a day holds. Pure: rows in, items out. */
-import { habitDay, habitSchedule, choreState, choreAssignee, describeChore, describeSchedule, occursOn, addDays, cleanRule, daysIn, toDayNumber, type HabitDay, type Schedule } from './schedule-rules.ts'
+import { habitDay, habitSchedule, choreState, choreAssignee, describeChore, describeLoose, describeSchedule, looseOf, looseState, occursOn, addDays, cleanRule, daysIn, toDayNumber, type HabitDay, type Loose, type RuleConfig, type RuleKind, type Schedule } from './schedule-rules.ts'
 import { moduleView, type ModuleView } from './module-view-rules.ts'
 import { checklistProgress } from './notes.ts'
 import type { Task, Habit, HabitLog, Chore, ChoreLog, Supplement, SupplementLog, CalendarEvent, ModuleRecord } from './types'
@@ -92,6 +92,13 @@ export interface DayItemSources {
   payments?: PaymentSource[]
   /** Days already marked paid: payment id and the day it was due. */
   paidPayments?: { payment_id: string; due_date: string; entry_id: string }[]
+  /** Series of the tasks shown, for "after" and flexible repeats (GEN-22):
+   *  their words, and a flexible task waiting on today. */
+  series?: { id: string; rule: RuleKind | string; rule_config: RuleConfig }[]
+  /** Sleep on (competitor review 5.1 #2): today's night, logged or not, and
+   *  the time the person means to wake (bedtime plus the target), where the
+   *  "Log last night" item sits in the morning. */
+  sleep?: { day: string; row: { id: string; went_to_bed: string | null; woke_at: string | null; hours: number | null; quality: number | null } | null; wake: string | null } | null
 }
 
 /** A planned payment as the day list needs it (finance.ts writes these). */
@@ -145,15 +152,29 @@ export function dayItems(days: string[], where: Where, s: DayItemSources): DayIt
   const suppDone = new Set(s.supplementLogs.filter((l) => l.done).map((l) => `${l.supplement_id}|${l.log_date}`))
   const taskRecordRefs = new Set(s.tasks.filter((t) => t.source === 'module' && t.source_ref).map((t) => t.source_ref as string))
 
+  const looseBySeries = new Map<string, Loose>()
+  for (const x of s.series ?? []) { const l = looseOf(x); if (l) looseBySeries.set(x.id, l) }
+
   for (const day of days) {
     for (const t of s.tasks) {
-      if (t.deleted_at || t.planned_date !== day) continue
+      if (t.deleted_at || !t.planned_date) continue
+      const loose = t.series_id ? looseBySeries.get(t.series_id) : undefined
+      // A flexible task not done by its day waits on today: "about every
+      // 7 days" is never late, so it is never carried over or reviewed.
+      const late = !!loose && loose.mode === 'flexible' && t.planned_date < s.today && isOpen(t)
+      const waits = late && day === s.today
+      if (t.planned_date !== day && !waits) continue
+      // …and so it is no longer on the day it was made for.
+      if (late && !waits) continue
       const mk = taskModule(t)
       if (!shows(mk, where, s)) continue
+      const since = waits ? toDayNumber(day) - toDayNumber(t.planned_date) + loose!.every : 0
       out.push({
         key: `task:${t.id}:${day}`, kind: 'task', day, time: hhmm(t.planned_time), minutes: t.duration_min,
-        title: t.title, module_key: mk, done: t.status === 'done', state: null, meta: '',
+        title: t.title, module_key: mk, done: t.status === 'done', state: null,
+        meta: loose ? [describeLoose(loose), waits ? `last done ${since} days ago` : ''].filter(Boolean).join(' · ') : '',
         ref: { table: 'task', id: t.id }, readonly: false, task: t, note: t.notes,
+        ...(loose?.mode === 'flexible' ? { dueness: Math.round((since || loose.every) / loose.every * 100) / 100 } : {}),
       })
     }
     if (shows('habits', where, s)) {
@@ -162,6 +183,15 @@ export function dayItems(days: string[], where: Where, s: DayItemSources): DayIt
         const doneDays = doneByHabit.get(h.id) ?? new Set<string>()
         const state = habitDay(h, day, doneDays)
         if (state === 'off') continue
+        // "After" or flexible (GEN-22): due on today until done, so on other
+        // days it shows only where it was done, or ahead where it is next
+        // expected; never a row of "due" days behind or ahead.
+        const loose = looseOf(habitSchedule(h))
+        if (loose && day !== s.today && state !== 'done') {
+          if (day < s.today) continue
+          const now = looseState(loose, h.start_date ?? null, h.end_date ?? null, s.today, doneDays)
+          if (now.shows || now.next !== day) continue
+        }
         const log = logByHabitDay.get(`${h.id}|${day}`)
         out.push({
           key: `habit:${h.id}:${day}`, kind: 'habit', day, time: hhmm(h.time_of_day), minutes: null,
@@ -241,6 +271,19 @@ export function dayItems(days: string[], where: Where, s: DayItemSources): DayIt
         allDay, colour: followed ? e.calendar_colour ?? null : null,
       })
     }
+    // Sleep's morning item: last night, to log, or as it was logged. It
+    // opens the night in the record sheet (a new one when not logged).
+    if (s.sleep && s.sleep.day === day && shows('sleep', where, s)) {
+      const row = s.sleep.row
+      const hours = row?.hours != null ? `${Number(row.hours).toFixed(1)} h` : ''
+      out.push({
+        key: `sleep:${day}`, kind: 'record', day, time: hhmm(row?.woke_at) ?? s.sleep.wake, minutes: null,
+        title: row ? 'Last night' : 'Log last night', module_key: 'sleep', done: !!row, state: null,
+        meta: row ? [row.went_to_bed && row.woke_at ? `${hhmm(row.went_to_bed)} to ${hhmm(row.woke_at)}` : '', hours,
+          row.quality != null ? `quality ${row.quality} of 5` : ''].filter(Boolean).join(' · ') : '',
+        ref: { table: 'sleep_log', id: row?.id ?? '' }, readonly: false,
+      })
+    }
     for (const r of s.records) {
       if (r.deleted_at || r.record_date !== day || taskRecordRefs.has(r.id)) continue
       if (!shows(r.module_key, where, s)) continue
@@ -282,13 +325,17 @@ export function dayItems(days: string[], where: Where, s: DayItemSources): DayIt
 }
 
 /** Unfinished tasks from before the day, newest first, for Today's carry-over
- *  row. Dropped, locked and meal tasks stay out, as in the evening review. */
-export function carryOver(tasks: Task[], day: string): Task[] {
+ *  row. Dropped, locked and meal tasks stay out, as in the evening review,
+ *  and so do flexible repeats (GEN-22), which wait on today instead. */
+export function carryOver(tasks: Task[], day: string, flexible: ReadonlySet<string> = new Set()): Task[] {
   return tasks
     .filter((t) => !t.deleted_at && t.planned_date && t.planned_date < day && t.status !== 'done' && t.status !== 'dropped'
-      && !t.locked && t.source !== 'meal')
+      && !t.locked && t.source !== 'meal' && !(t.series_id && flexible.has(t.series_id)))
     .sort((a, b) => (b.planned_date ?? '').localeCompare(a.planned_date ?? '') || (a.planned_time ?? '99').localeCompare(b.planned_time ?? '99'))
 }
+
+/** Not done and not skipped. */
+const isOpen = (t: Task) => t.status !== 'done' && t.status !== 'dropped'
 
 /** Tasks without a day: the Inbox (PLN-07). */
 export const inbox = (tasks: Task[]) =>

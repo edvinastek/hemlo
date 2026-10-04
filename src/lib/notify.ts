@@ -8,7 +8,7 @@ import { enabledModules } from './day'
 import { readSettings } from './settings'
 import { dayItems, eventMayTouch, type DayItem } from './day-items-rules'
 import { reviewSettings } from './review'
-import { saveTask } from './tasks'
+import { setTaskDone } from './tasks'
 import { toggleHabit } from './tracking'
 import { toggleChore } from './chores'
 import {
@@ -179,7 +179,7 @@ export async function tickFromReminder(e: Extra): Promise<void> {
   if (!e.id || !e.day) return
   if (e.kind === 'task') {
     const t = await db.task.get(e.id)
-    if (t && t.status !== 'done' && !t.deleted_at) await saveTask({ ...t, status: 'done', completed_at: new Date().toISOString() }, ['status', 'completed_at'])
+    if (t && t.status !== 'done' && !t.deleted_at) await setTaskDone(t, true)
   } else if (e.kind === 'habit') {
     const log = await db.habit_log.where('[habit_id+log_date]').equals([e.id, e.day]).first()
     if (!log?.done) await toggleHabit(e.id, e.day)

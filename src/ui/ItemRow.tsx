@@ -117,6 +117,8 @@ function metaLine({ item, colour, moduleName }: Props): string {
     const stuck = (t.status === 'stuck' || t.needs_review) && t.status !== 'done' && t.status !== 'dropped'
     return [
       t.status === 'dropped' ? 'Skipped' : null,
+      // "About every 7 days · last done 9 days ago" (GEN-22).
+      item.meta || null,
       t.duration_min ? `${t.duration_min} min` : null,
       t.category ?? (colour ? moduleName : null),
       stuck ? `pushed ${t.push_count}×, needs a new time` : t.push_count > 0 ? `pushed ${t.push_count}×` : null,
@@ -124,7 +126,7 @@ function metaLine({ item, colour, moduleName }: Props): string {
   }
   // "All day" already stands in the margin.
   if (item.kind === 'event') return [item.minutes ? `${item.minutes} min` : null, (item.allDay ? item.meta.replace(/^All day( · )?/, '') : item.meta) || null].filter(Boolean).join(' · ')
-  if (item.kind === 'record') return moduleName ?? ''
+  if (item.kind === 'record') return item.meta || moduleName || ''
   return item.meta
 }
 

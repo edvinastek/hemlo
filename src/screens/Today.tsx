@@ -14,9 +14,8 @@ import { rangeFor } from '../lib/transfer-rules'
 import { BodySection } from '../sections/BodySection'
 import { CarryOverRow, ReviewCard } from '../sections/ReviewCard'
 import { ModuleDay } from '../sections/ModuleDay'
-import { SleepDay } from '../sections/SleepDay'
 import { TodayCards } from '../sections/TodayCards'
-import { activeTab, dayTabs, isEvening, isWork, type DayTab } from '../lib/day-tabs'
+import { activeTab, BODY_MODULES, dayTabs, isEvening, isWork, type DayTab } from '../lib/day-tabs'
 import { useNavigate } from 'react-router-dom'
 import { isModuleOn, loadDayInput } from '../lib/day'
 import { dayTotals } from '../lib/nutrition'
@@ -28,6 +27,7 @@ import type { DayItem } from '../lib/day-items-rules'
 import { useDayItems } from '../lib/day-items'
 import { useModuleColours } from '../lib/colours'
 import { HolidayChips } from '../ui/HolidayMark'
+import { useBackClose } from '../ui/useBackClose'
 import type { Task } from '../lib/types'
 import './today.css'
 
@@ -57,7 +57,10 @@ export function Today() {
   const { today: day } = useToday()
   const [section, setSection] = useState('today')
   const [peek, setPeek] = useState(false)
-  // The day's public holidays, if any countries are chosen (More → Profile).
+  // Select tasks on the rail (GEN-52), from the ⋮: holding a row drags it
+  // or opens it in place (TOD-10), so the hold is not the way in here.
+  const [selecting, setSelecting] = useState(false)
+  // The day's public holidays, if any countries are chosen (Settings → Profile).
   const holidays = useHolidays(day, day)
   const tomorrow = addDays(day, 1)
 
@@ -93,20 +96,24 @@ export function Today() {
   const tabs = useMemo(() => (input ? dayTabs(input) : ONLY_TODAY), [input])
   const tab = activeTab(tabs, section)
 
+  // Another tab is another list: nothing stays picked.
+  useEffect(() => { setSelecting(false) }, [tab.key])
+
   // A tab the day no longer has falls back to Today, and stays there.
   useEffect(() => {
     if (input && input.day === day && tab.key !== section) setSection(tab.key)
   }, [input, day, tab.key, section])
 
-  // What each tab shows on the rail. Body and Sleep have their own sections.
+  // What each tab shows on the rail. Body lists its modules' items under
+  // the weigh-in (habits and supplements are never drawn twice, 5.1 #2).
   const filter = useCallback((i: DayItem): boolean => {
+    if (tab.key === 'body') return BODY_MODULES.includes(i.module_key ?? '')
     if (tab.key === 'work') return !!i.task && isWork(i.task)
     if (tab.key === 'evening') return i.task ? isEvening(i.task) : (i.time ?? '') >= '18:00'
     if (tab.module) return i.module_key === tab.module
     return true
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [tab.key, tab.module])
-  const railed = tab.key !== 'body' && tab.key !== 'sleep'
 
   return (
     <div className="page today-page">
@@ -116,6 +123,7 @@ export function Today() {
             <h1 className="page-date">{longDate(day)}</h1>
             <PageMenu label="More for Today" sheets={exp.sheet} items={[
               { label: waiting ? `Inbox (${waiting} waiting)` : 'Inbox', onSelect: () => navigate('/plan?view=inbox') },
+              { label: selecting ? 'Stop selecting' : 'Select tasks', onSelect: () => setSelecting((x) => !x) },
               ...railMenu,
               exp.item,
             ]} />
@@ -163,15 +171,13 @@ export function Today() {
             {tab.key === 'today' && profile && <ReviewCard profileId={profile.id} day={day} variant="compact" />}
             {tab.key === 'body' && profile && <BodySection profileId={profile.id} day={day} parts={tab.parts} />}
             {tab.key === 'evening' && profile && <ReviewCard profileId={profile.id} day={day} variant="full" />}
-            {tab.key === 'sleep' && profile && <SleepDay profileId={profile.id} day={day} />}
             {tab.module && profile && <ModuleDay profileId={profile.id} day={day} moduleKey={tab.module} label={tab.label} />}
           </div>
 
           <div className="today-main">
-            {railed && (
-              <DayRail day={day} where="today" filter={tab.key === 'today' ? undefined : filter}
-                emptyText={tab.key === 'today' ? 'Nothing planned yet.' : `Nothing in ${tab.label} today.`} />
-            )}
+            <DayRail day={day} where="today" filter={tab.key === 'today' ? undefined : filter}
+              emptyText={tab.key === 'today' ? 'Nothing planned yet.' : `Nothing in ${tab.label} today.`}
+              selecting={selecting} onSelecting={setSelecting} />
           </div>
         </div>
       </div>
@@ -188,11 +194,8 @@ function TomorrowPeek({ day, today, onClose }: { day: string; today: string; onC
   const items = useDayItems(day, day, 'today', today)
   const colours = useModuleColours()
   const [editing, setEditing] = useState<Task | null>(null)
-  useEffect(() => {
-    const esc = (e: KeyboardEvent) => { if (e.key === 'Escape' && !editing) onClose() }
-    window.addEventListener('keydown', esc)
-    return () => window.removeEventListener('keydown', esc)
-  }, [onClose, editing])
+  // Back and Escape close it (CALM-10); a task opened from it closes first.
+  useBackClose(onClose, !editing)
 
   if (editing) return <TaskSheet task={editing} isNew={false} onClose={() => setEditing(null)} />
   return (
