@@ -354,13 +354,13 @@ Columns: **ID**, **Requirement** (with "Done when" where a test is needed), **Pr
 | GEN-03 | Each module has display switches, set per template and editable in its settings: **Show on Today**, **Show on Plan**, **Show on the widget**, **Count in Stats**, **Send reminders**. A module that is on but has "Show on Today" off still has its page. | Must | Done (v16) | R5 |
 | GEN-04 | Items of every module that has "Show on Today" on (tasks, habits, chores, supplements, planned training, study reviews, planned payments, own agenda events, dated records) appear on Today's list on the days they are due, at their time or in an "Any time" group. | Must | Done (v16) | R5 |
 | GEN-05 | Task sections offered in the task sheet come only from modules that are on, plus the person's own sections. A section never makes a switched-off module's colour, tab or page appear. | Must | Done (v16) | R5 |
-| GEN-06 | Switching a module off never deletes its data; switching it back on restores everything. The confirmation says so. | Must | Done | R3 |
+| GEN-06 | Switching a module off never deletes its data; switching it back on restores everything. The confirmation says so. | Must | Done (v18) | R3 |
 
 ### One search
 
 | ID | Requirement | Pri | Status | Src |
 |-----------|--------------------------------------------------------------|--------|---------------------|--------|
-| GEN-10 | One search behaviour for the whole app, modelled on the Foods tab: results update instantly as each letter is typed, over the whole list (no cap of 8 in page lists; pickers show the best 20 and "Show all"). | Must | Done (v16) | R2, R5 |
+| GEN-10 | One search behaviour for the whole app, modelled on the Foods tab: results update instantly as each letter is typed, over the whole list (no cap of 8 in page lists; pickers show the best 20 and "Show all"). | Must | Done (v18) | R2, R5 |
 | GEN-11 | Matching: every typed word must appear somewhere in the name (or in tags, brand, aisle or note where shown), in any order; case, accents and punctuation ignored; "1/2" style fractions and numbers allowed. | Must | Done (v16) | R5 |
 | GEN-12 | Ranking: names that start with the first word first, then names with a word starting with it, then the rest; within each, own and recently used items first, then shorter (plainer) names, then alphabetical. | Must | Done (v16) | R5 |
 | GEN-13 | Used on: Foods, Recipes, Stock, the shopping list, every picker, module record lists, the Modules hub, settings lists (countries, modules, colours), Plan's Inbox and the note template list. | Must | Done (v16) | R5 |
@@ -371,11 +371,11 @@ Columns: **ID**, **Requirement** (with "Done when" where a test is needed), **Pr
 |----------|-------------------------------------------------|----------|------------------------|----------------|
 | GEN-20 | One **Repeat** sheet, used by tasks, habits, chores, supplements, training sessions, study blocks, planned payments and built modules. Options: never; every day; every N days; weekdays; weekends; chosen days of the week; every N weeks on chosen days; N times a week (any days); monthly on a date; monthly on the nth weekday (e.g. second Tuesday, last Friday); every N months; yearly; picked dates. | Must | Done (v16) | R3, R5 |
 | GEN-21 | Ends: never, on a date, or after N times (the data model already supports a count). | Must | Done (v16) | SR |
-| GEN-22 | Extra kinds of repeat: **after completion** ("7 days after it was last done") and **flexible** ("about every 7 days", shown with a due-ness bar that never turns into "failed"). | Should | Done (v16) | SR (research) |
+| GEN-22 | Extra kinds of repeat: **after completion** ("7 days after it was last done") and **flexible** ("about every 7 days", shown with a due-ness bar that never turns into "failed"). | Should | Done (v18) | SR (research) |
 | GEN-23 | A repeating item's rule can be edited after creation, for "this and following" or "all", without stopping and re-creating it. | Must | Done (v16) | SR |
 | GEN-24 | Optional **assign and rotate** for household items: me, a named member, or rotate (each time, each week, whoever did it least recently). | Should | Done (v16) | R5 (household) |
 | GEN-25 | Optional **light days** and a **cap per day** for flexible items (e.g. no chores on Friday, at most 3 a day). | Could | Done (v16) | SR |
-| GEN-26 | Repeats are stored in a form that maps one-to-one onto iCalendar (RRULE, RDATE, EXDATE) so calendar export and import keep them. | Must | Done for tasks | R3 |
+| GEN-26 | Repeats are stored in a form that maps one-to-one onto iCalendar (RRULE, RDATE, EXDATE) so calendar export and import keep them. | Must | Done (v18) | R3 |
 
 ### Linking between modules
 
@@ -400,10 +400,10 @@ Columns: **ID**, **Requirement** (with "Done when" where a test is needed), **Pr
 |-----------|-----------------------------------------------------------|----------|----------------------|--------|
 | GEN-50 | The round + button is context-aware: on a module page it adds that module's main thing; on Today and Plan it opens a short menu (2–6 entries) of the add types the person uses most (Task, Food, Habit tick, Note, Expense…), ordered by use and editable. | Must | Done (v16) | SR |
 | GEN-51 | Every add sheet has at most two steps, never stacks a second sheet on top, and offers **Recent · Saved · Search · Scan** where they make sense. | Must | Done (v16) | SR |
-| GEN-52 | One long-press rule in every list: **long press expands** an item in place (TOD-10) or, in tables and module lists, **enters multi-select**; the same actions are always also in a visible ⋮ menu. | Must | Done (v16) | R5, SR |
-| GEN-53 | Multi-select (where offered) shows an action bar: Select all, Copy to day…, Move to day…, Duplicate, Change repeat, Add to book, Export, Delete (last, with confirm). | Should | Done (v16) | R3, SR |
+| GEN-52 | One long-press rule in every list: **long press expands** an item in place (TOD-10) or, in tables and module lists, **enters multi-select**; the same actions are always also in a visible ⋮ menu. | Must | Partly (v18: one hold-to-select hook, useSelection, built and used for tasks on Today, Plan and the Inbox; module record lists, Finance and Stock are wired to it by W3/W4) | R5, SR |
+| GEN-53 | Multi-select (where offered) shows an action bar: Select all, Copy to day…, Move to day…, Duplicate, Change repeat, Add to book, Export, Delete (last, with confirm). | Should | Done (v18) | R3, SR |
 | GEN-54 | **Undo** for 8 seconds after delete, drag, swap, move, copy and bulk actions, as a bar at the bottom. | Must | Done (v16) | SR |
-| GEN-55 | **Copy to…** works the same for tasks, meals, whole days and whole weeks (TSK-20). | Must | Done (v16) | R5 |
+| GEN-55 | **Copy to…** works the same for tasks, meals, whole days and whole weeks (TSK-20). | Must | Partly (v18: CopySheet copies meals, one meal or a day; Food’s own CopyDays panel is switched to it by W2) | R5 |
 | GEN-56 | Haptic feedback on long press (where the phone allows), and every gesture also has a visible button for accessibility. | Must | Done (v16) | SR |
 
 ### General quality
@@ -682,7 +682,7 @@ Columns: **ID**, **Requirement** (with "Done when" where a test is needed), **Pr
 | HAB-11 | The pinned note shows when the habit is expanded on Today (long press), on the Habits page and on the widget's tap-through; its checklist can be ticked for the day without changing the note itself (ticks reset each day). | Must | Partly (v16: on the Habits page and Today; not yet from the widget's tap) | R5 |
 | HAB-20 | With Habits "Show on Today" on, habits due that day appear in Today's list (at their time, or in "Any time"), not only in a tab. | Must | Done (v16) | R5 |
 | HAB-21 | With Habits "Show on Plan" on, habits appear on Plan's Day and Week views (and as a quiet count on Month). | Must | Done (v16) | R5 |
-| HAB-22 | The first habit can be added from Today's + menu and from the Habits page; the Habits tab is no longer the only route. | Must | Done (v16) | R5 |
+| HAB-22 | The first habit can be added from Today's + menu and from the Habits page; the Habits tab is no longer the only route. | Must | Done (v18) | R5 |
 | HAB-23 | The rule switch "A daily habit appears on every day" is replaced by GEN-03's clear switches, so "selected to appear" means what it says. | Must | Done (v16) | R5 |
 | HAB-24 | Widget: today's habits with ticks (as now), refreshed at once after a tick. | Must | Done | R3 |
 
@@ -762,7 +762,7 @@ Columns: **ID**, **Requirement** (with "Done when" where a test is needed), **Pr
 |-----------|------------------------------------------------------------|-----------|---------------------|-------|
 | PRJ-01 | Projects (name, status, due date) with table and card views. | Must | Done | R1 |
 | PRJ-02 | A project holds **tasks** (a project field on tasks), shows progress (done / all) and its next task. | Must | Done (v16) | SR |
-| PRJ-03 | Milestones (dated points in a project) on Plan and the Year view (unused `milestone` table). | Should | Done (v16) | SR |
+| PRJ-03 | Milestones (dated points in a project) on Plan and the Year view (unused `milestone` table). | Should | Done (v18) | SR |
 | PRJ-04 | A board by status as a ready view. | Should | Done (v16) | SR |
 | PRJ-05 | Project templates with dates relative to a start date ("Move house", "Exam prep"). | Could | Open | SR |
 | PRJ-06 | **Goals** page: goals with a target date and a measure; projects, tasks and habits link to a goal; the Year view lists them (GEN-36, PLN-12). | Should | Done (v16) | R1 |
@@ -968,7 +968,7 @@ The owner after testing version 16: "the app feels really cluttery; keep most of
 
 | ID | Requirement | Pri | Status | Src |
 |---|---|---|---|---|
-| CALM-01 | One main action per screen: the round + (or, where typing is the action, the capture field); never a second add for the same thing on the same screen. | Must | Done (v17) | R6 |
+| CALM-01 | One main action per screen: the round + (or, where typing is the action, the capture field); never a second add for the same thing on the same screen. | Must | Done (v18) | R6 |
 | CALM-02 | Visibility follows use: at most 12 tappable things above the fold on a main screen at 360 px, list rows not counted; everything else one level down. | Must | Done (v17) | R6 |
 | CALM-03 | One ⋮ per page, top right: views, sort, grouping, layout switches, select, export, edit module, about. No Export links, Edit module buttons or layout switches on pages. | Must | Done (v17) | R6 |
 | CALM-04 | The page bar holds 3–5 places and never scrolls; past five pages it is Today, Plan, up to two pins and Modules; only the open page is highlighted; Plan shows the Inbox count. | Must | Done (v17) | R6 |
@@ -977,8 +977,8 @@ The owner after testing version 16: "the app feels really cluttery; keep most of
 | CALM-07 | One way to say a thing on a row: a time, "All day" and a status each once. | Must | Done (v17) | R6 |
 | CALM-08 | Forms stage their fields: what is needed to make the thing is visible; the rest sits in one "More options" that opens by itself when something inside is set and summarises it when closed. | Must | Done (v17) | R6 |
 | CALM-09 | A sheet that can guess its first step skips it and shows the guess with "Change" (the add-food sheet opens on the food). | Must | Done (v17) | R6 |
-| CALM-10 | Never a sheet on a sheet; every sheet closes on Back and Escape. | Must | Done (v17) | R6 |
-| CALM-11 | No explanatory paragraphs or page subtitles on screens; empty states keep one sentence and one button; explanations live in About or a tip. | Must | Done (v17) | R6 |
+| CALM-10 | Never a sheet on a sheet; every sheet closes on Back and Escape. | Must | Partly (v18: every planner sheet closes on Back: the + menu and its add sheets, task, copy, move, day pick, repeat, export, drill, rail, followed event, day picker, note page, cards; food, module and settings sheets are W2/W3’s) | R6 |
+| CALM-11 | No explanatory paragraphs or page subtitles on screens; empty states keep one sentence and one button; explanations live in About or a tip. | Must | Partly (v18: StatsView.tsx module-off paragraph still says "under More, Modules") | R6 |
 | CALM-12 | Settings is a short list of pages with one search; each row has at most one helper line. | Must | Done (v17) | R6 |
 | CALM-13 | Data credits and legal lines live in Settings → About and on the page where the data is shown in full (a food's page), not on lists. | Must | Done (v17) | R6 |
 | CALM-14 | Tips are one slim line with ×, at most one per session, never repeated, and can be shown again from Settings. | Must | Done (v17) | R6 |
