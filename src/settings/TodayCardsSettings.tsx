@@ -8,6 +8,7 @@ import { enabledModules } from '../lib/day'
 import { addCard, changeCard, MAX_CARDS, moveCard, NUTRIENT_NAMES } from '../lib/stats-builder-rules'
 import { offerUndo } from '../ui/Undo'
 import { Dropdown } from '../ui/Dropdown'
+import { REVIEW_CARD_KEY } from '../lib/study-review-rules'
 import '../sections/stats.css'
 
 /** Today's pinned cards (TOD-20), set up in one list: add a module's
@@ -31,6 +32,7 @@ const NO_CARD = new Set(['stats', 'custom', 'core'])
 export function cardName(c: TodayCard, label: (k: string) => string, viewName: (id: string) => string | null): string {
   if (c.kind === 'stats') return viewName(c.key) ?? 'A deleted view'
   const [mod, ...rest] = c.key.split(':')
+  if (c.key === REVIEW_CARD_KEY) return 'Reviews due'
   if (mod === 'nutrition' && rest.length) return `${NUTRIENT_NAMES[rest.join(':')]?.label ?? 'Food'} today`
   return c.key === 'tasks' ? 'Tasks' : label(mod)
 }
@@ -60,6 +62,8 @@ export function CardsEditor({ onDone }: { onDone?: () => void }) {
     { value: 'module:tasks', label: 'Tasks: done of planned' },
     ...enabled.filter((k) => !NO_CARD.has(k)).flatMap((k) => k === 'nutrition'
       ? settings.nutrients.map((n) => ({ value: `module:nutrition:${n}`, label: `${NUTRIENT_NAMES[n]?.label ?? n} eaten today` }))
+      // Learning also offers its reviews due (LRN-05; shown while the review schedule is on).
+      : k === 'learning' ? [{ value: `module:${k}`, label: colours.label(k) }, { value: `module:${REVIEW_CARD_KEY}`, label: 'Reviews due' }]
       : [{ value: `module:${k}`, label: colours.label(k) }]),
     ...(enabled.includes('stats') ? views.map((v) => ({ value: `stats:${v.id}`, label: `View: ${v.name}` })) : []),
   ].filter((o) => !cards.some((c) => `${c.kind}:${c.key}` === o.value))

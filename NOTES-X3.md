@@ -18,3 +18,11 @@ off by default: only show reviews when the Learning module's switch is on:
 
 ## Log
 - FIRST: study-review-rules.ts + src/test/studyreview.check.mjs (in the check loop and README).
+- LRN-05/06 built: Learning ⋮ → "Weekly target…", "Switch review schedule on/off" (on also pins the "Reviews due"
+  card, key `learning:reviews`, on Today if there is room; off takes it away; Undo restores). Study tab: "This week"
+  section (only once a target exists) with progress bars; subject rows get a ⋮ (Focus, Weekly target…), and
+  "Review due"/"Review <day>" as the quiet line while the schedule is on. The + now offers Study block / Focus timer.
+  Focus timer: localStorage `getit.focus` (device-local), start time + pauses only; bar on every Learning tab;
+  countdown logs itself when the page sees it ended; Stop logs the minutes as a study record with `logged: true`
+  (its task is made already ticked); Undo removes record and task. End notification: notify.ts
+  scheduleFocusEnd/cancelFocusEnd (kind 'focus', survives rescheduleReminders).
