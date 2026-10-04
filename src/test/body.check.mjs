@@ -140,10 +140,12 @@ is('all three missing, in the user\'s words', missingForTargets({ sex: null, hei
   'Targets need your sex, height and date of birth.')
 
 // The body settings kept with Health (BODY-03, BODY-16).
-is('nothing stored gives the defaults', readBodySettings(undefined), { plan: DEFAULT_PLAN, activity: NO_ANSWERS })
+const NO_ADAPT = { accepted_kcal: null, accepted_on: null, declined_on: null }
+is('nothing stored gives the defaults', readBodySettings(undefined), { plan: DEFAULT_PLAN, activity: NO_ANSWERS, adaptive: NO_ADAPT })
 is('a stored plan and answers are read', readBodySettings({ plan: { adjust: { cut: -400 } }, activity: { work: 'standing', training: '3-4', mode: 'added' } }),
-  { plan: { ...DEFAULT_PLAN, adjust: { ...DEFAULT_PLAN.adjust, cut: -400 } }, activity: { work: 'standing', training: '3-4', walks: false, mode: 'added' } })
-is('rubbish is ignored', readBodySettings({ plan: 'x', activity: { work: 'astronaut', mode: 'both' } }), { plan: DEFAULT_PLAN, activity: NO_ANSWERS })
+  { plan: { ...DEFAULT_PLAN, adjust: { ...DEFAULT_PLAN.adjust, cut: -400 } }, activity: { work: 'standing', training: '3-4', walks: false, mode: 'added' }, adaptive: NO_ADAPT })
+is('rubbish is ignored', readBodySettings({ plan: 'x', activity: { work: 'astronaut', mode: 'both' }, adaptive: 'yes' }), { plan: DEFAULT_PLAN, activity: NO_ANSWERS, adaptive: NO_ADAPT })
+is('the adaptive estimate’s choice is kept (BODY-17)', readBodySettings({ adaptive: { accepted_kcal: 2450, accepted_on: '2026-10-04' } }).adaptive, { accepted_kcal: 2450, accepted_on: '2026-10-04', declined_on: null })
 is('the reason says what changed', recalcReason('goal'), 'recalculated after the goal changed')
 is('a weigh-in needs no reason', recalcReason('weigh-in'), '')
 
