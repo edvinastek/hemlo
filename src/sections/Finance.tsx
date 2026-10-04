@@ -15,7 +15,11 @@ import type { ModuleRecord } from '../lib/types'
 import { RepeatPicker, type RepeatValue } from '../ui/RepeatPicker'
 import { offerUndo } from '../ui/Undo'
 import { DefView, DeleteButton, ModuleTabs, Sheet, defTabs, localToday, useTab } from './ModuleKit'
-import { ModuleMenu, QuietAdd } from '../modules/ModuleHead'
+import { ModuleMenu, QuietAdd, useModuleMenuItems } from '../modules/ModuleHead'
+import { RecordSelectBar } from '../modules/RecordTools'
+import { useSelection } from '../ui/useSelection'
+import type { ModuleDef } from '../modules/types'
+import type { Rec } from '../modules/records'
 import './finance.css'
 
 const monthOf = (d: string) => d.slice(0, 7)
@@ -43,11 +47,11 @@ export function Finance({ profileId }: { profileId: string; day: string }) {
     <>
       <ModuleMenu views={views} active={tab} onView={setTab} />
       <ModuleTabs tabs={tabs} active={tab} onTab={setTab} />
-      {tab === 'overview' && <Overview profileId={profileId} s={settings} entries={entries} payments={payments.map((p) => p.payment)} onAdd={() => setQuick(true)}
+      {tab === 'overview' && <Overview def={def ?? null} profileId={profileId} s={settings} entries={entries} payments={payments.map((p) => p.payment)} onAdd={() => setQuick(true)}
         onBudgets={() => setTab('categories')} />}
       {tab === 'planned' && <Planned profileId={profileId} s={settings} entries={entries} payments={payments} />}
       {tab === 'categories' && <Categories profileId={profileId} s={settings} />}
-      {tab.startsWith('view:') && def && <DefView def={def} viewKey={tab.slice(5)} profileId={profileId} onClose={() => setTab('overview')} />}
+      {tab.startsWith('view:') && def && <DefView def={def} viewKey={tab.slice(5)} profileId={profileId} repeat={false} onClose={() => setTab('overview')} />}
       {quick && <QuickEntry profileId={profileId} s={settings} entries={entries} onClose={() => setQuick(false)} />}
     </>
   )
@@ -55,8 +59,11 @@ export function Finance({ profileId }: { profileId: string; day: string }) {
 
 /* ---------- a month at a glance ------------------------------------------------- */
 
-function Overview({ profileId, s, entries, payments, onAdd, onBudgets }: {
-  profileId: string; s: FinanceSettings; entries: ModuleRecord[]; payments: Payment[]; onAdd: () => void; onBudgets: () => void
+/** An entry as the module's record tools see it. */
+const asRec = (e: ModuleRecord): Rec => ({ id: e.id, entity: e.entity, values: { ...(e.data ?? {}) }, date: e.record_date, row: e as unknown as Rec['row'] })
+
+function Overview({ def, profileId, s, entries, payments, onAdd, onBudgets }: {
+  def: ModuleDef | null; profileId: string; s: FinanceSettings; entries: ModuleRecord[]; payments: Payment[]; onAdd: () => void; onBudgets: () => void
 }) {
   const today = localToday()
   const [month, setMonth] = useState(monthOf(today))
@@ -67,6 +74,12 @@ function Overview({ profileId, s, entries, payments, onAdd, onBudgets }: {
   const list = entries.filter((e) => (entryDay(e) ?? '').slice(0, 7) === month)
     .sort((a, b) => (entryDay(b) ?? '').localeCompare(entryDay(a) ?? '') || b.updated_at.localeCompare(a.updated_at))
   const tops = Object.entries(t.byTop).sort((a, b) => b[1] - a[1])
+  // Hold an entry to select it and others (GEN-52): Duplicate, Copy to day,
+  // Export, Delete; "Select entries" in the page's ⋮ too (CALM-16).
+  const recs = useMemo(() => list.map(asRec), [list.map((e) => `${e.id}:${e.updated_at}`).join(',')]) // eslint-disable-line react-hooks/exhaustive-deps
+  const sel = useSelection(recs)
+  const entryEntity = def?.entities.find((x) => x.name === 'entry')
+  useModuleMenuItems([recs.length > 0 && !!entryEntity && sel.menuItem('Select entries')], `${sel.selecting}|${recs.length > 0}`)
   // Payments due this month and not paid yet, up to today and the week ahead.
   const due: { p: Payment; day: string }[] = []
   for (let d = `${month}-01`; d.slice(0, 7) === month; d = addDays(d, 1)) {
@@ -153,9 +166,12 @@ function Overview({ profileId, s, entries, payments, onAdd, onBudgets }: {
           {list.map((e) => {
             const income = entryKind(e) === 'income'
             const a = entryAmount(e)
+            const on = sel.has(e.id)
             return (
-              <li key={e.id} className="kit-row">
-                <button type="button" className="kit-open" onClick={() => setEntry(e)}>
+              <li key={e.id} className={`kit-row${on ? ' is-picked' : ''}`}>
+                <button type="button" className="kit-open" {...sel.hold(e.id)} aria-pressed={sel.selecting ? on : undefined}
+                  onClick={() => (sel.selecting ? sel.toggle(e.id) : setEntry(e))}>
+                  {sel.selecting && <span className={`mp-tick${on ? ' is-on' : ''}`} aria-hidden>{on ? '✓' : ''}</span>}
                   <span className="row-name">{entryCategory(e)}</span>
                   <span className="row-meta">{[entryDay(e) ? short(entryDay(e)!) : null, typeof e.data.note === 'string' ? e.data.note : null, income ? 'money in' : null].filter(Boolean).join(' · ')}</span>
                 </button>
@@ -167,6 +183,9 @@ function Overview({ profileId, s, entries, payments, onAdd, onBudgets }: {
       )}
       <div className="kit-gap" />
       <button type="button" className="fab" aria-label="Add money in or out" onClick={onAdd}>+</button>
+      {sel.selecting && def && entryEntity && (
+        <RecordSelectBar def={def} entity={entryEntity} profileId={profileId} sel={sel} shown={recs} lookups={{}} repeat={false} />
+      )}
       {entry && <EntrySheet profileId={profileId} s={s} entry={entry} onClose={() => setEntry(null)} />}
       {budget && <BudgetSheet profileId={profileId} s={s} month={month} category={budget} onClose={() => setBudget(null)} />}
     </>

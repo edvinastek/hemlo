@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useMemo, useState, type ReactNode } from 'react'
 import { format } from 'date-fns'
 import type { EntityDef, FieldDef, ModuleDef } from './types'
 import type { ModuleRecord } from '../lib/types'
@@ -9,19 +9,77 @@ import { RepeatPicker, NO_REPEAT, type RepeatValue } from '../ui/RepeatPicker'
 import { SelectAction, SelectBar, SelectDelete } from '../ui/SelectBar'
 import { useExport } from '../ui/ExportLink'
 import { offerUndo } from '../ui/Undo'
-import type { Selection } from '../ui/useSelection'
+import { useSelection, type Selection } from '../ui/useSelection'
+import type { MenuItem } from '../ui/MoreMenu'
 import { computeFormulas, firstDateField } from './def-rules'
-import { canCopy, copyRecords, deleteRecords, restoreRecords, saveListOrder, setEventRepeat, type Lookups, type Rec } from './records'
+import { canCopy, copyRecords, deleteRecords, restoreRecords, saveListOrder, setEventRepeat, useListOrder, type Lookups, type Rec } from './records'
 import { recordRepeat, setRecordRepeat } from './record-repeat'
 import { RECORD_REPEAT_KINDS } from './repeat-rules'
 import { EVENT_RULE_KINDS } from '../lib/day-items-rules'
-import { filterOps, filterableFields, orderSummary, sortableFields, sortDirs, type FilterOp, type ListOrder, type SortDir } from './list-rules'
+import { arrange, filterOps, filterableFields, orderSummary, sortableFields, sortDirs, type FilterOp, type ListOrder, type SortDir } from './list-rules'
 import { formatValue } from './RecordSheet'
 import { plural } from '../lib/stats-builder-rules'
 
 /** The tools of a module's record list (GEN-52, competitor review 4.2):
  *  sort and filter by a field (in the page's ⋮), the quiet line that says
  *  so, and what can be done with several records at once. */
+
+/* ---------- one hook for a view's list ---------------------------------------- */
+
+export interface ListTools {
+  /** The records in the view's order, filtered (undefined while loading). */
+  arranged: Rec[] | undefined
+  sel: Selection<Rec>
+  /** For the page's ⋮: Sort and filter…, Select. */
+  menu: (MenuItem | null | false)[]
+  /** The quiet line over the list (null when nothing is arranged). */
+  line: ReactNode
+  /** The sheet and the select bar, drawn by the page. `shown`: the rows on
+   *  screen (after a search). */
+  overlays: (shown: Rec[]) => ReactNode
+  /** Filtered to nothing: say so. */
+  filteredOut: boolean
+}
+
+/** What a view of a module's records needs to be arranged and picked from
+ *  (GEN-52, competitor review 4.2): its kept sort and filter, select mode
+ *  for lists and tables, and the ⋮ items for both. */
+export function useListTools({ def, entity, viewKey, viewType, profileId, recs, lookups, repeat = true }: {
+  def: ModuleDef; entity: EntityDef | undefined; viewKey: string; viewType: string | undefined; profileId: string
+  recs: Rec[] | undefined; lookups: Lookups
+  /** Offer Change repeat (Finance's entries do not repeat; its payments do). */
+  repeat?: boolean
+}): ListTools {
+  const [ordering, setOrdering] = useState(false)
+  const key = `${entity?.name ?? ''}:${viewKey}`
+  const order = useListOrder(profileId, def.key, key, entity?.fields ?? [])
+  const sortsHere = viewType === 'list' || viewType === 'table' || viewType === 'board'
+  const arranged = useMemo(() => (recs && entity && order
+    ? arrange(recs, entity.fields, sortsHere ? order : { filter: order.filter }, (f, v) => formatValue(f, v, lookups))
+    : recs), [recs, entity, order, sortsHere, lookups])
+  const picks = viewType === 'list' || viewType === 'table'
+  const sel = useSelection(picks ? arranged ?? [] : [])
+  const any = !!recs?.length
+  const arrangedHere = !!order && !!(order.filter || (sortsHere && order.sort))
+  return {
+    arranged,
+    sel,
+    menu: [
+      !!entity && viewType !== 'form' && any && { label: sortsHere ? 'Sort and filter…' : 'Filter…', onSelect: () => setOrdering(true) },
+      !!entity && picks && any && sel.menuItem(`Select ${plural(entity.label.toLowerCase())}`),
+    ],
+    line: entity && arrangedHere ? <OrderLine order={order!} fields={entity.fields} onClear={() => void saveListOrder(profileId, def.key, key, {})} /> : null,
+    filteredOut: arrangedHere && !!recs?.length && !arranged?.length,
+    overlays: (shown) => entity && (
+      <>
+        {ordering && order && (
+          <OrderSheet profileId={profileId} moduleKey={def.key} viewKey={key} entity={entity} order={order} sortable={sortsHere} onClose={() => setOrdering(false)} />
+        )}
+        {sel.selecting && <RecordSelectBar def={def} entity={entity} profileId={profileId} sel={sel} shown={shown} lookups={lookups} repeat={repeat} />}
+      </>
+    ),
+  }
+}
 
 /* ---------- sort and filter ------------------------------------------------- */
 
@@ -122,8 +180,8 @@ type Panel = null | 'day' | 'repeat'
 /** The select bar of a module's records: Duplicate, Copy to day (records
  *  with a date), Change repeat (records that can repeat), Export and
  *  Delete, each undoable where it changes anything. */
-export function RecordSelectBar({ def, entity, profileId, sel, shown, lookups }: {
-  def: ModuleDef; entity: EntityDef; profileId: string; sel: Selection<Rec>; shown: Rec[]; lookups: Lookups
+export function RecordSelectBar({ def, entity, profileId, sel, shown, lookups, repeat = true }: {
+  def: ModuleDef; entity: EntityDef; profileId: string; sel: Selection<Rec>; shown: Rec[]; lookups: Lookups; repeat?: boolean
 }) {
   const [panel, setPanel] = useState<Panel>(null)
   const picked = sel.picked
@@ -134,7 +192,7 @@ export function RecordSelectBar({ def, entity, profileId, sel, shown, lookups }:
   const dated = !!firstDateField(entity.fields)
   const copyable = canCopy(entity)
   const isEvent = entity.table === 'calendar_event'
-  const repeats = !entity.table || isEvent
+  const repeats = repeat && (!entity.table || isEvent)
   // The rows as a person reads them: names for links, totals worked out.
   const fields = entity.fields.filter((f) => !f.hidden).map((f) => ({ ...f, type: 'text' as const }))
   const exp = useExport(n ? {
@@ -225,5 +283,19 @@ function RepeatSheet({ title, start, today, kinds, onApply, onClose }: {
         <RepeatPicker value={value} onChange={setValue} start={start} today={today} kinds={kinds} noneLabel="Does not repeat" />
       </div>
     </PlainSheet>
+  )
+}
+
+/** Copy one record to a day (from its sheet's ⋮): the record's sheet has
+ *  closed first, so no sheet is on a sheet (CALM-10). */
+export function CopyToDaySheet({ def, entity, profileId, rec, onClose }: { def: ModuleDef; entity: EntityDef; profileId: string; rec: Rec; onClose: () => void }) {
+  return (
+    <DayPickSheet title={`Copy ${entity.label.toLowerCase()} to`} onClose={onClose} onPick={(d) => {
+      onClose()
+      if (!d) return
+      void copyRecords(profileId, def, entity, [rec], d).then(({ made }) => {
+        if (made.length) offerUndo(`${entity.label} copied to ${format(new Date(`${d}T12:00`), 'EEE d MMM')}`, () => deleteRecords(profileId, def, entity, made))
+      })
+    }} />
   )
 }

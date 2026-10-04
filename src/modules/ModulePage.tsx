@@ -18,16 +18,11 @@ import { Projects } from '../sections/Projects'
 import { Finance } from '../sections/Finance'
 import { Learning } from '../sections/Learning'
 import { Health } from '../sections/Health'
-import type { FieldDef, ModuleDef, ViewDef } from './types'
+import type { ModuleDef, ViewDef } from './types'
 import { PAGE_VIEW_TYPES } from './def-rules'
 import { setModuleEnabled, useModuleDef } from './defs'
-import { saveListOrder, useListOrder, useLookups, useRecords, type Lookups, type Rec } from './records'
-import { arrange } from './list-rules'
-import { OrderLine, OrderSheet, RecordSelectBar } from './RecordTools'
-import { useSelection } from '../ui/useSelection'
-import { DayPickSheet } from '../ui/DayPickSheet'
-import { copyRecords, deleteRecords } from './records'
-import { offerUndo } from '../ui/Undo'
+import { useLookups, useRecords, type Lookups, type Rec } from './records'
+import { CopyToDaySheet, useListTools } from './RecordTools'
 import { InlineForm, RecordSheet, formatValue } from './RecordSheet'
 import { CalendarView, ListView, TableView, Totals, recordTitle } from './views'
 import type { EntityDef } from './types'
@@ -149,23 +144,16 @@ function Generic({ def, profileId, onEdit, head }: { def: ModuleDef; profileId: 
   const lookups = useLookups(profileId, entity?.fields ?? [])
   const [sheet, setSheet] = useState<Sheet>(null)
   const [query, setQuery] = useState('')
-  const [ordering, setOrdering] = useState(false)
   const [copying, setCopying] = useState<Rec | null>(null)
   // The search over a module's records (GEN-13): offered once there are
   // enough of them to look through.
   const viewType = view?.type
   const searchable = !!recs && recs.length >= SEARCH_FROM && (viewType === 'list' || viewType === 'table' || viewType === 'board')
-  // The view's own sort and filter (competitor review 4.2), kept per view.
-  const orderKey = `${entity?.name ?? ''}:${view?.key ?? ''}`
-  const order = useListOrder(profileId, def.key, orderKey, entity?.fields ?? [])
-  const textOf = (f: FieldDef, v: unknown) => formatValue(f, v, lookups)
-  const sortsHere = viewType === 'list' || viewType === 'table' || viewType === 'board'
-  const arranged = useMemo(() => (recs && entity && order ? arrange(recs, entity.fields, sortsHere ? order : { filter: order.filter }, textOf) : recs),
-    [recs, entity, order, sortsHere, lookups]) // eslint-disable-line react-hooks/exhaustive-deps
+  // The view's own sort and filter (competitor review 4.2), and holding a
+  // record to select it and others (GEN-52).
+  const tools = useListTools({ def, entity, viewKey: view?.key ?? '', viewType, profileId, recs, lookups })
+  const { arranged, sel } = tools
   const shown = useRecordSearch(entity, arranged, lookups, searchable ? query : '')
-  // Hold a record to select it and others (GEN-52): lists and tables.
-  const picks = viewType === 'list' || viewType === 'table'
-  const sel = useSelection(picks ? arranged ?? [] : [])
   // ?open=<id>: a record found by the Modules page's search opens in its sheet.
   const [params, setParams] = useSearchParams()
   const openId = params.get('open')
@@ -191,7 +179,6 @@ function Generic({ def, profileId, onEdit, head }: { def: ModuleDef; profileId: 
   }
 
   const open = (rec: Rec) => setSheet({ rec, entity: entity.name })
-  const arrangedHere = !!order && !!(order.filter || (sortsHere && order.sort))
   const add = (day?: string) => setSheet({ day, entity: entity.name })
   const type: ViewDef['type'] = view && PAGE_VIEW_TYPES.includes(view.type) ? view.type : 'list'
   const noun = entity.label.toLowerCase()
@@ -203,14 +190,8 @@ function Generic({ def, profileId, onEdit, head }: { def: ModuleDef; profileId: 
       {head}
       {/* The module's views are under the page's ⋮ (CALM-05); the first is the page. */}
       <ModuleMenu views={views.length > 1 ? views.map((v) => ({ key: v.key, name: v.name })) : undefined} active={view?.key} onView={(k) => { sel.stop(); setActive(k) }}
-        items={[
-          type !== 'form' && !empty && { label: sortsHere ? 'Sort and filter…' : 'Filter…', onSelect: () => setOrdering(true) },
-          picks && !empty && sel.menuItem(`Select ${plural(noun)}`),
-        ]}
+        items={tools.menu}
         exportSource={{ dataset: `m:${def.key}:${entity.name}` }} calendar={type === 'calendar' || entity.table === 'calendar_event'} />
-      {ordering && order && (
-        <OrderSheet profileId={profileId} moduleKey={def.key} viewKey={orderKey} entity={entity} order={order} sortable={sortsHere} onClose={() => setOrdering(false)} />
-      )}
       {view && views[0] && view.key !== views[0].key && <ViewBar name={view.name} onClose={() => setActive(views[0].key)} />}
       {recs === undefined || shown === undefined ? null : empty && type !== 'form' ? (
         // One add on the page: the round + (CALM-01); the empty page offers the
@@ -228,9 +209,9 @@ function Generic({ def, profileId, onEdit, head }: { def: ModuleDef; profileId: 
                 placeholder={`Search ${recs.length} ${plural(noun)}`} aria-label={`Search ${plural(noun)}`} />
             </div>
           )}
-          {arrangedHere && <OrderLine order={order!} fields={entity.fields} onClear={() => void saveListOrder(profileId, def.key, orderKey, {})} />}
+          {tools.line}
           {searchable && query.trim() && shown.length === 0 && <p className="mp-note">No {noun} has all of “{query.trim()}”.</p>}
-          {!query.trim() && arrangedHere && shown.length === 0 && <p className="mp-note">No {noun} passes this filter.</p>}
+          {!query.trim() && tools.filteredOut && <p className="mp-note">No {noun} passes this filter.</p>}
           {type !== 'form' && <Totals entity={entity} recs={shown} />}
           {type === 'form' && <InlineForm key={entity.name} def={def} entity={entity} profileId={profileId} lookups={lookups} />}
           {type === 'calendar' && view && (
@@ -247,7 +228,7 @@ function Generic({ def, profileId, onEdit, head }: { def: ModuleDef; profileId: 
           {type === 'table' && view && shown.length > 0 && (
             <TableView def={def} entity={entity} view={view} recs={shown} lookups={lookups} profileId={profileId} onOpen={open} sel={sel} />
           )}
-          {sel.selecting && <RecordSelectBar def={def} entity={entity} profileId={profileId} sel={sel} shown={shown} lookups={lookups} />}
+          {tools.overlays(shown)}
         </>
       )}
       {type !== 'form' && (
@@ -263,16 +244,7 @@ function Generic({ def, profileId, onEdit, head }: { def: ModuleDef; profileId: 
           onCopyTo={(rec) => { setSheet(null); setCopying(rec) }} />
       )}
       {/* Copy to day: the record's sheet closes first, so no sheet is on a sheet (CALM-10). */}
-      {copying && (
-        <DayPickSheet title={`Copy ${noun} to`} onClose={() => setCopying(null)} onPick={(d) => {
-          const rec = copying
-          setCopying(null)
-          if (!d) return
-          void copyRecords(profileId, def, sheetEntity, [rec], d).then(({ made }) => {
-            if (made.length) offerUndo(`${entity.label} copied`, () => deleteRecords(profileId, def, sheetEntity, made))
-          })
-        }} />
-      )}
+      {copying && <CopyToDaySheet def={def} entity={sheetEntity} profileId={profileId} rec={copying} onClose={() => setCopying(null)} />}
     </>
   )
 }
