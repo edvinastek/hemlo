@@ -1,4 +1,4 @@
-import { useEffect, useId, useState, type FormEvent } from 'react'
+import { useId, useState, type FormEvent } from 'react'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { db } from '../lib/db'
 import { useApp } from '../lib/store'
@@ -8,17 +8,19 @@ import {
   sourceText, copiedFromNevo,
 } from '../lib/eu-label-rules'
 import {
-  addUnit, foodWord, readUnitForm, readUnits, removeUnit, unitLine, withOverlay, MAX_UNITS, UNIT_NAME_MAX, type FoodUnit,
+  addUnit, foodWord, pluralOf, readUnitForm, readUnits, removeUnit, unitLine, withOverlay, MAX_UNITS, UNIT_NAME_MAX, type FoodUnit,
 } from '../lib/units-rules'
 import { saveLabelChoice, saveOwnUnits, useNutritionPrefs } from '../lib/nutrition-prefs'
 import { format } from 'date-fns'
 import { offerUndo } from './Undo'
 import { FoodEditor } from './FoodEditor'
 import { MoreMenu } from './MoreMenu'
+import { MoreOptions } from './MoreOptions'
 import { AddFoodSheet } from './AddFoodSheet'
 import type { Food } from '../lib/types'
 import './amount.css'
 import './food.css'
+import { useBackClose } from './useBackClose'
 
 /** One food's page: the label per 100 g or 100 ml (with %RI if wanted), what
  *  state it is in, the units it is counted in, and where the figures came
@@ -42,13 +44,9 @@ export function FoodUnitsSheet({ food: given, onClose }: { food: Food; onClose: 
   const mine = !!userId && food.owner_id === userId
   const shared = !food.owner_id
 
-  useEffect(() => {
-    if (mode !== 'view') return
-    // Escape closes the ⋮ first, when it is open, and the page after.
-    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape' && !document.querySelector('.fs-sheet .pm-menu')) onClose() }
-    document.addEventListener('keydown', onKey)
-    return () => document.removeEventListener('keydown', onKey)
-  }, [onClose, mode])
+  // Back and Escape close the page (CALM-10) while it is shown; the editor or
+  // the add-food sheet in its place takes them when open.
+  useBackClose(onClose, mode === 'view' || mode === 'delete')
 
   if (mode === 'edit' && userId) return <FoodEditor food={food} userId={userId} onClose={() => setMode('view')} />
   if (mode === 'copy' && userId) return <FoodEditor copyOf={food} userId={userId} onClose={() => setMode('view')} onSaved={() => onClose()} />
@@ -259,15 +257,20 @@ function Units({ food, units, mine, shared, profileId }: {
               <input value={form.name} maxLength={UNIT_NAME_MAX} placeholder={word} autoComplete="off"
                 onChange={(e) => { setForm({ ...form, name: e.target.value }); setError(null) }} />
             </label>
-            <label>Plural, if odd
-              <input value={form.plural} maxLength={UNIT_NAME_MAX} placeholder="optional" autoComplete="off"
-                onChange={(e) => setForm({ ...form, plural: e.target.value })} />
-            </label>
             <label>One weighs, g
               <input value={form.g} inputMode="decimal" autoComplete="off"
                 onChange={(e) => { setForm({ ...form, g: e.target.value }); setError(null) }} />
             </label>
           </div>
+          {/* The plural is worked out (CALM-08): only an odd one is typed. */}
+          <MoreOptions open={!!form.plural.trim()} summary={form.plural.trim() ? `Plural ${form.plural.trim()}` : null}>
+            <div className="fu-form is-one">
+              <label>Plural, if odd
+                <input value={form.plural} maxLength={UNIT_NAME_MAX} placeholder={pluralOf(form.name.trim() || word)} autoComplete="off"
+                  onChange={(e) => setForm({ ...form, plural: e.target.value })} />
+              </label>
+            </div>
+          </MoreOptions>
           {error && <p className="amt-hint is-warn" role="alert">{error}</p>}
           <p className="fu-facts">
             {shared ? 'Your own units on a shared food stay with you. ' : ''}Amounts already saved keep their grams.

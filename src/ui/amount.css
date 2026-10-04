@@ -44,7 +44,8 @@
   font-family: var(--font-sans); font-size: 15px; color: var(--e-ink);
   border-bottom: 1px solid var(--e-rule);
 }
-.fu-form { display: grid; grid-template-columns: minmax(0, 1.2fr) minmax(0, 1.2fr) minmax(0, 1fr); gap: var(--space-2); }
+.fu-form { display: grid; grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr); gap: var(--space-2); }
+.fu-form.is-one { grid-template-columns: minmax(0, 1fr); }
 .fu-form label { display: grid; gap: 2px; min-width: 0; font-family: var(--font-sans); font-size: 12px; color: var(--e-ink-soft); }
 .fu-form input { min-width: 0; width: 100%; padding: 8px; min-height: 40px; font-size: 15px; }
 /* "From a food" on a meal: the amount takes the whole row. */

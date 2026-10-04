@@ -31,6 +31,7 @@ import '../ui/recipes.css'
 import { ProductFinder } from '../ui/ProductSearch'
 import type { FieldDef } from '../modules/types'
 import type { Food as FoodRow, Recipe, RecipeLine } from '../lib/types'
+import { useBackClose } from '../ui/useBackClose'
 
 
 const live = (r: object) => !(r as { deleted_at?: string | null }).deleted_at
@@ -342,13 +343,8 @@ function ChoiceSheet<V extends string>({ title, options, value, onPick, onClose 
   )
 }
 
-function useEscape(onClose: () => void) {
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose() }
-    document.addEventListener('keydown', onKey)
-    return () => document.removeEventListener('keydown', onKey)
-  }, [onClose])
-}
+/** Back and Escape close the sheet (CALM-10). */
+const useEscape = (onClose: () => void) => useBackClose(onClose)
 
 /** Which figures the food and recipe lists show (FOOD-16): any line of the
  *  EU label. The five the app has always counted are the profile's own

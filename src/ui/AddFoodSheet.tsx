@@ -30,6 +30,7 @@ import type { Food, MealPlanSlot, Recipe, RecipeLine } from '../lib/types'
 import './products.css'
 import './addfood.css'
 import { Tip } from './Tip'
+import { useBackClose } from './useBackClose'
 
 /** THE add-food sheet (MEAL-10 to MEAL-14, GEN-51): opened from Food → Day's
  *  round +, a meal's own +, and Today's + menu. It opens where the work is
@@ -135,12 +136,8 @@ export function AddFoodSheet({ day, meal: startMeal, time: startTime, food: star
     putFood(startFood)
   }, [history]) // eslint-disable-line react-hooks/exhaustive-deps
 
-  useEffect(() => {
-    // Escape closes an open ⋮ first (it handles that itself), then the sheet.
-    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape' && !document.querySelector('.af-sheet .pm-menu')) onClose() }
-    document.addEventListener('keydown', onKey)
-    return () => document.removeEventListener('keydown', onKey)
-  }, [onClose])
+  // Back and Escape close it (CALM-10); an open ⋮ takes Escape first.
+  useBackClose(onClose)
 
   if (!profile) return null
 

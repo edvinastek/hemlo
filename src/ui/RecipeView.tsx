@@ -1,4 +1,4 @@
-import { useEffect, useId, useMemo, useState } from 'react'
+import { useId, useMemo, useState } from 'react'
 import { format } from 'date-fns'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { db } from '../lib/db'
@@ -30,6 +30,7 @@ import { offerUndo } from './Undo'
 import type { Food, Recipe, RecipeLine, Task } from '../lib/types'
 import './recipes.css'
 import './sharing.css'
+import { useBackClose } from './useBackClose'
 
 type Panel = null | 'task' | 'meal' | 'shop' | 'export' | 'food'
 
@@ -96,13 +97,8 @@ export function RecipeView({ recipe: given, lines, foods, userId, onClose, onEdi
   const attribution = attributionFor(own.flatMap((l) => (l.food_id && foods.get(l.food_id) ? [foods.get(l.food_id)!] : [])))
   const ready = readyProduct(recipe, own, foods)
 
-  useEffect(() => {
-    if (panel) return
-    // Escape closes the ⋮ first, when it is open, and the page after.
-    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape' && !document.querySelector('.rcp .pm-menu')) onClose() }
-    document.addEventListener('keydown', onKey)
-    return () => document.removeEventListener('keydown', onKey)
-  }, [onClose, panel])
+  // Back and Escape close the page (CALM-10); an open ⋮ takes Escape first.
+  useBackClose(onClose, !panel)
 
   if (panel === 'food' && ready?.food) return <FoodUnitsSheet food={ready.food} onClose={() => setPanel(null)} />
 
