@@ -8,11 +8,11 @@ import { readSettings, type Nutrient } from '../lib/settings'
 import { amountLine, nutrientLabel, shownNutrients, type QuickEntry } from '../lib/quick-food'
 import { amountChoices, findUnit, readUnits, unitKey } from '../lib/units-rules'
 import {
-  groupDay, groupTitle, itemAmount, knownKeys, itemKind, itemMacros, itemName, kcalText, mealName, plateFields, portionsText, shiftDay,
+  groupDay, groupTitle, itemAmount, knownKeys, itemKind, itemMacros, itemName, kcalText, mealName, plateFields, portionsText,
   sizeMain, sumItems, type Item, type Lookup, type MealGroup, type MealsCtx,
 } from '../lib/meal-rules'
 import {
-  copyMeals, makeLookup, mealsCtx, moveItems, removeItems, restoreItems, setEaten, setMealTime, setSkipped, slotsFor, unskipMeal, updateItem,
+  makeLookup, mealsCtx, moveItems, removeItems, restoreItems, setEaten, setMealTime, setSkipped, slotsFor, unskipMeal, updateItem,
 } from '../lib/meals'
 import { addSaved, savedFromItems } from '../lib/saved-meals-rules'
 import { savedMeals, writeSavedMeals } from '../lib/saved-meals'
@@ -20,6 +20,7 @@ import { isReadyMeal } from '../lib/ready-meal-rules'
 import { AmountInput } from '../ui/AmountInput'
 import { AddFoodSheet } from '../ui/AddFoodSheet'
 import { QuickNumbers } from '../ui/QuickNumbers'
+import { CopySheet } from '../ui/CopySheet'
 import { offerUndo } from '../ui/Undo'
 import { useBuiltinRuleOn } from '../modules/rule-switch'
 import { useExport } from '../ui/ExportLink'
@@ -101,14 +102,8 @@ export function FoodDay({ day }: { day: string }) {
       )}
       {ri && <p className="fd-ri"><span className="visually-hidden">Planned, as a share of an adult’s reference intake: </span><span aria-hidden="true">Reference intake: </span>{ri}</p>}
 
-      {copying && (
-        <CopyDays from={day} label="this day’s food" onCancel={() => setCopying(false)}
-          onCopy={async (days) => {
-            const made = await copyMeals(day, days, 'all', profile.id)
-            setCopying(false)
-            offerUndo(`${made.length} ${made.length === 1 ? 'item' : 'items'} copied to ${daysText(days)}`, () => removeItems(made))
-          }} />
-      )}
+      {/* The one copy dialog (GEN-55): the days only; times and portions go as they are. */}
+      {copying && <CopySheet what={{ kind: 'meals', day, groups: 'all' }} onClose={() => setCopying(false)} />}
 
       {rows && groups.length === 0 && <p className="fd-empty">Nothing eaten or planned on this day yet.</p>}
 
@@ -129,8 +124,6 @@ export function FoodDay({ day }: { day: string }) {
     </div>
   )
 }
-
-const daysText = (days: string[]) => days.length === 1 ? format(parseISO(days[0]), 'EEE d MMM') : `${days.length} days`
 
 /** One meal: its name and time, what it comes to, its items, and a ⋮ with
  *  everything that can be done to it (every gesture's action is a button). */
@@ -194,14 +187,7 @@ function MealCard({ group: g, day, profileId, look, ctx, shown, suggestion, onAd
           <button type="button" className="btn" onClick={() => setPanel(null)}>Done</button>
         </div>
       )}
-      {panel === 'copy' && (
-        <CopyDays from={day} label={title} onCancel={() => setPanel(null)}
-          onCopy={async (days) => {
-            const made = await copyMeals(day, days, [g.key], profileId)
-            setPanel(null)
-            offerUndo(`${title} copied to ${daysText(days)}`, () => removeItems(made))
-          }} />
-      )}
+      {panel === 'copy' && <CopySheet what={{ kind: 'meals', day, groups: [g.key], label: title }} onClose={() => setPanel(null)} />}
       {panel === 'save' && (
         <form className="fd-panel" onSubmit={async (e) => {
           e.preventDefault()
@@ -353,36 +339,3 @@ function ItemEditor({ item, look, shown, onDone, onRemove }: {
     </form>
   )
 }
-
-/** Pick days to copy to (MEAL-07): the next seven, or any day typed. */
-function CopyDays({ from, label, onCopy, onCancel }: { from: string; label: string; onCopy: (days: string[]) => Promise<void>; onCancel: () => void }) {
-  const [days, setDays] = useState<string[]>([])
-  const [busy, setBusy] = useState(false)
-  const next = Array.from({ length: 7 }, (_, i) => shiftDay(from, i + 1))
-  const flip = (d: string) => setDays((list) => (list.includes(d) ? list.filter((x) => x !== d) : [...list, d].sort()))
-  return (
-    <div className="fd-panel fd-copy" role="group" aria-label={`Copy ${label} to`}>
-      <p className="row-meta">Copy {label} to (pick one or more days):</p>
-      <div className="fd-days">
-        {next.map((d, i) => (
-          <button key={d} type="button" className="af-chip" aria-pressed={days.includes(d)} onClick={() => flip(d)}>
-            {i === 0 ? 'Next day' : format(parseISO(d), 'EEE')}<small>{format(parseISO(d), 'd MMM')}</small>
-          </button>
-        ))}
-        {days.filter((d) => !next.includes(d)).map((d) => (
-          <button key={d} type="button" className="af-chip" aria-pressed onClick={() => flip(d)}>{format(parseISO(d), 'EEE d MMM')}</button>
-        ))}
-        <input type="date" className="af-date" aria-label="Another day" value=""
-          onChange={(e) => { const d = e.target.value; if (d && d !== from && !days.includes(d)) setDays([...days, d].sort()) }} />
-      </div>
-      <div className="fd-edit-actions">
-        <button type="button" className="btn" onClick={onCancel}>Cancel</button>
-        <button type="button" className="btn btn-primary" disabled={!days.length || busy}
-          onClick={async () => { setBusy(true); try { await onCopy(days) } finally { setBusy(false) } }}>
-          {days.length ? `Copy to ${daysText(days)}` : 'Copy'}
-        </button>
-      </div>
-    </div>
-  )
-}
-
