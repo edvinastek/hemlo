@@ -168,6 +168,9 @@ export function CopySheet({ what, onClose, onDone }: { what: CopyWhat; onClose: 
             <span aria-live="polite">{targets.length === 0 ? (week ? 'Tap a day in each week to copy to.' : 'Tap the days to copy to.') : `To ${targetWords(targets, kind)}`}</span>
             <button type="button" className="btn cs-clear" disabled={targets.length === 0} onClick={() => setDays([])}>Clear</button>
           </div>
+          {/* AGN-07: said where the days are picked, so the reason for
+              "Copy anyway" is in sight. */}
+          {busyNote && <p className="cs-busy" role="status">{busyNote}</p>}
           <MonthScroller first={range.first} last={range.last} openAt={from > today ? from : today} today={today}
             label={week ? 'Weeks to copy to' : 'Days to copy to'} selected={picked}
             disabled={(d) => d < today || sourceDays.has(d)}
@@ -230,7 +233,6 @@ export function CopySheet({ what, onClose, onDone }: { what: CopyWhat; onClose: 
         </MoreOptions>
         )}
 
-        {busyNote && <p className="cs-count cs-busy" role="status">{busyNote}</p>}
         <div className="sheet-actions cs-actions">
           <button type="button" className="btn" onClick={onClose}>Cancel</button>
           <button type="button" className="btn btn-primary grow" disabled={busy || targets.length === 0 || nothing || badTime} onClick={() => void copy()}>

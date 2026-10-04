@@ -1,7 +1,7 @@
 import { useMemo } from 'react'
 import { format, parseISO } from 'date-fns'
 import { clampDay, navRange, type DayRange } from '../lib/calendar-rules'
-import { useToday } from './useToday'
+import { usePlanToday } from './useToday'
 
 export interface DayRangeTools {
   /** The person's today as 'yyyy-MM-dd' (after midnight, still the day
@@ -16,7 +16,7 @@ export interface DayRangeTools {
 /** How far every view lets a person move: Today's day, Plan's week, month
  *  and year, and the header's day picker all stop at the same two ends. */
 export function useDayRange(): DayRangeTools {
-  const { today } = useToday()
+  const today = usePlanToday()
   return useMemo(() => {
     const range = navRange(today)
     return {

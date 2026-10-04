@@ -26,3 +26,21 @@ export function useToday(): { today: string; now: string; late: boolean } {
   }, [read])
   return state
 }
+
+/** Only the person's today, for screens that do not show the clock: it
+ *  redraws when the day changes, not every minute. */
+export function usePlanToday(): string {
+  const start = useApp((s) => s.profile?.day_start ?? null)
+  const end = useApp((s) => s.profile?.day_end ?? null)
+  const read = useCallback(() => planDay(new Date(), { day_start: start, day_end: end }), [start, end])
+  const [today, setToday] = useState(read)
+  useEffect(() => {
+    const tick = () => setToday(read())
+    tick()
+    const id = window.setInterval(tick, 30_000)
+    const seen = () => { if (!document.hidden) tick() }
+    document.addEventListener('visibilitychange', seen)
+    return () => { window.clearInterval(id); document.removeEventListener('visibilitychange', seen) }
+  }, [read])
+  return today
+}
