@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { useLocation } from 'react-router-dom'
+import { useLocation, useSearchParams } from 'react-router-dom'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { format } from 'date-fns'
 import { db } from '../lib/db'
@@ -50,6 +50,19 @@ export function Habits({ profileId, day }: { profileId: string; day: string }) {
   const [showArchived, setShowArchived] = useState(false)
 
   useEffect(() => { if (profile && profile.id === profileId) void retireHabitsDailyRule(profile) }, [profile?.id]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  // ?open=<habit id> (a tap on the widget's habit row, HAB-11): that habit
+  // opens with its pinned note and today's checklist, in view.
+  const [params, setParams] = useSearchParams()
+  const openId = params.get('open')
+  useEffect(() => {
+    if (!openId || !data) return
+    if (data.habits.some((h) => h.id === openId && h.active && !h.deleted_at)) {
+      setOpen(openId)
+      window.setTimeout(() => document.getElementById(`habit-${openId}`)?.scrollIntoView({ block: 'center' }), 50)
+    }
+    setParams((p) => { const next = new URLSearchParams(p); next.delete('open'); return next }, { replace: true })
+  }, [openId, data, setParams])
 
   // Still loading, or the module is switched off: nothing is shown either way.
   if (!data) return null
@@ -150,7 +163,7 @@ function HabitRow({ habit: h, logs, day, open, onToggle, onEdit, onMove, canUp, 
   const count = h.target != null
 
   return (
-    <div className={`track-item${open ? ' is-open' : ''}`}>
+    <div id={`habit-${h.id}`} className={`track-item${open ? ' is-open' : ''}`}>
       <div className={`track-row${done || state === 'met' ? ' is-done' : ''}${state === 'off' ? ' is-off' : ''}`}>
         <div className="track-main">
           <Mark habit={h} />

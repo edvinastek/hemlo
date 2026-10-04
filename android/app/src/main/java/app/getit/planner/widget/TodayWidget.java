@@ -111,7 +111,10 @@ public class TodayWidget extends AppWidgetProvider {
             }
             WidgetModel.Row r = model.rows.get(i);
             v.setViewVisibility(ROW[i], View.VISIBLE);
-            v.setOnClickPendingIntent(ROW[i], openApp(context));
+            // A habit's row opens that habit on the Habits page, with its
+            // pinned note and today's checklist (HAB-11); other rows open the app.
+            v.setOnClickPendingIntent(ROW[i], r.kind == WidgetModel.Kind.HABIT && r.id != null && !r.id.isEmpty()
+                ? openPath(context, "/m/habits?open=" + Uri.encode(r.id)) : openApp(context));
             boolean item = r.kind != WidgetModel.Kind.LABEL && r.kind != WidgetModel.Kind.NOTE;
             boolean timed = item && r.kind != WidgetModel.Kind.HABIT;
 
@@ -161,6 +164,16 @@ public class TodayWidget extends AppWidgetProvider {
 
     private static PendingIntent openApp(Context context) {
         Intent intent = new Intent(context, PlannerActivity.class)
+            .setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_SINGLE_TOP);
+        return PendingIntent.getActivity(context, 0, intent, PendingIntent.FLAG_IMMUTABLE | PendingIntent.FLAG_UPDATE_CURRENT);
+    }
+
+    /** Open the app at a path inside it (app.getit.planner://open/...), which
+     *  the app routes (widget.ts openWidgetLink). The data URI keeps each
+     *  row's intent apart from the others'. */
+    private static PendingIntent openPath(Context context, String path) {
+        Intent intent = new Intent(Intent.ACTION_VIEW, Uri.parse("app.getit.planner://open" + path))
+            .setClass(context, PlannerActivity.class)
             .setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_SINGLE_TOP);
         return PendingIntent.getActivity(context, 0, intent, PendingIntent.FLAG_IMMUTABLE | PendingIntent.FLAG_UPDATE_CURRENT);
     }
