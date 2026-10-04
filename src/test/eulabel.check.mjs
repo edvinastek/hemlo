@@ -61,6 +61,8 @@ const nevoFood = { source: 'nevo', owner_id: null, nevo_code: 63, source_version
 is('a NEVO food', [sourceKind(nevoFood), sourceText(nevoFood)], ['nevo', 'NEVO-online 2025/9.0 (RIVM), code 63'])
 is('a kept old food', sourceKind({ source: 'usda', owner_id: null }), 'usda')
 is('a scanned product', sourceText({ source: 'off', owner_id: 'u', source_ref: '8710400000000' }), 'Open Food Facts, product 8710400000000')
+is('a USDA FoodData Central staple says which food', sourceText({ source: 'usda', source_version: 'USDA FoodData Central, SR Legacy (April 2018)', source_ref: 'fdc:175051' }), 'USDA FoodData Central (SR Legacy), food 175051')
+is('a food kept from the first list says so', sourceText({ source: 'usda', source_version: 'USDA SR Legacy (GetIt version 15 catalogue)' }), 'USDA (US list from GetIt’s first catalogue)')
 is('a workbook food', sourceKind({ source: 'import', owner_id: 'u' }), 'import')
 const copy = { source: 'own', owner_id: 'u', source_ref: 'nevo:63' }
 is('a copy of a NEVO food is the person’s own', [sourceKind(copy), copiedFromNevo(copy), sourceText(copy)], ['own', true, 'Your own copy of a NEVO food'])

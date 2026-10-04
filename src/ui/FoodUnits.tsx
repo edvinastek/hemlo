@@ -4,7 +4,7 @@ import { db } from '../lib/db'
 import { useApp } from '../lib/store'
 import { edit } from '../lib/write'
 import {
-  LABEL, PORTIE_ATTRIBUTION, NEVO_ATTRIBUTION, energyCheck, figureOf, figureText, riPercent, sodiumOf, sourceKind,
+  LABEL, PORTIE_ATTRIBUTION, NEVO_ATTRIBUTION, USDA_UNITS_ATTRIBUTION, energyCheck, figureOf, figureText, riPercent, sodiumOf, sourceKind,
   sourceText, copiedFromNevo,
 } from '../lib/eu-label-rules'
 import {
@@ -145,7 +145,8 @@ export function FoodUnitsSheet({ food: given, onClose }: { food: Food; onClose: 
         {isEgg && (
           <p className="fe-note" style={{ marginTop: 'var(--space-2)' }}>
             EU egg sizes, weighed in the shell: S under 53 g, M 53–63 g, L 63–73 g, XL 73 g and over. The weights above are
-            what is eaten, without the shell.
+            what is eaten, without the shell.{units.some((u) => u.size === 'XL' && u.source !== 'mine')
+              ? ' The XL weight is worked out: 78 g in the shell, less USDA’s 12% shell.' : ''}
           </p>
         )}
 
@@ -161,6 +162,7 @@ export function FoodUnitsSheet({ food: given, onClose }: { food: Food; onClose: 
             </div>
           )}
           {units.some((u) => u.source?.startsWith('Portie')) && <div>{PORTIE_ATTRIBUTION}.</div>}
+          {units.some((u) => u.source?.includes('USDA')) && <div>{USDA_UNITS_ATTRIBUTION}.</div>}
           {kind === 'off' && <div>Product data: Open Food Facts (ODbL).</div>}
         </div>
 
