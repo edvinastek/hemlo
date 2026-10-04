@@ -971,6 +971,14 @@ export function moduleKeywords(built: Pick<ModuleDef, 'key' | 'name' | 'keywords
   ]
 }
 
+/** What setup offers for the words typed (MOD-07): every module, built
+ *  ones included, whose keywords appear in them, that is not on already;
+ *  Custom never (it is not a module to switch on). */
+export function moduleSuggestions(text: string, list: ModuleWords[], on: string[]): { key: string; name: string }[] {
+  const keys = suggestModules(text, list)
+  return list.filter((m) => keys.includes(m.key) && m.key !== 'custom' && !on.includes(m.key)).map((m) => ({ key: m.key, name: m.name }))
+}
+
 /** Modules whose keywords appear, as whole words, in what was typed. */
 export function suggestModules(text: string, list: ModuleWords[] = moduleKeywords()): string[] {
   const norm = (s: string) => ` ${s.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^a-z0-9]+/g, ' ').trim()} `

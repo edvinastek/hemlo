@@ -14,7 +14,9 @@ import { ActivityPicker, type ActivityValue } from '../ui/ActivityPicker'
 import { applyModules, TEMPLATE_MODULE_KEYS } from '../lib/setup'
 import { applyWorkPlan } from '../lib/work'
 import { MODULES, moduleByKey } from '../modules/registry'
-import { suggestModules } from '../modules/def-rules'
+import { moduleKeywords, moduleSuggestions } from '../modules/def-rules'
+import { profileModuleKeywords, setModuleEnabled } from '../modules/defs'
+import { useLiveQuery } from 'dexie-react-hooks'
 import { Dropdown } from '../ui/Dropdown'
 import { SearchPick } from '../ui/SearchPick'
 import { WorkFields } from '../settings/WorkFields'
@@ -58,8 +60,10 @@ export function Onboarding({ onDone }: { onDone: () => void }) {
   const [showModules, setShowModules] = useState(false)
   const suggestion = suggestTemplate(describe)
   // Modules whose own keywords appear in the words typed (MOD-07), beyond
-  // what the template already switches on: offered one tap each.
-  const extraModules = suggestModules(describe).filter((k) => k !== 'custom' && !modules.includes(k) && moduleByKey.has(k))
+  // what the template already switches on: offered one tap each. Modules the
+  // person built, and keywords they gave a built-in one, count too.
+  const words = useLiveQuery(async () => (profile ? profileModuleKeywords(profile.id) : moduleKeywords()), [profile?.id]) ?? moduleKeywords()
+  const extraModules = moduleSuggestions(describe, words, modules)
 
   // 4. Body targets
   const [targetsOn, setTargetsOn] = useState(templateByKey(firstTemplate)!.targets)
@@ -129,6 +133,8 @@ export function Onboarding({ onDone }: { onDone: () => void }) {
       })
 
       await applyModules(profile!.id, on)
+      // A module the person built is switched on when its words were picked.
+      for (const k of on) if (!moduleByKey.has(k)) await setModuleEnabled(profile!.id, k, true)
 
       // Body fields, the target and the weigh-in only when targets are wanted:
       // with the switch off, nothing about the body is written anywhere.
@@ -240,11 +246,11 @@ export function Onboarding({ onDone }: { onDone: () => void }) {
               {extraModules.length > 0 && (
                 <div className="ob-extra" aria-live="polite">
                   <span className="ob-note">Those words also point at:</span>
-                  {extraModules.map((k) => (
-                    <button key={k} type="button" className="chip ob-add"
-                      aria-label={`Switch on ${moduleByKey.get(k)!.name}`}
-                      onClick={() => setModules((c) => (c.includes(k) ? c : [...c, k]))}>
-                      + {moduleByKey.get(k)!.name}
+                  {extraModules.map((m) => (
+                    <button key={m.key} type="button" className="chip ob-add"
+                      aria-label={`Switch on ${m.name}`}
+                      onClick={() => setModules((c) => (c.includes(m.key) ? c : [...c, m.key]))}>
+                      + {m.name}
                     </button>
                   ))}
                 </div>

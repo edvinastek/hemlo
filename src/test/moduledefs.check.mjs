@@ -6,7 +6,7 @@ import {
   LIMITS, BUILT_KEY, fieldProblem, cleanField, cleanFields, readBuiltDefinition, definitionFor, definitionProblem,
   glyphProblem, cleanKeywords, newModuleKey, fieldNameFrom, readOverlay, applyOverlay, overlayFrom,
   recordDate, cleanValues, computeFormulas, taskPlan, taskChange, builtRuleCatalogue, ruleOn,
-  moduleKeywords, suggestModules, mainField, RULE_DAY_TASK, RULE_REMIND,
+  moduleKeywords, suggestModules, moduleSuggestions, mainField, RULE_DAY_TASK, RULE_REMIND,
   boardField, gridFields, chartFields, viewProblem, viewDefaults,
   BUILTIN_RULES, ruleSupport, ruleSwitchable, isBuiltinRuleOn,
 } from '../modules/def-rules.ts'
@@ -280,6 +280,11 @@ is('built-in modules have keywords', moduleKeywords().every((m) => m.keywords.le
 is('built modules are added', moduleKeywords([{ key: 'u_abcdef', name: 'Car', keywords: ['apk'] }]).at(-1), { key: 'u_abcdef', name: 'Car', keywords: ['apk'] })
 is('typed words suggest modules', suggestModules('I go to the gym and read books', moduleKeywords([{ key: 'u_books1', name: 'Reading', keywords: ['books'] }])).sort(), ['learning', 'training', 'u_books1'])
 is('whole words only', suggestModules('gymnastics'), [])
+// MOD-07: setup offers built modules by the keywords typed for them, and not what is on already.
+const words = moduleKeywords([{ key: 'u_car001', name: 'Car', keywords: ['car', 'apk', 'oil change'] }])
+is('setup offers a built module by its own keywords', moduleSuggestions('student with a car', words, []).map((m) => m.key), ['u_car001'])
+is('…a keyword of two words too', moduleSuggestions('the oil change is due', words, []).map((m) => m.name), ['Car'])
+is('…and not what is on already', moduleSuggestions('gym and my car', words, ['training', 'u_car001']), [])
 
 // ---------- field kinds of version 16 (MOD-11, MOD-12) ---------------------------
 const tags = { name: 'tags', label: 'Tags', type: 'multi', options: ['red', 'green', 'blue'] }
