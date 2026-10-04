@@ -9,6 +9,7 @@ import { useInboxCount } from '../lib/inbox-count'
 import { useNarrow } from './useNarrow'
 import { useLayout } from './useLayout'
 import './nav.css'
+import { useBackClose } from './useBackClose'
 
 /** The page bar. Which pages it holds comes from the modules that are on
  *  (src/lib/pages.ts); how it holds them is the person's choice of style in
@@ -297,6 +298,8 @@ function RailPopover({ pages, opener, onClose }: { pages: PageInfo[]; opener: Re
 function useDialog(box: RefObject<HTMLElement>, opener: RefObject<HTMLElement>, onClose: () => void) {
   const close = useRef(onClose)
   close.current = onClose
+  // The phone's Back closes it too (CALM-10), instead of leaving the page.
+  useBackClose(onClose)
   useEffect(() => {
     const el = box.current
     const back = opener.current

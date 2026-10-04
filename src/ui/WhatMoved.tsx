@@ -3,6 +3,7 @@ import { useApp } from '../lib/store'
 import { WHAT_MOVED, movedShows, readMoved } from '../lib/tips-rules'
 import { claimTip, saveTipState, useTipState } from '../lib/tips'
 import './what-moved.css'
+import { useBackClose } from './useBackClose'
 
 /** "What moved where" (NAV-26, CALM-18): once, after updating to this
  *  version, a short note on every function that moved and where it is now.
@@ -27,6 +28,7 @@ export function WhatMoved() {
     document.addEventListener('keydown', key)
     return () => document.removeEventListener('keydown', key)
   }, [show, s])
+  useBackClose(() => saveTipState(readMoved(s)), show)
   if (!show) return null
   const done = () => saveTipState(readMoved(s))
   return (

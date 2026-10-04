@@ -16,6 +16,7 @@ import { FieldForm, LOOKUP_OPTIONS, STATS_OPTIONS, describeField } from './Field
 import { Dropdown } from '../ui/Dropdown'
 import { readDesignFile } from './design-file-rules'
 import './modules.css'
+import { useBackClose } from '../ui/useBackClose'
 
 /** More → Modules: the modules the person built, and the button that builds
  *  another. Kept here so More only has to place it. */
@@ -67,6 +68,7 @@ const SET_UP_VIEWS: ViewDef['type'][] = ['board', 'grid', 'chart']
  *  changed later in the editor; nothing is saved until Create. */
 export function ModuleBuilder({ onClose }: { onClose: () => void }) {
   const { profile, session } = useApp()
+  useBackClose(onClose)
   const navigate = useNavigate()
   // Other modules the person built, for a field that links to their records.
   const builtList = (useModuleDefs() ?? []).filter((e) => e.def.built).map((e) => ({ key: e.def.key, name: e.def.name }))

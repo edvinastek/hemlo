@@ -403,7 +403,7 @@ Columns: **ID**, **Requirement** (with "Done when" where a test is needed), **Pr
 | GEN-52 | One long-press rule in every list: **long press expands** an item in place (TOD-10) or, in tables and module lists, **enters multi-select**; the same actions are always also in a visible ⋮ menu. | Must | Done (v18: built modules' lists and tables, Finance entries) | R5, SR |
 | GEN-53 | Multi-select (where offered) shows an action bar: Select all, Copy to day…, Move to day…, Duplicate, Change repeat, Add to book, Export, Delete (last, with confirm). | Should | Done (v18) | R3, SR |
 | GEN-54 | **Undo** for 8 seconds after delete, drag, swap, move, copy and bulk actions, as a bar at the bottom. | Must | Done (v16) | SR |
-| GEN-55 | **Copy to…** works the same for tasks, meals, whole days and whole weeks (TSK-20). | Must | Partly (v18: CopySheet copies meals, one meal or a day; Food’s own CopyDays panel is switched to it by W2) | R5 |
+| GEN-55 | **Copy to…** works the same for tasks, meals, whole days and whole weeks (TSK-20). | Must | Done (v18: one copy dialog for tasks, days, weeks and meals) | R5 |
 | GEN-56 | Haptic feedback on long press (where the phone allows), and every gesture also has a visible button for accessibility. | Must | Done (v16) | SR |
 
 ### General quality
@@ -431,7 +431,7 @@ Columns: **ID**, **Requirement** (with "Done when" where a test is needed), **Pr
 | TOD-03 | **Carry-over**: unfinished items from earlier days in one collapsible row at the top, with Tomorrow, Pick a day, Done, Drop (the review actions). The evening review stays, at the person's review time. | Must | Done (v16) | R1 |
 | TOD-04 | Followed-calendar events and the person's own agenda events sit at the top of the timeline. | Must | Done (v16) | R4, SR |
 | TOD-05 | Tabs (Body, Work, Training, module tabs, Evening, Sleep) appear only when that module is on and the day has something for it; with only one tab, no tab row. | Must | Done | R3 |
-| TOD-06 | The figure under the date (e.g. kcal eaten / target) is the person's choice, or nothing; and a pinned stats card can replace it (TOD-20). | Must | Done (figure); Open (stats card) | R2, R5 |
+| TOD-06 | The figure under the date (e.g. kcal eaten / target) is the person's choice, or nothing; and a pinned stats card can replace it (TOD-20). | Must | Done (v17: the figure, or a pinned stats card) | R2, R5 |
 | TOD-10 | **Two-stage hold on a task** (decided 2 Oct): a tap opens it; a **short hold** (about 0.35 s) then moving the finger **drags** it; holding still for **longer** (about 0.8 s) **expands** it in place, showing its note, checklist, time, minutes, section and quick actions (Edit, Copy to…, Duplicate, Move to…, Skip, Delete, Open note as page). A light buzz marks each stage. A second long hold, a tap on the title or Back collapses it. Both times are adjustable in settings. | Must | Done (v16) | R5 |
 | TOD-11 | An expanded row keeps the page usable: the header of the expanded row stays visible while scrolling its content; only one row is expanded at a time. | Must | Done (v16) | SR |
 | TOD-12 | Checklist items in an expanded row can be ticked directly; each tick saves at once, offline. | Must | Done (v16) | R5 |
@@ -862,7 +862,7 @@ Columns: **ID**, **Requirement** (with "Done when" where a test is needed), **Pr
 | NAV-23 | More is renamed "Settings" in the hub style, with the same sections. | Could | Done (v16) | SR |
 | NAV-24 | Android launcher shortcuts (up to 4) mirroring the + menu's top items (Add task, Add food…). | Could | Open | SR |
 | NAV-25 | Each module page keeps at most two levels: the module's list, then an item. Deeper settings go in sheets. | Should | Done (v16) | SR |
-| NAV-26 | Moving functions between screens comes with a one-time "What moved where" note, and a "Classic layout" switch for one or two versions. | Should | Partly (v16: the one-time "What moved where" note; no Classic layout switch) | SR |
+| NAV-26 | Moving functions between screens comes with a one-time "What moved where" note, and a "Classic layout" switch for one or two versions. | Should | Done (v17: "What moved where"; the Classic layout switch was replaced by CALM-17, no global layout switch) | SR |
 
 ## D28. Settings, profiles and accounts (SET)
 
@@ -947,12 +947,12 @@ Columns: **ID**, **Requirement** (with "Done when" where a test is needed), **Pr
 | PLAT-01 | Android app `app.getit.planner`, Capacitor, targeting the current API level; INTERNET and USE_BIOMETRIC permissions only. | Must | Done | R1 |
 | PLAT-02 | Windows app (Tauri) and web build kept up to date with every version. | Must | Done | R1 |
 | PLAT-03 | Google Play closed test: 12 testers opted in for 14 continuous days, then production application. | Must | Open | R4 |
-| PLAT-04 | Store listing texts and screenshots (made after version 16, so they show the new design). | Must | Open (paused) | R4 |
+| PLAT-04 | Store listing texts and screenshots (made after version 16, so they show the new design). | Must | Partly (v18: listing texts ready in store/listing.json; screenshots by the owner once the closed test starts) | R4 |
 | PLAT-05 | Data safety answers, including Google's code scanner (ML Kit) and Open Food Facts requests. | Must | Partly (v18: answers ready in store/play-console-answers.md; the owner enters them in Play Console) | R4 |
 | PLAT-06 | Public privacy and account-deletion pages with controller "Edvinas Straigis" and the new GetIt contact address; the deletion page's "What is deleted" lists shared recipes, scanned foods, calendar links and followed calendars. | Must | Partly (v18: pages ready, "What is deleted" complete; needs the owner's new contact address in VITE_CONTACT_EMAIL and the pages published on Netlify) | R4 |
 | PLAT-07 | The privacy policy names Netlify (not Cloudflare) as the host of the public pages. | Must | Done (v18) | R4 |
 | PLAT-08 | Upload key made by the owner on his own computer; signing keys never pass through anyone else. | Must | Open (owner action) | R4 |
-| PLAT-09 | APK size kept in check (the barcode scanner adds about 25 MB per build of all processor types): ship an App Bundle so each phone downloads only its own. | Must | Partly (bundle planned) | SR |
+| PLAT-09 | APK size kept in check (the barcode scanner adds about 25 MB per build of all processor types): ship an App Bundle so each phone downloads only its own. | Must | Done (v16: the App Bundle splits by processor type on Play) | SR |
 | PLAT-10 | iPhone app later, from the same code. | Could | Open | R1 |
 
 ## D35. Assistant (AI)
@@ -977,8 +977,8 @@ The owner after testing version 16: "the app feels really cluttery; keep most of
 | CALM-07 | One way to say a thing on a row: a time, "All day" and a status each once. | Must | Done (v17) | R6 |
 | CALM-08 | Forms stage their fields: what is needed to make the thing is visible; the rest sits in one "More options" that opens by itself when something inside is set and summarises it when closed. | Must | Done (v18) | R6 |
 | CALM-09 | A sheet that can guess its first step skips it and shows the guess with "Change" (the add-food sheet opens on the food). | Must | Done (v17) | R6 |
-| CALM-10 | Never a sheet on a sheet; every sheet closes on Back and Escape. | Must | Partly (v18: every planner sheet closes on Back: the + menu and its add sheets, task, copy, move, day pick, repeat, export, drill, rail, followed event, day picker, note page, cards; food, module and settings sheets are W2/W3’s) | R6 |
-| CALM-11 | No explanatory paragraphs or page subtitles on screens; empty states keep one sentence and one button; explanations live in About or a tip. | Must | Partly (v18: StatsView.tsx module-off paragraph still says "under More, Modules") | R6 |
+| CALM-10 | Never a sheet on a sheet; every sheet closes on Back and Escape. | Must | Done (v18: every sheet and menu closes on Back and Escape, through one hook) | R6 |
+| CALM-11 | No explanatory paragraphs or page subtitles on screens; empty states keep one sentence and one button; explanations live in About or a tip. | Must | Done (v18) | R6 |
 | CALM-12 | Settings is a short list of pages with one search; each row has at most one helper line. | Must | Done (v17) | R6 |
 | CALM-13 | Data credits and legal lines live in Settings → About and on the page where the data is shown in full (a food's page), not on lists. | Must | Done (v17) | R6 |
 | CALM-14 | Tips are one slim line with ×, at most one per session, never repeated, and can be shown again from Settings. | Must | Done (v17) | R6 |

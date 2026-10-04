@@ -109,7 +109,7 @@ export function ViewBody({ view, outcome, compact = false, showTable }: { view: 
 
   if (!v0) {
     return <p className="st-note">{outcome.modulesOff.length
-      ? 'This view counts something from a module that is switched off or not counted in Stats. Switch it back on under More, Modules, and the view comes back as it was.'
+      ? 'Its module is switched off or not counted in Stats (Settings → Modules).'
       : 'Nothing to show: what this view measures is no longer kept by any module.'}</p>
   }
   const unit = unitFor(v0.info, v0.spec.summary)

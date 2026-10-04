@@ -17,6 +17,7 @@ import { EmptyState } from '../ui/EmptyState'
 import { offerUndo } from '../ui/Undo'
 import { FirstTip } from '../ui/Tip'
 import './modules-hub.css'
+import { useBackClose } from '../ui/useBackClose'
 
 /** The Modules page (NAV-20 to NAV-22): every module that is on, as a dense
  *  grid of names, most used first, so the page bar can stay short. One
@@ -190,6 +191,7 @@ function TileMenu({ page, summary, onClose, onSettings }: {
   const pages = usePages()
   const [confirmHide, setConfirmHide] = useState(false)
   const box = useRef<HTMLDivElement>(null)
+  useBackClose(onClose)
   useEffect(() => {
     box.current?.querySelector<HTMLElement>('button')?.focus()
     const key = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose() }
