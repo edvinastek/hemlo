@@ -536,7 +536,7 @@ Columns: **ID**, **Requirement** (with "Done when" where a test is needed), **Pr
 | ID | Requirement | Pri | Status | Src |
 |------------|----------------------------------------------------------|----------|----------------------|--------|
 | UNIT-01 | A food can be counted in grams (or ml) and in its own units (egg, slice, clove, tbsp); up to 8 units, each with a weight. | Must | Done | R4 |
-| UNIT-02 | One amount field (number + unit picker) everywhere an amount is typed: recipe lines, meals, quick entries from a food, stock, scanning, the shopping list. | Must | Done (v16) | R4, R5 |
+| UNIT-02 | One amount field (number + unit picker) everywhere an amount is typed: recipe lines, meals, quick entries from a food, stock, scanning, the shopping list. | Must | Done (v18) | R4, R5 |
 | UNIT-03 | Amounts accept decimal commas, fractions (½, ¼, 1/2, 1 1/2) and spaces in thousands. | Must | Done | R4 |
 | UNIT-04 | Volumes: ml, l, tsp (5 ml), tbsp (15 ml), cup (250 ml EU) for liquids and foods with a density. | Should | Done (v16) | R5 |
 | UNIT-10 | Every food sold or used per piece has units, with **small / medium / large** where sizes differ, using RIVM Portie-online 2026 edible weights (Part H3). | Must | Partly (v16: sizes and as-bought weights supported; Portie-online weights entered for about 22 foods so far) | R5 |
@@ -630,7 +630,7 @@ Columns: **ID**, **Requirement** (with "Done when" where a test is needed), **Pr
 | SHOP-15 | Minimum stock: a stock item with a minimum adds itself to the list when it falls below it. | Should | Done (v16) | SR |
 | SHOP-20 | Setting **"Plan a shopping trip when the list has items"**: off by default; when on, a task "Shopping (N items)" is put on the next shopping day at the chosen time, updated as the count changes, and removed when the list is empty. | Must | Done (v16) | R5 |
 | SHOP-21 | Shopping days are the person's choice (any weekdays, or "the next day"), with a time and a length; the trip task can be locked (the old `trip_days` rule). | Must | Done (v16) | R5 |
-| SHOP-22 | Tapping the trip task opens the list; ticking the task when everything is ticked offers "Put bought items in stock". | Should | Done (v16) | R5 |
+| SHOP-22 | Tapping the trip task opens the list; ticking the task when everything is ticked offers "Put bought items in stock". | Should | Done (v18) | R5 |
 | SHOP-23 | The trip task follows the module's "Show on Today / Plan" switches. | Must | Done (v16) | R5 |
 | SHOP-30 | The list shows **aisle sections as headings** (collapsible), in the person's aisle order. | Must | Done (v16) | R5 |
 | SHOP-31 | A **shop filter**: "Any shop", or one of the person's shops; each item shows where it is sold when known. | Must | Done (v16) | R5 |
@@ -937,7 +937,7 @@ Columns: **ID**, **Requirement** (with "Done when" where a test is needed), **Pr
 | SYNC-03 | New synced things (note templates, task templates, stats templates, meals list, manual shopping items, chores' schedules, themes) are synced with the same guarantees. | Must | Done (v16) | R5 |
 | SEC-01 | Row-level security on every table, tested by the security suite (112 checks today) and extended for every new table. | Must | Done | R1 |
 | SEC-02 | Health data never leaves the person's profile without their action; the calendar feed keeps health and built-module items out. | Must | Done | R4 |
-| SEC-03 | Privacy policy and records of processing updated whenever data use changes (new food sources, household sharing of chores, themes). | Must | Ongoing | R4 |
+| SEC-03 | Privacy policy and records of processing updated whenever data use changes (new food sources, household sharing of chores, themes). | Must | Done (v18; kept up with each change) | R4 |
 | SEC-04 | Invite-only sign-ups are opened (or the closed-test testers' addresses added) before the Play closed test. | Must | Open | SR |
 
 ## D34. Platforms and release (PLAT)
@@ -948,9 +948,9 @@ Columns: **ID**, **Requirement** (with "Done when" where a test is needed), **Pr
 | PLAT-02 | Windows app (Tauri) and web build kept up to date with every version. | Must | Done | R1 |
 | PLAT-03 | Google Play closed test: 12 testers opted in for 14 continuous days, then production application. | Must | Open | R4 |
 | PLAT-04 | Store listing texts and screenshots (made after version 16, so they show the new design). | Must | Open (paused) | R4 |
-| PLAT-05 | Data safety answers, including Google's code scanner (ML Kit) and Open Food Facts requests. | Must | Open (paused) | R4 |
-| PLAT-06 | Public privacy and account-deletion pages with controller "Edvinas Straigis" and the new GetIt contact address; the deletion page's "What is deleted" lists shared recipes, scanned foods, calendar links and followed calendars. | Must | Open (needs the contact address) | R4 |
-| PLAT-07 | The privacy policy names Netlify (not Cloudflare) as the host of the public pages. | Must | Open | R4 |
+| PLAT-05 | Data safety answers, including Google's code scanner (ML Kit) and Open Food Facts requests. | Must | Partly (v18: answers ready in store/play-console-answers.md; the owner enters them in Play Console) | R4 |
+| PLAT-06 | Public privacy and account-deletion pages with controller "Edvinas Straigis" and the new GetIt contact address; the deletion page's "What is deleted" lists shared recipes, scanned foods, calendar links and followed calendars. | Must | Partly (v18: pages ready, "What is deleted" complete; needs the owner's new contact address in VITE_CONTACT_EMAIL and the pages published on Netlify) | R4 |
+| PLAT-07 | The privacy policy names Netlify (not Cloudflare) as the host of the public pages. | Must | Done (v18) | R4 |
 | PLAT-08 | Upload key made by the owner on his own computer; signing keys never pass through anyone else. | Must | Open (owner action) | R4 |
 | PLAT-09 | APK size kept in check (the barcode scanner adds about 25 MB per build of all processor types): ship an App Bundle so each phone downloads only its own. | Must | Partly (bundle planned) | SR |
 | PLAT-10 | iPhone app later, from the same code. | Could | Open | R1 |
@@ -997,7 +997,7 @@ The owner: "shopping prices do not seem to appear, yet catalogues online are ava
 | PRICE-02 | The household's own latest price at that shop wins over Open Prices. | Must | Done (v17) | R6 |
 | PRICE-03 | A quiet price on each row ("€1.89" own, "≈ €1.89" shared, count and date on tap); unknown shows nothing and offers "Add price". Summary "5 to get · €12.40 + 2 unpriced". ODbL credit in the price detail and in About. | Must | Done (v17) | R6 |
 | PRICE-04 | Adding a price takes one step from a row: the amount per pack or per kg/l; the shop is the list's shop filter or the last used; Undo. | Must | Done (v17) | R6 |
-| PRICE-05 | Opt-in sharing of a price to Open Prices: an Open Food Facts account (token in secure storage), a photo of the price tag or receipt, the shop's OpenStreetMap location, date and currency; privacy policy updated first. | Should | Open (needs a shop picker on the map, account linking, photo upload tested on a phone, privacy text) | R6 |
+| PRICE-05 | Opt-in sharing of a price to Open Prices: an Open Food Facts account (token in secure storage), a photo of the price tag or receipt, the shop's OpenStreetMap location, date and currency; privacy policy updated first. | Should | Partly (v18: built and checked with mocked answers; left: one real share from the Android app with an Open Food Facts account, to confirm the camera app hands the photo over without the camera permission) | R6 |
 | PRICE-06 | Each kept shop links to the chain's own official weekly offers page, opened in the browser; nothing is copied into the app. No scraping of supermarket sites or use of unofficial APIs or scraped datasets (their terms forbid it; EU database right). | Should | Done (v17) | R6 |
 
 

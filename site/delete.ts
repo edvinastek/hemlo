@@ -29,7 +29,7 @@ el(`${nav}
   <form id="f">
     <label>Email <input id="email" type="email" required autocomplete="email" /></label>
     <label>Password <input id="password" type="password" required autocomplete="current-password" /></label>
-    <label>Type <b>delete</b> to confirm <input id="word" autocomplete="off" required /></label>
+    <label><span>Type <b>delete</b> to confirm</span> <input id="word" autocomplete="off" required /></label>
     <button class="primary" id="go" type="submit">Delete my account for good</button>
     <p class="note" id="note" role="status"></p>
   </form>
