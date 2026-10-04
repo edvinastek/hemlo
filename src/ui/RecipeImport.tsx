@@ -116,7 +116,7 @@ export function RecipeImport({ userId, onClose }: { userId: string; onClose: () 
                 onChange={(e) => { const f = e.target.files?.[0]; e.target.value = ''; if (f) void chooseFile(f) }} />
             </label>
           </div>
-          <form className="two" onSubmit={(e) => { e.preventDefault(); void fetchUrl() }}>
+          <form className="two" noValidate onSubmit={(e) => { e.preventDefault(); void fetchUrl() }}>
             <label>Or a web address<input type="url" inputMode="url" value={url} placeholder="https://" enterKeyHint="go"
               onChange={(e) => { setUrl(e.target.value); setProblem(null) }} /></label>
             <button type="submit" className="btn" style={{ alignSelf: 'end', minHeight: 44 }} disabled={busy || !url.trim()}>
@@ -134,9 +134,9 @@ export function RecipeImport({ userId, onClose }: { userId: string; onClose: () 
                   <p className="rcp-section">Found · {read.kind}</p>
                   <ul className="rcp-list">
                     {planned.map((p, i) => (
-                      <li key={i} style={{ display: 'grid', gap: 2 }}>
+                      <li key={i} style={{ display: 'grid', gap: 2, minWidth: 0, whiteSpace: 'normal' }}>
                         <span className="row-name" style={{ fontSize: 15 }}>{p.name}</span>
-                        <span className="fe-note">
+                        <span className="fe-note" style={{ overflowWrap: 'anywhere', whiteSpace: 'normal' }}>
                           {p.portions_per_batch} {p.portions_per_batch === 1 ? 'portion' : 'portions'} · {p.matched} of {p.lines.length} ingredients found
                           {p.unmatched.length ? `; kept as text to finish: ${p.unmatched.slice(0, 4).join(', ')}${p.unmatched.length > 4 ? ` and ${p.unmatched.length - 4} more` : ''}` : ''}
                         </span>
