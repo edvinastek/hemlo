@@ -30,3 +30,6 @@ src-tauri/gen/
 store/testers/*.txt
 store/testers/*.csv
 supabase/.temp/
+
+# The release secrets (scripts/release.mjs --secrets): bot token and shared secrets.
+release.secrets.env

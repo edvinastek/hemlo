@@ -1,4 +1,4 @@
-// Copies the pure calendar rules the server functions need from src/lib into
+// Copies the pure rules the server functions need (calendar, Telegram) from src/lib into
 // supabase/functions/_shared/, so each function deploys on its own and still
 // runs exactly the code the app runs and the checks test.
 //
@@ -50,6 +50,8 @@ export function generate() {
     'schedule-rules.ts': header('schedule-rules.ts') + read('schedule-rules.ts'),
     'ics-rules.ts': header('ics-rules.ts') + read('ics-rules.ts'),
     'calendar-links-rules.ts': header('calendar-links-rules.ts') + read('calendar-links-rules.ts'),
+    // Telegram reminders (REM-05): linking, reading Telegram's updates, what is sent.
+    'telegram-rules.ts': header('telegram-rules.ts') + read('telegram-rules.ts'),
   }
   for (const [name, text] of Object.entries(files)) {
     const bad = [...text.matchAll(/from '(\.[^']*)'/g)].map((m) => m[1]).filter((p) => !p.endsWith('.ts'))

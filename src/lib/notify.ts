@@ -19,6 +19,8 @@ import {
 } from './reminder-text'
 import type { ModuleRecord } from './types'
 import { readWeighInPlan, weighInReminderDays, weighInReminderText } from './body-measure-rules'
+import { telegramBody } from './telegram-rules'
+import { handToTelegram } from './telegram'
 
 export { isQuiet, reminderText }
 
@@ -77,7 +79,9 @@ interface Due { key: string; at: Date; title: string; body: string; item: Pick<D
   /** A refill reminder: nothing to tick, only to see (SUP-05). */
   refill?: boolean
   /** Another reminder with nothing to tick: the weigh-in (HLT-05). */
-  noTick?: boolean }
+  noTick?: boolean
+  /** Its line for Telegram (REM-05), or null when it stays on the phone. */
+  telegram: string | null }
 
 /** Everything timed in the next three days whose module sends reminders
  *  (REM-02): tasks as before, and now habits, chores, supplements (at their
@@ -133,7 +137,8 @@ async function upcoming(profileId: string, now: Date, settings: ReminderSettings
     const when = placeReminder(at, settings)
     if (!when) continue
     const text = item.kind === 'task' && item.task ? reminderText(item.task, persona, limit) : itemReminderText(item, persona)
-    out.push({ key: item.key, at: when, ...text, item, route: itemRoute(item, from) })
+    out.push({ key: item.key, at: when, ...text, item, route: itemRoute(item, from),
+      telegram: telegramBody({ kind: item.kind, body: text.body, title: item.title, task: item.task }) })
   }
   // Refill reminders (SUP-05): the day a supplement's doses reach the
   // warning, and its last day, at its slot's time (else the morning), while
@@ -156,7 +161,7 @@ async function upcoming(profileId: string, now: Date, settings: ReminderSettings
         out.push({
           key: `refill:${x.id}:${day}`, at: when, ...refillText(x.name, st.left, st.daysLeft, persona),
           item: { kind: 'supplements', ref: { table: 'supplement', id: x.time_slot ?? 'any' }, day, module_key: 'supplements' }, route: '/m/supplements',
-          refill: true,
+          refill: true, telegram: telegramBody({ kind: 'supplements', refill: true, title: x.name, body: '' }),
         })
       }
     }
@@ -180,6 +185,8 @@ async function upcoming(profileId: string, now: Date, settings: ReminderSettings
         out.push({
           key: `weighin:${day}`, at: when, ...weighInReminderText(persona),
           item: { kind: 'record', ref: { table: 'body_log', id: day }, day, module_key: 'health' }, route: '/m/health', noTick: true,
+          // A weigh-in belongs to Health, which stays on the phone (REM-05).
+          telegram: null,
         })
       }
     }
@@ -203,6 +210,12 @@ let webTimers: number[] = []
  *  or on Windows they can only fire while GetIt is open. */
 export async function rescheduleReminders(profileId: string, persona: string | null, now = new Date()): Promise<number> {
   const settings = await getReminderSettings()
+  // Worked out once, for the phone and for Telegram. Telegram (REM-05) has
+  // its own switch, linking it, so it gets the list whether or not this
+  // device shows reminders itself; the quiet hours are this device's.
+  let list: Promise<Due[]> | null = null
+  const due = () => (list ??= upcoming(profileId, now, settings, persona))
+  void handToTelegram(profileId, now, due)
 
   if (isNative()) {
     const pending = await LocalNotifications.getPending()
@@ -215,10 +228,10 @@ export async function rescheduleReminders(profileId: string, persona: string | n
     if (drop.length) await LocalNotifications.cancel({ notifications: drop.map((n) => ({ id: n.id })) })
     if (!settings.on) return 0
     await ensureChannel()
-    const due = await upcoming(profileId, now, settings, persona)
-    if (due.length === 0) return 0
+    const coming = await due()
+    if (coming.length === 0) return 0
     await LocalNotifications.schedule({
-      notifications: due.map((d) => ({
+      notifications: coming.map((d) => ({
         id: notificationId(d.key), title: d.title, body: d.body, channelId: 'reminders',
         schedule: { at: d.at, allowWhileIdle: true },
         isExactNotification: false,
@@ -226,21 +239,21 @@ export async function rescheduleReminders(profileId: string, persona: string | n
         extra: { profileId, kind: d.refill ? 'refill' : d.noTick ? 'weighin' : d.item.kind, id: d.item.ref.id, day: d.item.day, route: d.route, title: d.title, body: d.body },
       })),
     })
-    return due.length
+    return coming.length
   }
 
   webTimers.forEach((t) => window.clearTimeout(t))
   webTimers = []
   if (!settings.on || typeof Notification === 'undefined' || Notification.permission !== 'granted') return 0
-  const due = (await upcoming(profileId, now, settings, persona)).filter((d) => d.at.getTime() - now.getTime() < 24 * 3600_000)
-  for (const d of due) {
+  const soonest = (await due()).filter((d) => d.at.getTime() - now.getTime() < 24 * 3600_000)
+  for (const d of soonest) {
     webTimers.push(window.setTimeout(() => {
       const n = new Notification(d.title, { body: d.body, icon: import.meta.env.BASE_URL + 'favicon.svg', tag: d.key })
       // Tapping it opens the item (REM-03).
       n.onclick = () => { window.focus(); openRoute(d.route); n.close() }
     }, d.at.getTime() - now.getTime()))
   }
-  return due.length
+  return soonest.length
 }
 
 /* ---------- tapping a reminder, and its two buttons (REM-03) -------------------- */

@@ -904,7 +904,7 @@ Columns: **ID**, **Requirement** (with "Done when" where a test is needed), **Pr
 | REM-02 | Reminders for habits, supplements, chores, events and built-module records follow the module's "Send reminders" switch (GEN-03). | Should | Done (v18) | SR |
 | REM-03 | Tapping a reminder opens the item; "Done" and "In 15 min" actions on the notification. | Should | Done (v16) | SR |
 | REM-04 | A reminder in quiet hours is delayed to the end of them (setting), instead of always dropped. | Could | Done (v16) | SR |
-| REM-05 | Messaging-style reminders (Telegram) as an option. | Could | Open | R1 |
+| REM-05 | Messaging-style reminders (Telegram) as an option. | Could | Done (v19: Settings → Reminders → Telegram, migration 038, telegram-webhook and telegram-send; live once the owner makes the bot and sets its secrets and webhook, docs/telegram.md) | R1 |
 
 ## D31. Home-screen widgets (WID)
 
@@ -948,7 +948,7 @@ Columns: **ID**, **Requirement** (with "Done when" where a test is needed), **Pr
 | PLAT-01 | Android app `app.getit.planner`, Capacitor, targeting the current API level; INTERNET and USE_BIOMETRIC permissions only. | Must | Done | R1 |
 | PLAT-02 | Windows app (Tauri) and web build kept up to date with every version. | Must | Done | R1 |
 | PLAT-03 | Google Play closed test: 12 testers opted in for 14 continuous days, then production application. | Must | Open | R4 |
-| PLAT-04 | Store listing texts and screenshots (made after version 16, so they show the new design). | Must | Partly (v18: listing texts ready in store/listing.json; screenshots by the owner once the closed test starts) | R4 |
+| PLAT-04 | Store listing texts and screenshots (made after version 16, so they show the new design). | Must | Done (v19: listing texts in store/listing.json; seven phone screenshots at 1080 × 1920 in store/screenshots/, made from an invented demo week by scripts/store-shots.mjs; the owner uploads them in Play Console) | R4 |
 | PLAT-05 | Data safety answers, including Google's code scanner (ML Kit) and Open Food Facts requests. | Must | Partly (v18: answers ready in store/play-console-answers.md; the owner enters them in Play Console) | R4 |
 | PLAT-06 | Public privacy and account-deletion pages with controller "Edvinas Straigis" and the new GetIt contact address; the deletion page's "What is deleted" lists shared recipes, scanned foods, calendar links and followed calendars. | Must | Partly (v18: pages ready, "What is deleted" complete; needs the owner's new contact address in VITE_CONTACT_EMAIL and the pages published on Netlify) | R4 |
 | PLAT-07 | The privacy policy names Netlify (not Cloudflare) as the host of the public pages. | Must | Done (v18) | R4 |
