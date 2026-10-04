@@ -356,7 +356,7 @@ export function DayRail({ day, where, filter, emptyText, selecting = false, onSe
         </ul>
       )}
       <div className={`rail${colours.on ? ' is-coloured' : ''}`} hidden={sel.selecting}>
-        {empty && <p className="empty rail-empty">{emptyText ?? 'Nothing planned for this day yet. Add something with the + button.'}</p>}
+        {empty && <p className="empty rail-empty">{emptyText ?? 'Nothing planned for this day yet.'}</p>}
         <DragList
           entries={entries} day={dayTasks} date={day} work={settings.work}
           expanded={expanded}

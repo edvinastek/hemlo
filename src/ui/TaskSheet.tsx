@@ -481,7 +481,7 @@ function TaskForm({ task, isNew, onClose, onDuplicate }: {
             {said && <p className="ts-repeat-rule" role="status">{said}</p>}
 
             {inSeries && confirmDelete && (
-              <p className="ts-repeat-rule">Deleting removes this day only. The series goes on.</p>
+              <p className="ts-repeat-rule">Deletes this day only; the series goes on.</p>
             )}
             <div className="sheet-actions">
               {!isNew && !confirmDelete && <button type="button" className="btn" onClick={() => setConfirmDelete(true)}>Delete</button>}

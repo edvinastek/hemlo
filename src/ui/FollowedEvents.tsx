@@ -7,7 +7,7 @@ import type { CalendarEvent } from '../lib/types'
 import { useBackClose } from './useBackClose'
 import './followed.css'
 
-/** Events from calendars the person follows (More → Profile → Calendar
+/** Events from calendars the person follows (Settings → Profile → Calendar
  *  links). They are someone else's to change, so they read like the day's
  *  tasks but have no tick and open a sheet that only shows them. Their mark
  *  is a short upright bar in the calendar's colour: not a module's round dot,

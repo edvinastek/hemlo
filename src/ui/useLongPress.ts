@@ -15,7 +15,7 @@ import { holdStep, nextAt, IDLE, type HoldAction, type HoldState, type HoldTimes
  *    when the finger then moves (onStart); holding still for the long time
  *    expands the row instead (onExpand, a second buzz).
  *
- *  Both times come from the person's settings (More → Hold times) unless a
+ *  Both times come from the person's settings (Settings → Hold times) unless a
  *  list passes its own. Moving before the short hold is up is a scroll and
  *  the press is forgotten. While ready or dragging the page does not scroll
  *  and the sideways swipe between pages never sees the move: touch moves are

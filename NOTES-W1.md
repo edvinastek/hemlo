@@ -92,3 +92,10 @@ import { CopySheet } from '../ui/CopySheet'
   offers Undo (More.tsx Modules/Row; style in more.css).
 - GEN-10: RecipeView "Add to a task" picker: best 20 with "Show all N" (was 8). Other `.slice(0, 8)` in the app are
   previews or tiles, not pickers (ShopList recents tiles, import previews, Chores history).
+- CALM-11: TemplatePicker empty line now one sentence naming Settings; DayRail empty, TaskSheet delete note, Copy and
+  template "repeating tasks" subs made one sentence; comments saying "More →" in my files now say Settings.
+  Left for others (not my files): src/sections/StatsView.tsx:112 ("under More, Modules", two sentences); comments only
+  in src/modules/ModuleBuilder.tsx:20, src/lib/day.ts:12/30, src/lib/accounts.ts:14, src/lib/pages.ts:15,
+  src/lib/holidays.ts:57, src/screens/Auth.tsx:18, src/screens/Onboarding.tsx:111, src/ui/ActivityPicker.tsx:15,
+  src/ui/Nav.tsx:232. AddMenu's "Hidden ones stay under More." means the menu's own More button (correct).
+- tips-rules WHAT_MOVED: three additive v18 lines (Sleep tab, Body tab sections, Nutrition card's add).

@@ -209,7 +209,7 @@ export function CopySheet({ what, onClose, onDone }: { what: CopyWhat; onClose: 
             <h3 id="cs-bring" className="cs-head">Bring along</h3>
             {check(c.tasks, (tasks) => set({ tasks }), 'Tasks', source ? count(counts.tasks, 'task') : undefined, counts.tasks === 0)}
             {check(c.repeats, (repeats) => set({ repeats }), 'Repeating tasks, as one-offs',
-              source ? `${count(counts.repeats, 'task')}. Their series already have days of their own.` : undefined, counts.repeats === 0)}
+              source ? `${count(counts.repeats, 'task')}; their series have days of their own` : undefined, counts.repeats === 0)}
             {check(c.meals, (meals) => set({ meals }), 'Meals', source ? `${count(counts.meals, 'meal')}, with their food and portions` : undefined, counts.meals === 0)}
           </section>
         )}

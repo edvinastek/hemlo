@@ -60,7 +60,7 @@ export function Today() {
   // Select tasks on the rail (GEN-52), from the ⋮: holding a row drags it
   // or opens it in place (TOD-10), so the hold is not the way in here.
   const [selecting, setSelecting] = useState(false)
-  // The day's public holidays, if any countries are chosen (More → Profile).
+  // The day's public holidays, if any countries are chosen (Settings → Profile).
   const holidays = useHolidays(day, day)
   const tomorrow = addDays(day, 1)
 

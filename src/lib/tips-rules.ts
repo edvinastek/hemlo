@@ -177,6 +177,10 @@ export const WHAT_MOVED: { was: string; now: string }[] = [
   { was: 'Shop: the figures under the list', now: 'One line, “5 to get · €12.40 + 2 unpriced”; tap it for the rest.' },
   { was: 'Stock: Scan, filter, grouping, take from stock when eating', now: 'Scan is in the field; the filter shows from 16 items; grouping and the switch are in the page’s ⋮.' },
   { was: 'Stores: thirteen shop buttons', now: 'Four, and More shops; each shop has Offers ↗.' },
+  // v18 (W1): Today no longer draws a thing twice.
+  { was: 'Today’s Sleep tab', now: 'Last night is an item on Today’s list in the morning; the Sleep page keeps the rest.' },
+  { was: 'Habits and supplements drawn again under Today’s Body tab', now: 'They are items on Today’s list; the Body tab keeps the weigh-in and shows only them.' },
+  { was: '+ Add food on Today’s Nutrition card', now: 'The round + adds food; the card opens Food.' },
 ]
 
 /** Whether the note shows: once, for the version whose moves it lists, and
