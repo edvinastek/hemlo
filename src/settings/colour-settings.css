@@ -48,3 +48,6 @@
   font-family: var(--font-sans); font-size: 15px;
 }
 .cs-none { padding: var(--space-3) var(--space-4); margin: 0; font-family: var(--font-sans); font-size: 13px; color: var(--e-ink-soft); }
+/* LOOK-06: a swatch the chosen theme's page swallows is marked with a
+   diagonal line through it, before anyone chooses it (its name says why). */
+.cs-pick.is-faint { background-image: linear-gradient(135deg, transparent 46%, var(--e-ink) 46%, var(--e-ink) 54%, transparent 54%); }
