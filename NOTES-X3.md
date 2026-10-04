@@ -12,7 +12,9 @@ export const describeReviews: (n: number) => string   // "3 reviews due"
 ```
 
 Pass Learning's module_record rows (any entity; non-"study" rows and deleted ones are skipped). The schedule is
-off by default: only show reviews when the Learning setting is on (see "review switch" below once built).
+off by default: only show reviews when the Learning module's switch is on:
+`module_instance` row of module_key 'learning', `settings.review_schedule === true` (exported later as
+`reviewScheduleOn(settings)` from src/lib/learning-rules.ts; reading the raw flag is the same thing).
 
 ## Log
 - FIRST: study-review-rules.ts + src/test/studyreview.check.mjs (in the check loop and README).
