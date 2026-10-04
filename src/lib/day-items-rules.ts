@@ -3,7 +3,7 @@
  *  events, events of calendars they follow, and dated records of modules
  *  that keep them. Today and Plan both draw this list, so they can never
  *  disagree about what a day holds. Pure: rows in, items out. */
-import { habitDay, habitSchedule, choreState, choreAssignee, describeChore, describeSchedule, occursOn, addDays, cleanRule, daysIn, toDayNumber, type HabitDay, type Schedule } from './schedule-rules.ts'
+import { habitDay, habitSchedule, choreState, choreAssignee, describeChore, describeLoose, describeSchedule, looseOf, occursOn, addDays, cleanRule, daysIn, toDayNumber, type HabitDay, type Loose, type RuleConfig, type RuleKind, type Schedule } from './schedule-rules.ts'
 import { moduleView, type ModuleView } from './module-view-rules.ts'
 import { checklistProgress } from './notes.ts'
 import type { Task, Habit, HabitLog, Chore, ChoreLog, Supplement, SupplementLog, CalendarEvent, ModuleRecord } from './types'
@@ -92,6 +92,9 @@ export interface DayItemSources {
   payments?: PaymentSource[]
   /** Days already marked paid: payment id and the day it was due. */
   paidPayments?: { payment_id: string; due_date: string; entry_id: string }[]
+  /** Series of the tasks shown, for "after" and flexible repeats (GEN-22):
+   *  their words, and a flexible task waiting on today. */
+  series?: { id: string; rule: RuleKind | string; rule_config: RuleConfig }[]
 }
 
 /** A planned payment as the day list needs it (finance.ts writes these). */
@@ -145,15 +148,26 @@ export function dayItems(days: string[], where: Where, s: DayItemSources): DayIt
   const suppDone = new Set(s.supplementLogs.filter((l) => l.done).map((l) => `${l.supplement_id}|${l.log_date}`))
   const taskRecordRefs = new Set(s.tasks.filter((t) => t.source === 'module' && t.source_ref).map((t) => t.source_ref as string))
 
+  const looseBySeries = new Map<string, Loose>()
+  for (const x of s.series ?? []) { const l = looseOf(x); if (l) looseBySeries.set(x.id, l) }
+
   for (const day of days) {
     for (const t of s.tasks) {
-      if (t.deleted_at || t.planned_date !== day) continue
+      if (t.deleted_at || !t.planned_date) continue
+      const loose = t.series_id ? looseBySeries.get(t.series_id) : undefined
+      // A flexible task not done by its day waits on today: "about every
+      // 7 days" is never late, so it is never carried over or reviewed.
+      const waits = !!loose && loose.mode === 'flexible' && day === s.today && t.planned_date < day && isOpen(t)
+      if (t.planned_date !== day && !waits) continue
       const mk = taskModule(t)
       if (!shows(mk, where, s)) continue
+      const since = waits ? toDayNumber(day) - toDayNumber(t.planned_date) + loose!.every : 0
       out.push({
         key: `task:${t.id}:${day}`, kind: 'task', day, time: hhmm(t.planned_time), minutes: t.duration_min,
-        title: t.title, module_key: mk, done: t.status === 'done', state: null, meta: '',
+        title: t.title, module_key: mk, done: t.status === 'done', state: null,
+        meta: loose ? [describeLoose(loose), waits ? `last done ${since} days ago` : ''].filter(Boolean).join(' · ') : '',
         ref: { table: 'task', id: t.id }, readonly: false, task: t, note: t.notes,
+        ...(loose?.mode === 'flexible' ? { dueness: Math.round((since || loose.every) / loose.every * 100) / 100 } : {}),
       })
     }
     if (shows('habits', where, s)) {
@@ -282,13 +296,17 @@ export function dayItems(days: string[], where: Where, s: DayItemSources): DayIt
 }
 
 /** Unfinished tasks from before the day, newest first, for Today's carry-over
- *  row. Dropped, locked and meal tasks stay out, as in the evening review. */
-export function carryOver(tasks: Task[], day: string): Task[] {
+ *  row. Dropped, locked and meal tasks stay out, as in the evening review,
+ *  and so do flexible repeats (GEN-22), which wait on today instead. */
+export function carryOver(tasks: Task[], day: string, flexible: ReadonlySet<string> = new Set()): Task[] {
   return tasks
     .filter((t) => !t.deleted_at && t.planned_date && t.planned_date < day && t.status !== 'done' && t.status !== 'dropped'
-      && !t.locked && t.source !== 'meal')
+      && !t.locked && t.source !== 'meal' && !(t.series_id && flexible.has(t.series_id)))
     .sort((a, b) => (b.planned_date ?? '').localeCompare(a.planned_date ?? '') || (a.planned_time ?? '99').localeCompare(b.planned_time ?? '99'))
 }
+
+/** Not done and not skipped. */
+const isOpen = (t: Task) => t.status !== 'done' && t.status !== 'dropped'
 
 /** Tasks without a day: the Inbox (PLN-07). */
 export const inbox = (tasks: Task[]) =>

@@ -3,7 +3,7 @@ import { db } from './db'
 import { enabledModules } from './day'
 import { readSettings } from './settings'
 import { dayItems, eventMayTouch, type DayItem, type Where } from './day-items-rules'
-import { addDays } from './schedule-rules'
+import { addDays, looseOf } from './schedule-rules'
 import { useApp } from './store'
 import type { ModuleRecord } from './types'
 // Habits, chores and supplements (engineer B): slots, chore preferences and
@@ -33,11 +33,22 @@ export async function loadDayItems(profileId: string, householdId: string, from:
       .filter((e) => !e.deleted_at && eventMayTouch(e, from, to)).toArray(),
     db.module_record.where('record_date').between(from, to, true, true).filter((r) => r.profile_id === profileId).toArray(),
   ])
+  // Repeats counted from the last time (GEN-22): the series of the tasks
+  // shown, and a flexible task from an earlier day that waits on today.
+  const allSeries = await db.series.where('profile_id').equals(profileId).filter((x) => !x.deleted_at).toArray()
+  const flexible = new Set(allSeries.filter((x) => looseOf(x)?.mode === 'flexible').map((x) => x.id))
+  if (flexible.size && today >= from && today <= to) {
+    const waiting = await db.task.where('[profile_id+planned_date]').between([profileId, ''], [profileId, from], true, false)
+      .filter((t) => !!t.series_id && flexible.has(t.series_id) && !t.deleted_at && t.status !== 'done' && t.status !== 'dropped').toArray()
+    tasks.push(...waiting)
+  }
   const habitIds = habits.map((h) => h.id)
+  // A habit due some days after it was last done needs to know when that was.
+  const looseHabits = new Set(habits.filter((h) => looseOf(h)).map((h) => h.id))
   const choreIds = chores.map((c) => c.id)
   const suppIds = supplements.map((x) => x.id)
   const [habitLogs, choreLogs, supplementLogs, subscriptions] = await Promise.all([
-    habitIds.length ? db.habit_log.where('habit_id').anyOf(habitIds).filter((l) => l.log_date >= habitWeekStart && l.log_date <= to).toArray() : [],
+    habitIds.length ? db.habit_log.where('habit_id').anyOf(habitIds).filter((l) => (l.log_date >= habitWeekStart || looseHabits.has(l.habit_id)) && l.log_date <= to).toArray() : [],
     // Chores need their whole history: when one was last done decides when it is next due.
     choreIds.length ? db.chore_log.where('chore_id').anyOf(choreIds).toArray() : [],
     suppIds.length ? db.supplement_log.where('supplement_id').anyOf(suppIds).filter((l) => l.log_date >= from && l.log_date <= to).toArray() : [],
@@ -60,6 +71,7 @@ export async function loadDayItems(profileId: string, householdId: string, from:
       return { ...e, calendar_name: sub?.name ?? null, calendar_colour: sub?.colour ?? null }
     }),
     records,
+    series: allSeries,
     recordTitle: recordTitle,
     supplementSlots: slots,
     chorePrefs: prefs,

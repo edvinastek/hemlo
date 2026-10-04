@@ -411,7 +411,7 @@ function TaskForm({ task, isNew, onClose, onDuplicate }: {
               {series !== undefined && (!inSeries || running) && (day ? (
                 <div className="ts-repeatbox">
                   <RepeatPicker key={`${series?.id ?? 'new'}:${pickerKey}`} value={repeat} onChange={setRepeatEdit} start={start} today={today}
-                    kinds={TASK_RULE_KINDS} allowCount noneLabel={inSeries ? 'Stop repeating' : 'Does not repeat'} />
+                    kinds={TASK_RULE_KINDS} allowCount loose noneLabel={inSeries ? 'Stop repeating' : 'Does not repeat'} />
                   {running && (
                     <button type="button" className="btn ts-stop" onClick={() => void askStop()}>Stop repeating</button>
                   )}

@@ -361,7 +361,7 @@ export function HabitSheet({ profileId, habit, today, nextOrder, onClose }: {
       <label>Name
         <input className="serif" value={draft.name} onChange={(e) => set('name', e.target.value)} placeholder="Mobility" autoFocus={!habit} maxLength={120} />
       </label>
-      <RepeatPicker value={repeat} start={start} today={today} kinds={[...HABIT_KINDS]} allowNone={false}
+      <RepeatPicker value={repeat} start={start} today={today} kinds={[...HABIT_KINDS]} allowNone={false} loose
         onChange={(v) => setDraft((d) => ({ ...d, rule: v.rule ?? 'daily', rule_config: v.rule_config, end_date: v.end_date }))} />
       <label>Starts on
         <input type="date" value={draft.start_date ?? ''} onChange={(e) => set('start_date', e.target.value || null)} />

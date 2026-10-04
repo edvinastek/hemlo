@@ -9,7 +9,7 @@
 
 import {
   habitSchedule, habitDay, daysIn, occursOn, isDay as isDayString, mondayOf, toDayNumber, fromDayNumber,
-  addDays as addDayString, type HabitLike, type RuleKind, type RuleConfig, type Schedule,
+  addDays as addDayString, looseOf, looseState, type HabitLike, type Loose, type RuleKind, type RuleConfig, type Schedule,
 } from './schedule-rules.ts'
 
 export type HabitSchedule = 'daily' | 'weekdays' | 'weekly'
@@ -220,6 +220,8 @@ export function habitStreak(h: HabitLike, done: Iterable<string>, day: string): 
   const doneDays = new Set<string>()
   for (const d of done) if (d <= day) doneDays.add(d)
   if (!doneDays.size) return { n: 0, unit }
+  const loose = looseOf(s)
+  if (loose) return { n: looseStreak(loose, doneDays, day), unit: 'time' }
   if (s.rule === 'times_per_week') {
     const met = weeksMet(doneDays, Math.max(1, s.rule_config.times ?? 1))
     let n = 0
@@ -238,6 +240,42 @@ export function habitStreak(h: HabitLike, done: Iterable<string>, day: string): 
     else if (due[i] !== day) break
   }
   return { n, unit }
+}
+
+/* ---------- after completion and flexible habits (GEN-22) ---------- */
+
+/** The most days between two times that still keep a run going: an "after"
+ *  habit's own number; a flexible one gets half as long again, since
+ *  "about every 7 days" is kept at 9 or 10 days too. */
+export function looseLimit(l: Loose): number {
+  return l.mode === 'after' ? l.every : Math.ceil(l.every * 1.5)
+}
+
+const gapDays = (a: string, b: string) => toDayNumber(b) - toDayNumber(a)
+
+/** Times done in a row, each within the limit of the one before, and the
+ *  last within it of the day shown (a run still open is not broken). */
+function looseStreak(l: Loose, doneDays: Set<string>, day: string): number {
+  const list = [...doneDays].sort()
+  const limit = looseLimit(l)
+  if (gapDays(list[list.length - 1], day) > limit) return 0
+  let n = 1
+  for (let i = list.length - 1; i > 0 && gapDays(list[i - 1], list[i]) <= limit; i--) n++
+  return n
+}
+
+/** For the strength: 1 for each time done, and 0 for each stretch of the
+ *  limit that went by without it (before the first time, nothing counts). */
+function looseValues(l: Loose, doneDays: Set<string>, day: string): number[] {
+  const list = [...doneDays].sort()
+  const limit = looseLimit(l)
+  const out: number[] = []
+  list.forEach((d, i) => {
+    if (i > 0) for (let k = Math.floor((gapDays(list[i - 1], d) - 1) / limit); k > 0; k--) out.push(0)
+    out.push(1)
+  })
+  if (list.length) for (let k = Math.floor((gapDays(list[list.length - 1], day) - 1) / limit); k > 0; k--) out.push(0)
+  return out
 }
 
 /** How a run reads: "12 days running", "3 weeks running", "6 times running".
@@ -272,7 +310,10 @@ export function habitStrength(h: HabitLike, done: Iterable<string>, day: string)
   // Values per period, oldest first: 1 done, 0 missed, a share for a week
   // that got part of its number.
   const values: number[] = []
-  if (s.rule === 'times_per_week') {
+  const loose = looseOf(s)
+  if (loose) {
+    values.push(...looseValues(loose, new Set([...doneDays].filter((d) => d >= from)), end))
+  } else if (s.rule === 'times_per_week') {
     const times = Math.max(1, s.rule_config.times ?? 1)
     const thisWeek = fromDayNumber(mondayOf(toDayNumber(day)))
     for (let mon = fromDayNumber(mondayOf(toDayNumber(from))); mon <= end; mon = addDayString(mon, 7)) {
@@ -289,7 +330,7 @@ export function habitStrength(h: HabitLike, done: Iterable<string>, day: string)
     }
   }
   if (!values.length) return 0
-  const perDay = s.rule === 'times_per_week' ? 1 / 7 : Math.min(1, values.length / Math.max(1, toDayNumber(end) - toDayNumber(from) + 1))
+  const perDay = loose ? 1 / loose.every : s.rule === 'times_per_week' ? 1 / 7 : Math.min(1, values.length / Math.max(1, toDayNumber(end) - toDayNumber(from) + 1))
   const halfLife = Math.max(3, Math.round(14 * perDay))
   const step = 1 - Math.pow(0.5, 1 / halfLife)
   let strength = 0
@@ -335,6 +376,15 @@ function historyCell(h: HabitLike, doneDays: Set<string>, d: string, today: stri
   if (d > today) return 'future'
   const s = habitSchedule(h)
   if (d < s.start_date || (s.end_date && d > s.end_date)) return 'off'
+  const loose = looseOf(s)
+  if (loose) {
+    // Never "missed" for a flexible habit. An "after" one is missed once,
+    // on the day it fell due and was not done.
+    const st = looseState(loose, isDayString(h.start_date) ? h.start_date : null, s.end_date ?? null, d, [...doneDays].filter((x) => x <= d))
+    if (!st.shows) return 'off'
+    if (d === today) return 'open'
+    return loose.mode === 'after' && st.overdueDays === 0 && st.lastDone ? 'missed' : 'off'
+  }
   if (s.rule === 'times_per_week') return d === today ? 'open' : (habitDay(h, d, doneDays) === 'met' ? 'off' : 'open')
   if (!occursOn(s, d)) return 'off'
   return d === today ? 'open' : 'missed'
@@ -360,6 +410,14 @@ export function habitKept(h: HabitLike, done: Iterable<string>, from: string, to
   const s = habitSchedule(h)
   const doneDays = new Set<string>()
   for (const d of done) if (d >= from && d <= to) doneDays.add(d)
+  const loose = looseOf(s)
+  if (loose) {
+    // Times done, against the times it came round (done, or missed as the
+    // history shows it).
+    let missed = 0
+    for (let d = from; d <= to; d = addDayString(d, 1)) if (historyCell(h, new Set(done), d, to) === 'missed') missed++
+    return { done: doneDays.size, due: doneDays.size + missed, unit: 'day' }
+  }
   if (s.rule === 'times_per_week') {
     const met = weeksMet(doneDays, Math.max(1, s.rule_config.times ?? 1))
     let due = 0

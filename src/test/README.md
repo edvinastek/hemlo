@@ -213,6 +213,11 @@ Types, then every check that needs nothing but Node. CI runs the same command.
 - `selection` — selecting several rows (v18, GEN-52/53): ticking one, "Select all shown" and "Clear shown" (rows
   ticked under another search kept), the ticked rows in the list's order, rows that have gone dropped, the count in
   words, and a bulk delete asking once more only for several.
+- `loose` — repeats counted from the last time it was done (v18, GEN-22): "after completion" and "flexible" in the one
+  repeat control (stored as a daily rule with a mode), on the chores' engine; habits due, their runs, strength and
+  history (a flexible habit is never "missed"); a task series lays out only its first day and the next is made a set
+  number of days after a tick (not past its end or number of times); a flexible task waits on today with how due it
+  is, never in the carry-over.
 - `notetemplates` — note templates: fill-ins ({date}, {weekday}, {time}, {title}, {day count}), the plain-word chips,
   putting a template in a note or asking for it after the task, keeping the list (add, edit, order, remove and undo);
   recipes in notes: the block found again, "Update from recipe" only when the recipe changed (ticks kept), several

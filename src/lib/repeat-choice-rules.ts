@@ -1,6 +1,6 @@
 /** The repeat control's list (RepeatPicker.tsx) and the rule each choice
  *  stands for, in the one repeat engine's shape (schedule-rules.ts). Pure. */
-import { cleanDates, weekdayOf, type RuleConfig, type RuleKind } from './schedule-rules.ts'
+import { cleanDates, MAX_LOOSE_DAYS, weekdayOf, type RuleConfig, type RuleKind } from './schedule-rules.ts'
 
 /** What the control gives back: a rule in the one repeat engine's shape
  *  (schedule-rules.ts), and the last day, if there is one. `null` rule means
@@ -19,6 +19,8 @@ export const NO_REPEAT: RepeatValue = { rule: null, rule_config: {}, end_date: n
  *  ("Every few days" is daily with n). */
 export type Choice = 'never' | 'daily' | 'every_n_days' | 'weekdays' | 'weekends' | 'weekly' | 'every_n_weeks'
   | 'monthly' | 'monthly_nth' | 'monthly_last' | 'yearly' | 'times_per_week' | 'dates'
+  /** GEN-22: counted from the last time it was done, not from the calendar. */
+  | 'after' | 'flexible'
 
 export const LONG_DAYS = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday']
 export const MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December']
@@ -28,11 +30,17 @@ export function choiceOf(v: Pick<RepeatValue, 'rule' | 'rule_config'>): Choice {
   const n = v.rule_config?.n ?? 1
   switch (v.rule) {
     case null: case undefined: return 'never'
-    case 'daily': return n > 1 ? 'every_n_days' : 'daily'
+    case 'daily': return v.rule_config?.mode === 'after' || v.rule_config?.mode === 'flexible' ? v.rule_config.mode : n > 1 ? 'every_n_days' : 'daily'
     case 'monthly_nth': return v.rule_config?.nth === -1 ? 'monthly_last' : 'monthly_nth'
     default: return v.rule
   }
 }
+
+/** The choices counted from the last time it was done (GEN-22). */
+export const isLooseChoice = (c: Choice) => c === 'after' || c === 'flexible'
+
+/** The days a loose choice's number box offers. */
+export const LOOSE_DAYS = { min: 1, max: MAX_LOOSE_DAYS } as const
 
 /** A choice turned into a rule, keeping what still applies from the old one
  *  and taking the rest from the first day ("monthly" starts on its date). */
@@ -55,6 +63,8 @@ export function ruleFor(choice: Choice, start: string, was: RuleConfig = {}, tod
     case 'yearly': return { rule: 'yearly', rule_config: { month: Number(start.slice(5, 7)), day: dom } }
     case 'times_per_week': return { rule: 'times_per_week', rule_config: { times: Math.min(7, Math.max(1, was.times ?? 3)) } }
     case 'dates': return { rule: 'dates', rule_config: { dates: cleanDates(was.dates).length ? cleanDates(was.dates) : (!today || start >= today ? [start] : []) } }
+    // A week unless a number of days was already set.
+    case 'after': case 'flexible': return { rule: 'daily', rule_config: { n: n(1, MAX_LOOSE_DAYS, 7), mode: choice } }
   }
 }
 

@@ -31,7 +31,16 @@ export interface RuleConfig {
   dates?: string[]
   /** times_per_week: how many times in each Monday-to-Sunday week. */
   times?: number
+  /** GEN-22: not on fixed days but counted from the last time it was done.
+   *  Stored on a 'daily' rule whose `n` is the number of days, so every
+   *  table that keeps a rule keeps these too, and an app that does not know
+   *  them still reads "every n days".
+   *  - 'after': due n days after it was last done ("7 days after");
+   *  - 'flexible': about every n days, growing more due, never "late". */
+  mode?: LooseMode
 }
+
+export type LooseMode = 'after' | 'flexible'
 
 export interface Schedule {
   rule: RuleKind
@@ -188,7 +197,36 @@ export function cleanRule(rule: unknown, cfg: unknown): { rule: RuleKind | null;
   if (c.nth != null) out.nth = Number(c.nth) === -1 ? -1 : whole(c.nth, 1, 5, 1)
   if (Array.isArray(c.weekdays)) out.weekdays = [...new Set(c.weekdays.filter((w) => Number.isInteger(w) && (w as number) >= 0 && (w as number) <= 6) as number[])].sort()
   if (Array.isArray(c.dates)) out.dates = cleanDates(c.dates)
+  if (kind === 'daily' && (c.mode === 'after' || c.mode === 'flexible')) out.mode = c.mode
   return { rule: kind, rule_config: out }
+}
+
+/* ---------- after completion and flexible (GEN-22) -------------------- */
+
+export interface Loose { mode: LooseMode; every: number }
+
+/** The longest gap "after" and "flexible" take, as for chores. */
+export const MAX_LOOSE_DAYS = 730
+
+/** An "after completion" or "flexible" rule, or null for a rule on fixed
+ *  days. Both are a daily rule with a mode; `every` is its number of days. */
+export function looseOf(s: { rule?: RuleKind | string | null; rule_config?: RuleConfig | null } | null | undefined): Loose | null {
+  const mode = s?.rule === 'daily' ? s.rule_config?.mode : undefined
+  if (mode !== 'after' && mode !== 'flexible') return null
+  return { mode, every: whole(s?.rule_config?.n, 1, MAX_LOOSE_DAYS, 7) }
+}
+
+/** Where an "after" or flexible thing stands on a day, from the days it was
+ *  done: the chores' engine (choreState), so a habit, a task and a chore
+ *  that come round "about every 7 days" are due on the same day. */
+export function looseState(loose: Loose, start: string | null, end: string | null, day: string, doneDays: Iterable<string>): ChoreState {
+  const logs: ChoreDone[] = [...doneDays].map((d) => ({ done_on: d, done_by: null }))
+  return choreState({ mode: loose.mode, rule: null, rule_config: {}, every_days: loose.every, start_date: start, end_date: end }, day, logs)
+}
+
+/** A loose rule in words: "7 days after it was last done", "About every 7 days". */
+export function describeLoose(l: Loose): string {
+  return l.mode === 'after' ? `${l.every} ${l.every === 1 ? 'day' : 'days'} after it was last done` : `About every ${l.every} ${l.every === 1 ? 'day' : 'days'}`
 }
 
 /* ---------- habits ---------------------------------------------------- */
@@ -232,6 +270,10 @@ export function habitDay(h: HabitLike, day: string, doneDays: Iterable<string>):
   if (done.has(day)) return 'done'
   const s = habitSchedule(h)
   if (day < s.start_date || (s.end_date && day > s.end_date)) return 'off'
+  // After completion or flexible (GEN-22): due once its days have passed
+  // since it was last done, and due until it is done again.
+  const loose = looseOf(s)
+  if (loose) return looseState(loose, isDay(h.start_date) ? h.start_date : null, s.end_date ?? null, day, done).shows ? 'due' : 'off'
   if (s.rule === 'times_per_week') {
     const mon = fromDayNumber(mondayOf(toDayNumber(day)))
     let n = 0
@@ -375,6 +417,10 @@ export function shortDate(day: string): string {
 export function describeSchedule(s: Schedule): string {
   const days = (ws: number[]) => WEEK_ORDER.filter((w) => ws.includes(w)).map(dayName).join(', ')
   const cfg = s.rule_config ?? {}
+  const loose = looseOf(s)
+  if (loose) {
+    return describeLoose(loose) + (s.end_date ? ` until ${shortDate(s.end_date)}` : '') + (s.occurrence_count != null ? `, ${s.occurrence_count} times` : '')
+  }
   const every = (n: number | undefined, one: string, many: string) => (n && n > 1 ? `Every ${n} ${many}` : one)
   let text: string
   switch (s.rule) {
@@ -421,8 +467,7 @@ export function describeSchedule(s: Schedule): string {
 /** A chore's schedule in words, whatever its mode. */
 export function describeChore(c: ChoreLike): string {
   if (c.paused) return 'Paused'
-  if (c.mode === 'after') return `${c.every_days ?? 7} days after it was last done`
-  if (c.mode === 'flexible') return `About every ${c.every_days ?? 7} days`
+  if (c.mode !== 'fixed') return describeLoose({ mode: c.mode, every: c.every_days ?? 7 })
   if (!c.rule) return 'No schedule'
   return describeSchedule({ rule: c.rule, rule_config: c.rule_config, start_date: c.start_date ?? '2000-01-03', end_date: c.end_date })
 }

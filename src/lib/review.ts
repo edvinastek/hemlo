@@ -1,5 +1,5 @@
 import { db, getMeta, setMeta } from './db'
-import { saveTask } from './tasks'
+import { followTick, saveTask } from './tasks'
 import type { Task } from './types'
 import { applyReview, cleanLimit, cleanTime, localDay, toReview, type ReviewAction } from './review-rules'
 
@@ -31,7 +31,9 @@ export async function loadReview(profileId: string, day: string): Promise<Task[]
     .where('[profile_id+planned_date]')
     .between([profileId, ''], [profileId, day], true, true)
     .toArray()
-  return toReview(rows, profileId, day)
+  // Flexible repeats are never late (GEN-22): nothing to review.
+  const flexible = await (await import('./series')).flexibleSeriesIds(profileId)
+  return toReview(rows.filter((t) => !t.series_id || !flexible.has(t.series_id)), profileId, day)
 }
 
 /** Apply one action and save only the fields it changed. The row is re-read
@@ -40,5 +42,7 @@ export async function reviewTask(task: Task, action: ReviewAction, day: string):
   const current = (await db.task.get(task.id)) ?? task
   const { limit } = await reviewSettings()
   const { task: next, changed } = applyReview(current, action, { day, today: localDay(new Date()), limit })
-  return saveTask(next, changed)
+  const saved = await saveTask(next, changed)
+  if (saved.status === 'done' && current.status !== 'done') await followTick(current, true)
+  return saved
 }

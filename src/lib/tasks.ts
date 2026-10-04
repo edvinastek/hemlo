@@ -39,7 +39,24 @@ export async function setTaskDone(task: Task, done: boolean) {
     completed_at: done ? new Date().toISOString() : null,
   }, ['status', 'completed_at'])
   if (task.source === 'meal') await (await import('./meals')).mealTaskTicked(row, done)
+  if (task.series_id) await followTick(task, done)
   return row
+}
+
+/** A task of an "after completion" or flexible series (GEN-22): its tick
+ *  makes the next one, and unticking takes that one away again. Every tick
+ *  comes through here (Today, Plan, the widget, a reminder, the review). */
+export async function followTick(before: Task, done: boolean) {
+  const series = await import('./series')
+  if (done && before.status !== 'done') await series.followDone(before)
+  else if (!done && before.status === 'done') await series.unfollowDone(before, localDayOf(before.completed_at))
+}
+
+/** The person's day of a moment ('yyyy-MM-dd' on this phone), today when unknown. */
+function localDayOf(at: string | null): string {
+  const d = at ? new Date(at) : new Date()
+  const ok = Number.isFinite(d.getTime()) ? d : new Date()
+  return `${ok.getFullYear()}-${String(ok.getMonth() + 1).padStart(2, '0')}-${String(ok.getDate()).padStart(2, '0')}`
 }
 
 /** Deleting keeps the row with a date on it, so the deletion syncs to every

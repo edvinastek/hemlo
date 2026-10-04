@@ -64,3 +64,9 @@ import { CopySheet } from '../ui/CopySheet'
 ## Log
 - useSelection + selection-rules + SelectBar (SelectAction, SelectDelete) built and checked.
 - CopySheet `meals` case (copy.ts runCopy → copyMeals; copy-rules mealCopySummary) built and checked.
+- GEN-22: "after completion" and "flexible" in RepeatPicker (`loose` prop) for tasks (TaskSheet), habits (Habits.tsx, one prop)
+  and module records (RecordSheet.tsx, one prop). Stored as rule 'daily' + rule_config {n, mode:'after'|'flexible'} so every
+  table's rule CHECK accepts it (no migration). Engine = schedule-rules choreState via looseState(). Series lay out only
+  their first day; tasks.ts setTaskDone → series.followDone makes the next one n days after the tick (shared occurrence id),
+  unticking takes it back. Flexible tasks wait on today (day-items), never in carry-over (ReviewCard one line) or the
+  evening review (review.ts one line). notify.ts reminder tick now goes through setTaskDone.
