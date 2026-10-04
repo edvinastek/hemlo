@@ -14,6 +14,7 @@ import { choreAssignee, choreState, dayName, shortDate, weekdayOf, WEEK_ORDER, t
 import {
   STARTER_PACKS, choreRooms, choreScheduleText, choreSections, choreStatus, cleanMemberName, duenessFill, heldBack,
   choreFromRecord, lastDoneText, memberName, packChoresToAdd, roomsIn, type ChorePrefs, type Member, type StarterPack,
+  mineOnly,
 } from '../lib/chore-rules'
 import { cachedMembers, chorePrefs, fetchMembers, pauseAll, saveChorePrefs, sendPendingName, setMyMemberName } from '../lib/household'
 import { checklistProgress, hasNote, parseNote, toggleCheck } from '../lib/notes'
@@ -116,6 +117,11 @@ export function Chores({ profileId, day }: { profileId: string; day: string }) {
           chores.length > 0 && { label: 'Starter packs…', onSelect: () => setFold('packs') },
           { label: 'Holiday and light days…', onSelect: () => setFold('holiday') },
           { label: 'Names in the household…', onSelect: () => setFold('names') },
+          // A shared household: Today shows each member their own chores, or everyone's (v18).
+          members.length > 1 && {
+            label: mineOnly(prefs, members.length) ? 'Today: show everyone’s chores' : 'Today: show only my chores',
+            onSelect: () => void saveChorePrefs(profileId, { ...prefs, mine_only: !mineOnly(prefs, members.length) }),
+          },
         ]} />
       )}
       <div className="track-head">

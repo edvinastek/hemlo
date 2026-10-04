@@ -11,7 +11,7 @@ import type { Task, Habit, HabitLog, Chore, ChoreLog, Supplement, SupplementLog,
 // and schedules, flexible chores held back on light days or past a cap, and a
 // habit's part of the day.
 import { supplementGroups, DEFAULT_SLOTS, habitWhen, type SupplementSlotDef } from './tracking-rules.ts'
-import { heldBack, type ChorePrefs } from './chore-rules.ts'
+import { choreIsMine, heldBack, type ChorePrefs } from './chore-rules.ts'
 import { paymentDue, type Payment } from './finance-rules.ts'
 import { isTripTask, TRIP_ROUTE } from './shopping-rules.ts'
 
@@ -86,6 +86,9 @@ export interface DayItemSources {
   supplementSlots?: SupplementSlotDef[]
   /** Light days and a daily cap for flexible chores. */
   chorePrefs?: ChorePrefs
+  /** Household (v18, W3): on Today and the widget, only this member's chores
+   *  (assigned to them, their turn, or nobody's in particular). */
+  choresFor?: string | null
   /* ---- Planned payments (FIN-04, GEN-40; engineer H) ---- */
   /** Finance's planned payments (rent, subscriptions), each with its line
    *  under the title already written ("€950.00 · Rent · monthly"). */
@@ -190,6 +193,7 @@ export function dayItems(days: string[], where: Where, s: DayItemSources): DayIt
           st = { ...st, shows: expected, doneToday: false, overdueDays: 0 }
         }
         if (!st.shows) continue
+        if (where !== 'plan' && s.choresFor && !choreIsMine(c, day, logs, s.choresFor)) continue
         const who = choreAssignee(c, day, logs).map((id) => s.memberName?.(id) ?? '').filter(Boolean)
         const overdue = st.overdueDays > 0 ? `${st.overdueDays} ${st.overdueDays === 1 ? 'day' : 'days'} waiting` : ''
         choreItems.push({
