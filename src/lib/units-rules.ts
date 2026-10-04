@@ -146,8 +146,13 @@ const F_TO_VES: Record<string, string> = { leaf: 'leaves', loaf: 'loaves', half:
 export function pluralOf(name: string): string {
   const w = name.trim()
   if (!w || noVowel(w) || w.includes('.')) return w
+  // A measure followed by how it is cut stays as it is: "2 tbsp chopped".
+  if (noVowel(w.split(' ')[0])) return w
   const lower = w.toLowerCase()
   if (F_TO_VES[lower]) return F_TO_VES[lower]
+  // "outer leaf" → "outer leaves": the last word decides.
+  const last = lower.split(' ').pop() ?? ''
+  if (last !== lower && F_TO_VES[last]) return `${w.slice(0, w.length - last.length)}${F_TO_VES[last]}`
   if (/(ss|x|z|ch|sh)$/i.test(w)) return `${w}es`
   if (/s$/i.test(w)) return w
   if (/[^aeiou]y$/i.test(w)) return `${w.slice(0, -1)}ies`

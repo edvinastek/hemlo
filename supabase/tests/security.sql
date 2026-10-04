@@ -1049,7 +1049,17 @@ begin
 end $$;
 
 insert into _r (check_name, expected, actual) values
-  ('The catalogue holds NEVO''s 2,328 foods', '2328', (select count(*) from food where nevo_code is not null and deleted_at is null)::text),
+  ('The catalogue holds NEVO''s 2,328 foods', '2328', (select count(*) from food where nevo_code is not null)::text),
+  -- 035: NEVO's "Human milk" is hidden from the shared list; its row stays.
+  ('Every NEVO food but Human milk is shown', '2327 297', (select count(*) from food where nevo_code is not null and deleted_at is null)::text
+     || ' ' || (select string_agg(nevo_code::text, ',') from food where nevo_code is not null and deleted_at is not null)),
+  -- 035: USDA's units are additions, marked; the staples it adds say where they came from.
+  ('Every shared food''s units pass the unit rules', '0', (select count(*) from food where owner_id is null and not private.food_units_ok(units))::text),
+  ('USDA units are marked as USDA''s', 'USDA FoodData Central', (select u ->> 'source' from food, jsonb_array_elements(units) u where nevo_code = 14 and u ->> 'name' = 'floret')),
+  ('Portie-online units stay first where USDA adds to them', 'Portie-online 2026/2.0', (select units -> 0 ->> 'source' from food where nevo_code = 19)),
+  ('The XL egg is there', '68.6', (select u ->> 'g' from food, jsonb_array_elements(units) u where nevo_code = 83 and u ->> 'size' = 'XL')),
+  ('Bagel and chicken thigh are shared USDA foods', '3', (select count(*) from food where owner_id is null and deleted_at is null and source = 'usda'
+     and source_version = 'USDA FoodData Central, SR Legacy (April 2018)' and source_ref like 'fdc:%')::text),
   ('Every NEVO food says which NEVO it is', '0', (select count(*) from food where nevo_code is not null and source_version is distinct from 'NEVO-online 2025/9.0')::text),
   ('A replaced food is hidden, not deleted', '0', (select count(*) from food where replaced_by is not null and deleted_at is null)::text),
   ('No ingredient points at a replaced food', '0', (select count(*) from recipe_line l join food f on f.id = l.food_id where f.replaced_by is not null)::text),
