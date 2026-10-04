@@ -95,6 +95,10 @@ export interface DayItemSources {
   /** Series of the tasks shown, for "after" and flexible repeats (GEN-22):
    *  their words, and a flexible task waiting on today. */
   series?: { id: string; rule: RuleKind | string; rule_config: RuleConfig }[]
+  /** Sleep on (competitor review 5.1 #2): today's night, logged or not, and
+   *  the time the person means to wake (bedtime plus the target), where the
+   *  "Log last night" item sits in the morning. */
+  sleep?: { day: string; row: { id: string; went_to_bed: string | null; woke_at: string | null; hours: number | null; quality: number | null } | null; wake: string | null } | null
 }
 
 /** A planned payment as the day list needs it (finance.ts writes these). */
@@ -253,6 +257,19 @@ export function dayItems(days: string[], where: Where, s: DayItemSources): DayIt
         meta: [allDay ? 'All day' : '', e.location, followed ? e.calendar_name ?? 'Followed calendar' : '', eventRepeatWords(e)].filter(Boolean).join(' · '),
         ref: { table: 'calendar_event', id: e.id }, readonly: followed,
         allDay, colour: followed ? e.calendar_colour ?? null : null,
+      })
+    }
+    // Sleep's morning item: last night, to log, or as it was logged. It
+    // opens the night in the record sheet (a new one when not logged).
+    if (s.sleep && s.sleep.day === day && shows('sleep', where, s)) {
+      const row = s.sleep.row
+      const hours = row?.hours != null ? `${Number(row.hours).toFixed(1)} h` : ''
+      out.push({
+        key: `sleep:${day}`, kind: 'record', day, time: hhmm(row?.woke_at) ?? s.sleep.wake, minutes: null,
+        title: row ? 'Last night' : 'Log last night', module_key: 'sleep', done: !!row, state: null,
+        meta: row ? [row.went_to_bed && row.woke_at ? `${hhmm(row.went_to_bed)} to ${hhmm(row.woke_at)}` : '', hours,
+          row.quality != null ? `quality ${row.quality} of 5` : ''].filter(Boolean).join(' · ') : '',
+        ref: { table: 'sleep_log', id: row?.id ?? '' }, readonly: false,
       })
     }
     for (const r of s.records) {

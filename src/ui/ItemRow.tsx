@@ -126,7 +126,7 @@ function metaLine({ item, colour, moduleName }: Props): string {
   }
   // "All day" already stands in the margin.
   if (item.kind === 'event') return [item.minutes ? `${item.minutes} min` : null, (item.allDay ? item.meta.replace(/^All day( · )?/, '') : item.meta) || null].filter(Boolean).join(' · ')
-  if (item.kind === 'record') return moduleName ?? ''
+  if (item.kind === 'record') return item.meta || moduleName || ''
   return item.meta
 }
 

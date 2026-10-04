@@ -70,9 +70,9 @@ is('the review is not counted for a day ahead', keys(day({ day: '2026-09-30', re
 is('a deleted evening task does not count', keys(day({ tasks: [task({ planned_time: '20:00', deleted_at: 'x' })] })), ['today'])
 
 // Sleep.
-is('sleep on, today: Sleep', keys(day({ enabled: ['sleep'] })), ['today', 'sleep'])
+is('sleep on, today: no tab, last night is an item on the rail (v18)', keys(day({ enabled: ['sleep'] })), ['today'])
 is('sleep on, yesterday with nothing logged: no tab', keys(day({ day: '2026-09-27', enabled: ['sleep'] })), ['today'])
-is('sleep on, a logged night: Sleep', keys(day({ day: '2026-09-27', enabled: ['sleep'], sleepLog: true })), ['today', 'sleep'])
+is('sleep on, a logged night: no tab either (v18)', keys(day({ day: '2026-09-27', enabled: ['sleep'], sleepLog: true })), ['today'])
 is('a sleep log with sleep off: no tab', keys(day({ sleepLog: true })), ['today'])
 
 // Training.
@@ -97,7 +97,7 @@ const busy = day({
   tasks: [task({ category: 'Training' }), task({ category: 'Learning' })],
   records: ['projects', 'u_b', 'u_a'], names: { u_a: 'Allotment', u_b: 'Books' },
 })
-is('tabs follow the day', labels(busy), ['Today', 'Habits', 'Work', 'Training', 'Learning', 'Projects', 'Allotment', 'Books', 'Evening', 'Sleep'])
+is('tabs follow the day', labels(busy), ['Today', 'Habits', 'Work', 'Training', 'Learning', 'Projects', 'Allotment', 'Books', 'Evening'])
 
 // Choosing, and falling back.
 const tabs = dayTabs(day({ work: { on: true, days: [1] } }))
@@ -114,7 +114,8 @@ is('Today lists everything', count('today'), 4)
 is('Work lists the Work section', count('work'), 1)
 is('Evening lists from 18:00', count('evening'), 1)
 is('a module tab lists its own', [count('m:training', 'training'), count('m:u_a', 'u_a')], [1, 1])
-is('Body and Sleep have no rail', [count('body'), count('sleep')], [null, null])
+is('Body lists its modules\' items on the rail (v18); Sleep has none', [count('body'), count('sleep')], [0, null])
+is('…a habit\'s task is one of them', tabTasks({ key: 'body', label: 'Body' }, [task({ module_key: 'habits' }), task({ category: 'Work' })]).length, 1)
 
 // A record as one line.
 const fields = entityFields({ entities: [{ name: 'plant', fields: [

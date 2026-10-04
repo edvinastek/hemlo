@@ -189,5 +189,15 @@ is('the readers keep a repeating event long after its first day', [eventMayTouch
   [true, false, false])
 is('no words for a one-off', eventRepeatWords({ ...choir, rule: null }), '')
 
+// Sleep's morning item (v18, competitor review 5.1 #2): last night, to log or as logged.
+const sleepSrc = { ...base, enabled: ['sleep'], sleep: { day: SAT, row: null, wake: '07:00' } }
+const toLog = dayItems([SAT], 'today', sleepSrc)
+is('sleep on: "Log last night" at the wake time', toLog.map((i) => [i.title, i.time, i.module_key, i.done, i.ref.id]), [['Log last night', '07:00', 'sleep', false, '']])
+const logged = dayItems([SAT], 'today', { ...sleepSrc, sleep: { day: SAT, row: { id: 'n1', went_to_bed: '23:10:00', woke_at: '06:50:00', hours: 7.67, quality: 4 }, wake: '07:00' } })
+is('logged: the night, at the time woken', logged.map((i) => [i.title, i.time, i.meta, i.done, i.ref.id]), [['Last night', '06:50', '23:10 to 06:50 · 7.7 h · quality 4 of 5', true, 'n1']])
+is('sleep off: no item', dayItems([SAT], 'today', { ...sleepSrc, enabled: [] }).length, 0)
+is('only on its own day', dayItems([SUN], 'today', sleepSrc).length, 0)
+is('kept off Today: not on Today', dayItems([SAT], 'today', { ...sleepSrc, views: { sleep: { today: false } } }).length, 0)
+
 if (fail) { console.error(`\n${fail} failed`); process.exit(1) }
 console.log('\ndayitems: all good')

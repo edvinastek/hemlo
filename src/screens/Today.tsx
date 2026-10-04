@@ -14,9 +14,8 @@ import { rangeFor } from '../lib/transfer-rules'
 import { BodySection } from '../sections/BodySection'
 import { CarryOverRow, ReviewCard } from '../sections/ReviewCard'
 import { ModuleDay } from '../sections/ModuleDay'
-import { SleepDay } from '../sections/SleepDay'
 import { TodayCards } from '../sections/TodayCards'
-import { activeTab, dayTabs, isEvening, isWork, type DayTab } from '../lib/day-tabs'
+import { activeTab, BODY_MODULES, dayTabs, isEvening, isWork, type DayTab } from '../lib/day-tabs'
 import { useNavigate } from 'react-router-dom'
 import { isModuleOn, loadDayInput } from '../lib/day'
 import { dayTotals } from '../lib/nutrition'
@@ -105,15 +104,16 @@ export function Today() {
     if (input && input.day === day && tab.key !== section) setSection(tab.key)
   }, [input, day, tab.key, section])
 
-  // What each tab shows on the rail. Body and Sleep have their own sections.
+  // What each tab shows on the rail. Body lists its modules' items under
+  // the weigh-in (habits and supplements are never drawn twice, 5.1 #2).
   const filter = useCallback((i: DayItem): boolean => {
+    if (tab.key === 'body') return BODY_MODULES.includes(i.module_key ?? '')
     if (tab.key === 'work') return !!i.task && isWork(i.task)
     if (tab.key === 'evening') return i.task ? isEvening(i.task) : (i.time ?? '') >= '18:00'
     if (tab.module) return i.module_key === tab.module
     return true
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [tab.key, tab.module])
-  const railed = tab.key !== 'body' && tab.key !== 'sleep'
 
   return (
     <div className="page today-page">
@@ -123,7 +123,7 @@ export function Today() {
             <h1 className="page-date">{longDate(day)}</h1>
             <PageMenu label="More for Today" sheets={exp.sheet} items={[
               { label: waiting ? `Inbox (${waiting} waiting)` : 'Inbox', onSelect: () => navigate('/plan?view=inbox') },
-              railed && { label: selecting ? 'Stop selecting' : 'Select tasks', onSelect: () => setSelecting((x) => !x) },
+              { label: selecting ? 'Stop selecting' : 'Select tasks', onSelect: () => setSelecting((x) => !x) },
               ...railMenu,
               exp.item,
             ]} />
@@ -171,16 +171,13 @@ export function Today() {
             {tab.key === 'today' && profile && <ReviewCard profileId={profile.id} day={day} variant="compact" />}
             {tab.key === 'body' && profile && <BodySection profileId={profile.id} day={day} parts={tab.parts} />}
             {tab.key === 'evening' && profile && <ReviewCard profileId={profile.id} day={day} variant="full" />}
-            {tab.key === 'sleep' && profile && <SleepDay profileId={profile.id} day={day} />}
             {tab.module && profile && <ModuleDay profileId={profile.id} day={day} moduleKey={tab.module} label={tab.label} />}
           </div>
 
           <div className="today-main">
-            {railed && (
-              <DayRail day={day} where="today" filter={tab.key === 'today' ? undefined : filter}
-                emptyText={tab.key === 'today' ? 'Nothing planned yet.' : `Nothing in ${tab.label} today.`}
-                selecting={selecting} onSelecting={setSelecting} />
-            )}
+            <DayRail day={day} where="today" filter={tab.key === 'today' ? undefined : filter}
+              emptyText={tab.key === 'today' ? 'Nothing planned yet.' : `Nothing in ${tab.label} today.`}
+              selecting={selecting} onSelecting={setSelecting} />
           </div>
         </div>
       </div>

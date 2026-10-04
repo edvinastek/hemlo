@@ -111,7 +111,7 @@ type Sheet =
   | { kind: 'pushpick'; task: Task }
   | { kind: 'ask'; title: string; yes: () => void }
   | { kind: 'after'; task: Task }
-  | { kind: 'record'; moduleKey: string; id: string }
+  | { kind: 'record'; moduleKey: string; id?: string; day?: string }
 
 /** Where a module's items are looked after, for "Open …" and a tap. */
 const MODULE_PAGE: Record<string, { to: string; label: string }> = {
@@ -260,7 +260,8 @@ export function DayRail({ day, where, filter, emptyText, selecting = false, onSe
     if (route) return navigate(route)
     if (item.task) return setSheet({ kind: 'edit', task: item.task, isNew: false })
     if (item.kind === 'event') return setSheet({ kind: 'record', moduleKey: 'agenda', id: item.ref.id })
-    if (item.kind === 'record' && item.module_key) return setSheet({ kind: 'record', moduleKey: item.module_key, id: item.ref.id })
+    // A record, or Sleep's "Log last night" (no id yet: a new night on the day).
+    if (item.kind === 'record' && item.module_key) return setSheet({ kind: 'record', moduleKey: item.module_key, id: item.ref.id || undefined, day: item.day })
     const page = item.module_key ? MODULE_PAGE[item.module_key] : undefined
     if (page) navigate(page.to)
   }
@@ -307,7 +308,7 @@ export function DayRail({ day, where, filter, emptyText, selecting = false, onSe
     if (item.kind === 'record' && item.module_key) {
       const key = item.module_key
       return [
-        { label: 'Open record', run: () => setSheet({ kind: 'record', moduleKey: key, id: item.ref.id }) },
+        { label: item.ref.id ? 'Open record' : item.title, run: () => setSheet({ kind: 'record', moduleKey: key, id: item.ref.id || undefined, day: item.day }) },
         { label: `Open ${colours.label(key)}`, run: () => navigate(`/m/${key}`) },
       ]
     }
@@ -410,7 +411,7 @@ export function DayRail({ day, where, filter, emptyText, selecting = false, onSe
       )}
       {sheet?.kind === 'ask' && <AskDoneSheet title={sheet.title} onYes={sheet.yes} onClose={() => setSheet((s) => (s?.kind === 'ask' ? null : s))} />}
       {sheet?.kind === 'after' && <AfterDoneSheet task={sheet.task} onClose={() => setSheet(null)} />}
-      {sheet?.kind === 'record' && <OpenRecord moduleKey={sheet.moduleKey} id={sheet.id} onClose={() => setSheet(null)} />}
+      {sheet?.kind === 'record' && <OpenRecord moduleKey={sheet.moduleKey} id={sheet.id} day={sheet.day} onClose={() => setSheet(null)} />}
     </div>
   )
 }

@@ -2,7 +2,9 @@ import { useLiveQuery } from 'dexie-react-hooks'
 import { db } from './db'
 import { enabledModules } from './day'
 import { readSettings } from './settings'
-import { dayItems, eventMayTouch, type DayItem, type Where } from './day-items-rules'
+import { dayItems, eventMayTouch, type DayItem, type DayItemSources, type Where } from './day-items-rules'
+import { clockOf, minutesOf, readSleepSettings } from './sleep-rules'
+import { instanceFor } from '../modules/defs'
 import { addDays, looseOf } from './schedule-rules'
 import { useApp } from './store'
 import type { ModuleRecord } from './types'
@@ -62,6 +64,13 @@ export async function loadDayItems(profileId: string, householdId: string, from:
   for (let d = from; d <= to; d = addDays(d, 1)) days.push(d)
   // Finance's planned payments and the days already paid (engineer H).
   const finance = await financeDaySources(profileId, from, to)
+  // Sleep's morning item: today's night, while Sleep is on (5.1 #2).
+  let sleep: DayItemSources['sleep'] = null
+  if (today >= from && today <= to && enabled.includes('sleep')) {
+    const night = (await db.sleep_log.where('[profile_id+log_date]').equals([profileId, today]).toArray()).find((r) => !r.deleted_at) ?? null
+    const s = readSleepSettings((await instanceFor(profileId, 'sleep'))?.settings)
+    sleep = { day: today, row: night, wake: clockOf(minutesOf(s.bedtime) + Math.round(s.target_hours * 60)) }
+  }
   return dayItems(days, where, {
     ...finance,
     today, enabled, views: settings.module_views,
@@ -72,6 +81,7 @@ export async function loadDayItems(profileId: string, householdId: string, from:
     }),
     records,
     series: allSeries,
+    sleep,
     recordTitle: recordTitle,
     supplementSlots: slots,
     chorePrefs: prefs,

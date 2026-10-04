@@ -84,3 +84,7 @@ import { CopySheet } from '../ui/CopySheet'
   PageHead day picker, Today's Tomorrow peek, TodayCards arrange sheet, PivotTable drill sheet, NotesPage (owns its Back
   now, keeping typed text; TaskSheet's duplicate hook removed). CopySheet, MoveSheet, DayPickSheet, TaskSheet, Plan
   template sheets and DaysShown already had it.
+- Today (5.1 #2, 5.4): BodySection draws only the weigh-in and targets; the Body tab filters the rail to habits,
+  supplements and health items (day-tabs BODY_MODULES). Sleep tab removed: "Log last night" / "Last night" is a rail
+  item in the morning (time = bedtime + target hours, or the time woken), opening the sleep record sheet.
+  sections/SleepDay.tsx is now unused (left in place; the lead may delete it).
