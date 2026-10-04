@@ -71,11 +71,11 @@ AGN-07 busy all-day events.
   package.json (dayedge quickadd closeday in the check loop), src/test/README.md.
 - Files of others touched by GEN-70's one-line "today" routing (expect small conflicts, keep both sides):
   X2: src/screens/Food.tsx, src/ui/AddFoodSheet.tsx, FoodUnits.tsx, RecipeView.tsx, src/sections/Supplements.tsx,
-  WeighIn.tsx (two lines); X3: src/sections/ModuleKit.tsx? (not listed as X3's), TodayCards.tsx, src/modules/**
+  WeighIn.tsx (two lines); X3: src/sections/TodayCards.tsx, src/modules/**
   (RecordSheet, RecordTools, record-repeat, views.tsx, views/Grid, views/Chart, ModulePage, registry.ts sentence,
   def-rules.ts no_overlap → 'switch'), src/test/moduledefs.check.mjs (no_overlap no longer the "later" example);
   X5: src/lib/widget.ts (one line). Others: lib/series.ts, meals.ts, shopping.ts, planned.ts, stats-widget.ts,
-  ui/NoteEditor, RailSheets, ModuleEditor, PageHead, DragList ('edge' entry), CopySheet, WeekSwap, TaskSelectBar,
+  sections/ModuleKit.tsx (localToday), ui/NoteEditor, RailSheets, ModuleEditor, PageHead, DragList ('edge' entry), CopySheet, WeekSwap, TaskSelectBar,
   sections/Habits, Chores, Stats, settings/BodySettings; ics-rules.ts and calendar-links-rules.ts (TRANSP/busy) with
   their generated copies in supabase/functions/_shared (run `node scripts/copy-shared.mjs` after merging X4's
   _shared changes).
