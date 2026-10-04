@@ -5,6 +5,8 @@
  *  Every figure is per 100 g, or per 100 ml for a drink. An empty figure is
  *  unknown and stays empty: it is never shown or added up as 0. */
 
+import { microInfo, type MicroCode } from './micros-rules.ts'
+
 export type LabelKey =
   | 'kj' | 'kcal' | 'fat_g' | 'sat_fat_g' | 'mufa_g' | 'pufa_g' | 'carbs_g' | 'sugars_g' | 'polyols_g' | 'starch_g'
   | 'fiber_g' | 'protein_g' | 'salt_g' | 'alcohol_g'
@@ -411,4 +413,119 @@ export function figureName(key: LabelKey): string {
   if (key === 'kcal') return 'kcal'
   if (key === 'kj') return 'kJ'
   return EXTRA_FIGURES.find((f) => f.key === key)?.label ?? key
+}
+
+// ---- a nutrition table read as text (PROD-05) ------------------------------------------------
+
+/** What each line of an EU nutrition table is called on packs sold in the
+ *  Netherlands and around it: English, Dutch, German and French. Checked in
+ *  this order, the most particular first: "of which saturates" says "fat"
+ *  too, "mono-unsaturates" says "saturates", "sugar alcohols" says "sugar". */
+const LABEL_WORDS: [LabelKey, RegExp][] = [
+  ['mufa_g', /mono-?\s?unsaturat|enkelvoudig\s+onverzadig|einfach\s+unges[aä]ttig|mono-?\s?insatur/],
+  ['pufa_g', /poly-?\s?unsaturat|meervoudig\s+onverzadig|mehrfach\s+unges[aä]ttig|poly-?\s?insatur/],
+  ['sat_fat_g', /saturat|verzadig|ges[aä]ttig|satur[ée]s?/],
+  ['polyols_g', /polyol|sugar\s+alcohol|mehrwertige\s+alkohol/],
+  ['sugars_g', /sugars?|suikers?|zucker|sucres?/],
+  ['starch_g', /starch|zetmeel|st[aä]rke|amidon/],
+  ['fiber_g', /fib(?:re|er)s?|vezels?|ballaststoff|fibres?\s+alimentaires/],
+  ['fat_g', /\bfat\b|\bvetten?\b|\bfett\b|mati[eè]res?\s+grasses|lipides|\bvet\b/],
+  ['carbs_g', /carbohydrates?|koolhydraten?|kohlenhydrate?|glucides/],
+  ['protein_g', /proteins?|eiwitten?|eiwei(?:ß|ss)|prot[ée]ines?/],
+  ['salt_g', /\bsalt\b|\bzout\b|\bsalz\b|\bsel\b/],
+  ['alcohol_g', /\balcohol\b|\balkohol\b|\balcool\b/],
+]
+/** Energy lines: "Energie 1520 kJ / 362 kcal", "Energy (kJ) 1520". */
+const ENERGY = /energ|brennwert|[ée]nergie/
+const SODIUM = /sodium|natrium/
+const NUMBER = /(<\s*)?(\d+(?:[.,]\d+)?)\s*(kj|kcal|mg|µg|μg|mcg|g)?(?![a-z])/i
+
+/** The vitamins and minerals a label lists, by the names packs use. */
+const V = (x: string) => new RegExp(`(?:\\bvitamine?\\s+|\\bvit\\.\\s*)${x}\\b`)
+const MICRO_WORDS: [MicroCode, RegExp][] = [
+  ['va', V('a')], ['vd', V('d\\d?')], ['ve', V('e')], ['vk', V('k\\d?')], ['vc', V('c')],
+  ['b12', V('b12')], ['b1', /thiamin|(?:\bvitamine?\s+|\bvit\.\s*)b1\b/], ['b2', /riboflavin|(?:\bvitamine?\s+|\bvit\.\s*)b2\b/],
+  ['b3', /niacin|(?:\bvitamine?\s+|\bvit\.\s*)b3\b/], ['b6', V('b6')], ['b9', /folic|folium|fol[aio]|(?:\bvitamine?\s+|\bvit\.\s*)b9\b/],
+  ['b7', /biotin/], ['b5', /pantothen/], ['k', /potassium|kalium/], ['cl', /chlorid/],
+  ['ca', /calcium/], ['p', /phosph|fosfor/], ['mg', /magnesium/], ['fe', /\biron\b|\bijzer\b|\beisen\b|\bfer\b/],
+  ['zn', /\bzinc\b|\bzink\b/], ['cu', /copper|koper|kupfer|cuivre/], ['mn', /mangan/], ['f', /fluori/],
+  ['se', /selen/], ['cr', /chrom/], ['mo', /molybd/], ['i', /iodine|jodium|\bjod\b|iode/],
+]
+
+export interface LabelRead {
+  /** Figures as text, ready for the food form (a point for the decimal). */
+  figures: Partial<Record<LabelKey, string>>
+  /** Vitamins and minerals found, in their label unit (as text). */
+  micros: Partial<Record<MicroCode, string>>
+  /** Per 100 ml, per 100 g, or not said. */
+  per: 'g' | 'ml' | null
+  /** How many figures were read. */
+  found: number
+}
+
+const fixed = (n: number) => String(Math.round(n * 1000) / 1000)
+
+/** The figures in a nutrition table's text (typed, pasted, or read from a
+ *  photo by a text reader): the first number after each line's name, which
+ *  on an EU label is the per 100 g or 100 ml column. A name with its number
+ *  on the next line (a table read column by column) is matched too. "<0.5 g"
+ *  reads as 0, as the label means "a negligible amount". Sodium is turned
+ *  into salt (× 2.5) only when no salt is given. Nothing is guessed: what
+ *  is not found stays empty. */
+export function readLabelText(text: string): LabelRead {
+  const lines = String(text ?? '').toLowerCase().replace(/\r/g, '').split(/\n|;|\|/).map((l) => l.trim()).filter(Boolean)
+  const figures: Partial<Record<LabelKey, string>> = {}
+  const micros: Partial<Record<MicroCode, string>> = {}
+  let per: 'g' | 'ml' | null = null
+  let sodium: number | null = null
+  const numberIn = (s: string) => {
+    const m = NUMBER.exec(s)
+    return m ? { value: m[1] ? 0 : Number(m[2].replace(',', '.')), unit: (m[3] ?? '').toLowerCase() } : null
+  }
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i]
+    const next = lines[i + 1] ?? ''
+    if (!per) {
+      if (/100\s*ml\b/.test(line)) per = 'ml'
+      else if (/100\s*g\b/.test(line)) per = 'g'
+    }
+    if (ENERGY.test(line)) {
+      const both = `${line} ${numberIn(line) ? '' : next}`
+      const kj = /(\d+(?:[.,]\d+)?)\s*kj/.exec(both)
+      const kcal = /(\d+(?:[.,]\d+)?)\s*kcal/.exec(both)
+      if (kj && figures.kj === undefined) figures.kj = fixed(Number(kj[1].replace(',', '.')))
+      if (kcal && figures.kcal === undefined) figures.kcal = fixed(Number(kcal[1].replace(',', '.')))
+      // "Energie (kJ) 1520": the unit in the name, the number bare.
+      if (!kj && !kcal) {
+        const n = numberIn(line.replace(/\((kj|kcal)\)/, '')) ?? numberIn(next)
+        if (n && /kcal/.test(line) && figures.kcal === undefined) figures.kcal = fixed(n.value)
+        else if (n && /kj/.test(line) && figures.kj === undefined) figures.kj = fixed(n.value)
+      }
+      continue
+    }
+    if (SODIUM.test(line)) {
+      const n = numberIn(line.replace(SODIUM, '')) ?? numberIn(next)
+      if (n) sodium = n.unit === 'mg' ? n.value / 1000 : n.value
+      continue
+    }
+    const key = LABEL_WORDS.find(([, re]) => re.test(line))?.[0]
+    if (key) {
+      if (figures[key] !== undefined) continue
+      const n = numberIn(line.replace(LABEL_WORDS.find(([k]) => k === key)![1], '')) ?? numberIn(next)
+      if (n && (n.unit === '' || n.unit === 'g' || n.unit === 'mg')) figures[key] = fixed(n.unit === 'mg' ? n.value / 1000 : n.value)
+      continue
+    }
+    const micro = MICRO_WORDS.find(([, re]) => re.test(line))?.[0]
+    if (micro && micros[micro] === undefined) {
+      const info = microInfo(micro)!
+      const n = numberIn(line.replace(MICRO_WORDS.find(([k]) => k === micro)![1], '').replace(/\b(b\d+|d\d|k\d)\b/, '')) ?? numberIn(next)
+      if (!n) continue
+      // In the unit the app keeps it in (the annex's).
+      const unit = n.unit === 'mcg' || n.unit === 'μg' ? 'µg' : n.unit
+      const value = unit === info.unit || unit === '' ? n.value : unit === 'mg' && info.unit === 'µg' ? n.value * 1000 : unit === 'µg' && info.unit === 'mg' ? n.value / 1000 : null
+      if (value !== null) micros[micro] = fixed(value)
+    }
+  }
+  if (figures.salt_g === undefined && sodium !== null) figures.salt_g = fixed(sodium * 2.5)
+  return { figures, micros, per, found: Object.keys(figures).length + Object.keys(micros).length }
 }

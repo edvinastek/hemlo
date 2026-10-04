@@ -85,3 +85,20 @@
 
 /* Vitamins and minerals (FOOD-17), under the label when chosen. */
 .fs-table.fs-micros { margin-top: var(--space-3); }
+
+/* An unknown product (PROD-05): the label's photo kept in view at the top
+   of the form while the figures are typed from it. */
+.fe-label-open { justify-self: start; min-height: 44px; }
+.fe-labelphoto { display: grid; gap: var(--space-2); }
+.fe-ref { position: sticky; top: calc(-1 * var(--space-4)); z-index: 1; background: var(--e-paper); padding: var(--space-1) 0;
+  border-bottom: 1px solid var(--e-rule); }
+.fe-ref img { display: block; width: 100%; max-height: 38vh; object-fit: contain; border-radius: var(--radius-md); background: var(--e-tint); }
+.fe-ref-actions { display: flex; flex-wrap: wrap; gap: var(--space-2); align-items: center; }
+.fe-ref-actions .btn, .fe-ref-actions .slot-link { min-height: 44px; }
+.fe-paste { display: grid; gap: var(--space-2); }
+.fe-paste textarea { width: 100%; box-sizing: border-box; min-height: 88px; padding: 8px 10px; font-family: var(--font-sans); font-size: 14px;
+  border: 1px solid var(--e-field-line); border-radius: var(--radius-md); background: var(--e-field); color: var(--e-ink); }
+.fe-paste .btn { justify-self: start; min-height: 44px; }
+.fe-contribute { display: flex !important; align-items: center; gap: var(--space-2); min-height: 44px; font-size: 14px !important; color: var(--e-ink) !important; }
+.fe-off { margin-top: var(--space-2); }
+.fe-off-what { margin: 0; font-family: var(--font-sans); font-size: 14px; line-height: 1.5; color: var(--e-ink); overflow-wrap: anywhere; }

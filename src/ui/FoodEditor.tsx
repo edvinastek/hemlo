@@ -6,6 +6,10 @@ import {
 import { readUnits } from '../lib/units-rules'
 import { MICROS, microTexts, readMicroForm, sameMicros, storedMicros, type MicroCode } from '../lib/micros-rules'
 import { useNutritionPrefs } from '../lib/nutrition-prefs'
+import { FoodLabelPhoto } from './FoodLabelPhoto'
+import { FoodOffShare } from './FoodOffShare'
+import { isOffBarcode, type OffProduct } from '../lib/products-write-rules'
+import type { LabelRead } from '../lib/eu-label-rules'
 import { Dropdown } from './Dropdown'
 import { MoreOptions } from './MoreOptions'
 import type { Food } from '../lib/types'
@@ -54,10 +58,32 @@ export function FoodEditor({ food, copyOf, name, barcode, userId, onClose, onSav
   const prefs = useNutritionPrefs()
   const [microDraft, setMicroDraft] = useState<Partial<Record<MicroCode, string>>>(() => microTexts((food ?? copyOf)?.micros))
   const microRows = MICROS.filter((m) => prefs.micros.includes(m.code) || microDraft[m.code] !== undefined)
-  const microsOpen = useMemo(() => Object.values(microDraft).some((v) => v?.trim()), [])
+  const [microsOpen, setMicrosOpen] = useState(() => Object.values(microDraft).some((v) => v?.trim()))
+  // An unknown product (PROD-05): the label's photo beside the form, and,
+  // with a barcode, the choice to add it to Open Food Facts after saving.
+  const [photo, setPhoto] = useState<Blob | null>(null)
+  const [contribute, setContribute] = useState(false)
+  const [sharing, setSharing] = useState<{ food: Food; product: OffProduct } | null>(null)
+  const canContribute = !food && isOffBarcode(barcode)
   const moreOpen = useMemo(() => LABEL.some((r) => !MAIN.includes(r.key) && draft.figures[r.key]), [])
   const set = (change: Partial<FoodDraft>) => { setDraft((d) => ({ ...d, ...change })); setError(null) }
   const setFigure = (key: LabelKey, v: string) => set({ figures: { ...draft.figures, [key]: v } })
+  /** Figures read from the label: they fill what is still empty, never what
+   *  was typed. */
+  const fill = (read: LabelRead) => {
+    setDraft((d) => {
+      const figures = { ...d.figures }
+      for (const [k, v] of Object.entries(read.figures)) if (!figures[k as LabelKey]?.trim()) figures[k as LabelKey] = v
+      return { ...d, figures, per: read.per ?? d.per }
+    })
+    setMicroDraft((m) => {
+      const next = { ...m }
+      for (const [k, v] of Object.entries(read.micros)) if (!next[k as MicroCode]?.trim()) next[k as MicroCode] = v
+      return next
+    })
+    if (Object.keys(read.micros).length) setMicrosOpen(true)
+    setError(null)
+  }
 
   useBackClose(onClose)
 
@@ -105,6 +131,17 @@ export function FoodEditor({ food, copyOf, name, barcode, userId, onClose, onSav
           ...(barcode ? { barcode } : {}),
         } as Partial<Food>)
       }
+      if (contribute && canContribute) {
+        setSharing({
+          food: saved,
+          product: {
+            barcode: barcode!, name: v.name, brand: v.brand, per_ml: v.per_ml, kj: v.kj, kcal: v.kcal, fat_g: v.fat_g, sat_fat_g: v.sat_fat_g,
+            mufa_g: v.mufa_g, pufa_g: v.pufa_g, carbs_g: v.carbs_g, sugars_g: v.sugars_g, polyols_g: v.polyols_g, starch_g: v.starch_g,
+            fiber_g: v.fiber_g, protein_g: v.protein_g, salt_g: v.salt_g, micros,
+          },
+        })
+        return
+      }
       onSaved?.(saved)
       onClose()
     } catch (err) {
@@ -115,6 +152,20 @@ export function FoodEditor({ food, copyOf, name, barcode, userId, onClose, onSav
   }
 
   const title = food ? 'Edit food' : copyOf ? 'Your own copy' : 'New food'
+  // Saved; now, if the person asked, the same sheet offers Open Food Facts.
+  if (sharing) {
+    const done = () => { onSaved?.(sharing.food); onClose() }
+    return (
+      <>
+        <div className="sheet-scrim" />
+        <div className="bottom-sheet fe-sheet" role="dialog" aria-modal="true" aria-labelledby={titleId}>
+          <h2 id={titleId}>Add to Open Food Facts</h2>
+          <p className="fe-note">Saved in your foods.</p>
+          <FoodOffShare product={sharing.product} photo={photo} onDone={done} />
+        </div>
+      </>
+    )
+  }
   const field = (key: LabelKey) => {
     const row = LABEL.find((r) => r.key === key)!
     const unit = row.unit
@@ -145,6 +196,8 @@ export function FoodEditor({ food, copyOf, name, barcode, userId, onClose, onSav
               onChange={(e) => set({ name: e.target.value })} />
           </label>
 
+          {!food && <FoodLabelPhoto onRead={fill} onPhoto={setPhoto} />}
+
           <div className="fe-per" role="group" aria-label="The figures are per">
             <span>Figures per</span>
             <div className="amt-units">
@@ -161,7 +214,7 @@ export function FoodEditor({ food, copyOf, name, barcode, userId, onClose, onSav
               {LABEL.filter((r) => !MAIN.includes(r.key)).map((r) => field(r.key))}
             </details>
             {microRows.length > 0 && (
-              <details open={microsOpen}>
+              <details open={microsOpen} onToggle={(e) => setMicrosOpen((e.target as HTMLDetailsElement).open)}>
                 <summary>Vitamins and minerals</summary>
                 {microRows.map((m) => (
                   <label key={m.code} className="fe-figure">
@@ -226,6 +279,12 @@ export function FoodEditor({ food, copyOf, name, barcode, userId, onClose, onSav
             )}
             </div>
           </MoreOptions>
+          {canContribute && (
+            <label className="fe-contribute">
+              <input type="checkbox" checked={contribute} onChange={(e) => setContribute(e.target.checked)} />
+              <span>Also add it to Open Food Facts</span>
+            </label>
+          )}
           {error && <p className="re-error" role="alert">{error}</p>}
         </div>
         <div className="sheet-actions">
