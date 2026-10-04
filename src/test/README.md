@@ -86,6 +86,10 @@ Types, then every check that needs nothing but Node. CI runs the same command.
   figure); the extra label figures (a food or recipe line without the figure leaves it unknown); Finance's spent,
   money in, net, budgets spread over their days and budget used (money in never counted as spending, old "amount"
   views upgraded); shopping spend at the household's own prices.
+- `modulelists` — a built module's records arranged by a person: sorted by any field (case and accents aside, numbers
+  as numbers, empty last, ties kept), filtered by a test that fits the field, kept arrangements read safely, the line
+  over the list; copies (no repeat or calculated values carried over, the date moved keeping its time); and a record's
+  form staged into what makes it and "More options" with its closed summary (CALM-08).
 - `ics` — calendar files (RFC 5545): tasks as floating local time or whole days, agenda events in UTC,
   repeats as RRULE/RDATE/EXDATE with changed copies; folding at 75 bytes, escaping, CRLF, stable UIDs. A file
   shaped like a Google Calendar export read back in the reader's zone (TZID, UTC, whole days, DURATION,
