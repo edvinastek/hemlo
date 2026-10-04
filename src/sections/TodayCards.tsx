@@ -9,9 +9,9 @@ import { cardsFor, cardText, changeCard, moveCard } from '../lib/stats-builder-r
 import { formatValue } from '../lib/chart-rules'
 import { decimalsFor, unitFor } from '../lib/pivot-rules'
 import type { StatsView as View } from '../lib/stats-view-rules'
-import { AddFoodSheet } from '../ui/AddFoodSheet'
 import { MoreMenu } from '../ui/charts/MoreMenu'
 import { offerUndo } from '../ui/Undo'
+import { useBackClose } from '../ui/useBackClose'
 import { CardsEditor, cardName } from '../settings/TodayCardsSettings'
 import { ViewBody, useSeriesColour } from './StatsView'
 import './stats.css'
@@ -29,7 +29,6 @@ export function TodayCards({ day }: { day: string }) {
   const modules = [...new Set(all.filter((c) => c.kind === 'module').map((c) => c.key.split(':')[0]))]
   const data = useTodayCardData(profile?.id, day, today, modules)
   const [arranging, setArranging] = useState(false)
-  const [addingFood, setAddingFood] = useState(false)
   if (!profile || !all.length || !data) return null
 
   const views = settings.stats_views
@@ -66,27 +65,33 @@ export function TodayCards({ day }: { day: string }) {
           const name = cardName(c, label, (id) => views.find((v) => v.id === id)?.name ?? null)
           return c.kind === 'stats'
             ? <ViewTodayCard key={`s${c.key}`} card={c} view={views.find((v) => v.id === c.key)!} profileId={profile.id} today={today} menu={menu(c, name)} />
-            : <ModuleTodayCard key={`m${c.key}`} card={c} name={name} day={day} today={today} data={data} menu={menu(c, name)} onAddFood={() => setAddingFood(true)} />
+            : <ModuleTodayCard key={`m${c.key}`} card={c} name={name} day={day} today={today} data={data} menu={menu(c, name)} />
         })}
       </div>
-      {arranging && (
-        <>
-          <div className="sheet-scrim" onClick={() => setArranging(false)} />
-          <div className="bottom-sheet" role="dialog" aria-modal="true" aria-label="Cards on Today">
-            <h2>Cards on Today</h2>
-            <CardsEditor onDone={() => setArranging(false)} />
-          </div>
-        </>
-      )}
-      {addingFood && <AddFoodSheet day={day} onClose={() => setAddingFood(false)} />}
+      {arranging && <ArrangeSheet onClose={() => setArranging(false)} />}
     </section>
   )
 }
 
-/** The one thing each module's card does (TOD-21). */
-function actionFor(key: string, name: string): { label: string; to: string | null } {
+/** "Arrange all cards": the cards editor in a sheet; Back and Escape close it (CALM-10). */
+function ArrangeSheet({ onClose }: { onClose: () => void }) {
+  useBackClose(onClose)
+  return (
+    <>
+      <div className="sheet-scrim" onClick={onClose} />
+      <div className="bottom-sheet" role="dialog" aria-modal="true" aria-label="Cards on Today">
+        <h2>Cards on Today</h2>
+        <CardsEditor onDone={onClose} />
+      </div>
+    </>
+  )
+}
+
+/** The one thing each module's card does (TOD-21). Adding is the round
+ *  +'s alone (CALM-01): the food card opens the day's food instead. */
+function actionFor(key: string, name: string): { label: string; to: string } {
   switch (key) {
-    case 'nutrition': return { label: '+ Add food', to: null }
+    case 'nutrition': return { label: 'Open food', to: '/food' }
     case 'tasks': return { label: 'Open Plan', to: '/plan' }
     case 'health': return { label: 'Log weight', to: '/m/health' }
     case 'sleep': return { label: 'Log sleep', to: '/m/sleep' }
@@ -100,9 +105,9 @@ function actionFor(key: string, name: string): { label: string; to: string | nul
   return { label: `Open ${name}`, to: `/m/${key}` }
 }
 
-function ModuleTodayCard({ card, name, day, today, data, menu, onAddFood }: {
+function ModuleTodayCard({ card, name, day, today, data, menu }: {
   card: TodayCard; name: string; day: string; today: string; data: NonNullable<ReturnType<typeof useTodayCardData>>
-  menu: { label: string; onSelect: () => void; disabled?: boolean; danger?: boolean }[]; onAddFood: () => void
+  menu: { label: string; onSelect: () => void; disabled?: boolean; danger?: boolean }[]
 }) {
   const navigate = useNavigate()
   const colourOf = useSeriesColour()
@@ -126,7 +131,7 @@ function ModuleTodayCard({ card, name, day, today, data, menu, onAddFood }: {
         </div>
       )}
       {t.sub && <p className="tc-sub">{t.sub}</p>}
-      <button type="button" className="tc-action" onClick={() => (action.to ? navigate(action.to) : onAddFood())}>{action.label}</button>
+      <button type="button" className="tc-action" onClick={() => navigate(action.to)}>{action.label}</button>
     </article>
   )
 }

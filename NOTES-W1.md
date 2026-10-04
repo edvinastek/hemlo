@@ -77,3 +77,10 @@ import { CopySheet } from '../ui/CopySheet'
   have no RRULE: the feed sends their tasks. Server copy synced with scripts/copy-shared.mjs (redeploy calendar-feed
   and calendar-fetch at merge so _shared matches). Chores and payments are NOT added to the Google feed (feed index.ts
   unchanged; feed keeps health and money out by design).
+- HAB-22: AddMenu opens Habit/Chore/Supplement/Weigh-in/Shopping item sheets in place (new src/ui/AddSheets.tsx,
+  QuickAddSheet), menu closes first.
+- CALM-01: the Nutrition Today card's action is now "Open food" (/food), no second add.
+- CALM-10: useBackClose added to AddMenu, AddSheets, ExportSheet, RailSheets (all rail sheets + OpenRecord), FollowedSheet,
+  PageHead day picker, Today's Tomorrow peek, TodayCards arrange sheet, PivotTable drill sheet, NotesPage (owns its Back
+  now, keeping typed text; TaskSheet's duplicate hook removed). CopySheet, MoveSheet, DayPickSheet, TaskSheet, Plan
+  template sheets and DaysShown already had it.

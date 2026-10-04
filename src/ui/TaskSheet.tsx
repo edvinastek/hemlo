@@ -91,7 +91,7 @@ function TaskForm({ task, isNew, onClose, onDuplicate }: {
   const set = <K extends keyof Task>(k: K, v: Task[K]) => setDraft((d) => ({ ...d, [k]: v }))
 
   useBackClose(onClose)
-  useBackClose(() => setNotesOpen(false), notesOpen)
+  // The note page closes itself on Back, keeping what was typed.
 
   const today = format(new Date(), 'yyyy-MM-dd')
   // Undefined while it is being read, null when there is none.

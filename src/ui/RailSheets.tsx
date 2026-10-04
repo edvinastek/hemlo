@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState, type FormEvent, type ReactNode } from 'react'
+import { useBackClose } from './useBackClose'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { db } from '../lib/db'
 import { useApp } from '../lib/store'
@@ -20,22 +21,12 @@ import './move.css'
 /** The small sheets the day's rail opens: a time for an untimed push, Move
  *  to…, "Mark it done?", the note a template asks for after done, and a
  *  record or event opened from the rail. Each is one step, never a sheet on
- *  a sheet (GEN-51), and closes on Escape. */
-
-function useEscape(onClose: () => void) {
-  const ref = useRef(onClose)
-  ref.current = onClose
-  useEffect(() => {
-    const esc = (e: KeyboardEvent) => { if (e.key === 'Escape') ref.current() }
-    window.addEventListener('keydown', esc)
-    return () => window.removeEventListener('keydown', esc)
-  }, [])
-}
+ *  a sheet (GEN-51), and closes on Back and Escape (CALM-10). */
 
 function Sheet({ label, onClose, children, onSubmit }: {
   label: string; onClose: () => void; children: ReactNode; onSubmit?: (e: FormEvent) => void
 }) {
-  useEscape(onClose)
+  useBackClose(onClose)
   const Tag = onSubmit ? 'form' : 'div'
   return (
     <>
@@ -250,6 +241,8 @@ export function OpenRecord({ moduleKey, id, day, entityName, onClose }: {
     ?? def?.entities.find((e) => (entityName ? e.name === entityName : moduleKey === 'agenda' ? e.table === 'calendar_event' : !e.table))
     ?? def?.entities[0]
   const lookups = useLookups(profile?.id, entity?.fields ?? [])
+  // The module's sheet closes on Escape itself; Back is added here (CALM-10).
+  useBackClose(onClose, !event?.subscription_id)
 
   if (event?.subscription_id) return <FollowedSheet event={event as CalendarEvent} onClose={onClose} />
   if (!profile || !def || !entity || (id && rec === undefined)) return null

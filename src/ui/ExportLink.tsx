@@ -4,6 +4,7 @@ import { useApp } from '../lib/store'
 import { saveFile } from '../lib/native'
 import { FORMATS, type Format, type Range } from '../lib/transfer-rules'
 import type { FieldDef } from '../modules/types'
+import { useBackClose } from './useBackClose'
 import './transfer.css'
 
 /** What a page's Export link saves:
@@ -86,11 +87,8 @@ export function ExportSheet({ source, calendar, onClose }: { source: ExportSourc
     return () => { gone = true }
   }, [source, calendar, profile, key])
 
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose() }
-    document.addEventListener('keydown', onKey)
-    return () => document.removeEventListener('keydown', onKey)
-  }, [onClose])
+  // Back and Escape close it (CALM-10).
+  useBackClose(onClose)
 
   async function run(format: Format) {
     if (busy) return

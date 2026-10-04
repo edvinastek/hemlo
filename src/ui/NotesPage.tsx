@@ -1,4 +1,4 @@
-import { Fragment, useEffect, useMemo, useRef, useState } from 'react'
+import { Fragment, useMemo, useRef, useState } from 'react'
 import { useLiveQuery } from 'dexie-react-hooks'
 import {
   checklistProgress, hasNote, indentItem, itemSpan, linkOnLine, markerOnLine, moveItem, moveItemTo, orderItems, parseNote,
@@ -17,6 +17,7 @@ import { ensureInstance } from '../modules/defs'
 import type { FillContext } from '../lib/template-rules'
 import { offerUndo } from './Undo'
 import { Tip } from './Tip'
+import { useBackClose } from './useBackClose'
 import './notes.css'
 
 function Words({ spans }: { spans: Span[] }) {
@@ -99,14 +100,8 @@ export function NotesPage({ title, notes, onKeep, onClose, context, afterDone = 
     setEditing(!editing)
   }
 
-  // Escape goes back, as it closes the other overlays.
-  const backRef = useRef(back)
-  backRef.current = back
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') backRef.current() }
-    document.addEventListener('keydown', onKey)
-    return () => document.removeEventListener('keydown', onKey)
-  }, [])
+  // Back and Escape go back, keeping what was typed (CALM-10).
+  useBackClose(back)
 
   function act(line: number, what: 'up' | 'down' | 'in' | 'out') {
     setMenu(null)

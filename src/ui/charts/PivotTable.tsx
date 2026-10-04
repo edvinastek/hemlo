@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { formatValue } from '../../lib/chart-rules'
 import { decimalsFor, drill, timeLabel, unitFor, type Fact, type PivotResult } from '../../lib/pivot-rules'
 import { summaryName } from '../../lib/stats-builder-rules'
+import { useBackClose } from '../useBackClose'
 import './charts.css'
 
 /** The pivot as a table (STA-12, STA-18): groups down the side, a second
@@ -84,6 +85,8 @@ export function PivotTable({ result, rows, columns, rowsName, colsName, caption,
 function DrillSheet({ title, facts, measures, onClose }: {
   title: string; facts: Fact[]; measures?: Map<string, { label: string; unit: string; decimals: number }>; onClose: () => void
 }) {
+  // Back and Escape close it (CALM-10).
+  useBackClose(onClose)
   // One line per entry: the same row can give several figures (a meal's
   // calories and protein), shown together.
   const lines = new Map<string, { day: string; label: string; parts: string[] }>()
