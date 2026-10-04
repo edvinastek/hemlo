@@ -56,6 +56,12 @@ Types, then every check that needs nothing but Node. CI runs the same command.
   stood in for: the secret headers, linking once within 10 minutes, unlinking, a reminder never sent twice (a second
   run, three runs at once, an answer that never came), a refusal tried again, a blocked bot unlinked, and the bot's
   token, chat ids and reminder texts never printed. No Deno, no network.
+- `release` — the release script (scripts/release.mjs, v19) with a stand-in database: a fresh one gets every
+  migration in order and each on the list; one that had 001–031 by hand gets those recognised (by their sentinels, or
+  by a later one for the data-only 006, 008, 010, 017, 023) and only the rest run; a second run does nothing; a dry run
+  changes nothing; a failing file stops the run and stays off the list; a missing one below one that is in runs anyway;
+  the Management API runner, the deploy commands, and the secrets file (names said, values never, the job's secret put
+  in Vault). Against a real Postgres: `release-db` below.
 - `openprices` — sharing a price with Open Prices (v18, PRICE-05): the app named on every write, signing in (the form
   sent, an email caught first, the token read back), which own prices can be shared (a barcode, one pack, a day not in
   the future), the shop's place from Open Prices' own places and from OpenStreetMap's search (shops only, each once,
@@ -454,6 +460,15 @@ to the test accounts, because they run against the live project.
   its page (Foods → Open), in Postgres; a recipe written as 2 eggs a portion, saved as unit egg, 2, 100 g, counting
   143 kcal a portion and reading 2 eggs when opened again; its copied ingredient list saying "E2E eggs — 2 eggs"; 12
   eggs put in stock reading "12 eggs" and held as 600 g with the unit in Postgres, and + adding one egg (650 g).
+
+## Release script against the local database — `src/test/release-db.check.mjs`
+
+Not in `npm run check` (it needs Postgres). With the local database running (`scripts/localdb.sh`):
+`RELEASE_PG="-h /home/pgtest/pg19x4 -p 55444 -U postgres" node src/test/release-db.check.mjs`. It makes throwaway
+databases beside it and runs release.mjs's own `migrate()` through psql: every sentinel false before its migration,
+true after it and still true at the end; a fresh database gets everything; a second run nothing; a database with
+001–031 by hand only 033 onwards; a failing file stops the run with nothing of it kept and nothing after it run, and
+the next run carries on from it once fixed.
 
 ## Database — `supabase/test.sh`
 
