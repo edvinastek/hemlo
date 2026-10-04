@@ -45,6 +45,9 @@ Types, then every check that needs nothing but Node. CI runs the same command.
   first, what a row and the summary say ("5 to get · €12.40 + 2 unpriced"), typing a price per pack or per kilo, the
   shop a new price is for, the device's 7-day cache and how many products are asked about at once, and the chains'
   official weekly offers pages. No network.
+- `policynotice` — the in-app notice that the privacy policy changed (v18, G2 #16): told when the policy is newer than
+  the version agreed to at sign-up and the one last read (with the account or on this device), never for a broken or
+  future version; the date in words.
 - `openprices` — sharing a price with Open Prices (v18, PRICE-05): the app named on every write, signing in (the form
   sent, an email caught first, the token read back), which own prices can be shared (a barcode, one pack, a day not in
   the future), the shop's place from Open Prices' own places and from OpenStreetMap's search (shops only, each once,

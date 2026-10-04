@@ -1,0 +1,21 @@
+/* The privacy policy notice (G2 #16): one slim tinted line, like a tip, at
+   the top of the screen; the app moves down under it so nothing is covered. */
+.policy-notice {
+  position: fixed; z-index: 35; left: var(--space-4); right: var(--space-4);
+  top: calc(var(--safe-area-inset-top, env(safe-area-inset-top, 0px)) + var(--space-2));
+  display: flex; align-items: center; gap: var(--space-2);
+  min-height: 40px; padding: 0 2px 0 var(--space-3); box-sizing: border-box;
+  background: var(--e-tint); border: 1px solid var(--e-rule); border-radius: var(--radius-md);
+  font-family: var(--font-sans);
+}
+.policy-notice p { flex: 1 1 auto; min-width: 0; margin: 0; padding: 6px 0; font-size: 13px; line-height: 1.35; color: var(--e-ink); }
+.policy-notice .tip-go { min-height: 32px; padding: 0 2px; font: inherit; font-weight: 600; color: var(--e-accent); }
+.policy-notice .tip-close { flex: none; display: grid; place-items: center; width: 40px; height: 40px; font-size: 18px; color: var(--e-ink-soft); }
+html.has-notice .app { padding-top: 56px; box-sizing: border-box; }
+@media (max-width: 380px) { html.has-notice .app { padding-top: 72px; } }
+/* Reading it: the policy over the whole screen, on the page's paper. */
+.policy-reader {
+  position: fixed; inset: 0; z-index: 60; overflow-y: auto;
+  background: var(--e-paper); color: var(--e-ink);
+  padding-top: var(--safe-area-inset-top, env(safe-area-inset-top, 0px));
+}

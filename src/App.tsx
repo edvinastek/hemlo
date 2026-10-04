@@ -3,6 +3,7 @@ import { useLiveQuery } from 'dexie-react-hooks'
 import type { Session } from '@supabase/supabase-js'
 import { Navigate, Route, Routes, useLocation, useNavigate, useParams } from 'react-router-dom'
 import { UndoBar } from './ui/Undo'
+import { PolicyNotice } from './legal/PolicyNotice'
 import { supabase, hasCredentials } from './lib/supabase'
 import { useApp } from './lib/store'
 import { db, resetLocal, localOwner, setMeta } from './lib/db'
@@ -196,6 +197,7 @@ export default function App() {
       <Nav pages={pages} />
       <UndoBar />
       <WhatMoved />
+      <PolicyNotice />
     </div>
   )
 }
