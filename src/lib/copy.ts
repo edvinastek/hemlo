@@ -4,7 +4,7 @@ import { writeBatch, unmakeBatch, type BatchRow } from './batch'
 import { builtinRuleOn } from '../modules/rule-switch'
 import { addDays } from './schedule-rules'
 import {
-  copySummary, copyTaskFields, dayPairs, DEFAULT_CHOICES, mealCount, planCopy, weekPairs, type CopyChoices, type CopyKind,
+  copySummary, copyTaskFields, dayPairs, DEFAULT_CHOICES, mealCopySummary, mealCount, planCopy, weekPairs, type CopyChoices, type CopyKind,
 } from './copy-rules'
 import { copyMeals, removeItems } from './meals'
 import { dropTemplate, templateFrom, withTemplate, type PlanTemplate, type TemplateChoices } from './plan-templates-rules'
@@ -19,6 +19,9 @@ export type CopyWhat =
   | { kind: 'tasks'; tasks: Task[] }
   | { kind: 'day'; day: string }
   | { kind: 'week'; monday: string }
+  /** One day's meals (GEN-55): `groups` is 'all' or Food's meal keys
+   *  ('m:lunch', 't:15:00', 'any'); `label` names them ("Lunch"). */
+  | { kind: 'meals'; day: string; groups: 'all' | string[]; label?: string }
 
 export interface CopyResult {
   /** "Copied 3 tasks to 4 days", for the screen and the Undo bar. */
@@ -49,6 +52,15 @@ async function mealsOn(profileId: string, from: string, to: string): Promise<Mea
 export async function runCopy(
   profileId: string, what: CopyWhat, targets: string[], c: CopyChoices, noteTemplates: NoteTemplate[],
 ): Promise<CopyResult> {
+  if (what.kind === 'meals') {
+    // Only Food's own copy: the same meals at the same times, planned.
+    const made = await copyMeals(what.day, targets, what.groups, profileId)
+    const meals = mealCount(made)
+    return {
+      summary: mealCopySummary(meals, targets, what.label), tasks: 0, meals, skippedRepeats: 0,
+      undo: () => removeItems(made),
+    }
+  }
   const rows: BatchRow[] = []
   let skippedRepeats = 0
   let tasks = 0

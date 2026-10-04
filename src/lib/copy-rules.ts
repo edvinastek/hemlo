@@ -12,7 +12,8 @@ import { afterDoneMarker } from './after-done-rules.ts'
 import { groupKey } from './meal-rules.ts'
 import type { MealPlanSlot, Task } from './types'
 
-export type CopyKind = 'task' | 'tasks' | 'day' | 'week'
+/** 'meals': one day's meals (all, or some of them) through Food's copy. */
+export type CopyKind = 'task' | 'tasks' | 'day' | 'week' | 'meals'
 export type TimeChoice = 'keep' | 'new' | 'none'
 export type NotesChoice = 'same' | 'cleared' | 'none' | 'template'
 
@@ -122,7 +123,7 @@ export function cleanTargets(days: string[], kind: CopyKind, from: string, range
   const week = kind === 'week'
   const out = [...new Set(days.filter(isDay).map((d) => (week ? mondayOf(d) : d)))]
     .filter((d) => d >= range.first && d <= range.last)
-    .filter((d) => !((kind === 'day' && d === from) || (week && d === mondayOf(from))))
+    .filter((d) => !(((kind === 'day' || kind === 'meals') && d === from) || (week && d === mondayOf(from))))
     .sort()
   return out.slice(0, week ? MAX_COPY_WEEKS : MAX_COPY_DAYS)
 }
@@ -300,6 +301,15 @@ export function targetWords(targets: string[], kind: CopyKind): string {
     return targets.length === 1 ? `the week of ${dayLabel(targets[0]).slice(4)}` : plural(targets.length, 'week')
   }
   return targets.length === 1 ? dayLabel(targets[0]) : plural(targets.length, 'day')
+}
+
+/** The line after copying meals, also the Undo bar's label: "Lunch copied
+ *  to Tue 6 Oct" for one meal, "Copied 3 meals to 2 days" for a day's food.
+ *  `meals` counts meals (mealCount), not foods. */
+export function mealCopySummary(meals: number, targets: string[], label?: string | null): string {
+  if (meals === 0) return 'Nothing to copy'
+  const to = targetWords(targets, 'meals')
+  return label ? `${label} copied to ${to}` : `Copied ${plural(meals, 'meal')} to ${to}`
 }
 
 /** The line after a copy, also the Undo bar's label: "Copied 3 tasks and
