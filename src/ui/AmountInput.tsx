@@ -10,6 +10,9 @@ import './amount.css'
  *  "2" with "egg" is two eggs. What it comes to in grams is worked out by the
  *  caller (readAmount in units-rules.ts), so every screen counts the same way.
  *
+ *  A choice with no weight (a shop word on the list: "bottle") has no
+ *  "… each" hint.
+ *
  *  Renders the field and the choice side by side, without a box of its own,
  *  so it slots into the row it sits in. */
 export function AmountInput({
@@ -47,7 +50,7 @@ export function AmountInput({
   } else {
     pick = (
       <Dropdown className="amt-dd" value={choice} label="Unit"
-        options={choices.map((c) => ({ value: c.key, label: choiceLabel(c, text), hint: c.key === 'g' || c.key === 'kg' ? undefined : `${gramsLabel(c.g)} each` }))}
+        options={choices.map((c) => ({ value: c.key, label: choiceLabel(c, text), hint: c.key === 'g' || c.key === 'kg' || !(c.g > 0) ? undefined : `${gramsLabel(c.g)} each` }))}
         onChange={onChoice} />
     )
   }
