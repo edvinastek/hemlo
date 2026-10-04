@@ -115,7 +115,14 @@ is('…in plain words, never "late"', items[0].meta, 'About every 7 days · last
 is('…with how due it is', items[0].dueness, 1.43)
 is('on its own day it reads like the rule', dayItems([MON], 'today', { ...src, today: MON, tasks: [aftTask] })[0].meta, '7 days after it was last done')
 is('a flexible task waits only on today, not on other days', dayItems(['2026-10-09'], 'plan', { ...src, tasks: [flexTask] }).length, 0)
+is('…nor on the day it was made for, once that has gone by', dayItems([MON, '2026-10-08'], 'plan', { ...src, tasks: [flexTask] }).map((i) => i.day), ['2026-10-08'])
+is('an "after" task stays on its own day (it can be late)', dayItems([MON, '2026-10-08'], 'plan', { ...src, tasks: [aftTask] }).map((i) => i.day), [MON])
 is('done, it does not wait', dayItems(['2026-10-08'], 'today', { ...src, tasks: [{ ...flexTask, status: 'done' }] }).length, 0)
+const hab = { id: 'h1', profile_id: 'p', name: 'Call a friend', schedule: 'daily', rule: 'daily', rule_config: { n: 7, mode: 'flexible' }, start_date: '2026-09-01', active: true, deleted_at: null, updated_at: 'x' }
+const hsrc = { ...src, today: '2026-10-08', enabled: ['habits'], habits: [hab], habitLogs: [{ id: 'l1', habit_id: 'h1', log_date: '2026-10-06', done: true, updated_at: 'x' }] }
+const week = ['2026-10-05', '2026-10-06', '2026-10-07', '2026-10-08', '2026-10-09', '2026-10-10', '2026-10-11', '2026-10-12', '2026-10-13', '2026-10-14']
+is('a flexible habit on the week: where it was done, and where it is next expected', dayItems(week, 'plan', hsrc).map((i) => `${i.day}:${i.done ? 'done' : 'due'}`), ['2026-10-06:done', '2026-10-13:due'])
+is('…and on today once it is due', dayItems(week, 'plan', { ...hsrc, today: '2026-10-14' }).map((i) => `${i.day}:${i.done ? 'done' : 'due'}`), ['2026-10-06:done', '2026-10-14:due'])
 is('carry-over leaves flexible tasks out, and keeps "after" ones',
   carryOver([flexTask, aftTask], '2026-10-08', new Set(['flex'])).map((t) => t.title), ['descale'])
 

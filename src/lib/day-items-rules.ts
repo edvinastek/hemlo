@@ -3,7 +3,7 @@
  *  events, events of calendars they follow, and dated records of modules
  *  that keep them. Today and Plan both draw this list, so they can never
  *  disagree about what a day holds. Pure: rows in, items out. */
-import { habitDay, habitSchedule, choreState, choreAssignee, describeChore, describeLoose, describeSchedule, looseOf, occursOn, addDays, cleanRule, daysIn, toDayNumber, type HabitDay, type Loose, type RuleConfig, type RuleKind, type Schedule } from './schedule-rules.ts'
+import { habitDay, habitSchedule, choreState, choreAssignee, describeChore, describeLoose, describeSchedule, looseOf, looseState, occursOn, addDays, cleanRule, daysIn, toDayNumber, type HabitDay, type Loose, type RuleConfig, type RuleKind, type Schedule } from './schedule-rules.ts'
 import { moduleView, type ModuleView } from './module-view-rules.ts'
 import { checklistProgress } from './notes.ts'
 import type { Task, Habit, HabitLog, Chore, ChoreLog, Supplement, SupplementLog, CalendarEvent, ModuleRecord } from './types'
@@ -161,8 +161,11 @@ export function dayItems(days: string[], where: Where, s: DayItemSources): DayIt
       const loose = t.series_id ? looseBySeries.get(t.series_id) : undefined
       // A flexible task not done by its day waits on today: "about every
       // 7 days" is never late, so it is never carried over or reviewed.
-      const waits = !!loose && loose.mode === 'flexible' && day === s.today && t.planned_date < day && isOpen(t)
+      const late = !!loose && loose.mode === 'flexible' && t.planned_date < s.today && isOpen(t)
+      const waits = late && day === s.today
       if (t.planned_date !== day && !waits) continue
+      // …and so it is no longer on the day it was made for.
+      if (late && !waits) continue
       const mk = taskModule(t)
       if (!shows(mk, where, s)) continue
       const since = waits ? toDayNumber(day) - toDayNumber(t.planned_date) + loose!.every : 0
@@ -180,6 +183,15 @@ export function dayItems(days: string[], where: Where, s: DayItemSources): DayIt
         const doneDays = doneByHabit.get(h.id) ?? new Set<string>()
         const state = habitDay(h, day, doneDays)
         if (state === 'off') continue
+        // "After" or flexible (GEN-22): due on today until done, so on other
+        // days it shows only where it was done, or ahead where it is next
+        // expected; never a row of "due" days behind or ahead.
+        const loose = looseOf(habitSchedule(h))
+        if (loose && day !== s.today && state !== 'done') {
+          if (day < s.today) continue
+          const now = looseState(loose, h.start_date ?? null, h.end_date ?? null, s.today, doneDays)
+          if (now.shows || now.next !== day) continue
+        }
         const log = logByHabitDay.get(`${h.id}|${day}`)
         out.push({
           key: `habit:${h.id}:${day}`, kind: 'habit', day, time: hhmm(h.time_of_day), minutes: null,

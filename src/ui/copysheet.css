@@ -46,3 +46,7 @@
    line saying what is chosen (v17). */
 .cs-sheet .mo { border-top: 1px solid var(--e-rule); padding-top: var(--space-2); }
 .cs-sheet .mo-body .cs-part:first-child { border-top: 0; padding-top: 0; }
+
+/* Change repeat for several tasks (v18, GEN-53): tall enough for the
+   repeat list to open inside it. */
+.tsb-repeat { min-height: min(72vh, 560px); }

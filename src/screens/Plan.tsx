@@ -191,7 +191,7 @@ export function Plan() {
 
   // Selecting several (GEN-52, GEN-53): the week's tasks, and the Inbox's.
   // On the week a hold moves a task or swaps a day, so Select is in the ⋮.
-  const shownTasks = useMemo(() => span.flatMap((d) => byDay.get(d) ?? []), [span, byDay])
+  const shownTasks = useMemo(() => [...new Map(span.flatMap((d) => byDay.get(d) ?? []).map((t) => [t.id, t])).values()], [span, byDay])
   const weekSel = useSelection(shownTasks, { hold: false })
   const inboxSel = useSelection(inboxTasks, { hold: false })
   const selecting = weekSel.selecting

@@ -16,6 +16,7 @@ import { offerUndo } from './Undo'
 import { useBackClose } from './useBackClose'
 import { useDayRange } from './useDayRange'
 import type { Selection } from './useSelection'
+import './copysheet.css'
 
 type Sheet = 'copy' | 'move' | 'repeat' | null
 
@@ -85,13 +86,16 @@ function RepeatManySheet({ tasks, onClose, onDone }: { tasks: Task[]; onClose: (
   useBackClose(onClose)
   const { today } = useDayRange()
   const [value, setValue] = useState<RepeatValue>(NO_REPEAT)
+  // Nothing is applied until a repeat is chosen: the control opens on "does
+  // not repeat", which for a series would mean Stop repeating.
+  const [touched, setTouched] = useState(false)
   const [busy, setBusy] = useState(false)
   const start = tasks.find((t) => t.planned_date)?.planned_date ?? today
   const inSeries = tasks.some((t) => !!t.series_id)
   const title = tasks.length === 1 ? `Repeat “${tasks[0].title || 'task'}”` : `Repeat ${tasks.length} tasks`
   const rule = value.rule ? describeSchedule({ rule: value.rule, rule_config: value.rule_config, start_date: start, end_date: value.end_date, occurrence_count: value.count ?? null }) : null
   const empty = value.rule === 'dates' && (value.rule_config.dates ?? []).length === 0
-  const nothing = !value.rule && !inSeries
+  const nothing = !touched || (!value.rule && !inSeries)
 
   async function apply() {
     if (busy || empty || nothing) return
@@ -105,15 +109,15 @@ function RepeatManySheet({ tasks, onClose, onDone }: { tasks: Task[]; onClose: (
   return (
     <>
       <div className="sheet-scrim" onClick={onClose} />
-      <div className="bottom-sheet" role="dialog" aria-modal="true" aria-label={title}>
+      <div className="bottom-sheet tsb-repeat" role="dialog" aria-modal="true" aria-label={title}>
         <h2>{title}</h2>
-        <RepeatPicker value={value} onChange={setValue} start={start} today={today} kinds={TASK_RULE_KINDS} allowCount loose
+        <RepeatPicker value={value} onChange={(v) => { setValue(v); setTouched(true) }} start={start} today={today} kinds={TASK_RULE_KINDS} allowCount loose
           noneLabel={inSeries ? 'Stop repeating' : 'Does not repeat'} />
         {inSeries && value.rule && <p className="row-meta">A task already repeating changes its whole series from today.</p>}
         <div className="sheet-actions">
           <button type="button" className="btn grow" onClick={onClose}>Cancel</button>
           <button type="button" className="btn btn-primary grow" disabled={busy || empty || nothing} onClick={() => void apply()}>
-            {!value.rule && inSeries ? 'Stop repeating' : 'Apply'}
+            {touched && !value.rule && inSeries ? 'Stop repeating' : 'Apply'}
           </button>
         </div>
       </div>
