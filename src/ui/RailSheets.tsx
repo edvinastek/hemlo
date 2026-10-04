@@ -17,6 +17,7 @@ import { FollowedSheet } from './FollowedEvents'
 import { offerUndo } from './Undo'
 import type { CalendarEvent, Task } from '../lib/types'
 import './move.css'
+import { planToday } from '../lib/day-edge'
 
 /** The small sheets the day's rail opens: a time for an untimed push, Move
  *  to…, "Mark it done?", the note a template asks for after done, and a
@@ -185,7 +186,7 @@ export function AfterDoneSheet({ task, onClose }: { task: Task; onClose: () => v
   const id = pendingAfterDone(task.notes)
   const template = readSettings(profile).note_templates.find((t) => t.id === id) ?? null
   const [text, setText] = useState(() => template
-    ? fillTemplate(template.body, { day: task.planned_date ?? new Date().toISOString().slice(0, 10), title: task.title, time: task.planned_time })
+    ? fillTemplate(template.body, { day: task.planned_date ?? planToday(), title: task.title, time: task.planned_time })
     : '')
   const [busy, setBusy] = useState(false)
 

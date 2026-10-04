@@ -1,10 +1,10 @@
 import { useState } from 'react'
-import { format } from 'date-fns'
 import type { EntityDef, ViewDef } from '../types'
 import { CHART_PERIODS, chartFields, type ChartPeriod } from '../def-rules'
 import { chartBuckets, chartDomain, chartPoints, labelEvery, shortNumber, type ChartBucket } from '../view-rules'
 import type { Rec } from '../records'
 import './views.css'
+import { planToday } from '../../lib/day-edge'
 
 /** A number over time, added up per day, week or month, as bars or a line.
  *  Plain SVG in the page's own colours, so it reads in light and dark. Each
@@ -25,7 +25,7 @@ export function ChartView({ entity, view, recs }: { entity: EntityDef; view: Vie
     return <p className="empty">This chart needs a number field and a date field. Pick them under Edit module.</p>
   }
 
-  const today = format(new Date(), 'yyyy-MM-dd')
+  const today = planToday()
   const buckets = chartBuckets(chartPoints(entity.fields, value, date, recs), period, today)
   const [lo, hi] = chartDomain(buckets.map((b) => b.value))
   const plotW = PLOT.right - PLOT.left

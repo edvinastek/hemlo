@@ -1,7 +1,8 @@
 import { db, getMeta, setMeta } from './db'
 import { followTick, saveTask } from './tasks'
 import type { Task } from './types'
-import { applyReview, cleanLimit, cleanTime, localDay, toReview, type ReviewAction } from './review-rules'
+import { applyReview, cleanLimit, cleanTime, toReview, type ReviewAction } from './review-rules'
+import { planToday } from './day-edge'
 
 /** The evening review against the local database. The decisions live in
  *  review-rules.ts; this file only reads rows, reads the device settings and
@@ -41,7 +42,7 @@ export async function loadReview(profileId: string, day: string): Promise<Task[]
 export async function reviewTask(task: Task, action: ReviewAction, day: string): Promise<Task> {
   const current = (await db.task.get(task.id)) ?? task
   const { limit } = await reviewSettings()
-  const { task: next, changed } = applyReview(current, action, { day, today: localDay(new Date()), limit })
+  const { task: next, changed } = applyReview(current, action, { day, today: planToday(), limit })
   const saved = await saveTask(next, changed)
   if (saved.status === 'done' && current.status !== 'done') await followTick(current, true)
   return saved

@@ -1,6 +1,5 @@
 import { useState, type CSSProperties } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { format } from 'date-fns'
 import { useApp } from '../lib/store'
 import { readSettings, type TodayCard } from '../lib/settings'
 import { saveSettings } from '../lib/write'
@@ -15,6 +14,7 @@ import { useBackClose } from '../ui/useBackClose'
 import { CardsEditor, cardName } from '../settings/TodayCardsSettings'
 import { ViewBody, useSeriesColour } from './StatsView'
 import './stats.css'
+import { planToday } from '../lib/day-edge'
 
 /** Cards the person pinned to Today (TOD-20, TOD-21): up to six, each a
  *  module's figure for the day ("Protein 82 / 140 g", "3 chores due",
@@ -24,7 +24,7 @@ import './stats.css'
 export function TodayCards({ day }: { day: string }) {
   const profile = useApp((s) => s.profile)
   const settings = readSettings(profile)
-  const today = format(new Date(), 'yyyy-MM-dd')
+  const today = planToday()
   const all = settings.today_cards
   const modules = [...new Set(all.filter((c) => c.kind === 'module').map((c) => c.key.split(':')[0]))]
   const data = useTodayCardData(profile?.id, day, today, modules)

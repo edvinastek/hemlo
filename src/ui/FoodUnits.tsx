@@ -11,7 +11,6 @@ import {
   addUnit, foodWord, pluralOf, readUnitForm, readUnits, removeUnit, unitLine, withOverlay, MAX_UNITS, UNIT_NAME_MAX, type FoodUnit,
 } from '../lib/units-rules'
 import { saveLabelChoice, saveOwnUnits, useNutritionPrefs } from '../lib/nutrition-prefs'
-import { format } from 'date-fns'
 import { offerUndo } from './Undo'
 import { FoodEditor } from './FoodEditor'
 import { MoreMenu } from './MoreMenu'
@@ -21,6 +20,7 @@ import type { Food } from '../lib/types'
 import './amount.css'
 import './food.css'
 import { useBackClose } from './useBackClose'
+import { planToday } from '../lib/day-edge'
 
 /** One food's page: the label per 100 g or 100 ml (with %RI if wanted), what
  *  state it is in, the units it is counted in, and where the figures came
@@ -52,7 +52,7 @@ export function FoodUnitsSheet({ food: given, onClose }: { food: Food; onClose: 
   if (mode === 'copy' && userId) return <FoodEditor copyOf={food} userId={userId} onClose={() => setMode('view')} onSaved={() => onClose()} />
   // The add-food sheet takes this page's place (never a sheet on a sheet),
   // for today, with this food on the plate.
-  if (mode === 'add') return <AddFoodSheet day={format(new Date(), 'yyyy-MM-dd')} food={food} onClose={() => setMode('view')} />
+  if (mode === 'add') return <AddFoodSheet day={planToday()} food={food} onClose={() => setMode('view')} />
 
   const per = food.per_ml ? '100 ml' : '100 g'
   const ri = prefs.label.ri

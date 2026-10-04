@@ -10,6 +10,7 @@ import {
 import type { Profile } from '../lib/types'
 import { builtinRuleOn } from '../modules/rule-switch'
 import './weighin.css'
+import { planToday } from '../lib/day-edge'
 
 const SHOWN = 8
 const TREND_W = 280
@@ -57,7 +58,7 @@ export function WeighIn({ profileId, day, history: showHistory = true }: {
   const typing = () => { typed.current = day }
   useEffect(() => setNote(null), [day])
 
-  const today = format(new Date(), 'yyyy-MM-dd')
+  const today = planToday()
   const future = isFutureDay(day, today)
   const missing = profile ? missingForTargets(profile) : null
 
@@ -204,7 +205,7 @@ function ProfileGaps({ profile, day, hasWeighIn, message }: {
 
   async function save(e: FormEvent) {
     e.preventDefault()
-    const today = format(new Date(), 'yyyy-MM-dd')
+    const today = planToday()
     const fields: Partial<Pick<Profile, 'height_cm' | 'birth_date' | 'sex'>> = {}
     if (gaps.includes('sex')) {
       if (!sex) return setError('Choose female or male: the resting burn differs between the two, so it is not guessed.')

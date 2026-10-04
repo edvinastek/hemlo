@@ -1,5 +1,4 @@
 import { useMemo, useState } from 'react'
-import { format } from 'date-fns'
 import type { EntityDef, ModuleDef, ViewDef } from '../types'
 import { gridFields } from '../def-rules'
 import {
@@ -8,6 +7,7 @@ import {
 import { addRecord, updateRecord, type Lookups, type Rec } from '../records'
 import { formatValue } from '../RecordSheet'
 import './views.css'
+import { planToday } from '../../lib/day-edge'
 
 /** Days across, one row per name, like a habit grid: tap a cell to tick
  *  that row on that day (a record is made for it when there is none). The
@@ -18,7 +18,7 @@ export function GridView({ def, entity, view, recs, lookups, profileId, onOpen }
   const [span, setSpan] = useState<GridSpan>(7)
   const [error, setError] = useState<string | null>(null)
   const [busy, setBusy] = useState<string | null>(null)
-  const today = format(new Date(), 'yyyy-MM-dd')
+  const today = planToday()
   const g = gridFields(entity, view)
   const days = useMemo(() => gridDays(today, span), [today, span])
   const byId = new Map(recs.map((r) => [r.id, r]))

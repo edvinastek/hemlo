@@ -17,6 +17,8 @@ export type RailEntry =
   | { type: 'item'; key: string; task?: Task; label: string; static?: boolean; expandable?: boolean }
   | { type: 'heading'; key: string; label: string }
   | { type: 'now'; key: string; label: string }
+  /** Day start or day end (GEN-70): a quiet line where the day begins or ends. */
+  | { type: 'edge'; key: string; label: string }
 
 /** One action in a row's ⋮ menu. */
 export interface MenuAction {
@@ -285,6 +287,9 @@ export function DragList({ entries, day, date, work, renderItem, actionsFor, exp
         if (e.type === 'heading') return <h3 key={e.key} className="rail-group">{e.label}</h3>
         if (e.type === 'now') {
           return <div key={e.key} className="rail-now" role="separator" aria-label={e.label}><span>{e.label}</span></div>
+        }
+        if (e.type === 'edge') {
+          return <div key={e.key} className="rail-edge" role="separator" aria-label={e.label}><span>{e.label}</span></div>
         }
         const open = menu === e.key
         const actions = actionsFor?.(e) ?? []

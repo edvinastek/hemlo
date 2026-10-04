@@ -1,4 +1,3 @@
-import { format } from 'date-fns'
 import { db } from './db'
 import { queueChange } from './sync'
 import { recipeMacros, type Macros as CalcMacros } from './calc'
@@ -13,6 +12,7 @@ import {
 } from './meal-rules'
 import { builtinRuleOn } from '../modules/rule-switch'
 import type { Food, FoodLogEntry, MealPlanSlot, Recipe, RecipeLine, Task } from './types'
+import { planToday } from './day-edge'
 
 /** The day's food, written. The rules (what a meal is, what it comes to,
  *  its task) are in meal-rules.ts; this file reads and writes the local copy
@@ -43,7 +43,7 @@ const unitKeys = (row: { unit?: unknown; unit_qty?: unknown }): ('unit' | 'unit_
   row.unit !== undefined || row.unit_qty !== undefined ? ['unit', 'unit_qty'] : []
 
 const now = () => new Date().toISOString()
-const todayStr = () => format(new Date(), 'yyyy-MM-dd')
+const todayStr = () => planToday()
 
 /** What the meal rules need from a person's settings. */
 export const mealsCtx = (s: ProfileSettings): MealsCtx => ({ meals: s.meals, meal_times: s.meal_times })

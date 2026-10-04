@@ -1,5 +1,4 @@
 import { liveQuery, type Subscription } from 'dexie'
-import { format } from 'date-fns'
 import { db } from './db'
 import { queueChange } from './sync'
 import { edit } from './write'
@@ -17,6 +16,7 @@ import {
 } from './shopping-rules'
 import type { ShopPrice } from './shopping-types'
 import type { Food, ModuleInstance, Profile, RecipeLine, ShoppingEntry, Stock, Task } from './types'
+import { planToday } from './day-edge'
 
 /** The household's shopping list, read from and written to the local copy
  *  first, so it works in a shop with no signal, then queued for the server
@@ -30,7 +30,7 @@ import type { Food, ModuleInstance, Profile, RecipeLine, ShoppingEntry, Stock, T
  *  by hand are rows of their own. A bought item is soft-deleted with the
  *  time it was bought, which is what the "recently bought" tiles are made of. */
 
-export const today = () => format(new Date(), 'yyyy-MM-dd')
+export const today = () => planToday()
 
 // ---- writing rows ------------------------------------------------------------------
 

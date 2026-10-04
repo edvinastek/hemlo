@@ -3,10 +3,11 @@ import { useLiveQuery } from 'dexie-react-hooks'
 import { useApp } from '../lib/store'
 import { loadReview, reviewSettings, reviewTask, setReviewTime, DEFAULT_REVIEW_TIME } from '../lib/review'
 import {
-  addDays, canPick, carriedNote, earliestPick, limitNote, localDay, reviewOpen, summaryLine, tomorrowFor,
+  addDays, canPick, carriedNote, earliestPick, limitNote, reviewOpen, summaryLine, tomorrowFor,
   type ReviewAction,
 } from '../lib/review-rules'
 import { db } from '../lib/db'
+import { planToday } from '../lib/day-edge'
 import { flexibleSeriesIds } from '../lib/series'
 import { carryOver } from '../lib/day-items-rules'
 import { carry, type CarryAction } from '../lib/rail-actions'
@@ -33,7 +34,7 @@ function useNow(): Date {
 export function ReviewCard({ profileId, day, variant }: { profileId: string; day: string; variant: 'compact' | 'full' }) {
   const persona = useApp((s) => s.profile?.ai_persona_name ?? null)
   const now = useNow()
-  const today = localDay(now)
+  const today = planToday(now)
   const [open, setOpen] = useState(false)
 
   const tasks = useLiveQuery(() => loadReview(profileId, day), [profileId, day], null)
@@ -45,7 +46,7 @@ export function ReviewCard({ profileId, day, variant }: { profileId: string; day
   if (!tasks || !settings) return null
 
   if (variant === 'compact') {
-    if (!reviewOpen(day, now, settings.time) || tasks.length === 0) return null
+    if (!reviewOpen(day, now, settings.time, today) || tasks.length === 0) return null
     return (
       <section className="review review-compact" aria-label="Evening review">
         <button className="assistant review-line" aria-expanded={open} onClick={() => setOpen((o) => !o)}>

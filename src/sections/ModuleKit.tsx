@@ -17,6 +17,7 @@ import { ViewBar, useModuleMenuItems } from '../modules/ModuleHead'
 import { CopyToDaySheet, useListTools } from '../modules/RecordTools'
 import { useBackClose } from '../ui/useBackClose'
 import './kit.css'
+import { planToday } from '../lib/day-edge'
 
 /** Pieces the richer module pages (Training, Sleep, Projects, Finance,
  *  Learning, Health) share, so each page keeps the module's own views from
@@ -162,8 +163,8 @@ export async function saveModuleSetting(profileId: string, moduleKey: string, ke
 
 /** Today as 'yyyy-MM-dd' on this device's calendar. */
 export function localToday(now: Date = new Date()): string {
-  const p = (n: number) => String(n).padStart(2, '0')
-  return `${now.getFullYear()}-${p(now.getMonth() + 1)}-${p(now.getDate())}`
+  // The person's day (GEN-70): just after midnight it can still be yesterday.
+  return planToday(now)
 }
 
 /** The URL parameters of the page this section is on (/m/<key>?session=…),

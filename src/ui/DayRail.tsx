@@ -8,7 +8,10 @@ import {
   tapRoute, tickRoute, type DayItem,
 } from '../lib/day-items-rules'
 import { useTodayPrefs, saveTodayPrefs } from '../lib/today-prefs'
-import { localDay } from '../lib/review-rules'
+import { useDayEdges } from '../lib/day-edge'
+import { edgeSlots } from '../lib/day-edge-rules'
+import { savePlanPrefs, usePlanPrefs } from '../lib/plan-prefs'
+import { useToday } from './useToday'
 import { useModuleColours } from '../lib/colours'
 import { toggleCheck } from '../lib/notes'
 import { pendingAfterDone } from '../lib/after-done-rules'
@@ -32,32 +35,18 @@ import { useSelection } from './useSelection'
 import { AfterDoneSheet, AskDoneSheet, MoveToSheet, OpenRecord, PushPickSheet, PushTimeSheet, dayWords } from './RailSheets'
 import './itemrow.css'
 
-/** Today's date on this phone, kept fresh: past midnight it moves on by
- *  itself, and on coming back to the app it is read again. */
-export function useToday(): { today: string; now: string } {
-  const read = () => {
-    const d = new Date()
-    return { today: localDay(d), now: `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}` }
-  }
-  const [state, setState] = useState(read)
-  useEffect(() => {
-    const tick = () => setState((s) => { const n = read(); return n.today === s.today && n.now === s.now ? s : n })
-    const id = window.setInterval(tick, 30_000)
-    const seen = () => { if (!document.hidden) tick() }
-    document.addEventListener('visibilitychange', seen)
-    return () => { window.clearInterval(id); document.removeEventListener('visibilitychange', seen) }
-  }, [])
-  return state
-}
+export { useToday } from './useToday'
 
-/** The rail's two set-once choices, for the page's ⋮ on Today and Plan's
- *  Day (CALM-03, CALM-17): the timeline or parts of the day, and push
- *  buttons on the rows (off by default). Each item says what it will do. */
+/** The rail's set-once choices, for the page's ⋮ on Today and Plan's Day
+ *  (CALM-03, CALM-17): the timeline or parts of the day, push buttons on
+ *  the rows and the day's start and end (both off by default). Each item
+ *  says what it will do. */
 export function useRailMenu(): MenuItem[] {
   const profileId = useApp((s) => s.profile?.id ?? null)
   const prefs = useTodayPrefs()
+  const plan = usePlanPrefs(profileId)
   if (!profileId) return []
-  return [
+  const items: (MenuItem | false)[] = [
     prefs.layout === 'time'
       ? { label: 'Group by part of the day', onSelect: () => void saveTodayPrefs(profileId, (p) => ({ ...p, layout: 'parts' })) }
       : { label: 'Show as one timeline', onSelect: () => void saveTodayPrefs(profileId, (p) => ({ ...p, layout: 'time' })) },
@@ -65,7 +54,14 @@ export function useRailMenu(): MenuItem[] {
       label: prefs.push_on_rows ? 'Hide push buttons on rows' : 'Show push buttons on rows',
       onSelect: () => void saveTodayPrefs(profileId, (p) => ({ ...p, push_on_rows: !p.push_on_rows })),
     },
+    // GEN-70: where the day starts and ends (Settings → Planning), drawn on
+    // the timeline only when something falls outside it. Off by default.
+    prefs.layout === 'time' && {
+      label: plan.day_edges ? 'Hide day start and end' : 'Show day start and end',
+      onSelect: () => void savePlanPrefs(profileId, { day_edges: !plan.day_edges }),
+    },
   ]
+  return items.filter((x): x is MenuItem => !!x)
 }
 
 /** The phone's Back closes a row open in place (TOD-10): opening it adds a
@@ -144,9 +140,13 @@ export function DayRail({ day, where, filter, emptyText, selecting = false, onSe
   const profile = useApp((s) => s.profile)
   const userId = useApp((s) => s.session?.user.id ?? null)
   const navigate = useNavigate()
-  const { today, now } = useToday()
+  const { today, now, late } = useToday()
   const items = useDayItems(day, day, where, today)
   const prefs = useTodayPrefs()
+  // The person's day start and end (GEN-70): the order after midnight, and
+  // the two edge lines when switched on in the ⋮.
+  const { start: edgeStart, end: edgeEnd, cutoff } = useDayEdges()
+  const showEdges = usePlanPrefs(profile?.id).day_edges && prefs.layout === 'time'
   const colours = useModuleColours()
   const settings = readSettings(profile)
   const [expanded, setExpanded] = useState<string | null>(null)
@@ -177,19 +177,30 @@ export function DayRail({ day, where, filter, emptyText, selecting = false, onSe
   const entries = useMemo<RailEntry[]>(() => {
     if (!shown) return []
     const out: RailEntry[] = []
-    const groups = railGroups(shown, layout)
-    const nowGroup = layout === 'time' ? 'timed' : now < PART_EDGES.afternoon ? 'morning' : now < PART_EDGES.evening ? 'afternoon' : 'evening'
+    const groups = railGroups(shown, layout, cutoff)
+    // After midnight in a day that runs past it, the clock is its evening (GEN-70).
+    const nowGroup = layout === 'time' ? 'timed' : late || now >= PART_EDGES.evening ? 'evening' : now < PART_EDGES.afternoon ? 'morning' : 'afternoon'
     for (const g of groups) {
       if (g.label) out.push({ type: 'heading', key: `h:${g.key}`, label: g.label })
-      const at = day === today && g.key === nowGroup ? nowSlot(g.items, now) : null
+      const at = day === today && g.key === nowGroup ? nowSlot(g.items, now, cutoff) : null
+      // Day start and day end, where something falls outside them (GEN-70),
+      // when the person chose to see them (the ⋮); a day inside its edges
+      // looks as it always did.
+      const edge = showEdges && g.key === 'timed' ? edgeSlots(g.items.map((i) => i.time), { start: edgeStart, end: edgeEnd, cutoff }) : null
+      const edgeLine = (k: number) => {
+        if (edge?.start === k) out.push({ type: 'edge', key: 'edge:start', label: `Day starts ${edgeStart}` })
+        if (edge?.end === k) out.push({ type: 'edge', key: 'edge:end', label: `Day ends ${edgeEnd}` })
+      }
       g.items.forEach((i, k) => {
+        edgeLine(k)
         if (k === at) out.push({ type: 'now', key: 'now', label: now })
         out.push({ type: 'item', key: i.key, task: i.task, label: i.title, static: i.readonly })
       })
+      edgeLine(g.items.length)
       if (at === g.items.length) out.push({ type: 'now', key: 'now', label: now })
     }
     return out
-  }, [shown, layout, day, today, now])
+  }, [shown, layout, day, today, now, late, cutoff, showEdges, edgeStart, edgeEnd])
   const byKey = useMemo(() => new Map((shown ?? []).map((i) => [i.key, i])), [shown])
 
   if (!profile || !shown) return null

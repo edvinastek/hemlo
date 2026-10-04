@@ -123,6 +123,16 @@
   font-family: var(--font-sans); font-size: 11px; color: var(--e-accent);
 }
 
+/* Day start and day end (GEN-70): a quiet dashed line with its words on
+   the line itself, so it never reads as the "now" line. */
+.rail-edge {
+  display: flex; align-items: center; gap: var(--space-2);
+  margin: var(--space-1) var(--space-4) var(--space-1) 0;
+  font-family: var(--font-sans); font-size: 11px; color: var(--e-ink-soft);
+}
+.rail-edge::before, .rail-edge::after { content: ""; flex: 1 1 0; border-top: 1px dashed var(--e-rule); }
+.rail-edge::before { flex: 0 0 var(--space-3); }
+
 /* The rail's empty state. */
 .rail-empty { padding: var(--space-4) var(--space-4) var(--space-4) 0; margin: 0; }
 

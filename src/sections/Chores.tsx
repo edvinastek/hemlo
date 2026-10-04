@@ -31,6 +31,7 @@ import { ModuleMenu, PlainSheet } from '../modules/ModuleHead'
 import '../ui/notes.css'
 import './tracking.css'
 import './chores.css'
+import { planToday } from '../lib/day-edge'
 
 const CHORE_KINDS = ['daily', 'weekdays', 'weekends', 'weekly', 'every_n_weeks', 'monthly', 'monthly_nth', 'yearly', 'dates'] as const
 
@@ -46,7 +47,7 @@ export function Chores({ profileId, day }: { profileId: string; day: string }) {
   const online = useApp((s) => s.online)
   const onPage = useLocation().pathname.startsWith('/m/')
   const householdId = profile?.household_id ?? null
-  const today = format(new Date(), 'yyyy-MM-dd')
+  const today = planToday()
 
   const data = useLiveQuery(async () => {
     if (!householdId || !(await moduleEnabled(profileId, 'household'))) return null

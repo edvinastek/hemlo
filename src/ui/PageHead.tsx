@@ -69,7 +69,7 @@ export function PageHead({ date, onPick, sections, active, onSection, sub, note,
         {Array.from({ length: 7 }, (_, i) => addDays(weekStart, i)).map((d) => (
           <button
             key={d.toISOString()}
-            className={isSameDay(d, today) ? 'today' : undefined}
+            className={format(d, 'yyyy-MM-dd') === todayKey ? 'today' : undefined}
             onClick={() => onPick(d)}
             disabled={!inRange(format(d, 'yyyy-MM-dd'), range)}
             aria-current={isSameDay(d, date) ? 'date' : undefined}

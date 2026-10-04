@@ -1,5 +1,4 @@
 import { useMemo, useState } from 'react'
-import { format } from 'date-fns'
 import { useLiveQuery } from 'dexie-react-hooks'
 import type { Task } from '../lib/types'
 import { db } from '../lib/db'
@@ -27,6 +26,7 @@ import { GoalField, ProjectField } from '../sections/ProjectField'
 import { useBackClose } from './useBackClose'
 import { offerUndo } from './Undo'
 import './tasksheet.css'
+import { planToday } from '../lib/day-edge'
 
 type Step = 'form' | 'scope' | 'rule' | 'stop' | 'template'
 
@@ -93,7 +93,7 @@ function TaskForm({ task, isNew, onClose, onDuplicate }: {
   useBackClose(onClose)
   // The note page closes itself on Back, keeping what was typed.
 
-  const today = format(new Date(), 'yyyy-MM-dd')
+  const today = planToday()
   // Undefined while it is being read, null when there is none.
   const series = useLiveQuery(
     async () => (task.series_id ? (await db.series.get(task.series_id)) ?? null : null),

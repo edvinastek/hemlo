@@ -1,7 +1,6 @@
 import { useState } from 'react'
 import { useLocation } from 'react-router-dom'
 import { useLiveQuery } from 'dexie-react-hooks'
-import { format } from 'date-fns'
 import { db } from '../lib/db'
 import type { Supplement } from '../lib/types'
 import {
@@ -21,6 +20,7 @@ import { offerUndo } from '../ui/Undo'
 import { TrackSheet } from './TrackSheet'
 import { ModuleMenu, PlainSheet } from '../modules/ModuleHead'
 import './tracking.css'
+import { planToday } from '../lib/day-edge'
 
 const SUPP_KINDS = ['daily', 'weekdays', 'weekends', 'weekly', 'every_n_weeks', 'monthly', 'monthly_nth', 'yearly', 'dates'] as const
 
@@ -54,7 +54,7 @@ export function Supplements({ profileId, day }: { profileId: string; day: string
   const { live, logs, slots, since } = data
   const archived = data.all.filter((s) => !s.active || s.deleted_at)
   const taken = (id: string) => !!pickLog(logs.filter((l) => l.supplement_id === id))?.done
-  const today = format(new Date(), 'yyyy-MM-dd')
+  const today = planToday()
   const groups = supplementGroups(live, slots)
 
   return (

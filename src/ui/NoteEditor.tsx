@@ -1,7 +1,6 @@
 import { useLayoutEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { useNavigate, useInRouterContext } from 'react-router-dom'
 import { useLiveQuery } from 'dexie-react-hooks'
-import { format } from 'date-fns'
 import {
   applyTool, continueList, fromEditable, indentSelection, toEditable, type Edit, type Hidden, type Tool,
 } from '../lib/notes'
@@ -16,6 +15,7 @@ import { TemplatePicker } from './TemplatePicker'
 import { RecipeInsert } from './RecipeInsert'
 import { offerUndo } from './Undo'
 import './notes.css'
+import { planToday } from '../lib/day-edge'
 
 const TOOLS: { tool: Tool; glyph: string; name: string }[] = [
   { tool: 'check', glyph: '☐', name: 'Checklist item' },
@@ -135,7 +135,7 @@ export function NoteEditor({
     emit(next)
   }
 
-  const ctx: FillContext = { day: context?.day ?? format(new Date(), 'yyyy-MM-dd'), title: context?.title, time: context?.time, start: context?.start }
+  const ctx: FillContext = { day: context?.day ?? planToday(), title: context?.title, time: context?.time, start: context?.start }
 
   function putTemplate(t: NoteTemplate, asPrompt: boolean) {
     const before = value

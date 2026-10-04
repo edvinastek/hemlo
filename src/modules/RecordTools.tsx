@@ -19,6 +19,7 @@ import { EVENT_RULE_KINDS } from '../lib/day-items-rules'
 import { arrange, filterOps, filterableFields, orderSummary, sortableFields, sortDirs, type FilterOp, type ListOrder, type SortDir } from './list-rules'
 import { formatValue } from './RecordSheet'
 import { plural } from '../lib/stats-builder-rules'
+import { planToday } from '../lib/day-edge'
 
 /** The tools of a module's record list (GEN-52, competitor review 4.2):
  *  sort and filter by a field (in the page's ⋮), the quiet line that says
@@ -250,7 +251,7 @@ export function RecordSelectBar({ def, entity, profileId, sel, shown, lookups, r
     })
   }
 
-  const today = format(new Date(), 'yyyy-MM-dd')
+  const today = planToday()
   return (
     <>
       <SelectBar {...sel.bar(shown, nouns)}>

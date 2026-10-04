@@ -1,4 +1,3 @@
-import { format } from 'date-fns'
 import { db } from '../lib/db'
 import { edit } from '../lib/write'
 import { materializeSeries, stopSeries } from '../lib/series'
@@ -6,6 +5,7 @@ import type { ModuleRecord, Series } from '../lib/types'
 import type { RepeatValue } from '../lib/repeat-choice-rules'
 import type { EntityDef, ModuleDef } from './types'
 import { REPEAT_KEY, repeatPlan, sameRepeat } from './repeat-rules'
+import { planToday } from '../lib/day-edge'
 
 /** A record that comes round again (MOD-14): watering the plants every three
  *  days, the car's oil every six months. The record keeps its fields; the
@@ -22,7 +22,7 @@ export const recordSeriesId = (data: Record<string, unknown> | null | undefined)
 export async function recordRepeat(row: Pick<ModuleRecord, 'data'> | undefined): Promise<{ value: RepeatValue; series: Series | null }> {
   const id = recordSeriesId(row?.data)
   const series = id ? (await db.series.get(id)) ?? null : null
-  if (!series || series.deleted_at || !series.active || (series.end_date && series.end_date < format(new Date(), 'yyyy-MM-dd'))) {
+  if (!series || series.deleted_at || !series.active || (series.end_date && series.end_date < planToday())) {
     return { value: { rule: null, rule_config: {}, end_date: null }, series: null }
   }
   return { value: { rule: series.rule, rule_config: series.rule_config ?? {}, end_date: series.end_date }, series }
@@ -32,7 +32,7 @@ export async function recordRepeat(row: Pick<ModuleRecord, 'data'> | undefined):
  *  time or name ends the old series today (done days stay, days to come go)
  *  and starts a new one, so nothing of the old rule is left behind. */
 export async function setRecordRepeat(profileId: string, def: ModuleDef, entity: EntityDef, row: ModuleRecord, value: RepeatValue): Promise<ModuleRecord> {
-  const today = format(new Date(), 'yyyy-MM-dd')
+  const today = planToday()
   const { series: current } = await recordRepeat(row)
   const want = value.rule ? repeatPlan(def, entity.fields, row.data ?? {}, value, today) : null
   if (current && want && sameRepeat(current, want)) return row

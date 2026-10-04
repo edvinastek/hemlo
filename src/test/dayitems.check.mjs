@@ -199,5 +199,24 @@ is('sleep off: no item', dayItems([SAT], 'today', { ...sleepSrc, enabled: [] }).
 is('only on its own day', dayItems([SUN], 'today', sleepSrc).length, 0)
 is('kept off Today: not on Today', dayItems([SAT], 'today', { ...sleepSrc, views: { sleep: { today: false } } }).length, 0)
 
+// ---------- v19: a day that runs past midnight (GEN-70) ---------------------------
+const lateDay = { ...base, tasks: [task('film', { planned_time: '23:00' }), task('walk', { planned_time: '00:40' }), task('work', { planned_time: '09:00' })] }
+is('by the clock with no cut-off', dayItems([SAT], 'today', lateDay).map((i) => i.title), ['walk', 'work', 'film'])
+is('a day ending at 01:30 lists 00:40 last', dayItems([SAT], 'today', { ...lateDay, cutoff: '01:30' }).map((i) => i.title), ['work', 'film', 'walk'])
+const lateItems = dayItems([SAT], 'today', { ...lateDay, cutoff: '01:30' })
+is('the now line at 00:50 goes after 00:40', nowSlot(lateItems, '00:50', '01:30'), 3)
+is('…and at 23:30 before it', nowSlot(lateItems, '23:30', '01:30'), 2)
+is('without a cut-off, 00:50 is the morning', nowSlot(dayItems([SAT], 'today', lateDay), '00:50'), 1)
+is('00:40 is the evening in parts', railGroups(lateItems, 'parts', '01:30').map((g) => [g.key, g.items.map((i) => i.title)]),
+  [['morning', ['work']], ['evening', ['film', 'walk']]])
+
+// ---------- v19: chores put on today in Plan my day (TOD-22) -----------------------
+const flexChore = (id, days) => ({ id, household_id: 'h', name: id, room: null, mode: 'flexible', rule: null, rule_config: {}, every_days: days, start_date: '2026-09-01', end_date: null, time_of_day: null, minutes: null, assignees: [], rotation: 'none', note: null, paused: false, sort_order: 0, updated_at: '', deleted_at: null })
+const choreSrc = { ...base, enabled: ['household'], chores: [flexChore('hoover', 7)], choreLogs: [{ id: 'l1', chore_id: 'hoover', done_on: '2026-09-30', done_by: null, deleted_at: null }] }
+is('a flexible chore not due yet is not on today', dayItems([SAT], 'today', choreSrc).length, 0)
+is('…until it is put on today', dayItems([SAT], 'today', { ...choreSrc, pinnedChores: ['hoover'] }).map((i) => i.title), ['hoover'])
+is('…and only today', dayItems([SUN], 'plan', { ...choreSrc, pinnedChores: ['hoover'] }).length, 0)
+is('a light day does not hold back a chore put on today', dayItems([SAT], 'today', { ...choreSrc, pinnedChores: ['hoover'], chorePrefs: { light_days: [6], cap: null } }).length, 1)
+
 if (fail) { console.error(`\n${fail} failed`); process.exit(1) }
 console.log('\ndayitems: all good')

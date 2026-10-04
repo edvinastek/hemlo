@@ -1,6 +1,5 @@
 import { useEffect, useMemo, useState, type ReactNode } from 'react'
 import { useSearchParams } from 'react-router-dom'
-import { format } from 'date-fns'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { useApp } from '../lib/store'
 import { isModuleOn } from '../lib/day'
@@ -33,6 +32,7 @@ import { FollowedSheet } from '../ui/FollowedEvents'
 import { ModuleHeadProvider, ModuleMenu, ViewBar } from './ModuleHead'
 import type { CalendarEvent } from '../lib/types'
 import './modules.css'
+import { planToday } from '../lib/day-edge'
 
 /** Modules whose page is a section of its own instead of the generic views.
  *  To give a module its own page, add ONE line here: its key and the
@@ -112,7 +112,7 @@ function Body({ def, profileId, onEdit }: { def: ModuleDef; profileId: string; o
       {(head) => Section ? (
         <>
           {head}
-          <Section profileId={profileId} day={format(new Date(), 'yyyy-MM-dd')} />
+          <Section profileId={profileId} day={planToday()} />
         </>
       ) : own ? (
         <>

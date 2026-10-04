@@ -31,6 +31,7 @@ import './products.css'
 import './addfood.css'
 import { Tip } from './Tip'
 import { useBackClose } from './useBackClose'
+import { planToday } from '../lib/day-edge'
 
 /** THE add-food sheet (MEAL-10 to MEAL-14, GEN-51): opened from Food → Day's
  *  round +, a meal's own +, and Today's + menu. It opens where the work is
@@ -89,7 +90,7 @@ export function AddFoodSheet({ day, meal: startMeal, time: startTime, food: star
   const titleId = useId()
   // The clock as the sheet opened: "now" does not drift while it is open.
   const [nowHM] = useState(() => format(new Date(), 'HH:mm'))
-  const [today] = useState(() => format(new Date(), 'yyyy-MM-dd'))
+  const [today] = useState(() => planToday())
 
   const foods = useLiveQuery(() => db.food.toArray(), [], [] as Food[])
   const recipes = useLiveQuery(() => db.recipe.toArray(), [], [] as Recipe[])

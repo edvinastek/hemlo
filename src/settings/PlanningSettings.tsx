@@ -1,5 +1,4 @@
 import { useState } from 'react'
-import { format } from 'date-fns'
 import { useApp } from '../lib/store'
 import { edit } from '../lib/write'
 import { mergeSettings, NUTRIENTS, readSettings, type Commute, type Nutrient, type WorkHours } from '../lib/settings'
@@ -17,6 +16,7 @@ import { Dropdown } from '../ui/Dropdown'
 import { SearchPick } from '../ui/SearchPick'
 import { WorkFields } from './WorkFields'
 import './planning.css'
+import { planToday } from '../lib/day-edge'
 
 const COUNTRY_ITEMS = COUNTRIES.map((c) => ({ id: c.code, name: c.name, tag: c.code }))
 const TEMPLATE_OPTIONS = TEMPLATES.map((t) => ({ value: t.key, label: t.name, hint: t.description }))
@@ -84,7 +84,7 @@ function Work({ profile }: { profile: Profile }) {
       const next = mergeSettings(readSettings(profile), { work, commute })
       const changes = await applyWorkPlan(profile, next)
       await edit('profile', profile, { settings: next })
-      setWorkNote(changes.start.some((c) => c.start_date > format(new Date(), 'yyyy-MM-dd'))
+      setWorkNote(changes.start.some((c) => c.start_date > planToday())
         ? 'Saved. The new hours start tomorrow; today stays as it was planned.'
         : changes.start.length ? 'Saved. Added to the plan from today.'
         : changes.stop.length ? 'Saved. Work is no longer added to the plan after today.'

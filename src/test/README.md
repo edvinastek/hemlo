@@ -337,6 +337,13 @@ Added when the ten version 16 branches were wired together (integration):
 - `ics`, `calendarlinks` — a repeating own event in a calendar file and in the GetIt feed: its RRULE at its own local
   time, from the first day the rule gives, cut to the feed's window.
 
+- `dayedge` — day start and day end (v19, GEN-70, day-edge-rules.ts): stored times read ('06:00:00'), the cut-off
+  only for a day that ends after midnight and never past noon, which day it is just after midnight (month and year
+  ends, both daylight-saving nights), a late day's hours after midnight listed last, early and late times, where
+  "Day starts" and "Day ends" are drawn (only when something falls outside), the waking day in minutes. With
+  `dayitems` (a late day's order, the now line and parts of the day after midnight, chores put on today) and
+  `review` (the review after midnight in a late day).
+
 ## Browser checks
 
 They need the app built and served (`npm run build`, then

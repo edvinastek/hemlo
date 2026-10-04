@@ -14,6 +14,9 @@ import { supplementSlots } from './tracking'
 import { cachedMembers, chorePrefs } from './household'
 import { memberName, mineOnly } from './chore-rules'
 import { financeDaySources } from './finance'
+import { dayEdges } from './day-edge-rules'
+import { loadPlanPrefs } from './plan-prefs'
+import { pinnedOn } from './plan-view-rules'
 
 /** Reads everything the day-items rules need for a range of days from the
  *  local copy, and lays the days out (day-items-rules.ts). One reader for
@@ -71,8 +74,12 @@ export async function loadDayItems(profileId: string, householdId: string, from:
     const s = readSleepSettings((await instanceFor(profileId, 'sleep'))?.settings)
     sleep = { day: today, row: night, wake: clockOf(minutesOf(s.bedtime) + Math.round(s.target_hours * 60)) }
   }
+  // Plan my day's chores for today (TOD-22), and the day's cut-off (GEN-70).
+  const pinnedChores = today >= from && today <= to ? pinnedOn(await loadPlanPrefs(profileId), today) : []
   return dayItems(days, where, {
     ...finance,
+    cutoff: dayEdges(profile).cutoff,
+    pinnedChores,
     today, enabled, views: settings.module_views,
     tasks, habits, habitLogs, chores, choreLogs, supplements, supplementLogs,
     events: events.filter((e) => !e.subscription_id || subs.has(e.subscription_id)).map((e) => {
