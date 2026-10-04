@@ -54,3 +54,9 @@ BODY-17 adaptive maintenance, PROD-05 unknown product.
   POLICY_VERSION left at 2026-10-05: the lead bumps it at release.
 - Harness: scratchpad/harness-x2 (port 5502), shots in scratchpad/shots19/x2. The machine was at load 60–110 on
   2 CPUs for most of the afternoon (other worktrees' tsc, gradle, browsers), so shots were slow.
+- Screenshots (light and -dark, 360 px): shots19/x2 01–17 (settings picker, Food → Day with and without the NRV
+  line, food page %NRV, recipe photo and micros, recipe ⋮, cook mode ingredients / step with timer / other step with the
+  running timer, photo panel, supplement "Counts towards", adaptive offer / About / after Use with Undo, new food with
+  the label photo and with pasted text). No page errors and nothing off screen. Harness deleted.
+- Final verification: npx tsc -b, npm run check (72 checks incl. micros, cook, recipephoto, adaptive, offwrite),
+  npx vite build, local DB 001–036 from scratch + security suite 282/282 ok, 036 re-run is a no-op. Local DB stopped.
