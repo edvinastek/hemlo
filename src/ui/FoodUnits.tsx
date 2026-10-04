@@ -136,7 +136,9 @@ export function FoodUnitsSheet({ food: given, onClose }: { food: Food; onClose: 
           {food.store_section ? <div><dt>Aisle</dt> <dd>{food.store_section}</dd></div> : null}
           {food.stores?.length ? <div><dt>Shops</dt> <dd>{food.stores.join(', ')}</dd></div> : null}
           {food.density ? <div><dt>Weighs</dt> <dd>{Number(food.density)} g per ml</dd></div> : null}
-          {food.source_note ? <div><dt>NEVO’s note</dt> <dd lang="nl">{food.source_note}</dd></div> : null}
+          {food.source_note ? (kind === 'nevo'
+            ? <div><dt>NEVO’s note</dt> <dd lang="nl">{food.source_note}</dd></div>
+            : <div><dt>Source</dt> <dd>{food.source_note}</dd></div>) : null}
         </dl>
 
         <Units food={food} units={units} mine={mine} shared={shared} profileId={profileId} />
@@ -191,6 +193,7 @@ function Units({ food, units, mine, shared, profileId }: {
   food: Food; units: FoodUnit[]; mine: boolean; shared: boolean; profileId: string | null
 }) {
   const word = foodWord(food.name)
+  const mixed = units.some((u) => u.source?.startsWith('Portie'))
   const [form, setForm] = useState({ name: '', plural: '', g: '' })
   const [adding, setAdding] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -238,6 +241,9 @@ function Units({ food, units, mine, shared, profileId }: {
                   {unitLine(u)}
                   {u.source === 'mine' && <span className="fs-unit-tag">yours</span>}
                   {u.source?.startsWith('Portie') && <span className="fs-unit-tag">Portie-online</span>}
+                  {/* Where Portie-online's units sit beside others, each says its source. */}
+                  {mixed && u.source === 'USDA FoodData Central' && <span className="fs-unit-tag">USDA</span>}
+                  {mixed && u.source?.startsWith('GetIt:') && <span className="fs-unit-tag">worked out</span>}
                 </span>
                 {removable(u) && (
                   <button type="button" className="re-remove" aria-label={`Remove the unit ${u.name}`} disabled={busy}

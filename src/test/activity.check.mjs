@@ -96,7 +96,7 @@ is('cardio by muscle group or old type', [isCardio({ muscle: 'cardio' }), isCard
 is('the budget adds training when it is added', dayBudget(2200, 167, 'added'), 2367)
 is('the budget never adds it when training is inside the factor', dayBudget(2200, 167, 'inside'), 2200)
 is('an unknown training energy adds nothing', dayBudget(2200, null, 'added'), 2200)
-is('the screen says how in one line', TRAINING_ENERGY_NOTE.split('. ').length, 1)
+is('the screen says how in one short line', TRAINING_ENERGY_NOTE.length < 100 && !TRAINING_ENERGY_NOTE.includes('. '), true)
 
 console.log(fail ? `\n${fail} check(s) failed` : '\nall checks passed')
 process.exit(fail ? 1 : 0)

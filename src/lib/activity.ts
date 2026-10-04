@@ -162,8 +162,7 @@ export const MET_STRENGTH = 3.5
 export const MET_CARDIO = 7
 export const SET_MINUTES = 2
 /** The one line the screen says about it. */
-export const TRAINING_ENERGY_NOTE =
-  'Estimated from your logged sets: each counts 2 minutes (or its own time if longer) at MET 3.5, cardio at 7, less resting, times your weight.'
+export const TRAINING_ENERGY_NOTE = 'each logged set is 2 minutes (or its own time) at MET 3.5, cardio 7, less rest, × your weight'
 
 export interface LoggedSet {
   /** How long a timed set lasted, in seconds. */

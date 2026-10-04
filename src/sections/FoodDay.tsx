@@ -97,7 +97,7 @@ export function FoodDay({ day }: { day: string }) {
         <p className="fd-ri">
           {training.kcal === null
             ? 'Training logged: weigh in to add what it burned to the day.'
-            : <>Training adds <b>{training.kcal}</b> kcal{goal('kcal') > 0 ? ' to the day' : ''}. {TRAINING_ENERGY_NOTE}</>}
+            : <>Training adds <b>{training.kcal}</b> kcal ({TRAINING_ENERGY_NOTE}).</>}
         </p>
       )}
       {ri && <p className="fd-ri"><span className="visually-hidden">Planned, as a share of an adult’s reference intake: </span><span aria-hidden="true">Reference intake: </span>{ri}</p>}
