@@ -1,6 +1,6 @@
 // Checks Learning's review schedule (LRN-05): which subjects have a review
 // due on a day under the 1-3-7-14-30 day chain.
-import { reviewsDue, nextReview, sessionDay, describeReviews } from '../lib/study-review-rules.ts'
+import { reviewsDue, nextReview, sessionDay, describeReviews, reviewCardText } from '../lib/study-review-rules.ts'
 
 let fail = 0
 const eq = (label, got, want) => {
@@ -48,6 +48,13 @@ eq('next review for a subject (not yet due)', nextReview([s('Dutch', '2026-10-01
 eq('no next review once the chain is done', nextReview(chain, 'Maths', '2026-02-10'), null)
 eq('one review', describeReviews(1), '1 review due')
 eq('three reviews', describeReviews(3), '3 reviews due')
+
+eq('the Today card with nothing due', reviewCardText([]), { label: 'Reviews', headline: 'No reviews due', sub: null })
+eq('the Today card names the subjects',
+  reviewCardText(reviewsDue([s('Physics', '2026-10-02'), s('Dutch', '2026-10-01')], '2026-10-04')),
+  { label: 'Reviews', headline: '2 reviews due', sub: 'Dutch, Physics' })
+eq('more than three subjects are counted',
+  reviewCardText(['A', 'B', 'C', 'D'].map((x) => ({ subject: x }))).sub, 'A, B, C and 1 more')
 
 if (fail) { console.log(`\n${fail} failed`); process.exit(1) }
 console.log('\nstudy review: all ok')

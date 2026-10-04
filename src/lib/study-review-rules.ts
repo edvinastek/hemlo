@@ -103,3 +103,13 @@ export function nextReview(records: StudyRecordLike[], subject: string, day: str
 
 /** "1 review due", "3 reviews due". */
 export const describeReviews = (n: number) => `${n} review${n === 1 ? '' : 's'} due`
+
+/** The pinned "Reviews due" card on Today (TodayCards.tsx): the count as the
+ *  figure, the subjects under it. The card's key in profile.settings.today_cards. */
+export const REVIEW_CARD_KEY = 'learning:reviews'
+
+export function reviewCardText(due: ReviewDue[]): { label: string; headline: string; sub: string | null } {
+  if (!due.length) return { label: 'Reviews', headline: 'No reviews due', sub: null }
+  const names = due.slice(0, 3).map((d) => d.subject).join(', ')
+  return { label: 'Reviews', headline: describeReviews(due.length), sub: due.length > 3 ? `${names} and ${due.length - 3} more` : names }
+}

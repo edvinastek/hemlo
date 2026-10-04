@@ -180,8 +180,12 @@ export async function rescheduleReminders(profileId: string, persona: string | n
 
   if (isNative()) {
     const pending = await LocalNotifications.getPending()
-    // A snoozed reminder is the person's own "later": it stays.
-    const drop = pending.notifications.filter((n) => !(n.extra as { snoozed?: boolean } | undefined)?.snoozed)
+    // A snoozed reminder is the person's own "later": it stays, as does a
+    // running focus timer's end (LRN-06), which no plan change touches.
+    const drop = pending.notifications.filter((n) => {
+      const x = n.extra as { snoozed?: boolean; kind?: string } | undefined
+      return !x?.snoozed && x?.kind !== 'focus'
+    })
     if (drop.length) await LocalNotifications.cancel({ notifications: drop.map((n) => ({ id: n.id })) })
     if (!settings.on) return 0
     await ensureChannel()
@@ -297,4 +301,46 @@ export function listenForReminderActions() {
     // A tap on the reminder itself.
     if (e.route) openRoute(e.route)
   })
+}
+
+/* ---------- the focus timer's end (LRN-06) -------------------------------------- */
+
+const FOCUS_KEY = 'focus-end'
+let focusTimer: number | undefined
+
+/** A notification when a focus countdown ends: on Android the phone's own
+ *  scheduler shows it with the screen locked or the app closed; in a browser
+ *  only while GetIt is open. The person started the timer, so it is shown
+ *  whenever the phone allows notifications, outside the reminder settings
+ *  (quiet hours included); it never asks for permission itself. */
+export async function scheduleFocusEnd(at: Date, subject: string): Promise<void> {
+  await cancelFocusEnd()
+  const title = 'Focus time is up'
+  const body = `${subject}: time to stop. It is logged when you open Learning.`
+  if (isNative()) {
+    if ((await LocalNotifications.checkPermissions()).display !== 'granted') return
+    await ensureChannel()
+    await LocalNotifications.schedule({
+      notifications: [{
+        id: notificationId(FOCUS_KEY), title, body, channelId: 'reminders',
+        schedule: { at, allowWhileIdle: true }, isExactNotification: false,
+        extra: { kind: 'focus', route: '/m/learning', title, body },
+      }],
+    })
+    return
+  }
+  if (typeof Notification === 'undefined' || Notification.permission !== 'granted') return
+  const wait = at.getTime() - Date.now()
+  if (wait <= 0) return
+  focusTimer = window.setTimeout(() => {
+    const n = new Notification(title, { body, icon: import.meta.env.BASE_URL + 'favicon.svg', tag: FOCUS_KEY })
+    n.onclick = () => { window.focus(); openRoute('/m/learning'); n.close() }
+  }, wait)
+}
+
+/** Take back the focus timer's notification (paused, stopped or logged). */
+export async function cancelFocusEnd(): Promise<void> {
+  window.clearTimeout(focusTimer)
+  focusTimer = undefined
+  if (isNative()) await LocalNotifications.cancel({ notifications: [{ id: notificationId(FOCUS_KEY) }] }).catch(() => undefined)
 }
