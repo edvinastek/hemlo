@@ -2,7 +2,11 @@ import { useLiveQuery } from 'dexie-react-hooks'
 import { db } from './db'
 import { queueChange } from './sync'
 import { edit } from './write'
-import { targetsFor } from './calc'
+import { ageFrom, bmr, missingForCalc, targetsFor } from './calc'
+import { adaptiveEstimate, factorFrom, shouldOffer, type Adaptive } from './adaptive-rules'
+import { eatenByDay } from './nutrition'
+import { addDays } from './schedule-rules'
+import { readStoredFactor } from './activity'
 import { isCardio, trainingKcal, type TrainingMode } from './activity'
 import { latestOnOrBefore, missingForTargets, readBodySettings, recalcReason, type BodySettings, type RecalcWhy } from './body-rules'
 import { ensureInstance, instanceFor } from '../modules/defs'
@@ -172,4 +176,57 @@ export async function trainingOn(profileId: string, day: string): Promise<{ mode
   const weight = latestOnOrBefore(await weighIns(profileId), day)?.weight_kg ?? null
   const sets = logs.map((l) => ({ seconds: l.seconds, cardio: isCardio(l.exercise_id ? exercises.get(l.exercise_id) : null) }))
   return { mode: 'added', sets: logs.length, kcal: trainingKcal(sets, weight) }
+}
+
+// ---- the adaptive estimate of maintenance (BODY-17) ------------------------------------------
+
+export interface AdaptiveNow {
+  est: Adaptive
+  /** Resting energy and the maintenance the targets rest on now. */
+  bmr: number | null
+  current: number | null
+  offer: boolean
+}
+
+/** The estimate as of today, what the targets rest on now, and whether to
+ *  offer it. */
+export async function adaptiveNow(profile: Profile, today: string): Promise<AdaptiveNow> {
+  const settings = await bodySettings(profile.id)
+  const all = await weighIns(profile.id)
+  const intake = await eatenByDay(profile.id, addDays(today, -28), addDays(today, -1))
+  const est = adaptiveEstimate(intake, all, today)
+  const latest = latestOnOrBefore(all, today)
+  const age = ageFrom(profile.birth_date)
+  const base = latest && age !== null && !missingForCalc(profile).length
+    ? Math.round(bmr(latest.weight_kg, Number(profile.height_cm), age, profile.sex as 'male' | 'female')) : null
+  const current = base === null ? null : Math.round(base * readStoredFactor(profile.activity_level))
+  return { est, bmr: base, current, offer: shouldOffer(est, current, base, settings.adaptive, today) }
+}
+
+/** Take the estimate: the activity factor becomes maintenance ÷ resting
+ *  energy, so every later recalculation (a weigh-in, a goal) rests on it,
+ *  and the targets are worked out again from today. Returns the note to show
+ *  and how to undo it. */
+export async function takeAdaptive(profile: Profile, kcal: number, base: number, today: string): Promise<{ note: string; undo: () => Promise<void> } | null> {
+  const factor = factorFrom(kcal, base)
+  if (factor === null) return null
+  const before = { factor: profile.activity_level, adaptive: (await bodySettings(profile.id)).adaptive }
+  const next = await edit('profile', profile, { activity_level: factor })
+  await saveBodySettings(profile.id, { adaptive: { ...before.adaptive, accepted_kcal: kcal, accepted_on: today } })
+  const note = await recalcTargets(next, today, 'activity')
+  return {
+    note,
+    undo: async () => {
+      const now = (await db.profile.get(profile.id)) ?? next
+      const back = await edit('profile', now, { activity_level: before.factor })
+      await saveBodySettings(profile.id, { adaptive: before.adaptive })
+      await recalcTargets(back, today, 'activity')
+    },
+  }
+}
+
+/** "Not now": the offer rests for two weeks. */
+export async function notNowAdaptive(profileId: string, today: string): Promise<void> {
+  const { adaptive } = await bodySettings(profileId)
+  await saveBodySettings(profileId, { adaptive: { ...adaptive, declined_on: today } })
 }
