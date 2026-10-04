@@ -39,6 +39,7 @@ import { TaskSheet } from '../ui/TaskSheet'
 import { CopySheet, type CopyWhat } from '../ui/CopySheet'
 import { DayRail, useRailMenu } from '../ui/DayRail'
 import { AddFab } from '../ui/AddMenu'
+import { YearPhases } from '../sections/TrainingPhases'
 import { MoreMenu, type MenuItem } from '../ui/MoreMenu'
 import { TaskSelectBar } from '../ui/TaskSelectBar'
 import { useSelection } from '../ui/useSelection'
@@ -461,6 +462,7 @@ export function Plan() {
               <HolidayLegend countries={countriesIn([...holidays.values()], settings.holidays.countries)} />
               <FollowedLegend calendars={calendarsIn([...followedAll.values()].map((l) => l.filter((f) => !hidden.includes(f.sub.id))))} />
             </Key>
+            {profile && <YearPhases profileId={profile.id} year={Number(date.slice(0, 4))} />}
             {profile && <YearGoals profileId={profile.id} year={Number(date.slice(0, 4))} onOpen={(link) => navigate(link)} />}
           </>
         )}

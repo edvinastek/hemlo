@@ -14,8 +14,8 @@ export { NATURAL_KEYS }
  *  reference data: pulled, never pushed, except rows a person owns. */
 const SYNCED = ['task', 'target', 'body_log', 'food_log', 'meal_plan_slot', 'module_instance', 'series', 'habit', 'supplement',
   'module_record', 'calendar_event', 'goal', 'sleep_log', 'workout_log', 'calendar_subscription',
-  // 029: training routines and milestones.
-  'routine', 'milestone'] as const
+  // 029: training routines and milestones. 037: training phases.
+  'routine', 'milestone', 'phase'] as const
 /** Rows that belong to a profile through their parent (a log to its habit).
  *  Row-level security already limits them to the account, so they are fetched
  *  without a profile filter, still incrementally. */

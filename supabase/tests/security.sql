@@ -1461,6 +1461,82 @@ begin
   execute 'reset role';
 end $$;
 
+-- 037 (engineer X3): training phases. B owns one, M is the stranger (A has
+-- deleted their account by now).
+do $$
+declare n int; ph uuid; t0 timestamptz;
+begin
+  perform set_config('role', 'authenticated', true);
+  perform set_config('request.jwt.claims', json_build_object('sub', (select b from _ids), 'role', 'authenticated')::text, true);
+  insert into phase (profile_id, name, start_date, end_date, colour)
+    select pb, 'Strength 037', date '2026-01-05', date '2026-02-15', '#c43f3e' from _ids returning id, updated_at into ph, t0;
+  insert into _r (check_name, expected, actual) values
+    ('A phase keeps its name, days and colour', 'Strength 037 2026-01-05 2026-02-15 #c43f3e',
+       (select name || ' ' || start_date::text || ' ' || end_date::text || ' ' || colour from phase where id = ph));
+  begin
+    update phase set end_date = date '2026-01-01' where id = ph;
+    insert into _r (check_name, expected, actual) values ('A phase cannot end before it starts', 'denied', 'allowed');
+  exception when others then
+    insert into _r (check_name, expected, actual) values ('A phase cannot end before it starts', 'denied', 'denied');
+  end;
+  begin
+    update phase set end_date = date '2027-06-01' where id = ph;
+    insert into _r (check_name, expected, actual) values ('A phase is at most a year long', 'denied', 'allowed');
+  exception when others then
+    insert into _r (check_name, expected, actual) values ('A phase is at most a year long', 'denied', 'denied');
+  end;
+  begin
+    update phase set colour = 'red; drop table phase' where id = ph;
+    insert into _r (check_name, expected, actual) values ('A phase colour is #rrggbb only', 'denied', 'allowed');
+  exception when others then
+    insert into _r (check_name, expected, actual) values ('A phase colour is #rrggbb only', 'denied', 'denied');
+  end;
+  begin
+    update phase set name = '  ' where id = ph;
+    insert into _r (check_name, expected, actual) values ('A phase has a name', 'denied', 'allowed');
+  exception when others then
+    insert into _r (check_name, expected, actual) values ('A phase has a name', 'denied', 'denied');
+  end;
+  begin
+    insert into phase (profile_id, name, start_date) select (select id from profile where user_id = (select m from _ids) limit 1), 'Planted', current_date;
+    insert into _r (check_name, expected, actual) values ('No one can put a phase on another''s profile', 'denied', 'allowed');
+  exception when others then
+    insert into _r (check_name, expected, actual) values ('No one can put a phase on another''s profile', 'denied', 'denied');
+  end;
+  update phase set deleted_at = now() where id = ph;
+  insert into _r (check_name, expected, actual) values
+    ('A deleted phase is kept, marked, for other devices to see', '1', (select count(*) from phase where id = ph and deleted_at is not null)::text);
+  execute 'reset role';
+  -- The touch trigger moves updated_at on every change (how a device asks "what changed since").
+  update phase set updated_at = t0 - interval '1 hour' where id = ph;
+  update phase set name = 'Strength 037b' where id = ph;
+  insert into _r (check_name, expected, actual) values
+    ('A changed phase has a newer updated_at', 'true', ((select updated_at from phase where id = ph) > t0 - interval '1 hour')::text);
+
+  perform set_config('role', 'authenticated', true);
+  perform set_config('request.jwt.claims', json_build_object('sub', (select m from _ids), 'role', 'authenticated')::text, true);
+  insert into _r (check_name, expected, actual) values
+    ('A stranger cannot see another''s phases', '0', (select count(*) from phase)::text);
+  update phase set name = 'Taken' where id = ph;
+  get diagnostics n = row_count;
+  insert into _r (check_name, expected, actual) values ('A stranger cannot change another''s phase', '0', n::text);
+  delete from phase where id = ph;
+  get diagnostics n = row_count;
+  insert into _r (check_name, expected, actual) values ('A stranger cannot delete another''s phase', '0', n::text);
+  execute 'reset role';
+  perform set_config('role', 'anon', true);
+  begin
+    perform count(*) from phase;
+    insert into _r (check_name, expected, actual) values ('Signed out, phases cannot be read at all', 'denied', 'allowed');
+  exception when others then
+    insert into _r (check_name, expected, actual) values ('Signed out, phases cannot be read at all', 'denied', 'denied');
+  end;
+  execute 'reset role';
+  insert into _r (check_name, expected, actual) values
+    ('The Health catalogue no longer names a weigh-in day (any day is the default)', 'false',
+       (select (default_settings ? 'weigh_in_day')::text from module where key = 'health'));
+end $$;
+
 select n, check_name, expected, actual, case when expected = actual then 'ok' else 'FAIL' end as result
 from _r order by n;
 

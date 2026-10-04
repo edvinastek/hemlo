@@ -319,6 +319,9 @@ Types, then every check that needs nothing but Node. CI runs the same command.
   twice), the measures a page shows, each one averaged in Stats, a measure over time (one point a day, comma decimals),
   its latest and change in words, one record a day; the weigh-in day read safely (any day by default), Today offering
   the weigh-in on that day only (one logged always shows), and the days its reminder comes (not once weighed).
+- `phases` — (v19, TRN-07) training phases: the last day from weeks, weeks from days, what a phase must have (a name,
+  a first day, 1 to 52 whole weeks, one of the swatches), bands across a year (clipped, overlapping ones on their own
+  lane, a phase from the year before or into the next marked), the phase and week of a day, and the words used.
 
 Added when the ten version 16 branches were wired together (integration):
 
