@@ -527,7 +527,7 @@ Columns: **ID**, **Requirement** (with "Done when" where a test is needed), **Pr
 | FOOD-14 | Foods list: sorted by name, filtered by the shared search (GEN-10), shows the tracked figures, no 200-row cap when searching. | Must | Done (v16) | R5 |
 | FOOD-15 | Foods can be grouped into books and multi-selected (copy names, add to book, delete own, export). | Must | Done | R3 |
 | FOOD-16 | Nutrients tracked and shown are the person's choice from the full EU list (not only kcal, protein, carbs, fat, fibre). | Should | Done (v16) | R2, R5 |
-| FOOD-17 | Vitamins and minerals (Annex XIII NRVs) are optional fields, shown only if the person turns them on. | Could | Open | SR |
+| FOOD-17 | Vitamins and minerals (Annex XIII NRVs) are optional fields, shown only if the person turns them on. | Could | Done (v19) | SR |
 | FOOD-18 | Shops are shown on a food when known (from Open Food Facts or set by the person). | Must | Done for scanned products | R4 |
 | FOOD-19 | Food data is reviewed by checks that run with the app's other checks (energy consistency, required fields, units within limits). | Must | Done (v16) | SR |
 | FOOD-20 | Catalogue updates reach every device without disturbing the person's own foods, logs and recipes. | Must | Done (v16) | SR |
@@ -566,8 +566,8 @@ Columns: **ID**, **Requirement** (with "Done when" where a test is needed), **Pr
 | REC-08 | Recipe books and multi-select (copy ingredients, add to shopping list, delete own, export). | Must | Done (except "add to shopping list") | R3 |
 | REC-09 | Share with everyone: propose, owner approves, statuses, review queue. | Must | Done | R3 |
 | REC-10 | **Add ingredient** when the food is not there: the ingredient search ends with "Add '<typed>' as a new food" (opens FOOD-01's form and returns to the line), plus Scan barcode and Find in stores. | Must | Done (v16) | R5 |
-| REC-11 | A photo per recipe (kept on the device and synced within size limits). | Could | Open | SR |
-| REC-12 | Cook mode: steps one by one, screen kept on, timers from step text ("simmer 20 min"). | Could | Open | SR |
+| REC-11 | A photo per recipe (kept on the device and synced within size limits). | Could | Done (v19) | SR |
+| REC-12 | Cook mode: steps one by one, screen kept on, timers from step text ("simmer 20 min"). | Could | Done (v19) | SR |
 | REC-20 | From a recipe: **Add to a task** (into a task's note, NOT-20), **Plan as a meal**, **Add ingredients to shopping list** (minus stock). | Must | Done (v16) | R5 |
 | REC-21 | A recipe can be a **ready meal** made from one scanned product (PROD-10). | Must | Done (v16) | R5 |
 
@@ -612,7 +612,7 @@ Columns: **ID**, **Requirement** (with "Done when" where a test is needed), **Pr
 | BODY-14 | A custom factor can still be typed (1.2 to 2.4, two decimals), with a warning outside 1.3–2.2. | Must | Done (v16) | R2, R5 |
 | BODY-15 | The same picker is used in onboarding and in More (today More is a free text box with a hint that does not match). | Must | Done (v16) | SR |
 | BODY-16 | No double counting: the person chooses once whether training is inside the factor (default) or logged separately and added; the screen says which. | Must | Done (v18) | R5 |
-| BODY-17 | After 2–3 weeks of food logs (6 of 7 days) and at least one weigh-in a week, offer an **adaptive estimate** of maintenance from intake and trend weight, which the person may accept. | Could | Open | SR |
+| BODY-17 | After 2–3 weeks of food logs (6 of 7 days) and at least one weigh-in a week, offer an **adaptive estimate** of maintenance from intake and trend weight, which the person may accept. | Could | Done (v19) | SR |
 | BODY-18 | Goal is not only about the body: the planner's goals (GEN-36) are separate from the calorie goal. | Must | Done (body goal is in its own section) | R2 |
 
 ## D11. Shopping list and stores (SHOP)
@@ -661,7 +661,7 @@ Columns: **ID**, **Requirement** (with "Done when" where a test is needed), **Pr
 | PROD-02 | Scanning is offered wherever food is added: meals, recipes (ingredients), stock, shopping list, Foods. | Must | Done (v16) | R4, R5 |
 | PROD-03 | A product brings in all EU label fields it has (salt, sugars, saturates…), not only five. | Must | Done (v16) | R5 |
 | PROD-04 | Use the current Open Food Facts API (v3) with an app identification; v2 is deprecated. | Should | Done (v16) | SR |
-| PROD-05 | Unknown product: create the food from a photo of its nutrition table, or by hand with the EU fields; optionally contribute it to Open Food Facts. | Could | Partly (by hand after FOOD-01) | SR |
+| PROD-05 | Unknown product: create the food from a photo of its nutrition table, or by hand with the EU fields; optionally contribute it to Open Food Facts. | Could | Partly (v19: the photo is kept beside the EU fields to type from, its text is read where the browser can (TextDetector) or when pasted, and Open Food Facts contribution is done; reading the photo by itself in the Android app needs an on-device text reader (ML Kit text recognition), a new native plugin) | SR |
 | PROD-06 | Nutri-Score shown when Open Food Facts has it. | Could | Done (v16) | SR |
 | PROD-10 | **Ready meals**: a scanned product can be saved as a ready meal (one portion = the pack or the stated serving) and logged or planned like a recipe. | Must | Done (v16) | R5 |
 
@@ -697,7 +697,7 @@ Columns: **ID**, **Requirement** (with "Done when" where a test is needed), **Pr
 | SUP-04 | One tick per slot ("take all"), with per-item ticks when expanded. | Should | Done (v16) | SR |
 | SUP-05 | Optional stock count per supplement: each tick takes one dose off; a refill reminder at N days left. | Could | Done (v18) | SR |
 | SUP-06 | With "Show on Today" on, each slot appears on Today's list as one item (GEN-39). | Should | Done (v16) | SR |
-| SUP-07 | Doses can optionally count towards nutrients (e.g. vitamin D µg). | Could | Open | SR |
+| SUP-07 | Doses can optionally count towards nutrients (e.g. vitamin D µg). | Could | Done (v19) | SR |
 
 ## D16. Health and body log (HLT)
 

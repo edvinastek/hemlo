@@ -44,3 +44,5 @@
 
 /* Vitamins and minerals (FOOD-17): the picker opens under its row. */
 .fs-micros-none { margin-top: var(--space-2); min-height: 44px; }
+.fs-micros-btn { align-self: flex-start; }
+#fs-micros-list .fs-checks + .fs-checks { margin-top: var(--space-3); padding-top: var(--space-2); border-top: 1px solid var(--e-rule); }

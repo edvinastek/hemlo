@@ -219,7 +219,7 @@ function MicroChoice({ profileId }: { profileId: string }) {
           </div>
         )}
       </div>
-      <button type="button" className="btn" aria-expanded={open} aria-controls="fs-micros-list" onClick={() => setOpen(!open)}>
+      <button type="button" className="btn fs-micros-btn" aria-expanded={open} aria-controls="fs-micros-list" onClick={() => setOpen(!open)}>
         {open ? 'Done' : 'Choose'}
       </button>
     </div>
