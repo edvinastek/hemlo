@@ -906,6 +906,12 @@ export function expandRule(r: Rule, start: string, from: string, to: string, cap
 
 /* ---------- events, read --------------------------------------------------- */
 
+/** TRANSP as the calendar wrote it (RFC 5545 3.8.2.7), or null. */
+export function readTransp(v: string | undefined): 'opaque' | 'transparent' | null {
+  const t = (v ?? '').trim().toUpperCase()
+  return t === 'OPAQUE' ? 'opaque' : t === 'TRANSPARENT' ? 'transparent' : null
+}
+
 export interface ParsedEvent {
   uid: string | null
   summary: string
@@ -927,6 +933,9 @@ export interface ParsedEvent {
   /** Every day, laid out, for a repeat the app cannot express (or when asked). */
   dates: string[]
   recurrenceId: string | null
+  /** TRANSP (AGN-07): 'opaque' when the calendar marks the time busy,
+   *  'transparent' when free, null when it does not say. */
+  transp?: 'opaque' | 'transparent' | null
   /** GetIt's own lines, when the file came from GetIt (GEN-26): what it was
    *  (a habit, a chore…) and a repeat no RRULE says, as the app's rule. */
   kind?: GetitKind | null
@@ -1020,6 +1029,7 @@ export function parseIcs(text: string, o: ReadOptions): ReadResult {
         location: get('LOCATION') ? unescapeText(get('LOCATION')!.value).trim() || null : null,
         allDay, date: start.date, time: start.time, endDate, endTime, minutes,
         series: null, exdates: [...new Set(exdates)].sort(), dates: [], recurrenceId: rid?.date ?? null,
+        transp: readTransp(get('TRANSP')?.value),
         kind: GETIT_KINDS.find((k) => k === get('X-GETIT-KIND')?.value.trim().toLowerCase()) ?? null,
         repeat: get('X-GETIT-REPEAT') ? readLooseRepeat(get('X-GETIT-REPEAT')!.value) : null,
       },

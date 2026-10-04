@@ -403,7 +403,7 @@ export const BUILTIN_RULES: Record<string, { support: RuleSupport; note: string 
   'health.retarget': { support: 'switch', note: 'Off: a weigh-in is saved and the calorie and protein targets are left as they are.' },
   'learning.soft': { support: 'later', note: 'Not acted on yet: the planner does not move tasks by itself.' },
   'learning.study_task': { support: 'switch', note: 'Off: study blocks stay on the Learning page and their tasks still to come leave Today and Plan.' },
-  'agenda.no_overlap': { support: 'later', note: 'Not acted on yet: the planner does not place tasks by itself.' },
+  'agenda.no_overlap': { support: 'switch', note: 'Off: a task planned on a day with an all-day event marked busy (in a calendar you follow) no longer warns.' },
   'sleep.bedtime': { support: 'switch', note: 'Off: the bedtime block leaves the planner; the target and the nights stay on the Sleep page.' },
   'projects.to_goal': { support: 'switch', note: 'Off: dated projects are no longer listed with the goals on the Year view.' },
   'household.shared': { support: 'always', note: 'Chores belong to the household: everyone in it sees and can tick them. Who does each one is set on the chore.' },

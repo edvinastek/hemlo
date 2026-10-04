@@ -2,6 +2,7 @@ import { useEffect, useRef, useState, type KeyboardEvent, type ReactNode } from 
 import { format, parseISO } from 'date-fns'
 import { moveWithUndo } from '../lib/series'
 import { offerUndo } from './Undo'
+import { withBusy } from '../lib/busy'
 import {
   count, planDaySwap, singleMoveWarnings, type DaySwap, type Warning, type WorkWindow,
 } from '../lib/reorder-rules'
@@ -23,7 +24,9 @@ const label = (day: string) => format(parseISO(day), 'EEE d MMM')
 /** Move, then offer to put it all back for 8 seconds (GEN-54). */
 async function moveAndOffer(moves: { task: Task; to: string }[], words: string) {
   const undo = await moveWithUndo(moves)
-  offerUndo(words, undo)
+  // A busy all-day event where a task lands is said with the Undo (AGN-07).
+  const profileId = moves[0]?.task.profile_id
+  offerUndo(profileId ? await withBusy(words, profileId, moves.map((m) => m.to)) : words, undo)
 }
 
 /** Swapping days and moving tasks on Plan's week.

@@ -74,6 +74,10 @@ is('today after the review time', reviewOpen(day, at(22, 15), '21:00'), true)
 is('a past day any time', reviewOpen('2026-09-23', at(8, 0), '21:00'), true)
 is('a future day never', reviewOpen('2026-09-25', at(23, 0), '21:00'), false)
 is('a broken review time still opens in the evening', reviewOpen(day, at(21, 30), 'soon'), true)
+// GEN-70: a day that runs past midnight. At 00:40 on the 25th it is still the 24th.
+const night = new Date(2026, 8, 25, 0, 40)
+is('after midnight, still the day: the review is open', reviewOpen(day, night, '21:00', day), true)
+is('…and the next day has not begun', reviewOpen('2026-09-25', night, '21:00', day), false)
 
 // ---- actions --------------------------------------------------------------
 const opts = { day, today: day, limit: 3, now: '2026-09-24T19:30:00.000Z' }

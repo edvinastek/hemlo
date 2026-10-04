@@ -88,3 +88,19 @@
 .ts-top h2 { min-width: 0; margin: 0; }
 .ts-dur-name { display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .form-grid > .ts-repeat-rule[role="status"], .form-grid + .ts-repeat-rule { margin-top: var(--space-2); }
+
+/* v19 quick add (TSK-07): what was read from the name, under the field.
+   A tap takes a reading away; the × says so. */
+.qa-chips { display: flex; flex-wrap: wrap; gap: var(--space-1); margin-top: calc(-1 * var(--space-1)); }
+.qa-chip {
+  display: inline-flex; align-items: center; gap: 6px; min-height: 28px;
+  border: 1px solid var(--e-rule); color: var(--e-ink);
+}
+.qa-x { color: var(--e-ink-soft); font-size: 13px; line-height: 1; }
+
+/* v19 busy all-day event (AGN-07): one line and "Plan anyway", never a block. */
+.ts-busy {
+  display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2);
+  margin: var(--space-2) 0 0; font-family: var(--font-sans); font-size: 13px; color: var(--e-warn);
+}
+.ts-busy span { flex: 1 1 180px; min-width: 0; }

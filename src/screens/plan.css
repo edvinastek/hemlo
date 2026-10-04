@@ -69,6 +69,9 @@
 }
 .pi-search { font-family: var(--font-sans); font-size: 14px; }
 .pi-capture .btn { min-height: 44px; }
+/* v19 quick add: what the line was read as, under it (TSK-07). */
+.pi-chips { margin-top: var(--space-2); }
+.pi-chips .qa-chips { margin-top: 0; }
 .pi-capture .btn:disabled { opacity: 0.5; }
 .pi-tools { display: flex; gap: var(--space-2); margin-top: var(--space-3); }
 .pi-empty { padding-left: 0; padding-right: 0; }

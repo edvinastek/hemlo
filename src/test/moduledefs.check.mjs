@@ -252,7 +252,7 @@ const allRules = MODULES.flatMap((m) => m.rules.map((r) => `${m.key}.${r.name}`)
 is('every registry rule says what the app does with it', allRules.filter((k) => !BUILTIN_RULES[k]), [])
 is('and nothing is listed that is not in the registry', Object.keys(BUILTIN_RULES).filter((k) => !allRules.includes(k)), [])
 is('the rules acted on have switches', allRules.filter((k) => ruleSwitchable(...k.split('.'))).sort(),
-  ['health.retarget', 'learning.study_task', 'nutrition.meal_tasks', 'nutrition.size_main', 'projects.to_goal',
+  ['agenda.no_overlap', 'health.retarget', 'learning.study_task', 'nutrition.meal_tasks', 'nutrition.size_main', 'projects.to_goal',
     'sleep.bedtime', 'training.session_task'])
 // HAB-23: where habits show is now the module's Show on switches, not this rule.
 is('the daily habit rule is always on, even if once stored off', isBuiltinRuleOn('habits', 'daily', { rulesOff: ['daily'] }), true)
@@ -264,8 +264,10 @@ is('the other rule of the module stays on', isBuiltinRuleOn('nutrition', 'size_m
 is('garbage in the overlay leaves it on', isBuiltinRuleOn('habits', 'daily', 'drop table'), true)
 is('an unknown rule is never on', isBuiltinRuleOn('habits', 'nope', {}), false)
 is('an unknown module is never on', isBuiltinRuleOn('nope', 'daily', {}), false)
-is('a rule the app does not act on cannot be stored off', readOverlay({ rulesOff: ['no_overlap'] }, base('agenda')).rulesOff, undefined)
-is('and reads as on', isBuiltinRuleOn('agenda', 'no_overlap', { rulesOff: ['no_overlap'] }), true)
+is('a rule the app does not act on cannot be stored off', readOverlay({ rulesOff: ['trip_days'] }, base('shopping')).rulesOff, undefined)
+is('and reads as on', isBuiltinRuleOn('shopping', 'trip_days', { rulesOff: ['trip_days'] }), true)
+// v19 (AGN-07): the busy all-day warning is carried out, so it has a switch.
+is('the busy all-day warning can be switched off', isBuiltinRuleOn('agenda', 'no_overlap', { rulesOff: ['no_overlap'] }), false)
 is('the bedtime block can be switched off (v16)', isBuiltinRuleOn('sleep', 'bedtime', { rulesOff: ['bedtime'] }), false)
 const nut = clone(base('nutrition'))
 nut.rules.find((r) => r.name === 'meal_tasks').off = true

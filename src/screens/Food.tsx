@@ -1,12 +1,13 @@
 import { useCallback, useEffect, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
-import { format } from 'date-fns'
+import { format, parseISO } from 'date-fns'
 import { readFoodAddress } from '../lib/hub-rules'
 import { PageHead } from '../ui/PageHead'
 import { FoodDay } from '../sections/FoodDay'
 import { RecipesTab, FoodsTab } from '../sections/FoodTabs'
 import { FoodMenuSlot } from '../sections/FoodMenu'
 import '../ui/food.css'
+import { planToday } from '../lib/day-edge'
 
 const SECTIONS = ['Day', 'Recipes', 'Foods']
 
@@ -20,7 +21,7 @@ const SECTIONS = ['Day', 'Recipes', 'Foods']
 export function Food() {
   const [params, setParams] = useSearchParams()
   const address = readFoodAddress(params)
-  const [date, setDate] = useState(new Date())
+  const [date, setDate] = useState(() => parseISO(planToday()))
   const [section, setSection] = useState<string>(address.section)
   // Where the tabs draw the page's ⋮ (sections/FoodMenu.tsx).
   const [slot, setSlot] = useState<HTMLElement | null>(null)

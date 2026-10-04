@@ -31,6 +31,7 @@ import type { Food, Recipe, RecipeLine, Task } from '../lib/types'
 import './recipes.css'
 import './sharing.css'
 import { useBackClose } from './useBackClose'
+import { planToday } from '../lib/day-edge'
 
 type Panel = null | 'task' | 'meal' | 'shop' | 'export' | 'food'
 
@@ -223,7 +224,7 @@ function TaskPanel({ recipe, scaled, portions, figures, keys, profileId, onBack,
   recipe: Recipe; scaled: ScaledLine[]; portions: number; figures: Record<string, { value: number; missing: number }>; keys: LabelKey[]
   profileId: string; onBack: () => void; onDone: (said: string) => void
 }) {
-  const today = format(new Date(), 'yyyy-MM-dd')
+  const today = planToday()
   const [into, setInto] = useState<'new' | 'existing'>('new')
   const [title, setTitle] = useState(recipe.name)
   const [day, setDay] = useState(today)
@@ -302,7 +303,7 @@ function TaskPanel({ recipe, scaled, portions, figures, keys, profileId, onBack,
 /** Plan it as a meal on a day (REC-20): added to one of the person's own
  *  meals (or to no meal), next to whatever is planned there already. */
 function MealPanel({ recipe, profileId, onBack, onDone }: { recipe: Recipe; profileId: string; onBack: () => void; onDone: (said: string) => void }) {
-  const today = format(new Date(), 'yyyy-MM-dd')
+  const today = planToday()
   const profile = useApp((s) => s.profile)
   const meals = readSettings(profile).meals.names
   const guess = meals.find((m) => m.key === recipe.role || m.name.toLowerCase() === recipe.role)?.key ?? meals[0]?.key ?? ''

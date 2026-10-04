@@ -6,12 +6,12 @@ import { setTaskDone } from './tasks'
 import { toggleHabit, toggleSupplement } from './tracking'
 import { toggleChore } from './chores'
 import { addDays, pickLog } from './tracking-rules'
-import { localDay } from './review-rules'
 import { loadDayItems } from './day-items'
 import { statsWidgetViews } from './stats-widget'
 import { trimStatsSnapshot, type StatsWidgetSnapshot } from './stats-widget-rules'
 import { latestTicks, slotIds, snapshotFromItems, widgetPath, type WidgetSnapshot, type WidgetTick } from './widget-rules'
 import { useApp } from './store'
+import { planToday } from './day-edge'
 
 /** The Android home-screen widgets (android/…/widget): "GetIt · Today" and
  *  the stats widgets. The app keeps them current by writing snapshots
@@ -38,7 +38,7 @@ const available = () => Capacitor.getPlatform() === 'android'
  *  set to "Show on the widget" (WID-02). Tomorrow is there so the widget
  *  turns over at midnight without the app. */
 async function snapshotFor(profileId: string): Promise<WidgetSnapshot> {
-  const today = localDay(new Date())
+  const today = planToday()
   const tomorrow = addDays(today, 1)
   const profile = await db.profile.get(profileId)
   const items = profile ? await loadDayItems(profileId, profile.household_id, today, tomorrow, 'widget', today) : []

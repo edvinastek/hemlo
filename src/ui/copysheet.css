@@ -50,3 +50,6 @@
 /* Change repeat for several tasks (v18, GEN-53): tall enough for the
    repeat list to open inside it. */
 .tsb-repeat { min-height: min(72vh, 560px); }
+
+/* v19 (AGN-07): a whole-day event marked busy on a day picked. */
+.cs-busy { margin: 0 0 var(--space-2); font-family: var(--font-sans); font-size: 13px; color: var(--e-warn); }

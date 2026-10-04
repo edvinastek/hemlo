@@ -23,6 +23,7 @@ import { offerUndo } from '../ui/Undo'
 import { MoreOptions } from '../ui/MoreOptions'
 import { TrackSheet, Choices, SwitchRow } from './TrackSheet'
 import './tracking.css'
+import { planToday } from '../lib/day-edge'
 
 const HABIT_KINDS = ['daily', 'weekdays', 'weekends', 'weekly', 'every_n_weeks', 'times_per_week', 'monthly', 'monthly_nth', 'yearly', 'dates'] as const
 
@@ -92,17 +93,17 @@ export function Habits({ profileId, day }: { profileId: string; day: string }) {
       <div className={`track-head${onPage ? ' is-page' : ''}`}>
         {/* On its own page the page title already says it (CALM-07); the heading stays for screen readers. */}
         <h2 className={onPage ? 'visually-hidden' : 'section-title'} id="habits-title">Habits</h2>
-        {dueToday.length > 0 && <span className="track-count">{doneCount} of {dueToday.length} done {day === format(new Date(), 'yyyy-MM-dd') ? 'today' : 'that day'}</span>}
+        {dueToday.length > 0 && <span className="track-count">{doneCount} of {dueToday.length} done {day === planToday() ? 'today' : 'that day'}</span>}
       </div>
       {live.length === 0 && (
         <p className="empty">A habit is something to do again and again{onPage ? '. Tap the round + button to add the first' : ''}.</p>
       )}
       {dueToday.map((x) => row(x.h))}
-      {live.length > 0 && dueToday.length === 0 && <p className="empty">No habit is due {day === format(new Date(), 'yyyy-MM-dd') ? 'today' : 'that day'}.</p>}
+      {live.length > 0 && dueToday.length === 0 && <p className="empty">No habit is due {day === planToday() ? 'today' : 'that day'}.</p>}
       {notToday.length > 0 && (
         <>
           <button type="button" className="track-fold" aria-expanded={showOff} onClick={() => setShowOff(!showOff)}>
-            Not due {day === format(new Date(), 'yyyy-MM-dd') ? 'today' : 'that day'} ({notToday.length})
+            Not due {day === planToday() ? 'today' : 'that day'} ({notToday.length})
           </button>
           {showOff && notToday.map((x) => row(x.h))}
         </>
@@ -127,7 +128,7 @@ export function Habits({ profileId, day }: { profileId: string; day: string }) {
       )}
       {onPage && <button type="button" className="fab" aria-label="Add a habit" onClick={() => setSheet('new')}>+</button>}
       {sheet && (
-        <HabitSheet profileId={profileId} habit={sheet === 'new' ? null : sheet} today={format(new Date(), 'yyyy-MM-dd')}
+        <HabitSheet profileId={profileId} habit={sheet === 'new' ? null : sheet} today={planToday()}
           nextOrder={nextSortOrder(data.habits)} onClose={() => setSheet(null)} />
       )}
     </section>

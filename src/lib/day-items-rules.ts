@@ -14,6 +14,7 @@ import { supplementGroups, DEFAULT_SLOTS, habitWhen, type SupplementSlotDef } fr
 import { choreIsMine, heldBack, type ChorePrefs } from './chore-rules.ts'
 import { paymentDue, type Payment } from './finance-rules.ts'
 import { isTripTask, TRIP_ROUTE } from './shopping-rules.ts'
+import { dayOrderKey } from './day-edge-rules.ts'
 
 export type DayItemKind = 'task' | 'habit' | 'chore' | 'supplements' | 'event' | 'record' | 'payment'
 
@@ -102,6 +103,12 @@ export interface DayItemSources {
    *  the time the person means to wake (bedtime plus the target), where the
    *  "Log last night" item sits in the morning. */
   sleep?: { day: string; row: { id: string; went_to_bed: string | null; woke_at: string | null; hours: number | null; quality: number | null } | null; wake: string | null } | null
+  /** GEN-70: a day that runs past midnight lists its hours up to this
+   *  cut-off last, after the evening ('00:00' or none: the clock's order). */
+  cutoff?: string
+  /** TOD-22: flexible chores the person put on today in Plan my day, shown
+   *  on `today` even when they are not due yet or are held back. */
+  pinnedChores?: string[]
 }
 
 /** A planned payment as the day list needs it (finance.ts writes these). */
@@ -222,7 +229,10 @@ export function dayItems(days: string[], where: Where, s: DayItemSources): DayIt
             : now.next === day
           st = { ...st, shows: expected, doneToday: false, overdueDays: 0 }
         }
-        if (!st.shows) continue
+        // Put on today in Plan my day (TOD-22): a flexible chore that is
+        // not due yet, or held back, shows on today all the same.
+        const pinned = day === s.today && c.mode === 'flexible' && !!s.pinnedChores?.includes(c.id)
+        if (!st.shows && !pinned) continue
         if (where !== 'plan' && s.choresFor && !choreIsMine(c, day, logs, s.choresFor)) continue
         const who = choreAssignee(c, day, logs).map((id) => s.memberName?.(id) ?? '').filter(Boolean)
         const overdue = st.overdueDays > 0 ? `${st.overdueDays} ${st.overdueDays === 1 ? 'day' : 'days'} waiting` : ''
@@ -237,6 +247,7 @@ export function dayItems(days: string[], where: Where, s: DayItemSources): DayIt
       // Flexible chores wait on a light day, and past the day's cap only the
       // most due are kept (HSE-09).
       const held = s.chorePrefs ? heldBack(choreItems.map((i) => ({ id: i.ref.id, mode: modes.get(i.ref.id) ?? 'fixed', dueness: i.dueness ?? 0, doneToday: i.done })), day, s.chorePrefs) : new Set<string>()
+      if (day === s.today) for (const id of s.pinnedChores ?? []) held.delete(id)
       out.push(...choreItems.filter((i) => !held.has(i.ref.id)))
     }
     if (shows('supplements', where, s)) {
@@ -319,9 +330,10 @@ export function dayItems(days: string[], where: Where, s: DayItemSources): DayIt
   // Planned payments (engineer H): the entry that paid one is not shown again as a record.
   const paidEntries = new Set((s.paidPayments ?? []).map((x) => x.entry_id))
   if (paidEntries.size) for (let i = out.length - 1; i >= 0; i--) if (out[i].kind === 'record' && paidEntries.has(out[i].ref.id)) out.splice(i, 1)
+  const cut = s.cutoff ?? '00:00'
   return out.sort((a, b) => a.day.localeCompare(b.day)
     || Number(!!b.allDay) - Number(!!a.allDay)
-    || (a.time ?? '99:99').localeCompare(b.time ?? '99:99')
+    || dayOrderKey(a.time, cut).localeCompare(dayOrderKey(b.time, cut))
     || kindOrder[a.kind] - kindOrder[b.kind]
     || (a.task && b.task ? a.task.sort_order - b.task.sort_order : 0)
     || (a.kind === 'supplements' && b.kind === 'supplements' ? slotRank(a.ref.id, slotOrder) - slotRank(b.ref.id, slotOrder) : 0)
@@ -444,7 +456,9 @@ export interface RailGroup {
 /** Noon and six o'clock split the day; six matches the Evening tab. */
 export const PART_EDGES = { afternoon: '12:00', evening: '18:00' }
 
-function partOf(time: string): 'morning' | 'afternoon' | 'evening' {
+function partOf(time: string, cutoff = '00:00'): 'morning' | 'afternoon' | 'evening' {
+  // The hours after midnight of a day that runs past it are its evening.
+  if (dayOrderKey(time, cutoff) >= '24') return 'evening'
   return time < PART_EDGES.afternoon ? 'morning' : time < PART_EDGES.evening ? 'afternoon' : 'evening'
 }
 
@@ -458,7 +472,7 @@ function slotPart(item: DayItem): 'morning' | 'afternoon' | 'evening' | null {
 
 /** The day's items in groups, in the order they are read. Empty groups are
  *  left out. The order inside a group is the order dayItems gave. */
-export function railGroups(items: DayItem[], layout: RailLayout): RailGroup[] {
+export function railGroups(items: DayItem[], layout: RailLayout, cutoff = '00:00'): RailGroup[] {
   const allday = items.filter((i) => i.allDay)
   const rest = items.filter((i) => !i.allDay)
   const groups: RailGroup[] = [{ key: 'allday', label: 'All day', items: allday }]
@@ -468,7 +482,7 @@ export function railGroups(items: DayItem[], layout: RailLayout): RailGroup[] {
       { key: 'any', label: 'Any time', items: rest.filter((i) => !i.time) },
     )
   } else {
-    const where = (i: DayItem) => (i.time ? partOf(i.time) : slotPart(i) ?? 'any')
+    const where = (i: DayItem) => (i.time ? partOf(i.time, cutoff) : slotPart(i) ?? 'any')
     groups.push(
       { key: 'morning', label: 'Morning', items: rest.filter((i) => where(i) === 'morning') },
       { key: 'afternoon', label: 'Afternoon', items: rest.filter((i) => where(i) === 'afternoon') },
@@ -482,10 +496,12 @@ export function railGroups(items: DayItem[], layout: RailLayout): RailGroup[] {
 /** Where the "now" line goes in a group: before the first timed item that
  *  starts after the clock, or after the last one (its length); null when the
  *  group has no times. */
-export function nowSlot(items: DayItem[], now: string): number | null {
+export function nowSlot(items: DayItem[], now: string, cutoff = '00:00'): number | null {
   const timed = items.map((i, k) => ({ i, k })).filter(({ i }) => i.time)
   if (timed.length === 0) return null
-  const next = timed.find(({ i }) => (i.time as string) > now)
+  // In a day that runs past midnight, 00:40 comes after the evening (GEN-70).
+  const at = dayOrderKey(now, cutoff)
+  const next = timed.find(({ i }) => dayOrderKey(i.time, cutoff) > at)
   return next ? next.k : timed[timed.length - 1].k + 1
 }
 

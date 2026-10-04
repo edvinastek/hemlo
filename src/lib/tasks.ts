@@ -1,6 +1,7 @@
 import { db } from './db'
 import { queueChange } from './sync'
 import type { Task } from './types'
+import { planDayOf } from './day-edge'
 
 const ALL_FIELDS: (keyof Task & string)[] = [
   'profile_id', 'title', 'category', 'module_key', 'horizon', 'goal_id', 'series_id', 'duration_min',
@@ -59,11 +60,10 @@ export async function followTick(before: Task, done: boolean) {
   else if (!done && before.status === 'done') await series.unfollowDone(before, localDayOf(before.completed_at))
 }
 
-/** The person's day of a moment ('yyyy-MM-dd' on this phone), today when unknown. */
+/** The person's day of a moment ('yyyy-MM-dd' on this phone), today when
+ *  unknown; just after midnight it can still be the day before (GEN-70). */
 function localDayOf(at: string | null): string {
-  const d = at ? new Date(at) : new Date()
-  const ok = Number.isFinite(d.getTime()) ? d : new Date()
-  return `${ok.getFullYear()}-${String(ok.getMonth() + 1).padStart(2, '0')}-${String(ok.getDate()).padStart(2, '0')}`
+  return planDayOf(at)
 }
 
 /** Deleting keeps the row with a date on it, so the deletion syncs to every

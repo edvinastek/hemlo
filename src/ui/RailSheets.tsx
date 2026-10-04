@@ -15,8 +15,10 @@ import { RecordSheet } from '../modules/RecordSheet'
 import { NoteEditor } from './NoteEditor'
 import { FollowedSheet } from './FollowedEvents'
 import { offerUndo } from './Undo'
+import { busyOn } from '../lib/busy'
 import type { CalendarEvent, Task } from '../lib/types'
 import './move.css'
+import { planToday } from '../lib/day-edge'
 
 /** The small sheets the day's rail opens: a time for an untimed push, Move
  *  to…, "Mark it done?", the note a template asks for after done, and a
@@ -93,6 +95,8 @@ export function MoveToSheet({ task, today, onClose }: { task: Task; today: strin
   const [timeMode, setTimeMode] = useState<'keep' | 'new' | 'none'>('keep')
   const [time, setTime] = useState(task.planned_time?.slice(0, 5) ?? '09:00')
   const [warned, setWarned] = useState<Warning[] | null>(null)
+  // AGN-07: a whole-day event marked busy on the day chosen.
+  const [busyDay, setBusyDay] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
   const newTime = timeMode === 'keep' ? task.planned_time?.slice(0, 5) ?? null : timeMode === 'new' ? time : null
 
@@ -104,7 +108,8 @@ export function MoveToSheet({ task, today, onClose }: { task: Task; today: strin
       if (!warned) {
         const there = (await db.task.where('[profile_id+planned_date]').equals([profile.id, to]).toArray()).filter((t) => !t.deleted_at)
         const w = singleMoveWarnings({ ...task, planned_time: newTime }, task.planned_date ?? today, to, there, readSettings(profile).work)
-        if (w.length) { setWarned(w); return }
+        const b = await busyOn(profile.id, to)
+        if (w.length || b) { setWarned(w); setBusyDay(b); return }
       }
       const undo = await moveTo(task, to, timeMode === 'keep' ? undefined : newTime)
       offerUndo(`${task.title || 'Task'} moved to ${dayWords(to, today)}`, undo)
@@ -118,7 +123,7 @@ export function MoveToSheet({ task, today, onClose }: { task: Task; today: strin
       <div className="form-grid">
         <label>
           <span>To</span>
-          <input type="date" value={to} required onChange={(e) => { setTo(e.target.value); setWarned(null) }} />
+          <input type="date" value={to} required onChange={(e) => { setTo(e.target.value); setWarned(null); setBusyDay(null) }} />
         </label>
         <fieldset className="rail-choice">
           <legend>Time</legend>
@@ -135,14 +140,15 @@ export function MoveToSheet({ task, today, onClose }: { task: Task; today: strin
           )}
         </fieldset>
       </div>
-      {warned && (
+      {warned && (warned.length > 0 || busyDay) && (
         <ul className="move-warnings" aria-label="Before you move it">
           {warned.map((w, i) => <li key={i} className={`is-${w.kind}`}>{w.text}</li>)}
+          {busyDay && <li className="is-busy">{busyDay}</li>}
         </ul>
       )}
       <div className="sheet-actions">
         <button type="button" className="btn" onClick={onClose}>Cancel</button>
-        <button type="submit" className="btn btn-primary grow" disabled={busy || !to}>{warned?.length ? 'Move anyway' : 'Move'}</button>
+        <button type="submit" className="btn btn-primary grow" disabled={busy || !to}>{warned?.length || busyDay ? 'Move anyway' : 'Move'}</button>
       </div>
     </Sheet>
   )
@@ -185,7 +191,7 @@ export function AfterDoneSheet({ task, onClose }: { task: Task; onClose: () => v
   const id = pendingAfterDone(task.notes)
   const template = readSettings(profile).note_templates.find((t) => t.id === id) ?? null
   const [text, setText] = useState(() => template
-    ? fillTemplate(template.body, { day: task.planned_date ?? new Date().toISOString().slice(0, 10), title: task.title, time: task.planned_time })
+    ? fillTemplate(template.body, { day: task.planned_date ?? planToday(), title: task.title, time: task.planned_time })
     : '')
   const [busy, setBusy] = useState(false)
 

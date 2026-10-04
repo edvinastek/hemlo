@@ -92,11 +92,13 @@ export function toReview(tasks: Task[], profileId: string, day: string): Task[] 
 }
 
 /** The compact line waits for the evening so it does not nag during the day.
- *  A past day has nothing left to wait for, and a future day has not happened. */
-export function reviewOpen(day: string, now: Date, reviewTime: string): boolean {
-  const today = localDay(now)
+ *  A past day has nothing left to wait for, and a future day has not happened.
+ *  `today` is the person's day (GEN-70): after midnight, while a late day
+ *  still goes on, it is the day before, and the evening is long past. */
+export function reviewOpen(day: string, now: Date, reviewTime: string, today: string = localDay(now)): boolean {
   if (day < today) return true
   if (day > today) return false
+  if (today < localDay(now)) return true
   return localTime(now) >= cleanTime(reviewTime)
 }
 

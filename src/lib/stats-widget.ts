@@ -1,4 +1,3 @@
-import { format } from 'date-fns'
 import { db } from './db'
 import { readSettings } from './settings'
 import { computeView } from './stats'
@@ -6,6 +5,7 @@ import { chartData, toWidgetView } from './chart-rules'
 import { colourFor, PAPER } from './colours-rules'
 import { rangeName, spanName, groupingsFor, type Measure } from './stats-builder-rules'
 import type { StatsWidgetView } from './stats-widget-rules'
+import { planToday } from './day-edge'
 
 /** The saved stats views worked out for the home-screen widgets (STA-21,
  *  WID-10): every view the person saved, in their order, each in the shape
@@ -18,7 +18,7 @@ export async function statsWidgetViews(profileId: string): Promise<StatsWidgetVi
   const profile = await db.profile.get(profileId)
   if (!profile) return []
   const settings = readSettings(profile)
-  const today = format(new Date(), 'yyyy-MM-dd')
+  const today = planToday()
   const out: StatsWidgetView[] = []
   for (const view of settings.stats_views) {
     try {

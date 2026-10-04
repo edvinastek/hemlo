@@ -22,13 +22,14 @@ import { RECORD_REPEAT_KINDS } from './repeat-rules'
 import { recordRepeat, setRecordRepeat } from './record-repeat'
 import { EVENT_RULE_KINDS } from '../lib/day-items-rules'
 import './modules.css'
+import { planToday } from '../lib/day-edge'
 
 /** A record's form, made from its fields. Every field type has its control:
  *  a switch for yes/no, the compact dropdown for a choice, the search picker
  *  for anything linked to another module, and the phone's own date and time
  *  pickers. Calculated fields show their value and are not typed into. */
 
-const today = () => format(new Date(), 'yyyy-MM-dd')
+const today = () => planToday()
 
 /** A shown value, in words: "3 Oct 2026", "45 min", "Yes", a linked name. */
 export function formatValue(f: FieldDef, value: unknown, lookups: Lookups = {}): string {
@@ -297,7 +298,7 @@ export function RecordSheet({ def, entity, profileId, rec, day, start: startValu
     if (!rec || !canRepeat) return
     void recordRepeat(rec.row as unknown as ModuleRecord).then(({ value }) => { setRepeat(value); setRepeatWas(value) })
   }, [rec?.id]) // eslint-disable-line react-hooks/exhaustive-deps
-  const today = format(new Date(), 'yyyy-MM-dd')
+  const today = planToday()
   const dateF = firstDateField(entity.fields)
   const dv = dateF ? values[dateF.name] : null
   const start = typeof dv === 'string' && dv.length >= 10 ? dv.slice(0, 10) : today

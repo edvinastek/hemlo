@@ -3,14 +3,16 @@ import { useLiveQuery } from 'dexie-react-hooks'
 import { useApp } from '../lib/store'
 import { loadReview, reviewSettings, reviewTask, setReviewTime, DEFAULT_REVIEW_TIME } from '../lib/review'
 import {
-  addDays, canPick, carriedNote, earliestPick, limitNote, localDay, reviewOpen, summaryLine, tomorrowFor,
+  addDays, canPick, carriedNote, earliestPick, limitNote, reviewOpen, summaryLine, tomorrowFor,
   type ReviewAction,
 } from '../lib/review-rules'
 import { db } from '../lib/db'
+import { planToday } from '../lib/day-edge'
 import { flexibleSeriesIds } from '../lib/series'
 import { carryOver } from '../lib/day-items-rules'
 import { carry, type CarryAction } from '../lib/rail-actions'
 import { TaskSheet } from '../ui/TaskSheet'
+import { CloseDay } from './CloseDay'
 import { MoreMenu } from '../ui/MoreMenu'
 import { offerUndo } from '../ui/Undo'
 import type { Task } from '../lib/types'
@@ -33,7 +35,7 @@ function useNow(): Date {
 export function ReviewCard({ profileId, day, variant }: { profileId: string; day: string; variant: 'compact' | 'full' }) {
   const persona = useApp((s) => s.profile?.ai_persona_name ?? null)
   const now = useNow()
-  const today = localDay(now)
+  const today = planToday(now)
   const [open, setOpen] = useState(false)
 
   const tasks = useLiveQuery(() => loadReview(profileId, day), [profileId, day], null)
@@ -45,13 +47,15 @@ export function ReviewCard({ profileId, day, variant }: { profileId: string; day
   if (!tasks || !settings) return null
 
   if (variant === 'compact') {
-    if (!reviewOpen(day, now, settings.time) || tasks.length === 0) return null
+    if (!reviewOpen(day, now, settings.time, today) || tasks.length === 0) return null
     return (
       <section className="review review-compact" aria-label="Evening review">
         <button className="assistant review-line" aria-expanded={open} onClick={() => setOpen((o) => !o)}>
           {persona ? `${persona}: ` : ''}{summaryLine(tasks, day, today)}
           <span className="review-toggle">{open ? 'Hide' : 'Review'}</span>
         </button>
+        {/* Close the day first, in sight: the whole day in one go (TOD-23). */}
+        {open && day === today && <CloseDayButton profileId={profileId} day={day} />}
         {open && <ReviewList tasks={tasks} day={day} today={today} />}
       </section>
     )
@@ -62,7 +66,10 @@ export function ReviewCard({ profileId, day, variant }: { profileId: string; day
       <h2 className="section-title">Review</h2>
       {tasks.length === 0
         ? <p className="empty">Nothing left to review.</p>
-        : <ReviewList tasks={tasks} day={day} today={today} />}
+        : <>
+          {day === today && <CloseDayButton profileId={profileId} day={day} />}
+          <ReviewList tasks={tasks} day={day} today={today} />
+        </>}
       <ReviewTimeControl time={settings.time} />
     </section>
   )
@@ -140,6 +147,20 @@ function ReviewItem({ task, day, today, onEdit }: {
         </form>
       )}
     </li>
+  )
+}
+
+/** Close the day (TOD-23) at review time: today's leftovers to tomorrow or
+ *  the Inbox in one go. */
+function CloseDayButton({ profileId, day }: { profileId: string; day: string }) {
+  const [open, setOpen] = useState(false)
+  return (
+    <>
+      <div className="review-close">
+        <button type="button" className="btn" aria-haspopup="dialog" onClick={() => setOpen(true)}>Close the day…</button>
+      </div>
+      {open && <CloseDay profileId={profileId} day={day} onClose={() => setOpen(false)} />}
+    </>
   )
 }
 

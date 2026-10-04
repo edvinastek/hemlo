@@ -1,5 +1,4 @@
 import { useState } from 'react'
-import { format } from 'date-fns'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { db } from '../lib/db'
 import { useApp } from '../lib/store'
@@ -12,6 +11,7 @@ import { ActivityPicker } from '../ui/ActivityPicker'
 import { Dropdown } from '../ui/Dropdown'
 import type { Profile } from '../lib/types'
 import '../ui/activity.css'
+import { planToday } from '../lib/day-edge'
 
 const GOALS: { value: Goal; label: string }[] = [
   { value: 'cut', label: 'Lose fat' }, { value: 'recomp', label: 'Maintain and recomp' }, { value: 'bulk', label: 'Build muscle' },
@@ -32,7 +32,7 @@ export function BodySettings() {
   const [height, setHeight] = useState<string | null>(null)
   const [heightError, setHeightError] = useState<string | null>(null)
   if (!profile) return null
-  const today = format(new Date(), 'yyyy-MM-dd')
+  const today = planToday()
 
   async function change(fields: Partial<Profile>, why: RecalcWhy) {
     const fresh = (await db.profile.get(profile!.id)) ?? profile!

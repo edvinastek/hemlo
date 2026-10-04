@@ -26,7 +26,7 @@ import { inbox as inboxOf, tapRoute, type DayItem } from '../lib/day-items-rules
 import { addDays } from '../lib/schedule-rules'
 import { dayLabel, mondayOf } from '../lib/copy-rules'
 import {
-  busyness, cleanWeekDays, dayCapacity, heatStep, plannedMinutes, readPlanAddress, spanLabel, stepSpan,
+  busyness, capacityOf, cleanWeekDays, heatStep, plannedMinutes, readPlanAddress, spanLabel, stepSpan,
   toggleHidden, VIEW_NAMES, weekColumns, weekSpan, type PlanView,
 } from '../lib/plan-view-rules'
 import { savePlanPrefs, usePlanPrefs } from '../lib/plan-prefs'
@@ -83,7 +83,9 @@ export function Plan() {
   const { view, date } = readPlanAddress(params.get('view'), params.get('date'), today, range)
   const prefs = usePlanPrefs(profile?.id)
   const settings = readSettings(profile)
-  const capacity = dayCapacity(profile?.day_start, profile?.day_end)
+  // What a day can hold: the person's own capacity (Settings → Planning),
+  // else their waking day (TOD-22).
+  const capacity = capacityOf(prefs, profile?.day_start, profile?.day_end)
 
   /** A new day replaces the address; a new view adds a step, so Back
    *  returns to the view before. */

@@ -10,7 +10,6 @@ import { deleteBuiltModule, saveModuleDef, useModuleDef, useModuleDefs } from '.
 import { syncModuleTasks } from '../modules/records'
 import { syncMealTasks } from '../lib/meals'
 import { carryOutRules } from '../modules/rule-switch'
-import { localDay } from '../lib/review-rules'
 import { FieldForm, STATS_OPTIONS, describeField } from '../modules/FieldForm'
 import { VIEW_TYPE_NAME, VIEW_TYPE_OPTIONS, ViewSettings } from '../modules/ViewSettings'
 import { Dropdown } from './Dropdown'
@@ -18,6 +17,7 @@ import { ModuleShow } from '../modules/ModuleShow'
 import { designFile, designFileName } from '../modules/design-file-rules'
 import { saveFile } from '../lib/native'
 import '../modules/modules.css'
+import { planToday } from '../lib/day-edge'
 
 /** A module as what it is — fields, views, rules and its name — and every
  *  part of it editable. Built-in and built modules share the screen; what a
@@ -89,7 +89,7 @@ export function ModuleEditor({ moduleKey, onBack, tab: firstTab = 'fields' }: { 
       // A built-in rule that makes tasks follows its switch at once, from today
       // on: meal tasks, planned training sessions, bedtime, study blocks.
       if (draft.key === 'nutrition' && rulesChanged) await syncMealTasks(profile.id)
-      if (!draft.built && rulesChanged) await carryOutRules(profile.id, draft.key, localDay(new Date()))
+      if (!draft.built && rulesChanged) await carryOutRules(profile.id, draft.key, planToday())
       setNote({ text: 'Saved.' })
       window.setTimeout(() => setNote((n) => (n?.text === 'Saved.' ? null : n)), 2500)
     } catch (e) {

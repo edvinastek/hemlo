@@ -17,6 +17,7 @@ import { Dropdown } from './Dropdown'
 import { useDayRange } from './useDayRange'
 import { useBackClose } from './useBackClose'
 import { offerUndo } from './Undo'
+import { busyOnAny } from '../lib/busy'
 import './copysheet.css'
 
 export type { CopyWhat } from '../lib/copy'
@@ -97,6 +98,10 @@ export function CopySheet({ what, onClose, onDone }: { what: CopyWhat; onClose: 
   const nothing = isMeals ? !!source && counts.meals === 0
     : !isTasks && ((!c.tasks || counts.tasks === 0) && (!c.repeats || counts.repeats === 0) && (!c.meals || counts.meals === 0))
   const badTime = c.time === 'new' && !c.newTime
+  // AGN-07: a whole-day event marked busy on a day picked, said above the
+  // buttons; copying goes ahead all the same. Not for meals.
+  const busyNote = useLiveQuery(async () => (profile && !isMeals && targets.length ? busyOnAny(profile.id, shownDays(targets, kind)) : null),
+    [profile?.id, isMeals, targets.join('|'), kind], null)
 
   // The closed Options line: what the copy will do, in a few words.
   const summary = [
@@ -163,6 +168,9 @@ export function CopySheet({ what, onClose, onDone }: { what: CopyWhat; onClose: 
             <span aria-live="polite">{targets.length === 0 ? (week ? 'Tap a day in each week to copy to.' : 'Tap the days to copy to.') : `To ${targetWords(targets, kind)}`}</span>
             <button type="button" className="btn cs-clear" disabled={targets.length === 0} onClick={() => setDays([])}>Clear</button>
           </div>
+          {/* AGN-07: said where the days are picked, so the reason for
+              "Copy anyway" is in sight. */}
+          {busyNote && <p className="cs-busy" role="status">{busyNote}</p>}
           <MonthScroller first={range.first} last={range.last} openAt={from > today ? from : today} today={today}
             label={week ? 'Weeks to copy to' : 'Days to copy to'} selected={picked}
             disabled={(d) => d < today || sourceDays.has(d)}
@@ -228,7 +236,7 @@ export function CopySheet({ what, onClose, onDone }: { what: CopyWhat; onClose: 
         <div className="sheet-actions cs-actions">
           <button type="button" className="btn" onClick={onClose}>Cancel</button>
           <button type="button" className="btn btn-primary grow" disabled={busy || targets.length === 0 || nothing || badTime} onClick={() => void copy()}>
-            {targets.length === 0 ? 'Copy' : `Copy to ${targetWords(targets, kind)}`}
+            {targets.length === 0 ? 'Copy' : busyNote ? 'Copy anyway' : `Copy to ${targetWords(targets, kind)}`}
           </button>
         </div>
       </div>

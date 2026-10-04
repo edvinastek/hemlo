@@ -1,7 +1,9 @@
 import { useMemo, useRef, useState } from 'react'
 import { blankTask, saveTask } from '../../lib/tasks'
 import { writeBatch } from '../../lib/batch'
-import { deleteTasks, moveWithUndo } from '../../lib/series'
+import { deleteTasks, moveWithUndo, startSeriesWith } from '../../lib/series'
+import { readQuickAdd, type ReadingKind } from '../../lib/quick-add-rules'
+import { withBusy } from '../../lib/busy'
 import { moveInList, sortChanges, topOfList } from '../../lib/plan-view-rules'
 import { dayLabel } from '../../lib/copy-rules'
 import { addDays } from '../../lib/schedule-rules'
@@ -14,7 +16,8 @@ import { DayPickSheet } from '../../ui/DayPickSheet'
 import { CopySheet, type CopyWhat } from '../../ui/CopySheet'
 import { TaskSelectBar } from '../../ui/TaskSelectBar'
 import type { Selection } from '../../ui/useSelection'
-import { offerUndo } from '../../ui/Undo'
+import { offerAction, offerUndo } from '../../ui/Undo'
+import { QuickChips, useQuickAdd } from '../../ui/TaskSheetChips'
 import { useDayRange } from '../../ui/useDayRange'
 
 /** Where a held task is over: a day to plan it for, or a place in the list. */
@@ -39,6 +42,13 @@ export function Inbox({ profileId, tasks, onOpen, sel }: {
   const selecting = sel.selecting
   const { today } = useDayRange()
   const [text, setText] = useState('')
+  // Quick add (TSK-07): a day, time, length, repeat or #section typed in
+  // the line is read and shown as chips; a tap takes one away.
+  const quick = useQuickAdd()
+  const [off, setOff] = useState<ReadingKind[]>([])
+  const reading = useMemo(() => (quick.on && text.trim() ? readQuickAdd(text, { today, base: null, sections: quick.sections, off }) : null),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [quick.on, text, today, quick.sections.join('|'), off])
   const [query, setQuery] = useState('')
   const [planning, setPlanning] = useState<Task[] | null>(null)
   const [copying, setCopying] = useState<CopyWhat | null>(null)
@@ -56,11 +66,23 @@ export function Inbox({ profileId, tasks, onOpen, sel }: {
 
   async function capture(e: React.FormEvent) {
     e.preventDefault()
-    const title = text.trim()
+    const r = reading
+    const title = (r ? r.title : text).trim()
     if (!title) return
     setText('')
-    await saveTask(blankTask(profileId, today, { title, planned_date: null, sort_order: topOfList(tasks.map((t) => t.sort_order)) }))
+    setOff([])
+    // A repeat needs a day: with none typed it starts today.
+    const day = r?.day ?? (r?.repeat ? today : null)
+    const task = blankTask(profileId, today, {
+      title, planned_date: day, planned_time: r?.time ?? null, duration_min: r?.minutes ?? null, category: r?.section ?? null,
+      sort_order: topOfList(tasks.map((t) => t.sort_order)),
+    })
+    if (r?.repeat && day) await startSeriesWith(task, { ...r.repeat, end_date: null }, true)
+    else await saveTask(task)
     input.current?.focus()
+    // Read as a day: it leaves the Inbox, so say where it went (and warn of
+    // a busy all-day event there, AGN-07), with a way to open it.
+    if (day) offerAction(await withBusy(`“${title}” planned for ${dayLabel(day)}`, profileId, [day]), 'Open', () => onOpen(task))
   }
 
   /** Put the list in a new order: only the numbers that change are written. */
@@ -84,7 +106,8 @@ export function Inbox({ profileId, tasks, onOpen, sel }: {
   async function planFor(list: Task[], day: string | null) {
     if (!day) return
     const undo = await moveWithUndo(list.map((task) => ({ task, to: day })))
-    offerUndo(list.length === 1 ? `“${list[0].title}” planned for ${dayLabel(day)}` : `${list.length} tasks planned for ${dayLabel(day)}`, undo)
+    // A busy all-day event there is said with the Undo (AGN-07): the move stands.
+    offerUndo(await withBusy(list.length === 1 ? `“${list[0].title}” planned for ${dayLabel(day)}` : `${list.length} tasks planned for ${dayLabel(day)}`, profileId, [day]), undo)
   }
 
   async function remove(list: Task[]) {
@@ -132,10 +155,13 @@ export function Inbox({ profileId, tasks, onOpen, sel }: {
   return (
     <div className="pi">
       <form className="pi-capture" onSubmit={(e) => void capture(e)}>
-        <input ref={input} value={text} onChange={(e) => setText(e.target.value)} placeholder="Add to the Inbox"
+        <input ref={input} value={text} onChange={(e) => { setText(e.target.value); if (!e.target.value.trim()) setOff([]) }} placeholder="Add to the Inbox"
           aria-label="New task for the Inbox" enterKeyHint="done" />
-        <button type="submit" className="btn btn-primary" disabled={!text.trim()}>Add</button>
+        <button type="submit" className="btn btn-primary" disabled={!(reading ? reading.title : text).trim()}>Add</button>
       </form>
+      {reading && reading.chips.length > 0 && (
+        <div className="pi-chips"><QuickChips chips={reading.chips} onRemove={(k) => setOff((o) => (o.includes(k) ? o : [...o, k]))} /></div>
+      )}
 
       {(tasks.length >= SEARCH_FROM || query) && (
         <div className="pi-tools">

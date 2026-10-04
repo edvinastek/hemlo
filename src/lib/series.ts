@@ -1,5 +1,5 @@
-import { format } from 'date-fns'
 import { db, getMeta, setMeta } from './db'
+import { planToday } from './day-edge'
 import { push } from './sync'
 import { blankTask, deleteTask, saveTask } from './tasks'
 import { edit } from './write'
@@ -17,7 +17,9 @@ const TEMPLATE_FIELDS = ['category', 'duration_min', 'locked', 'notes'] as const
 const SERIES_FIELDS = ['title', 'planned_time', ...TEMPLATE_FIELDS] as const
 type SeriesField = (typeof SERIES_FIELDS)[number]
 
-const dayOf = (d: Date) => format(d, 'yyyy-MM-dd')
+// The person's day of a moment: after midnight, still yesterday until the
+// day's cut-off (GEN-70).
+const dayOf = (d: Date) => planToday(d)
 /** Postgres hands times back as '07:30:00'; the task rows and the time input use '07:30'. */
 const hhmm = (t: string | null | undefined) => (t ? t.slice(0, 5) : null)
 /** Where this device has already filled a series up to. See materializeSeries. */

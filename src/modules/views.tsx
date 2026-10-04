@@ -9,6 +9,7 @@ import { updateRecord, type Lookups, type Rec } from './records'
 import { PhotoThumb, formatValue } from './RecordSheet'
 import { eventTimes } from '../lib/day-items-rules'
 import type { Selection } from '../ui/useSelection'
+import { planToday } from '../lib/day-edge'
 
 /** The views a module page draws, each from the same records. */
 
@@ -163,7 +164,7 @@ export function CalendarView({ entity, view, recs, lookups, onOpen, onAdd }: {
     return <p className="empty">This calendar has no date to go by. Add a date field under Edit module, then pick it for this view.</p>
   }
 
-  const todayKey = format(new Date(), 'yyyy-MM-dd')
+  const todayKey = planToday()
   const pickedRecs = picked ? byDay.get(picked) ?? [] : []
 
   return (

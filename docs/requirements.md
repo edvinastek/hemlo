@@ -421,7 +421,7 @@ Columns: **ID**, **Requirement** (with "Done when" where a test is needed), **Pr
 | GEN-67 | Every empty page or list says what it is for and offers the first action (and an import or template where one exists). | Must | Done (v16) | SR |
 | GEN-68 | Settings that hold user data are validated on read, so an old or broken value never breaks a screen. | Must | Done | R1 |
 | GEN-69 | Time zone follows the phone, or a time zone chosen in settings; it is no longer fixed to Europe/Amsterdam. | Should | Done (v16) | SR |
-| GEN-70 | Day start and day end (stored but unused) set the edges of the Today timeline and the "after midnight still counts as yesterday" boundary. | Could | Open | SR |
+| GEN-70 | Day start and day end (stored but unused) set the edges of the Today timeline and the "after midnight still counts as yesterday" boundary. | Could | Done (v19) | SR |
 
 ## D2. Today (TOD)
 
@@ -441,8 +441,8 @@ Columns: **ID**, **Requirement** (with "Done when" where a test is needed), **Pr
 | TOD-15 | Push buttons 15 / 30 / 60, tick, the ⋮ move menu and drag warnings (locked, fixed, locked work hours, clash) work as in v15. Fix: a push past midnight moves the task to the next day instead of wrapping on the same date; pushing an untimed task asks for a time instead of starting from 09:00. | Must | Done (v16) | R1, SR |
 | TOD-20 | **Pinned cards**: the person can pin up to 6 cards to Today (a module summary such as "Protein 82/140 g", "3 chores due", "Sleep 7.2 h", or any saved stats template), add, remove and drag to reorder them, choose small or large, and choose "show on weekdays / weekends / always". Cards never come back after being removed. | Should | Done (v16) | R5, SR |
 | TOD-21 | Each card shows one glanceable figure and one main action ("+ Add food", "Start"). | Should | Done (v16) | SR |
-| TOD-22 | Optional **Plan my day** sheet on the first open of the day: yesterday's leftovers, suggestions (due soon, flexible chores, study reviews), and a workload bar (planned minutes against a daily capacity the person sets) that warns when over. | Could | Open | SR |
-| TOD-23 | Optional **Close the day** sheet at review time: moves leftovers to tomorrow or the Inbox in one go. | Could | Partly (the review) | R1 |
+| TOD-22 | Optional **Plan my day** sheet on the first open of the day: yesterday's leftovers, suggestions (due soon, flexible chores, study reviews), and a workload bar (planned minutes against a daily capacity the person sets) that warns when over. | Could | Done (v19) | SR |
+| TOD-23 | Optional **Close the day** sheet at review time: moves leftovers to tomorrow or the Inbox in one go. | Could | Done (v19) | R1 |
 | TOD-24 | Completed repeating items stay visible (struck through) on Today, so the day's record is complete. | Should | Done for tasks | SR |
 
 ## D3. Plan (PLN)
@@ -473,7 +473,7 @@ Columns: **ID**, **Requirement** (with "Done when" where a test is needed), **Pr
 | TSK-04 | Edits to a repeating task ask "Only this one / This and following"; date-only changes and ticks never ask. | Must | Done | R3 |
 | TSK-05 | "Stop repeating" ends the series today and removes later undone days. | Must | Done | R3 |
 | TSK-06 | A task can be marked **fixed** in the sheet (the flag exists and raises warnings, but nothing can set it). | Should | Done (v16) | SR |
-| TSK-07 | Natural-language quick add: one line such as "Gym tomorrow 18:00-19:30 every Mon Wed #Training" is read into day, time, length, repeat and section, with chips shown as it is typed. | Could | Open | SR |
+| TSK-07 | Natural-language quick add: one line such as "Gym tomorrow 18:00-19:30 every Mon Wed #Training" is read into day, time, length, repeat and section, with chips shown as it is typed. | Could | Done (v19) | SR |
 | TSK-08 | Missed tasks: the review at the review time (default 21:00), flagging after 3 moves or pushes, with the limit editable in settings (today device-only with no screen). | Must | Done (v16) | R1 |
 | TSK-09 | The task sheet closes on Back and Escape. | Must | Done (v16) | SR |
 | TSK-20 | **Copy to…** on a task (expanded row, ⋮ menu, multi-select): pick one or many days on a calendar, or shortcuts (Tomorrow, Every weekday this week, Same day next week). | Must | Done (v16) | R5 |
@@ -754,7 +754,7 @@ Columns: **ID**, **Requirement** (with "Done when" where a test is needed), **Pr
 | AGN-04 | Calendar links: a private feed of GetIt into Google Calendar (health items, built modules and notes kept out unless chosen); new link and off. | Must | Done | R4 |
 | AGN-05 | Follow calendars by their iCal address: shown read-only on Today, Plan and Agenda, refreshed on open and every 3 hours, kept on the device. | Must | Done | R4 |
 | AGN-06 | Calendar visibility chips on Plan (hide a followed calendar with one tap without unfollowing). | Should | Done (v16) | SR |
-| AGN-07 | The "Nothing across an all-day event" rule: warn when planning across an all-day event that is marked busy. | Could | Open | SR |
+| AGN-07 | The "Nothing across an all-day event" rule: warn when planning across an all-day event that is marked busy. | Could | Done (v19: busy from followed calendars; own events cannot be marked busy) | SR |
 | AGN-08 | Import and export of calendars as .ics, Google-style CSV; repeats kept. | Must | Done | R3 |
 
 ## D21. Projects and goals (PRJ)

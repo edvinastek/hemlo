@@ -515,6 +515,9 @@ export interface CalendarEvent {
   subscription_id?: UUID | null
   /** That calendar's own id for the event (its UID). */
   external_uid?: string | null
+  /** AGN-07: a followed calendar's whole-day event marked busy there
+   *  (TRANSP:OPAQUE). Kept on this device with the event, never sent. */
+  busy?: boolean
   /** How the person's own event repeats (031, AGN-03): the one repeat
    *  engine's rule (no "N times a week"), its last day or its number of
    *  times. starts_at/ends_at are its first time. Never on a followed

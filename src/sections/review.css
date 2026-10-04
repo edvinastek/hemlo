@@ -55,3 +55,6 @@
 .review-pick .btn:disabled { opacity: 0.5; }
 
 .review-time input { background: var(--e-field); color: var(--e-ink); font-variant-numeric: tabular-nums; }
+
+/* v19 (TOD-23): Close the day, under the review's list. */
+.review-close { padding: var(--space-2) var(--space-4) 0; }

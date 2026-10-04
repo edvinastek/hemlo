@@ -179,6 +179,38 @@ export interface PlanPrefs {
   own_sections: string[]
   /** Day and week templates (PLN-08). */
   plan_templates: PlanTemplate[]
+  /* ---- version 19 (X1) ---- */
+  /** TSK-07: read a day, time, length, repeat and section from what is
+   *  typed in a task's name, shown as chips. On unless switched off. */
+  quick_add: boolean
+  /** TOD-22: offer Plan my day on the first open of the day. Off unless
+   *  switched on; "Plan my day" in Today's ⋮ works either way. */
+  plan_my_day: boolean
+  /** TOD-22: the planned minutes a day can hold, set by the person; null
+   *  is the waking day (day start to day end). */
+  capacity_min: number | null
+  /** GEN-70: draw "Day starts" and "Day ends" on the rail when something
+   *  falls outside them (the ⋮ on Today and Plan's Day). */
+  day_edges: boolean
+  /** TOD-22: flexible chores put on one day in Plan my day. */
+  today_chores: { day: string; ids: string[] } | null
+}
+
+/** The least and most a day's capacity may be set to, in minutes. */
+export const MIN_CAPACITY = 30
+export const MAX_CAPACITY = 20 * 60
+
+/** A capacity the person typed or a device stored: whole minutes in range,
+ *  or null for "the waking day". */
+export function cleanCapacity(v: unknown): number | null {
+  if (v === null || v === undefined || v === '') return null
+  const n = Math.round(Number(v))
+  return Number.isFinite(n) && n >= MIN_CAPACITY && n <= MAX_CAPACITY ? n : null
+}
+
+/** What a day can hold: the person's own capacity, else their waking day. */
+export function capacityOf(prefs: Pick<PlanPrefs, 'capacity_min'>, start: string | null | undefined, end: string | null | undefined): number {
+  return prefs.capacity_min ?? dayCapacity(start, end)
 }
 
 const UUIDISH = /^[0-9a-z-]{1,64}$/i
@@ -202,8 +234,24 @@ export function readPlanPrefs(settings: unknown): PlanPrefs {
     copy: readCopyChoices(r.copy),
     own_sections: own,
     plan_templates: readPlanTemplates(r.plan_templates),
+    quick_add: r.quick_add !== false,
+    plan_my_day: r.plan_my_day === true,
+    capacity_min: cleanCapacity(r.capacity_min),
+    day_edges: r.day_edges === true,
+    today_chores: readTodayChores(r.today_chores),
   }
 }
+
+function readTodayChores(v: unknown): PlanPrefs['today_chores'] {
+  const o = v && typeof v === 'object' && !Array.isArray(v) ? (v as Record<string, unknown>) : null
+  if (!o || !isDay(o.day) || !Array.isArray(o.ids)) return null
+  const ids = [...new Set(o.ids.filter((x): x is string => typeof x === 'string' && UUIDISH.test(x)))].slice(0, 50)
+  return { day: o.day, ids }
+}
+
+/** The chores pinned to a day, if the pins are for that day. */
+export const pinnedOn = (prefs: Pick<PlanPrefs, 'today_chores'>, day: string): string[] =>
+  prefs.today_chores?.day === day ? prefs.today_chores.ids : []
 
 /** Show or hide one followed calendar on Plan. */
 export function toggleHidden(hidden: string[], id: string): string[] {

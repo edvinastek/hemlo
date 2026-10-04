@@ -228,7 +228,7 @@ export const MODULES: ModuleDef[] = [
       { key: 'month', name: 'Month', type: 'calendar', entity: 'calendar_event', dateField: 'starts_at' },
       { key: 'list', name: 'List', type: 'list', entity: 'calendar_event' },
     ],
-    rules: [{ name: 'no_overlap', sentence: 'Nothing is scheduled across an all-day event.', when: 'day.planned', then: 'planner.block' }],
+    rules: [{ name: 'no_overlap', sentence: 'Planning a task on an all-day event marked busy warns first.', when: 'day.planned', then: 'planner.warn' }],
     skills: ['read the calendar'],
   },
   {

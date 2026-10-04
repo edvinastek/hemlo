@@ -1,6 +1,5 @@
 import { useEffect, useMemo, useState, type CSSProperties } from 'react'
 import { Navigate, useLocation, useSearchParams } from 'react-router-dom'
-import { format } from 'date-fns'
 import { useApp } from '../lib/store'
 import { readSettings } from '../lib/settings'
 import { saveSettings } from '../lib/write'
@@ -25,6 +24,7 @@ import { StatsBuilder } from './StatsBuilder'
 import type { FieldDef } from '../modules/types'
 import type { Fact } from '../lib/pivot-rules'
 import './stats.css'
+import { planToday } from '../lib/day-edge'
 
 /** The columns of the module figures, when they are exported. */
 const EXPORT_FIELDS: FieldDef[] = [
@@ -43,7 +43,7 @@ const EXPORT_FIELDS: FieldDef[] = [
 export function Stats({ profileId, day }: { profileId: string; day: string }) {
   const profile = useApp((s) => s.profile)
   const settings = readSettings(profile)
-  const today = format(new Date(), 'yyyy-MM-dd')
+  const today = planToday()
   const [params, setParams] = useSearchParams()
   const openId = params.get('view')
   const [period, setPeriod] = useState<Period>('week')

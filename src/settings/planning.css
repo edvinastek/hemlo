@@ -63,3 +63,7 @@
 /* v18: a few words that suggest a template and modules (MOD-07). */
 .pl-describe { display: grid; gap: var(--space-1); font-family: var(--font-sans); font-size: 13px; color: var(--e-ink-soft); }
 .pl-describe input { width: 100%; min-width: 0; min-height: 40px; padding: 8px 10px; font-family: var(--font-serif); font-size: 15px; color: var(--e-ink); }
+
+/* v19 Your day: the hours a day can hold, with its unit beside it. */
+.pl-hours { display: inline-flex; align-items: center; gap: var(--space-1); font-family: var(--font-sans); font-size: 14px; color: var(--e-ink-soft); }
+.pl-hours input { width: 4.5em; text-align: right; font-variant-numeric: tabular-nums; }
