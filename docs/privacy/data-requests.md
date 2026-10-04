@@ -36,11 +36,15 @@ Keep the `id` (a uuid) for the steps below.
 
 ## Access and portability (articles 15 and 20)
 
-The app's More → Data → Export gives a JSON file of the profile, tasks, targets,
-weigh-ins, food log, meal plan, module settings and the user's own recipes
-(`src/lib/bundle.ts`). It does not include habits, supplements, sleep, goals,
-notes, training logs, recurring series or shopping, so it is **not a complete
-copy**. For an access request, run this and send the result as a `.json` file:
+The app's Settings → Data and account → Export → "Whole account (backup file)" gives a JSON
+file of the profile and plan (tasks, series and their exceptions, goals, milestones, calendar events),
+targets, weigh-ins, food log, meal plan, habits, supplements and their logs, sleep, training logs and
+routines, module settings and every module record (Finance included), followed calendars, the foods,
+exercises and recipes the person added, and the household's stock, shopping list and prices
+(`src/lib/bundle.ts`). It leaves out the household's chores and their logs, notes kept as note pages,
+reviews and reminders, and anything kept only on the server (the consent record, calendar link hashes,
+photos in module records), so for a formal access request still run this and send the result as a
+`.json` file, with the photos attached:
 
 ```sql
 with u as (select id from auth.users where email = lower('person@example.com')),
@@ -90,9 +94,24 @@ select jsonb_pretty(jsonb_build_object(
   'households',       (select jsonb_agg(to_jsonb(t)) from public.household t        where t.id in (select id from h)),
   'stock',            (select jsonb_agg(to_jsonb(t)) from public.stock t            where t.household_id in (select id from h)),
   'shopping_trip',    (select jsonb_agg(to_jsonb(t)) from public.shopping_trip t    where t.household_id in (select id from h)),
-  'shopping_item',    (select jsonb_agg(to_jsonb(t)) from public.shopping_item t    where t.trip_id in (select id from public.shopping_trip where household_id in (select id from h)))
+  'shopping_item',    (select jsonb_agg(to_jsonb(t)) from public.shopping_item t    where t.trip_id in (select id from public.shopping_trip where household_id in (select id from h))),
+  -- Version 16 to 18: the household's list, prices and chores, the member names, routines and followed calendars.
+  'household_member', (select jsonb_agg(to_jsonb(t)) from public.household_member t where t.household_id in (select id from h)),
+  'shopping_entry',   (select jsonb_agg(to_jsonb(t)) from public.shopping_entry t   where t.household_id in (select id from h)),
+  'shop_price',       (select jsonb_agg(to_jsonb(t)) from public.shop_price t       where t.household_id in (select id from h)),
+  'chore',            (select jsonb_agg(to_jsonb(t)) from public.chore t            where t.household_id in (select id from h)),
+  'chore_log',        (select jsonb_agg(to_jsonb(t)) from public.chore_log t        where t.chore_id in (select id from public.chore where household_id in (select id from h))),
+  'routine',          (select jsonb_agg(to_jsonb(t)) from public.routine t          where t.profile_id in (select id from p)),
+  'routine_line',     (select jsonb_agg(to_jsonb(t)) from public.routine_line t     where t.routine_id in (select id from public.routine where profile_id in (select id from p))),
+  'calendar_subscription', (select jsonb_agg(to_jsonb(t)) from public.calendar_subscription t where t.profile_id in (select id from p))
 )) as data;
 ```
+
+Photos in module records (version 18, migration 033) are files in Supabase Storage, not rows: list them in the
+dashboard (Storage → the module photos bucket → the folder named after the user's id) and attach them.
+
+Prices the person shared with Open Prices are not GetIt's: they are public on prices.openfoodfacts.org under the
+person's Open Food Facts user name, and Open Food Facts answers for them. GetIt's server holds nothing about them.
 
 This includes items the person deleted in the app (rows with `deleted_at` set):
 they are still held, so they are part of an access request. If the household is
@@ -165,7 +184,7 @@ old copy and uploads it again.
 ## Restriction (article 18) and objection (article 21)
 
 - GetIt's processing rests on the contract and on consent, not on legitimate interest, so the right to object (art. 21) mostly does not apply to app data. What someone who objects usually wants is to stop: that is withdrawing consent, which is account deletion. Explain that, and offer it.
-- The public site's hosting logs rest on legitimate interest. An objection there can be answered: the logs are Cloudflare's, kept only as long as needed for security, and GetIt does not use them.
+- The public site's hosting logs rest on legitimate interest. An objection there can be answered: the logs are Netlify's, kept only as long as needed for security, and GetIt does not use them.
 - Restriction while accuracy is disputed: ask them to stop using the app while you check; the data is not used for anything but their own planning, so nothing else needs pausing. Record it.
 
 ## Reply templates

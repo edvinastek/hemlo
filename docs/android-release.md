@@ -55,11 +55,16 @@ built from this repository by `npm run build:site` into `dist-site/`.
 1. Add two more repository secrets: `VITE_CONTROLLER_NAME` (your legal name,
    as the policy must name who is responsible) and `VITE_CONTACT_EMAIL` (the
    dedicated developer address).
-2. Create a free Cloudflare account → Workers & Pages → Create → Pages →
-   Connect to Git → choose `GetIt`. Build command `npm run build:site`, output
-   directory `dist-site`. Add the four `VITE_…` values under its environment
-   variables.
-3. Your URLs are then `https://<project>.pages.dev/privacy.html` and
+2. The site is hosted by Netlify (the privacy policy says so). Build it on your
+   computer with the four `VITE_…` values in `.env` (the two above and the
+   Supabase URL and publishable key): `npm run build:site`. Then sign in at
+   app.netlify.com, open Netlify Drop (app.netlify.com/drop) and drag the
+   `dist-site` folder onto it. A dropped site must belong to your account, or
+   Netlify removes it after an hour. In the site's settings leave analytics,
+   forms, functions and snippet injection off: the policy says the pages set no
+   cookies and load nothing else. To publish a new version (a policy change),
+   build again and drag the folder onto the site's Deploys page.
+3. Your URLs are then `https://<site-name>.netlify.app/privacy.html` and
    `/delete.html`. Put them in Play Console and in `store/listing.json`.
 4. Add the site to Supabase's allowed redirect URLs so a password reset asked
    for on the web returns there.

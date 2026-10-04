@@ -3,7 +3,9 @@ Not legal advice: drafted from public sources, and to be checked by someone qual
 # Processors and other services
 
 Every outside party that receives personal data from GetIt, what it gets, where,
-and the contract that covers it. Checked on 24 September 2026. A new service
+and the contract that covers it. Checked on 24 September 2026; the public site's
+host (Netlify) and the optional Open Prices sharing checked on 4 October 2026
+(version 18). A new service
 that receives user data is added here, to `records-of-processing.md` and to
 `src/legal/policy.ts` before it goes live.
 
@@ -59,18 +61,22 @@ applies without negotiation; record here its name, the DPA link, how it was
 accepted, the region, and its log retention. Then add it to the policy's
 "Where your data is kept" section by name.
 
-## Cloudflare Pages: the public privacy and deletion pages
+## Netlify: the public privacy and deletion pages
+
+The pages built by `npm run build:site` (`site/`) are published with Netlify
+(a manual upload with Netlify Drop, no Git connection and no build on Netlify).
 
 | | |
 | --- | --- |
-| Role | Processor for the site's visitors. Cloudflare's DPA lists as data subjects people who "access or use Customer's domains, networks, websites, application programming interfaces ... and applications", including their IP addresses in customer logs ([Cloudflare DPA](https://www.cloudflare.com/cloudflare-customer-dpa/)). |
+| Role | Processor for the site's visitors (art. 28). Netlify's DPA covers the personal data a customer's site processes, listing IP address among the data categories ([Netlify DPA](https://www.netlify.com/pdf/netlify-dpa.pdf), Exhibit 1). |
 | Receives | IP address and request details of each visitor. Not the email or password typed on the deletion page: `site/delete.ts` sends those from the browser straight to Supabase. |
-| Where | Cloudflare's global network, nearest location to the visitor. |
-| DPA | [Cloudflare DPA](https://www.cloudflare.com/cloudflare-customer-dpa/), version 6.4, 3 April 2026. |
-| How it is accepted | Automatically. The Self-Serve Subscription Agreement says personal data is handled "in compliance with Cloudflare's Data Processing Addendum, which is hereby incorporated by reference into this Agreement" ([Terms](https://www.cloudflare.com/terms/)), and Cloudflare's GDPR page says self-serve customers need take "no action" ([Cloudflare GDPR](https://www.cloudflare.com/trust-hub/gdpr/)). |
-| Transfers | SCCs (Module Two when the customer is a controller) and the EU-US Data Privacy Framework (DPA). |
-| Sub-processors | [Cloudflare sub-processors](https://www.cloudflare.com/gdpr/subprocessors/). |
-| Settings to keep | No Web Analytics, no Zaraz, no extra scripts. |
+| Where | Netlify's network, the location nearest to the visitor; Netlify, Inc. is a US company and its sub-processors are mostly in the US ([sub-processors](https://www.netlify.com/legal/subprocessors/)). |
+| DPA | [Netlify Data Processing Agreement](https://www.netlify.com/pdf/netlify-dpa.pdf), last updated 9 June 2026. |
+| How it is accepted | Automatically: the DPA "forms part of the Enterprise Master Subscription Agreement and the Self-Serve Subscription Agreement", and Netlify's [GDPR page](https://www.netlify.com/gdpr-ccpa/) says it "is incorporated by reference in Netlify's terms and conditions". |
+| Breach notice to GetIt | "without undue delay, but in any event within forty-eight (48) hours" (DPA 10.1). |
+| Sub-processor changes | At least 30 days' notice before a new one may process data (DPA 6.2); subscribe to the RSS feed on the [sub-processor page](https://www.netlify.com/legal/subprocessors/). |
+| Transfers | The EU-US Data Privacy Framework; if it falls away, the EU Standard Contractual Clauses in the DPA apply (DPA section 14). |
+| Settings to keep | No Netlify Analytics, no forms, no functions, no identity, no snippet injection, no extra scripts. The site sets no cookies. |
 
 ## Google: Play distribution, Play Console and Google Groups
 
@@ -91,6 +97,32 @@ health details. If it is a business mailbox (for example Google Workspace or a
 paid Proton plan), accept the provider's DPA and record it here. A free consumer
 mailbox has no DPA; use it only until a business mailbox is set up.
 
+## Open Food Facts and Open Prices: product and price lookups, and optional price sharing
+
+Not processors: independent controllers of their own public services
+(openfoodfacts.org, prices.openfoodfacts.org), run by Open Food Facts, a French
+non-profit ([privacy policy](https://world.openfoodfacts.org/privacy)).
+
+- Lookups (always, when the person searches, scans or opens a product): the search words or barcode go from the
+  device straight to them, with the IP address and device type any website sees. No account, name or health data.
+- Price sharing (v18, PRICE-05, off by default, per price, on the person's tap): the person's Open Food Facts user
+  name and password go once to `POST /api/v1/auth` (the password is never kept; the token is kept in Android's secure
+  storage, or a browser tab's session storage, and forgotten on sign-out). For each shared price: the photo of the
+  price tag or receipt (resized and re-encoded on the device, which drops its EXIF data such as GPS position), the
+  barcode, price, currency, date, offer flag and normal price, the shop's OpenStreetMap id, and the app's name
+  (`app_name=GetIt`). Open Prices publishes these under the ODbL with the person's Open Food Facts user name; Open Food
+  Facts is the controller of the publication. GetIt keeps on the device only which of its prices were shared (the
+  Open Prices id) and the last place picked per shop. Code: `src/lib/open-prices-*.ts`, `src/sections/SharePrice.tsx`.
+
+## OpenStreetMap search (Nominatim): finding a shop for a shared price
+
+Not a processor: the OpenStreetMap Foundation (UK) runs nominatim.openstreetmap.org as its own service
+([privacy policy](https://osmfoundation.org/wiki/Privacy_Policy)). Used only while sharing a price, only when the
+person taps "Search OpenStreetMap", one request per tap, at most one a second, cached, with an identifying
+User-Agent on the phone and the page's Referer in a browser, as its
+[usage policy](https://operations.osmfoundation.org/policies/nominatim/) asks. It receives the shop name and town
+typed, and the IP address. The UK has an adequacy decision.
+
 ## Not processors
 
 - GitHub: builds the app from the repository and stores the build secrets. No user data passes through it. If the web client is ever served from GitHub Pages, GitHub becomes a host for visitor IP addresses and must be added here.
@@ -104,8 +136,9 @@ Before the closed test:
 - [ ] Supabase DPA: nothing to sign, it applies through the Terms accepted when the organisation was created. Save a PDF of the current DPA (Version 1, 1 August 2026) and of the sub-processor list, dated, with these records, so you can show which terms applied.
 - [ ] Subscribe to Supabase sub-processor updates on the [sub-processor page](https://supabase.com/legal/customer-resources/subprocessor-list).
 - [ ] Authentication → Audit logs: turn off "Write audit logs to the database" ([Supabase audit logs](https://supabase.com/docs/guides/auth/audit-logs)), or keep it on and add the purge described in `retention.md`. The policy states the one-day log retention, which is only true with this off.
-- [ ] Turn on two-factor sign-in for the Supabase, Cloudflare, Google (Play Console) and GitHub accounts, and the contact mailbox.
-- [ ] Save a PDF of the Cloudflare DPA (version 6.4) with the records.
+- [ ] Turn on two-factor sign-in for the Supabase, Netlify, Google (Play Console) and GitHub accounts, and the contact mailbox.
+- [ ] Save a PDF of the Netlify DPA (last updated 9 June 2026) and of its sub-processor list with the records.
+- [ ] Netlify site settings: no analytics, forms, functions or snippet injection (see the Netlify section).
 
 Before opening to the public:
 
