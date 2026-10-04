@@ -91,7 +91,7 @@ export function ActivityPicker({ value, onChange }: { value: ActivityValue; onCh
             <span>Your answers point to {fromAnswers.factor} ({fromAnswers.label.toLowerCase()}).{' '}
               <button type="button" className="slot-link" onClick={() => onChange({ answers, factor: fromAnswers.factor })}>Use it</button></span>
           )}
-          <span className="ap-mode">{answers.mode === 'added' ? 'Training is not in this factor: add it on training days.' : 'Training is part of this factor.'}</span>
+          <span className="ap-mode">{answers.mode === 'added' ? 'Training is not in this factor: what you log is added on its day.' : 'Training is part of this factor.'}</span>
         </span>
       </div>
       {warning && <p className="ap-warn" role="status">{warning}</p>}

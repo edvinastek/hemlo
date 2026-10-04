@@ -3,6 +3,7 @@ import { db } from './db'
 import { queueChange } from './sync'
 import { edit } from './write'
 import { targetsFor } from './calc'
+import { isCardio, trainingKcal, type TrainingMode } from './activity'
 import { latestOnOrBefore, missingForTargets, readBodySettings, recalcReason, type BodySettings, type RecalcWhy } from './body-rules'
 import { ensureInstance, instanceFor } from '../modules/defs'
 import { builtinRuleOn } from '../modules/rule-switch'
@@ -154,4 +155,21 @@ export async function recalcTargets(profile: Profile, today: string, why: Recalc
   if (!latest) return 'Saved. Save a weigh-in and the targets are worked out from it.'
   const result = await retarget(profile, today, latest.weight_kg, why)
   return 'target' in result ? `Saved, and targets recalculated from ${latest.weight_kg} kg.` : `Saved. ${result.missing}`
+}
+
+/** What the day's logged training adds to its budget (BODY-16): only when
+ *  training is logged separately and added, from that day's sets and the
+ *  weight on or before it. `kcal` is null when there are sets but no weight
+ *  to work them out with. */
+export async function trainingOn(profileId: string, day: string): Promise<{ mode: TrainingMode; sets: number; kcal: number | null }> {
+  const { activity } = await bodySettings(profileId)
+  if (activity.mode !== 'added') return { mode: activity.mode, sets: 0, kcal: 0 }
+  const logs = (await db.workout_log.where('log_date').equals(day).toArray())
+    .filter((l) => l.profile_id === profileId && !l.deleted_at)
+  if (!logs.length) return { mode: 'added', sets: 0, kcal: 0 }
+  const ids = [...new Set(logs.map((l) => l.exercise_id).filter((x): x is string => !!x))]
+  const exercises = new Map((await db.exercise.bulkGet(ids)).filter((e) => !!e).map((e) => [e!.id, e!]))
+  const weight = latestOnOrBefore(await weighIns(profileId), day)?.weight_kg ?? null
+  const sets = logs.map((l) => ({ seconds: l.seconds, cardio: isCardio(l.exercise_id ? exercises.get(l.exercise_id) : null) }))
+  return { mode: 'added', sets: logs.length, kcal: trainingKcal(sets, weight) }
 }

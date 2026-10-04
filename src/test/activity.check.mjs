@@ -5,6 +5,7 @@
 import {
   PRESETS, WORK, TRAINING, DEFAULT_FACTOR, FACTOR_MIN, FACTOR_MAX, presetFor, workOnly, presetOf,
   describeFactor, formatFactor, readFactor, factorWarning, readStoredFactor, NO_ANSWERS, readAnswers, factorFor,
+  trainingKcal, isCardio, dayBudget, TRAINING_ENERGY_NOTE,
 } from '../lib/activity.ts'
 
 let fail = 0
@@ -80,6 +81,22 @@ is('no factor without both answers', factorFor({ ...NO_ANSWERS, work: 'sitting' 
 is('training inside the factor', factorFor({ work: 'sitting', training: '3-4', walks: false, mode: 'inside' }), 1.6)
 is('training added: the work alone', factorFor({ work: 'sitting', training: '3-4', walks: false, mode: 'added' }), 1.4)
 is('never both: added drops training from a standing job', factorFor({ work: 'standing', training: '5+', walks: false, mode: 'added' }), 1.65)
+
+// Training energy added on the day (BODY-16).
+is('no sets add nothing', trainingKcal([], 80), 0)
+is('one set at 80 kg: 2 minutes at MET 3.5 less rest', trainingKcal([{}], 80), Math.round(2.5 * 80 * 2 / 60))
+is('25 sets at 80 kg come to about 167 kcal', trainingKcal(Array.from({ length: 25 }, () => ({ reps: 10 })), 80), 167)
+is('a timed set counts its own time when longer: a 30-minute ride', trainingKcal([{ seconds: 1800, cardio: true }], 70), Math.round(6 * 70 * 0.5))
+is('a short timed set still counts 2 minutes', trainingKcal([{ seconds: 30 }], 80), trainingKcal([{}], 80))
+is('a timed set given as text reads', trainingKcal([{ seconds: '1800', cardio: true }], 70), 210)
+is('a slip of 100 hours counts 4 hours', trainingKcal([{ seconds: 360000, cardio: true }], 70), Math.round(6 * 70 * 4))
+is('without a weight it cannot be known', trainingKcal([{}], null), null)
+is('an odd weight is not used', trainingKcal([{}], 5), null)
+is('cardio by muscle group or old type', [isCardio({ muscle: 'cardio' }), isCardio({ type: 'cardio' }), isCardio({ muscle: 'legs' }), isCardio(null)], [true, true, false, false])
+is('the budget adds training when it is added', dayBudget(2200, 167, 'added'), 2367)
+is('the budget never adds it when training is inside the factor', dayBudget(2200, 167, 'inside'), 2200)
+is('an unknown training energy adds nothing', dayBudget(2200, null, 'added'), 2200)
+is('the screen says how in one line', TRAINING_ENERGY_NOTE.split('. ').length, 1)
 
 console.log(fail ? `\n${fail} check(s) failed` : '\nall checks passed')
 process.exit(fail ? 1 : 0)

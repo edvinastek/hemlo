@@ -142,3 +142,56 @@ export function factorFor(a: ActivityAnswers): number | null {
   if (!a.work || !a.training) return null
   return (a.mode === 'added' ? workOnly(a.work, a.walks) : presetFor(a.work, a.training, a.walks)).factor
 }
+
+// ---- training energy, added on the day (BODY-16) --------------------------------------------
+
+/** What a logged session adds to the day's budget when training is logged
+ *  separately and added. A conservative estimate from the training log, the
+ *  only record of a session the app has: every logged set counts as two
+ *  minutes (about 40 seconds of work and the 90 seconds of rest the app
+ *  times by default), or its own time when it was longer (a timed set),
+ *  at the energy cost of the kind of exercise (Ainsworth et al., 2011
+ *  Compendium of Physical Activities: code 02050, resistance training,
+ *  multiple exercises, 8–15 reps, MET 3.5; code 02010, stationary cycling,
+ *  general, MET 7.0, the lowest common cardio machine figure), less the 1 MET
+ *  of rest the day's factor already counts. 1 MET is 1 kcal per kg per hour.
+ *  An hour of 25 sets at 80 kg comes to about 170 kcal: well under what most
+ *  calculators say, so the budget is never raised by more than training
+ *  likely burned. */
+export const MET_STRENGTH = 3.5
+export const MET_CARDIO = 7
+export const SET_MINUTES = 2
+/** The one line the screen says about it. */
+export const TRAINING_ENERGY_NOTE =
+  'Estimated from your logged sets: each counts 2 minutes (or its own time if longer) at MET 3.5, cardio at 7, less resting, times your weight.'
+
+export interface LoggedSet {
+  /** How long a timed set lasted, in seconds. */
+  seconds?: number | string | null
+  /** A cardio exercise (running, cycling, rowing). */
+  cardio?: boolean
+}
+
+/** The energy the sets add, in whole kcal; null when the weight is unknown
+ *  (it cannot be worked out without it). No sets add nothing. */
+export function trainingKcal(sets: LoggedSet[], weightKg: number | null | undefined): number | null {
+  const kg = Number(weightKg)
+  if (!Number.isFinite(kg) || kg < 20 || kg > 400) return sets.length ? null : 0
+  let kcal = 0
+  for (const s of sets) {
+    const sec = Number(s.seconds)
+    // A timed set longer than 4 hours is a typing slip: it counts as 4 hours.
+    const minutes = Math.max(SET_MINUTES, Number.isFinite(sec) && sec > 0 ? Math.min(sec, 4 * 3600) / 60 : 0)
+    kcal += ((s.cardio ? MET_CARDIO : MET_STRENGTH) - 1) * kg * (minutes / 60)
+  }
+  return Math.round(kcal)
+}
+
+/** Whether an exercise is cardio: its muscle group or its old type says so. */
+export const isCardio = (ex: { muscle?: string | null; type?: string | null } | null | undefined) =>
+  ex?.muscle === 'cardio' || ex?.type === 'cardio'
+
+/** The day's calorie budget: the target, plus training when it is added. */
+export function dayBudget(targetKcal: number, training: number | null, mode: TrainingMode): number {
+  return Math.round(targetKcal + (mode === 'added' && training ? training : 0))
+}

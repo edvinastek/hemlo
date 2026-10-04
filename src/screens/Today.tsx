@@ -28,6 +28,8 @@ import type { DayItem } from '../lib/day-items-rules'
 import { useDayItems } from '../lib/day-items'
 import { useModuleColours } from '../lib/colours'
 import { HolidayChips } from '../ui/HolidayMark'
+import { trainingOn } from '../lib/body'
+import { dayBudget } from '../lib/activity'
 import type { Task } from '../lib/types'
 import './today.css'
 
@@ -74,7 +76,10 @@ export function Today() {
     const rows = (await db.target.where('profile_id').equals(profile.id).sortBy('from_date'))
       .filter((t) => !t.deleted_at && t.from_date <= day)
     const latest = rows[rows.length - 1] ?? null
-    return metricLine(metric, await dayTotals(profile.id, day), latest)
+    // Training logged separately is added to the day's calories (BODY-16).
+    const training = metric === 'kcal' && latest?.kcal ? await trainingOn(profile.id, day) : null
+    const budget = training && latest ? { ...latest, kcal: dayBudget(Number(latest.kcal), training.kcal, training.mode) } : latest
+    return metricLine(metric, await dayTotals(profile.id, day), budget)
   }, [profile?.id, day, metric], null)
 
   // Tasks with no day: the Inbox, one step away in the ⋮.

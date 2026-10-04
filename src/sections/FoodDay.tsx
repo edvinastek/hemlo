@@ -25,6 +25,8 @@ import { useBuiltinRuleOn } from '../modules/rule-switch'
 import { useExport } from '../ui/ExportLink'
 import { dayRi, riLine } from '../lib/day-ri-rules'
 import { saveLabelChoice, useNutritionPrefs } from '../lib/nutrition-prefs'
+import { trainingOn } from '../lib/body'
+import { dayBudget, TRAINING_ENERGY_NOTE } from '../lib/activity'
 import { MoreMenu } from '../ui/MoreMenu'
 import { FoodPageMenu } from './FoodMenu'
 import type { Food, MealPlanSlot, Recipe, RecipeLine } from '../lib/types'
@@ -61,6 +63,8 @@ export function FoodDay({ day }: { day: string }) {
     const list = (await db.target.where('profile_id').equals(profile.id).sortBy('from_date')).filter((t) => !t.deleted_at && t.from_date <= day)
     return list[list.length - 1] ?? null
   }, [profile?.id, day], null)
+  // Training logged separately is added to the day's budget (BODY-16).
+  const training = useLiveQuery(async () => (profile ? trainingOn(profile.id, day) : null), [profile?.id, day], null)
   const sizeOn = useBuiltinRuleOn(profile?.id, 'nutrition', 'size_main')
   const [adding, setAdding] = useState<{ meal: string | null; time?: string | null } | null>(null)
   const [copying, setCopying] = useState(false)
@@ -71,7 +75,7 @@ export function FoodDay({ day }: { day: string }) {
   const groups = rows ? groupDay(rows, ctx) : []
   const planned = sumItems(groups.flatMap((g) => g.items), look)
   const goal = (k: Nutrient) => Math.round(Number(target?.[k] ?? 0))
-  const targetKcal = goal('kcal')
+  const targetKcal = goal('kcal') > 0 ? dayBudget(goal('kcal'), training?.kcal ?? null, training?.mode ?? 'inside') : 0
   const suggestion = sizeOn ? sizeMain(groups, settings.meals.main, targetKcal, look) : null
   const anything = groups.some((g) => g.items.length)
   const ri = prefs.label.ri ? riLine(dayRi(groups.flatMap((g) => g.items), foodMap, linesByRecipe)) : null
@@ -82,12 +86,19 @@ export function FoodDay({ day }: { day: string }) {
         {shown.map((k) => (
           <span key={k}>
             {k === 'kcal' ? 'Planned' : nutrientLabel(k)} <b>{Math.round(planned.total[k])}</b>
-            {goal(k) > 0 ? ` / ${goal(k)}` : ''} {k === 'kcal' ? 'kcal' : 'g'}
+            {goal(k) > 0 ? ` / ${k === 'kcal' ? targetKcal : goal(k)}` : ''} {k === 'kcal' ? 'kcal' : 'g'}
           </span>
         ))}
         <span>Eaten <b>{Math.round(eaten?.kcal ?? 0)}</b> kcal</span>
         {planned.unknown > 0 && <span>{planned.unknown} without calories</span>}
       </div>
+      {training?.mode === 'added' && training.sets > 0 && (
+        <p className="fd-ri">
+          {training.kcal === null
+            ? 'Training logged: weigh in to add what it burned to the day.'
+            : <>Training adds <b>{training.kcal}</b> kcal{goal('kcal') > 0 ? ' to the day' : ''}. {TRAINING_ENERGY_NOTE}</>}
+        </p>
+      )}
       {ri && <p className="fd-ri"><span className="visually-hidden">Planned, as a share of an adult’s reference intake: </span><span aria-hidden="true">Reference intake: </span>{ri}</p>}
 
       {copying && (
