@@ -83,6 +83,10 @@ function apply() {
     if (v) root.style.setProperty(k, v)
     else root.style.removeProperty(k)
   }
+  // Compact rows are drawn only under this mark, so Comfortable is exactly
+  // the rows as they always were.
+  if (looks.density === 'comfortable') delete root.dataset.density
+  else root.dataset.density = looks.density
   document.querySelector('meta[name="theme-color"]')?.setAttribute('content', theme.tokens.paper)
 
   // Module colours are checked against the pages of this theme (LOOK-06).

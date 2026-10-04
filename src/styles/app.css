@@ -558,10 +558,11 @@ hr, .rule { border: 0; border-top: 1px solid var(--e-rule); margin: 0; }
 /* Rows Comfortable (1, the default) or Compact (0.5): looks.ts sets --density
    on the root and every list row takes its padding and line height from it.
    Tap targets stay at least 44 px. ":root" lifts these over the sections' own
-   row rules, which load later. */
+   row rules, which load later. Only a page marked data-density takes them:
+   Comfortable leaves every row exactly as it was. */
 :root { --density: 1; }
-:root .row { padding-top: calc(var(--space-2) * var(--density)); padding-bottom: calc(var(--space-2) * var(--density)); min-height: calc(36px + 8px * var(--density)); }
-:root .kit-row, :root .setting-row { padding-top: calc(var(--space-3) * var(--density)); padding-bottom: calc(var(--space-3) * var(--density)); min-height: calc(40px + 8px * var(--density)); }
-:root .shop-row { min-height: calc(36px + 8px * var(--density)); }
-:root .row .row-name, :root .kit-row .row-name, :root .setting-row .row-name { line-height: calc(1.2 + 0.25 * var(--density)); }
-:root .row .row-meta, :root .kit-row .row-meta, :root .setting-row .row-meta { line-height: calc(1.15 + 0.25 * var(--density)); }
+:root[data-density] .row { padding-top: calc(var(--space-2) * var(--density)); padding-bottom: calc(var(--space-2) * var(--density)); min-height: calc(36px + 8px * var(--density)); }
+:root[data-density] .kit-row, :root[data-density] .setting-row { padding-top: calc(var(--space-3) * var(--density)); padding-bottom: calc(var(--space-3) * var(--density)); min-height: calc(40px + 8px * var(--density)); }
+:root[data-density] .shop-row { min-height: calc(36px + 8px * var(--density)); }
+:root[data-density] .row .row-name, :root[data-density] .kit-row .row-name, :root[data-density] .setting-row .row-name { line-height: calc(1.2 + 0.25 * var(--density)); }
+:root[data-density] .row .row-meta, :root[data-density] .kit-row .row-meta, :root[data-density] .setting-row .row-meta { line-height: calc(1.15 + 0.25 * var(--density)); }
