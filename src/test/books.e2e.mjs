@@ -94,6 +94,19 @@ is('the book shows its two recipes', await p.locator('.sheet tbody tr').count(),
 is('its chip counts them', (await chip('E2E lunches').locator('.bk-count').textContent())?.trim(), '2')
 
 // 4. Copy the ingredients of both: summed by food, one batch each.
+// On a fresh device the recipes' lines come down with the rest of the
+// catalogue, after the recipes themselves: wait until all four are here.
+for (let i = 0; i < 60; i++) {
+  const here = await p.evaluate(async () => {
+    const open = indexedDB.open('getit')
+    const db = await new Promise((r) => { open.onsuccess = () => r(open.result) })
+    const all = (t) => new Promise((r) => { const q = db.transaction(t).objectStore(t).getAll(); q.onsuccess = () => r(q.result) })
+    const ids = new Set((await all('recipe')).filter((x) => /^E2E bowl [AB]$/.test(x.name) && !x.deleted_at).map((x) => x.id))
+    return (await all('recipe_line')).filter((l) => ids.has(l.recipe_id)).length
+  })
+  if (here >= 4) break
+  await p.waitForTimeout(500)
+}
 await pageMenu('Select')
 await bar.locator('button:has-text("Select all shown")').click()
 await bar.locator('button:has-text("Copy ingredients")').click()
