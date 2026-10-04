@@ -26,3 +26,24 @@ off by default: only show reviews when the Learning module's switch is on:
   countdown logs itself when the page sees it ended; Stop logs the minutes as a study record with `logged: true`
   (its task is made already ticked); Undo removes record and task. End notification: notify.ts
   scheduleFocusEnd/cancelFocusEnd (kind 'focus', survives rescheduleReminders).
+- HLT-04/05 built (measure entity in Health registry, module_record, record_date null; weigh-in day in
+  module_instance.settings.weigh_in_day/weigh_in_time; Today Body tab gated via day-tabs offerWeighIn; reminder in
+  notify.ts upcoming()).
+- TRN-07 built: migration 037 (phase: colour, updated_at, deleted_at, checks NOT VALID, touch trigger, grants),
+  Dexie v17 `phase`, SYNCED + bundle add 'phase'. Plan.tsx: one import + one line `<YearPhases …/>` before YearGoals.
+- PRJ-05 built: projects-rules templates, settings.templates in Projects' module_instance.
+- FIN-06 built: src/lib/finance-bank-rules.ts; hooked into transfer.ts readImport (bank detection for
+  m:finance:entry) and saveRow (extra dataset fields kept); .tab accepted.
+
+## Sources (FIN-06 bank formats)
+- ING header + example rows (yyyymmdd, "98,87", Af/Bij): firefly-iii issue #3358
+  https://github.com/firefly-iii/firefly-iii/issues/3358 ; https://github.com/vincent-smit/INGBtoYNAB
+- Rabobank header (Dutch and English), signed comma amounts: beancount-rabobank importer
+  https://github.com/mvaerle/beancount-rabobank (rabobank.py RABOBANK_HEADER_PATTERNS)
+- ABN AMRO column names (Rekeningnummer, Muntsoort, Transactiedatum, Beginsaldo, Eindsaldo, Rentedatum,
+  Transactiebedrag, Omschrijving): https://gist.github.com/thomwiggers/dcbde2c85ead1caf8ff9a46aa4c17c2d ;
+  formats offered (TXT/TAB, MT940, CAMT.053): https://www.abnamro.nl/nl/zakelijk/internet-bankieren/bestanden-downloaden.html
+  (the TAB file being headerless, tab-separated, yyyymmdd, comma decimals is from common knowledge of the format; the
+  check covers both headerless and with header.)
+- Revolut columns (Type, Product, Started Date, Completed Date, Description, Amount, Fee, Currency, State, Balance):
+  tariochbctools Revolut importer https://tariochbctools.readthedocs.io/en/stable/_modules/tariochbctools/importers/revolut/importer.html

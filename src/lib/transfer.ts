@@ -30,6 +30,7 @@ import { isModuleOn } from './day'
 import { supplementSlots } from './tracking'
 import { readPayment } from './finance-rules'
 import { savePayment } from './finance'
+import { BANK_REF_FIELD, bankTable } from './finance-bank-rules'
 import {
   FORMATS, IMPORT_LIMITS, fileName, formatOfFile, googleDate, googleTime, headersFor, inRange, jsonTable, listDatasetsFrom,
   cellValue, noteText, parseCsv, planImport, rowKey, statsRows, taskStats, toCsv, toJson,
@@ -485,7 +486,8 @@ export interface ImportPreview {
 const zone = () => Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC'
 
 /** Reads a file and checks every row against the dataset, saving nothing. */
-export async function readImport(profile: Profile, userId: string | null, d: Dataset, file: File): Promise<ImportPreview> {
+export async function readImport(profile: Profile, userId: string | null, dataset: Dataset, file: File): Promise<ImportPreview> {
+  let d = dataset
   if (file.size > IMPORT_LIMITS.bytes) throw new Error(`That file is ${(file.size / 1048576).toFixed(1)} MB. Files up to 5 MB can be read.`)
   const format = formatOfFile(file.name)
   if (!format) throw new Error('That kind of file cannot be read. Use CSV, Excel (.xlsx), JSON or a calendar file (.ics).')
@@ -522,6 +524,16 @@ export async function readImport(profile: Profile, userId: string | null, d: Dat
     const read = parseIcs(await file.text(), { zone: zone(), today: today(), mapSeries: keepSeries, maxEvents: IMPORT_LIMITS.rows })
     notes.push(...read.problems)
     table = icsTable(d, read.events, series)
+  }
+  // A bank's own export into Finance (FIN-06): read as that bank writes it,
+  // each row keeping its reference so a second reading skips it.
+  if (d.store === 'record' && d.moduleKey === 'finance' && d.entity === 'entry' && format === 'csv') {
+    const bank = bankTable(table)
+    if (bank) {
+      table = bank.table
+      d = { ...d, fields: [...d.fields.filter((f) => f.name !== BANK_REF_FIELD.name), BANK_REF_FIELD], natural: [BANK_REF_FIELD.name] }
+      notes.push(`Read as ${bank.name}'s export.${bank.skipped ? ` ${bank.skipped} ${bank.skipped === 1 ? 'row' : 'rows'} not completed or unreadable left out.` : ''}`)
+    }
   }
   const existing = new Set((await readRows(profile, d, userId)).map((r) => rowKey(d.fields, d.natural, normalised(d, r.values))))
   const { items } = await lookupsFor(profile, d.fields)
@@ -712,7 +724,9 @@ async function saveRow(profile: Profile, userId: string | null, d: Dataset, v: R
   switch (d.store) {
     case 'record': {
       if (!mod) return false
-      const res = await addRecord(profile.id, mod.def, mod.entity, v)
+      // A field the import added (a bank row's reference, FIN-06) is kept too.
+      const extra = d.fields.filter((f) => !mod.entity.fields.some((e) => e.name === f.name))
+      const res = await addRecord(profile.id, mod.def, extra.length ? { ...mod.entity, fields: [...mod.entity.fields, ...extra] } : mod.entity, v)
       return res.ok
     }
     case 'tasks': case 'notes': {

@@ -322,6 +322,11 @@ Types, then every check that needs nothing but Node. CI runs the same command.
 - `phases` — (v19, TRN-07) training phases: the last day from weeks, weeks from days, what a phase must have (a name,
   a first day, 1 to 52 whole weeks, one of the swatches), bands across a year (clipped, overlapping ones on their own
   lane, a phase from the year before or into the next marked), the phase and week of a day, and the words used.
+- `bankcsv` — (v19, FIN-06) bank exports read into Finance through the generic import, from the invented files in
+  `src/test/fixtures/`: ING (comma and semicolon files, Af/Bij), Rabobank (signed comma amounts, Dutch and English
+  headings, its sequence number as the reference), ABN AMRO (the headerless .TAB and the spreadsheet's header, the
+  other party out of the description), Revolut (completed rows only, the fee as money out); amounts and days as each
+  bank writes them; identical rows both kept; a file read a second time adding nothing.
 
 Added when the ten version 16 branches were wired together (integration):
 
