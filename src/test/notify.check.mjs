@@ -1,4 +1,4 @@
-import { isQuiet, reminderText, quietEnd, placeReminder, itemReminderText, itemRoute, canTickFromReminder, reminderViews, notificationId } from '../lib/reminder-text.ts'
+import { isQuiet, reminderText, quietEnd, placeReminder, itemReminderText, itemRoute, canTickFromReminder, reminderViews, notificationId, reminderActions, refillText, PAYMENT_TIME } from '../lib/reminder-text.ts'
 import { dayItems } from '../lib/day-items-rules.ts'
 let fail = 0
 const is = (l, g, w) => { const ok = JSON.stringify(g) === JSON.stringify(w); if (!ok) fail++
@@ -50,7 +50,18 @@ is('a task today opens Today', itemRoute({ kind: 'task', module_key: null, ref: 
 is('a task another day opens Plan', itemRoute({ kind: 'task', module_key: null, ref: { id: 't1' }, day }, '2026-10-04'), '/plan')
 is('an event opens on Agenda', itemRoute({ kind: 'event', module_key: 'agenda', ref: { id: 'e1' }, day }, day), '/m/agenda?open=e1')
 is('a record opens on its module', itemRoute({ kind: 'record', module_key: 'u_plants01', ref: { id: 'r1' }, day }, day), '/m/u_plants01?open=r1')
-is('tasks, habits and chores can be ticked from a reminder', ['task', 'habit', 'chore', 'event', 'record'].map(canTickFromReminder), [true, true, true, false, false])
+is('tasks, habits, chores, supplements and payments can be ticked from a reminder', ['task', 'habit', 'chore', 'supplements', 'payment', 'event', 'record'].map(canTickFromReminder), [true, true, true, true, true, false, false])
+// REM-02: supplements by their slot's time, planned payments on their day.
+is('a slot names what is still to take', itemReminderText({ kind: 'supplements', title: 'Morning supplements', time: '08:00', meta: '1 of 3',
+  parts: [{ name: 'Vitamin D', done: false }, { name: 'Iron', done: true }, { name: 'Magnesium', done: false }] }, null).body, 'Morning supplements: Vitamin D, Magnesium.')
+is('a payment says it is due today, with its amount', itemReminderText({ kind: 'payment', title: 'Rent due', time: null, meta: '€950.00 · Housing · Monthly' }, null).body, 'Rent due today (€950.00).')
+is('…and without an amount, just that', itemReminderText({ kind: 'payment', title: 'Gym due', time: null, meta: 'Fun · Monthly' }, null).body, 'Gym due today.')
+is('a payment with no time reminds in the morning', PAYMENT_TIME, '09:00')
+is('supplements open Supplements, payments Finance', [itemRoute({ kind: 'supplements', module_key: 'supplements', ref: { id: 'morning' }, day }, day), itemRoute({ kind: 'payment', module_key: 'finance', ref: { id: 'p1' }, day }, day)], ['/m/supplements', '/m/finance'])
+is('a payment offers Paid, a slot Done, an event only later', ['payment', 'supplements', 'event'].map(reminderActions), ['pay', 'tick', 'later'])
+// SUP-05: the refill reminder.
+is('a refill reminder says how many and for how long', refillText('Vitamin D', 7, 7, null).body, 'Vitamin D: 7 left, enough for 7 days. Time to get more.')
+is('…and on the last day', refillText('Iron', 1, 1, 'Ava'), { title: 'Ava', body: 'Iron: 1 left, enough for today. Time to get more.' })
 is('notification ids: stable, positive, distinct per day', [notificationId('a:1') === notificationId('a:1'), notificationId('a:1') > 0, notificationId('a:1') !== notificationId('a:2')], [true, true, true])
 
 console.log(fail ? `\n${fail} failed` : '\nall checks passed')

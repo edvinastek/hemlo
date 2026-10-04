@@ -42,15 +42,36 @@ export function reminderText(task: Pick<Task, 'title' | 'planned_time' | 'push_c
 
 /** The same for anything else on the day (REM-02): a habit, a chore, an
  *  event, a record of a module. */
-export function itemReminderText(item: Pick<DayItem, 'kind' | 'title' | 'time' | 'meta'>, persona: string | null): { title: string; body: string } {
+export function itemReminderText(item: Pick<DayItem, 'kind' | 'title' | 'time' | 'meta'> & { parts?: { name: string; done: boolean }[] }, persona: string | null): { title: string; body: string } {
   const who = persona || 'GetIt'
   const at = item.time ? ` at ${item.time}` : ''
   switch (item.kind) {
     case 'habit': return { title: who, body: `Time for ${item.title}.` }
     case 'chore': return { title: who, body: `${item.title} is due${at}.` }
     case 'event': return { title: who, body: `${item.title}${at}.` }
+    // A slot's supplements still to take, by name (REM-02).
+    case 'supplements': {
+      const names = (item.parts ?? []).filter((p) => !p.done).map((p) => p.name)
+      return { title: who, body: names.length ? `${item.title}: ${names.join(', ')}.` : `${item.title}.` }
+    }
+    // A planned payment on its day, with its amount (FIN-04).
+    case 'payment': {
+      const amount = item.meta.split(' · ')[0]
+      return { title: who, body: `${item.title} today${amount && /\d/.test(amount) ? ` (${amount})` : ''}.` }
+    }
     default: return { title: who, body: `${item.title}${at}.` }
   }
+}
+
+/** A planned payment with no time of its own reminds in the morning of its day. */
+export const PAYMENT_TIME = '09:00'
+/** A refill reminder with no slot time comes then too. */
+export const REFILL_TIME = '09:00'
+
+/** "Vitamin D: 7 left, enough for 7 days. Time to get more." (SUP-05) */
+export function refillText(name: string, left: number, daysLeft: number, persona: string | null): { title: string; body: string } {
+  const lasts = daysLeft <= 1 ? 'enough for today' : `enough for ${daysLeft} days`
+  return { title: persona || 'GetIt', body: `${name}: ${left} left, ${lasts}. Time to get more.` }
 }
 
 /** Where a reminder opens (REM-03): the item's own page. */
@@ -61,12 +82,20 @@ export function itemRoute(item: Pick<DayItem, 'kind' | 'module_key' | 'ref' | 'd
     case 'chore': return '/m/household'
     case 'event': return `/m/agenda?open=${item.ref.id}`
     case 'record': return `/m/${item.module_key}?open=${item.ref.id}`
+    case 'supplements': return '/m/supplements'
+    case 'payment': return '/m/finance'
     default: return '/'
   }
 }
 
-/** Only items that can be ticked from a notification offer "Done". */
-export const canTickFromReminder = (kind: DayItem['kind']) => kind === 'task' || kind === 'habit' || kind === 'chore'
+/** Only items that can be ticked from a notification offer "Done" (a
+ *  planned payment offers "Paid"). */
+export const canTickFromReminder = (kind: DayItem['kind']) =>
+  kind === 'task' || kind === 'habit' || kind === 'chore' || kind === 'supplements' || kind === 'payment'
+
+/** The buttons a reminder carries: Done and later, Paid and later, or later only. */
+export const reminderActions = (kind: DayItem['kind']): 'tick' | 'pay' | 'later' =>
+  kind === 'payment' ? 'pay' : canTickFromReminder(kind) ? 'tick' : 'later'
 
 /** The module switches, turned so that "shows on Plan" means "sends
  *  reminders" (REM-02): the day list then holds exactly the items whose
