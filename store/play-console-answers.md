@@ -114,6 +114,11 @@ only ephemerally.
   after the app says it will be public: Google's guidance does not count "transfers based on a specific user action,
   where the user reasonably expects the data to be shared" as sharing. The policy describes it in full.
 - ML Kit "does not transfer this data to third parties" (ML Kit data disclosure).
+- Telegram reminders (version 19, optional, off by default): when the person links their own Telegram chat in
+  Settings → Reminders, the titles and times of the reminders they chose are sent to Telegram for delivery. That is
+  a transfer the person starts and expects, so it is not sharing either; the policy describes it in full.
+- A product added to Open Food Facts (version 19, optional): sent only when the person ticks "Also add it to Open
+  Food Facts" and signs in with their own Open Food Facts account; it becomes public there, as the app says first.
 
 If crash reporting or any analytics is ever added, **App info and performance** must be updated here first.
 
@@ -146,21 +151,21 @@ permission, so no permission declaration form is needed.
 
 Text in `store/listing.json` (short description at most 80 characters, full description at most 4000).
 
-### Screenshots (for the owner, after the closed test starts)
+### Screenshots
 
-Phone, portrait, 1080 × 2400 or similar, light theme, from the reviewer account with sample data (no real health
-figures). Eight, in this order:
+Made by `node scripts/store-shots.mjs` (version 19) and kept in `store/screenshots/`: phone, portrait, 1080 × 1920,
+from an invented demo week with no real person's data, no network. Upload them in this order:
 
-1. Today: the time rail with a few tasks, a meal and a habit; the round + visible.
-2. Plan: the week view with a few days planned.
-3. Food: a day's meals with the calorie and protein bars.
-4. A recipe with its ingredients and figures per portion.
-5. Shopping: the list by aisle, with a price on a row and the summary line ("5 to get · €12.40 + 2 unpriced").
-6. Stock: the cupboard grouped by place, with "Use soon".
-7. Stats: one saved view (a habit or tasks done; not a weight chart).
-8. Settings → Modules: the modules list, to show it is opt-in.
+1. `1-today.png` — Today: the time rail with tasks, a meal and a habit; the round + visible.
+2. `2-plan-week.png` — Plan: the week view.
+3. `3-food-day.png` — Food: a day's meals with the calorie and protein bars.
+4. `4-shop-list.png` — Shopping: the list with prices and the summary line.
+5. `5-habits.png` — Habits.
+6. `6-stats.png` — Stats: one saved view (not a weight chart).
+7. `7-today-dark.png` — Today in the dark theme.
 
-Optional, for a 7-inch tablet listing: Today and Plan side by side in landscape. Keep the feature graphic as it is.
+Run it again after any change to those screens; the images come out the same each time. Keep the feature graphic
+as it is.
 
 ## Release
 

@@ -2,7 +2,7 @@
 title: "GetIt — Requirements and Specification"
 subtitle: "Every requirement, the app as built in version 15, and what the next version must change"
 author: "Prepared for Edvinas Straigis"
-date: "4 October 2026 (statuses updated for version 18)"
+date: "5 October 2026 (statuses updated for version 19, the final development version)"
 ---
 
 # Part A. About this document
@@ -42,6 +42,7 @@ The competitor comparison and the usability plan are in the second document ("Ge
 
 **Status (updated for version 18, 4 October 2026):**
 
+- **Done (v19)**: built in version 19 (the remaining Could requirements and the release tooling) and checked the same way: rule checks, the security suite on a local database with every migration, and every new screen at 360 px in light and dark. Version 19's database changes (migrations 033 to 039) and its server functions go live together when the owner runs the release (docs/release.md); the parts that need a phone are listed in store/phone-tests.md.
 - **Done (v18)**: built in version 18 (the gaps a code audit of every requirement and competitor recommendation found) and checked the same way.
 - **Done (v17)**: built in version 17 (calm by default, prices) and checked the same way.
 - **Done (v16)**: built in version 16 and checked (rule checks, the security suite, and every screen at 360 px in light and dark); the end-to-end tests against the live project still to run.
@@ -954,14 +955,14 @@ Columns: **ID**, **Requirement** (with "Done when" where a test is needed), **Pr
 | PLAT-07 | The privacy policy names Netlify (not Cloudflare) as the host of the public pages. | Must | Done (v18) | R4 |
 | PLAT-08 | Upload key made by the owner on his own computer; signing keys never pass through anyone else. | Must | Open (owner action) | R4 |
 | PLAT-09 | APK size kept in check (the barcode scanner adds about 25 MB per build of all processor types): ship an App Bundle so each phone downloads only its own. | Must | Done (v16: the App Bundle splits by processor type on Play) | SR |
-| PLAT-10 | iPhone app later, from the same code. | Could | Open | R1 |
+| PLAT-10 | iPhone app later, from the same code. | Could | Open (needs a Mac with Xcode to build and sign; the code is shared, so nothing in the app blocks it) | R1 |
 
 ## D35. Assistant (AI)
 
 | ID | Requirement | Pri | Status | Src |
 |----------|------------------------------------------------------------------------|----------|-----------|--------|
 | AI-01 | Everything AI is hidden. | Must | Done | R4 |
-| AI-02 | If an assistant is added later, it edits and adjusts the planner when asked (move, add, copy, set up a module) and shows every change for approval; it never plans by itself. Its name and tone are the person's choice. | Could | Open | R1, R4 |
+| AI-02 | If an assistant is added later, it edits and adjusts the planner when asked (move, add, copy, set up a module) and shows every change for approval; it never plans by itself. Its name and tone are the person's choice. | Could | Open (no assistant in GetIt for now, by the owner's decision; nothing in the app sends data to an AI) | R1, R4 |
 
 ## D36. Calm by default (CALM)
 

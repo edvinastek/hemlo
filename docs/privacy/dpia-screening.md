@@ -19,7 +19,7 @@ few dozen invited testers, moving towards a public release on Google Play.
 | --- | --- | --- |
 | 1. Evaluation or scoring | Partly | GetIt calculates a calorie and protein budget from weight, height, age, sex and activity (Mifflin-St Jeor, `src/lib/calc.ts`). That is a calculation for the user's own use, not an assessment of the person by or for anyone else, and nothing is decided about them. Counted as borderline. |
 | 2. Automated decisions with legal or similar effect | No | Nothing is decided; the user sees suggestions and edits them. |
-| 3. Systematic monitoring | No | Users log their own entries. No location, no sensors, no Health Connect, no background tracking. |
+| 3. Systematic monitoring | No | Users log their own entries. No location, no sensors, no background tracking. Since version 19 the Android app can import sleep sessions from Health Connect, but only when the person taps Import, for the days they choose, read once on the phone: not continuous monitoring. |
 | 4. Sensitive data | **Yes** | Weight, food eaten, training and sleep are health data (art. 9). |
 | 5. Large scale | No, for now | A closed test of a few dozen people, one developer. Recital 91 and the AP's list aim at institutions; a public app could grow, so this is re-checked at every thousand users. |
 | 6. Matching or combining datasets | No | Only what the user enters, plus a shared food catalogue. |
@@ -41,6 +41,12 @@ below. It becomes mandatory, and must be redone properly, if any of these happen
 - any AI feature sends user data to a model provider;
 - health data is shared with anyone, or used for anything other than the user's own planning;
 - Health Connect, wearables or other automatic data sources are added.
+
+**Re-screened for version 19 (4 October 2026).** Health Connect was added as a source of sleep only: opt-in,
+read-only, started by the person each time, for at most 30 days back, kept as the person's own sleep records and
+never passed on. Telegram reminders send only reminder titles and times the person chose, to their own chat. Neither
+changes a criterion above, so the answer stays as concluded; continuous or background reading from Health Connect
+or a wearable would trigger a full DPIA.
 
 ## Short DPIA
 

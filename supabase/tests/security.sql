@@ -1745,6 +1745,8 @@ begin
   insert into _r (check_name, expected, actual) values
     ('The Health catalogue no longer names a weigh-in day (any day is the default)', 'false',
        (select (default_settings ? 'weigh_in_day')::text from module where key = 'health'));
+end $$;
+
 -- 036 (engineer X2): vitamins and minerals on foods and supplement doses,
 -- and a recipe's photo in the record-photos bucket, seen exactly as the
 -- recipe is. B is the owner, M the stranger.
