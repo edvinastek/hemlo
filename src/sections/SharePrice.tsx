@@ -170,7 +170,10 @@ export function SharePrice({ profile, name, price, code, perMl, onClose }: {
     return (
       <section className="op-share" aria-label="Share with Open Prices">
         <h3 className="op-title">Share with Open Prices</h3>
-        <p className="stock-hint">Sign in with your Open Food Facts account first.</p>
+        {/* A refused sign-in says why; otherwise, what to do first. */}
+        {problem
+          ? <p className="stock-hint is-warn" role="alert">{problem}</p>
+          : <p className="stock-hint">Sign in with your Open Food Facts account first.</p>}
         <div className="sheet-actions">
           <button type="button" className="btn" onClick={onClose}>Back</button>
           <button type="button" className="btn btn-primary grow" onClick={() => navigate(`/more?find=${encodeURIComponent('Share prices with Open Prices')}`)}>Open Settings</button>
