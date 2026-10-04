@@ -1,4 +1,4 @@
-import { useMemo, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { format, parseISO } from 'date-fns'
 import { db } from '../lib/db'
@@ -8,10 +8,22 @@ import { addDays } from '../lib/schedule-rules'
 import {
   chartScale, describeRate, goalDate, lastDays, readGoalWeight, trendLine, weeklyRate, type TrendPoint,
 } from '../lib/trend-rules'
-import { useModuleDef } from '../modules/defs'
+import { saveModuleDef, useModuleDef } from '../modules/defs'
+import type { FieldDef } from '../modules/types'
 import { WeighIn } from './WeighIn'
-import { DefView, Sheet, defTabs, localToday, saveModuleSetting, useInstance, useTab } from './ModuleKit'
+import { DefView, DeleteButton, Sheet, defTabs, localToday, saveModuleSetting, useInstance, useTab } from './ModuleKit'
 import { ModuleMenu } from '../modules/ModuleHead'
+import {
+  MEASURE_ENTITY, WEEKDAY_NAMES, WEEKDAY_ORDER, describeMeasure, describeMeasureChange, describeWeighInPlan, latestMeasure, measureFields,
+  measureSeries, missingFromSet, readWeighInPlan, recordOfDay, type MeasurePoint,
+} from '../lib/body-measure-rules'
+import { deleteMeasures, restoreMeasures, saveMeasures, useMeasureRecords } from '../lib/body-measures'
+import { getReminderSettings, rescheduleReminders } from '../lib/notify'
+import { moduleView } from '../lib/module-view-rules'
+import { readSettings } from '../lib/settings'
+import { useApp } from '../lib/store'
+import { offerUndo } from '../ui/Undo'
+import type { ModuleRecord } from '../lib/types'
 import './health.css'
 
 const dayLabel = (d: string) => format(parseISO(d), 'EEE d MMM')
@@ -23,7 +35,9 @@ const H = 140
 /** The Health page (HLT-02, HLT-03): the trend weight as the headline, the
  *  weekly rate and when the goal weight would be reached, a chart with each
  *  weigh-in as a dot and the trend as a line, and a weigh-in for any day,
- *  today or past, added or changed with the same form Today uses. */
+ *  today or past, added or changed with the same form Today uses. v19: the
+ *  body measures the person added (HLT-04), each with its latest, its change
+ *  and its chart; the weigh-in day and its reminder from the ⋮ (HLT-05). */
 export function Health({ profileId }: { profileId: string; day: string }) {
   const def = useModuleDef('health')
   const today = localToday()
@@ -41,6 +55,9 @@ export function Health({ profileId }: { profileId: string; day: string }) {
   const [tab, setTab] = useTab('health', [{ key: 'overview', name: 'Overview' }, ...views])
   // The weigh-in is for today; another day is one tap away.
   const [otherDay, setOtherDay] = useState(false)
+  const [sheet, setSheet] = useState<null | 'weighday'>(null)
+  const measureEntity = def?.entities.find((e) => e.name === MEASURE_ENTITY)
+  const measures = measureFields(measureEntity)
 
   const line = useMemo(() => trendLine(rows ?? []), [rows])
   if (!rows || inst === undefined || weightGoal === undefined) return null
@@ -55,7 +72,11 @@ export function Health({ profileId }: { profileId: string; day: string }) {
 
   return (
     <>
-      <ModuleMenu views={views} active={tab} onView={setTab} />
+      <ModuleMenu views={views} active={tab} onView={setTab} items={[
+        { label: 'Weigh-in day…', onSelect: () => setSheet('weighday') },
+        // The ready-made measures in one step; Edit module has them too, and any field of your own.
+        def && measureEntity && !measures.length ? { label: 'Add body measures', onSelect: () => void addMeasureSet(profileId, def) } : null,
+      ]} />
       {tab === 'overview' && (
         <>
           <div className="kit-figures is-two" aria-label="Weight at a glance">
@@ -105,11 +126,13 @@ export function Health({ profileId }: { profileId: string; day: string }) {
           </div>
           <WeighIn key={day} profileId={profileId} day={day} history={false} />
 
+          {measures.length > 0 && <Measures profileId={profileId} fields={measures} today={today} />}
           {line.length > 0 && <AllWeighIns line={line} onPick={pick} />}
           <div className="kit-gap" />
         </>
       )}
       {tab.startsWith('view:') && def && <DefView def={def} viewKey={tab.slice(5)} profileId={profileId} fab={false} onClose={() => setTab('overview')} />}
+      {sheet === 'weighday' && <WeighInDaySheet profileId={profileId} settings={inst?.settings} onClose={() => setSheet(null)} />}
       {goalSheet && <GoalWeightSheet profileId={profileId} value={own} fromGoal={!own && weightGoal ? Number(weightGoal.measure_target) : null} onClose={() => setGoalSheet(false)} />}
     </>
   )
@@ -181,6 +204,177 @@ function GoalWeightSheet({ profileId, value, fromGoal, onClose }: { profileId: s
         <p className="kit-hint">The date is estimated from the trend's weekly rate, and moves as the trend does.{fromGoal != null ? ` Empty uses your weight goal's ${fromGoal} kg.` : ' Empty means no goal.'}</p>
       </div>
       {error && <p className="kit-error" role="alert">{error}</p>}
+    </Sheet>
+  )
+}
+
+/* ---------- more body measures (HLT-04) ---------------------------------------------- */
+
+/** Put the ready-made measures into Health's Measure record (the same as
+ *  Edit module's button), with Undo. */
+async function addMeasureSet(profileId: string, def: NonNullable<ReturnType<typeof useModuleDef>>) {
+  const next = JSON.parse(JSON.stringify(def)) as typeof def
+  const e = next.entities.find((x) => x.name === MEASURE_ENTITY)
+  if (!e) return
+  e.fields.push(...missingFromSet(e.fields))
+  await saveModuleDef(profileId, next)
+  offerUndo('Body measures added', () => saveModuleDef(profileId, def))
+}
+
+/** Each measure: its latest value, how it moved, and its chart on a tap. */
+function Measures({ profileId, fields, today }: { profileId: string; fields: FieldDef[]; today: string }) {
+  const recs = useMeasureRecords(profileId)
+  const [open, setOpen] = useState<string | null>(null)
+  const [logging, setLogging] = useState(false)
+  if (!recs) return null
+  return (
+    <section aria-label="Body measures">
+      <h2 className="section-title">Measures</h2>
+      <ul className="kit-list">
+        {fields.map((f) => {
+          const series = measureSeries(recs, f.name)
+          const last = latestMeasure(series)
+          const change = last ? describeMeasureChange(last.change, f.unit) : null
+          return (
+            <li key={f.name} className="kit-row hlt-measure">
+              <button type="button" className="kit-open" aria-expanded={open === f.name} disabled={series.length === 0}
+                onClick={() => setOpen(open === f.name ? null : f.name)}>
+                <span className="row-name">{f.label}</span>
+                <span className="row-meta">{last ? [dayLabel(last.day), change].filter(Boolean).join(' · ') : 'Not measured yet'}</span>
+              </button>
+              <span className="kit-right kit-num">{last ? describeMeasure(last.value, f.unit) : ''}</span>
+              {open === f.name && <MeasureChart field={f} points={series} />}
+            </li>
+          )
+        })}
+      </ul>
+      <div className="kit-toolbar"><button type="button" className="btn" onClick={() => setLogging(true)}>Log measures</button></div>
+      {logging && <MeasureSheet profileId={profileId} fields={fields} recs={recs} today={today} onClose={() => setLogging(false)} />}
+    </section>
+  )
+}
+
+const MW = 320
+const MH = 96
+
+/** One measure over time: a line through the days measured. */
+function MeasureChart({ field, points }: { field: FieldDef; points: MeasurePoint[] }) {
+  if (points.length < 2) return <p className="kit-note hlt-mchart">Measure again to see a line.</p>
+  const vals = points.map((p) => p.value)
+  let lo = Math.min(...vals)
+  let hi = Math.max(...vals)
+  if (hi - lo < 1) { lo -= 0.5; hi += 0.5 }
+  const t0 = parseISO(points[0].day).getTime()
+  const span = Math.max(1, parseISO(points.at(-1)!.day).getTime() - t0)
+  const xy = points.map((p) => [((parseISO(p.day).getTime() - t0) / span) * MW, MH - ((p.value - lo) / (hi - lo)) * MH] as const)
+  return (
+    <figure className="hlt-chart hlt-mchart">
+      <svg viewBox={`-6 -6 ${MW + 12} ${MH + 12}`} role="img"
+        aria-label={`${field.label} from ${dayLabel(points[0].day)} to ${dayLabel(points.at(-1)!.day)}: ${describeMeasure(points[0].value, field.unit)} to ${describeMeasure(points.at(-1)!.value, field.unit)}.`}>
+        <path d={xy.map(([x, y], i) => `${i ? 'L' : 'M'}${x.toFixed(1)},${y.toFixed(1)}`).join(' ')} className="hlt-trend" />
+        {xy.map(([x, y], i) => <circle key={points[i].day} cx={x} cy={y} r={2.6} className="hlt-dot" />)}
+      </svg>
+      <figcaption className="hlt-legend"><span>{points.length} times</span><span className="hlt-range">{describeMeasure(lo, field.unit)} to {describeMeasure(hi, field.unit)}</span></figcaption>
+    </figure>
+  )
+}
+
+/** A day's measures, filled from that day's record when there is one. */
+function MeasureSheet({ profileId, fields, recs, today, onClose }: { profileId: string; fields: FieldDef[]; recs: ModuleRecord[]; today: string; onClose: () => void }) {
+  const [day, setDay] = useState(today)
+  const of = (d: string) => recordOfDay(recs, d)
+  const fill = (d: string) => Object.fromEntries(fields.map((f) => { const v = of(d)?.data[f.name]; return [f.name, v == null ? '' : String(v)] }))
+  const [values, setValues] = useState<Record<string, string>>(() => fill(today))
+  const [error, setError] = useState<string | null>(null)
+  const existing = of(day)
+
+  async function save() {
+    const out: Record<string, number | null> = {}
+    for (const f of fields) {
+      const t = (values[f.name] ?? '').trim().replace(',', '.')
+      if (!t) { out[f.name] = null; continue }
+      const n = Number(t)
+      if (!Number.isFinite(n) || n < 0 || n > (f.unit === '%' ? 100 : 1000)) return setError(`${f.label}: ${f.unit === '%' ? '0 to 100' : 'a number'}.`)
+      out[f.name] = f.type === 'integer' ? Math.round(n) : Math.round(n * 10) / 10
+    }
+    if (!existing && Object.values(out).every((v) => v == null)) return setError('Fill in at least one.')
+    await saveMeasures(profileId, day, out)
+    onClose()
+  }
+  async function remove() {
+    if (!existing) return
+    await deleteMeasures(existing)
+    offerUndo(`Measures of ${dayLabel(day)} deleted`, () => restoreMeasures(existing))
+    onClose()
+  }
+
+  return (
+    <Sheet title="Measures" onClose={onClose} onSubmit={() => void save()}
+      actions={<>
+        {existing && <DeleteButton onDelete={() => void remove()} />}
+        <button type="button" className="btn grow" onClick={onClose}>Cancel</button>
+        <button type="submit" className="btn btn-primary">Save</button>
+      </>}>
+      <div className="form-grid">
+        <label>Day<input type="date" value={day} max={today} onChange={(e) => { if (e.target.value) { setDay(e.target.value); setValues(fill(e.target.value)); setError(null) } }} /></label>
+        <div className="two">
+          {fields.map((f, i) => (
+            <label key={f.name}>{f.label}{f.unit ? `, ${f.unit}` : ''}
+              <input inputMode="decimal" value={values[f.name] ?? ''} autoFocus={i === 0}
+                onChange={(e) => { setValues({ ...values, [f.name]: e.target.value }); setError(null) }} />
+            </label>
+          ))}
+        </div>
+      </div>
+      {error && <p className="kit-error" role="alert">{error}</p>}
+    </Sheet>
+  )
+}
+
+/* ---------- the weigh-in day and its reminder (HLT-05) ----------------------------------- */
+
+function WeighInDaySheet({ profileId, settings, onClose }: { profileId: string; settings: Record<string, unknown> | null | undefined; onClose: () => void }) {
+  const plan = readWeighInPlan(settings)
+  const profile = useApp((s) => s.profile)
+  const [day, setDay] = useState(plan.day == null ? 'any' : String(plan.day))
+  const [time, setTime] = useState(plan.time ?? '')
+  // Why a reminder would not come, in one line, only when it would not.
+  const [quiet, setQuiet] = useState<string | null>(null)
+  useEffect(() => {
+    void getReminderSettings().then((r) => {
+      const views = readSettings(profile).module_views
+      setQuiet(!r.on ? 'Reminders are off on this device.' : !moduleView(views, 'health').reminders ? 'Health does not send reminders (Edit module → Show).' : null)
+    })
+  }, [profile])
+
+  async function save() {
+    const next = { day: day === 'any' ? null : Number(day), time: time || null }
+    await saveModuleSetting(profileId, 'health', 'weigh_in_day', next.day)
+    await saveModuleSetting(profileId, 'health', 'weigh_in_time', next.time)
+    if (profile) void rescheduleReminders(profile.id, profile.ai_persona_name)
+    offerUndo(`Weigh-in: ${describeWeighInPlan(next).toLowerCase()}`, async () => {
+      await saveModuleSetting(profileId, 'health', 'weigh_in_day', plan.day)
+      await saveModuleSetting(profileId, 'health', 'weigh_in_time', plan.time)
+    })
+    onClose()
+  }
+
+  return (
+    <Sheet title="Weigh-in day" onClose={onClose} onSubmit={() => void save()}
+      actions={<>
+        <button type="button" className="btn grow" onClick={onClose}>Cancel</button>
+        <button type="submit" className="btn btn-primary">Save</button>
+      </>}>
+      <div className="form-grid">
+        <label>Day
+          <select value={day} onChange={(e) => setDay(e.target.value)}>
+            <option value="any">Any day</option>
+            {WEEKDAY_ORDER.map((d) => <option key={d} value={String(d)}>{WEEKDAY_NAMES[d]}</option>)}
+          </select>
+        </label>
+        <label>Remind me at<input type="time" value={time} onChange={(e) => setTime(e.target.value)} /></label>
+        {time && quiet && <p className="kit-hint">{quiet}</p>}
+      </div>
     </Sheet>
   )
 }

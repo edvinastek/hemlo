@@ -48,6 +48,11 @@ is('health on, a past day with no weigh-in: no tab', keys(day({ day: '2026-09-27
 is('health on, a past day with a weigh-in: Body', keys(day({ day: '2026-09-27', enabled: ['health'], weighIn: true })), ['today', 'body'])
 is('health on, a day ahead: no tab', keys(day({ day: '2026-09-29', enabled: ['health'] })), ['today'])
 is('a weigh-in with health off: no tab', keys(day({ weighIn: true })), ['today'])
+// The weigh-in day (HLT-05): chosen, the weigh-in shows on that day only.
+is('weigh-in day Monday, today Monday: Body', keys(day({ enabled: ['health'], weighInDay: 1 })), ['today', 'body'])
+is('weigh-in day Sunday, today Monday: no tab', keys(day({ enabled: ['health'], weighInDay: 0 })), ['today'])
+is('weigh-in day Sunday but one logged today: Body', keys(day({ enabled: ['health'], weighInDay: 0, weighIn: true })), ['today', 'body'])
+is('weigh-in day Sunday: Body keeps habits on Monday', bodyParts({ ...day({ enabled: ['health', 'habits'], habits: [daily] }), weighInDay: 0 }), ['habits'])
 const all = day({ enabled: ['health', 'habits', 'supplements'], habits: [daily], supplements: [{ active: true }] })
 is('all three: one Body tab', labels(all), ['Today', 'Body'])
 is('its parts, in order', dayTabs(all)[1].parts, ['health', 'habits', 'supplements'])

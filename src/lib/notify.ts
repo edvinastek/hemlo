@@ -18,6 +18,7 @@ import {
   PAYMENT_TIME, REFILL_TIME, isQuiet, itemReminderText, itemRoute, notificationId, placeReminder, refillText, reminderActions, reminderText, reminderViews,
 } from './reminder-text'
 import type { ModuleRecord } from './types'
+import { readWeighInPlan, weighInReminderDays, weighInReminderText } from './body-measure-rules'
 
 export { isQuiet, reminderText }
 
@@ -74,7 +75,9 @@ async function ensureChannel() {
 /** One reminder to schedule: what it says, when, and what it is about. */
 interface Due { key: string; at: Date; title: string; body: string; item: Pick<DayItem, 'kind' | 'ref' | 'day' | 'module_key'>; route: string
   /** A refill reminder: nothing to tick, only to see (SUP-05). */
-  refill?: boolean }
+  refill?: boolean
+  /** Another reminder with nothing to tick: the weigh-in (HLT-05). */
+  noTick?: boolean }
 
 /** Everything timed in the next three days whose module sends reminders
  *  (REM-02): tasks as before, and now habits, chores, supplements (at their
@@ -158,6 +161,29 @@ async function upcoming(profileId: string, now: Date, settings: ReminderSettings
       }
     }
   }
+  // The weigh-in reminder (HLT-05): on the weigh-in day (every day when any
+  // day will do) at the time chosen in Health's ⋮, until a weight is logged
+  // that day, while Health is on and sends reminders.
+  if (enabled.includes('health') && moduleView(readSettings(profile).module_views, 'health').reminders) {
+    const inst = await db.module_instance.where('profile_id').equals(profileId).filter((m) => m.module_key === 'health').first()
+    const plan = readWeighInPlan(inst?.settings)
+    if (plan.time) {
+      const weighed = new Set((await db.body_log.where('log_date').between(from, to, true, true)
+        .filter((r) => r.profile_id === profileId && !r.deleted_at && r.weight_kg != null).toArray()).map((r) => r.log_date))
+      const [h, m] = plan.time.split(':').map(Number)
+      for (const day of weighInReminderDays(plan, days, weighed)) {
+        const at = new Date(`${day}T00:00:00`)
+        at.setHours(h, m, 0, 0)
+        if (at <= now) continue
+        const when = placeReminder(at, settings)
+        if (!when) continue
+        out.push({
+          key: `weighin:${day}`, at: when, ...weighInReminderText(persona),
+          item: { kind: 'record', ref: { table: 'body_log', id: day }, day, module_key: 'health' }, route: '/m/health', noTick: true,
+        })
+      }
+    }
+  }
   return out
 }
 
@@ -196,8 +222,8 @@ export async function rescheduleReminders(profileId: string, persona: string | n
         id: notificationId(d.key), title: d.title, body: d.body, channelId: 'reminders',
         schedule: { at: d.at, allowWhileIdle: true },
         isExactNotification: false,
-        actionTypeId: d.refill ? 'later' : reminderActions(d.item.kind),
-        extra: { profileId, kind: d.refill ? 'refill' : d.item.kind, id: d.item.ref.id, day: d.item.day, route: d.route, title: d.title, body: d.body },
+        actionTypeId: d.refill || d.noTick ? 'later' : reminderActions(d.item.kind),
+        extra: { profileId, kind: d.refill ? 'refill' : d.noTick ? 'weighin' : d.item.kind, id: d.item.ref.id, day: d.item.day, route: d.route, title: d.title, body: d.body },
       })),
     })
     return due.length
@@ -278,7 +304,7 @@ export function listenForReminderActions() {
       if (profile) void rescheduleReminders(profile.id, profile.ai_persona_name)
     }, 1000)
   }
-  for (const t of [db.habit, db.habit_log, db.chore, db.chore_log, db.calendar_event, db.module_record, db.supplement, db.supplement_log] as const) {
+  for (const t of [db.habit, db.habit_log, db.chore, db.chore_log, db.calendar_event, db.module_record, db.supplement, db.supplement_log, db.body_log] as const) {
     ;(t as unknown as { hook: (e: string, fn: () => void) => void }).hook('creating', again)
     ;(t as unknown as { hook: (e: string, fn: () => void) => void }).hook('updating', again)
   }

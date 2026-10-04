@@ -315,6 +315,10 @@ Types, then every check that needs nothing but Node. CI runs the same command.
 - `studyreview` — (v19, LRN-05) the review schedule: a study session's reviews 1, 3, 7, 14 and 30 days on, a later
   session counting as the review (a late one clearing all that had fallen due), a finished chain starting afresh, a
   review over 30 days late lapsing, subjects matched without case, one entry per subject, earliest first.
+- `bodymeasures` — (v19, HLT-04, HLT-05) Health's ready-made measures (hips, chest, arm, thigh, body fat; none offered
+  twice), the measures a page shows, each one averaged in Stats, a measure over time (one point a day, comma decimals),
+  its latest and change in words, one record a day; the weigh-in day read safely (any day by default), Today offering
+  the weigh-in on that day only (one logged always shows), and the days its reminder comes (not once weighed).
 
 Added when the ten version 16 branches were wired together (integration):
 

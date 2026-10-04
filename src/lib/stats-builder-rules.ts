@@ -249,7 +249,9 @@ export function measureCatalogue(modules: ModuleInput[], nutrients: string[], ex
     const own = builtIn(m.key, nutrients, extras)
     // Finance's amount field holds money in and money out alike: adding it up
     // would count income as spending (P8), so Spent and Money in stand for it.
-    const records = recordMeasures(m.entities ?? []).filter((r) => !(m.key === 'finance' && r.name === 'entry:amount'))
+    const records = recordMeasures(m.entities ?? []).filter((r) => !(m.key === 'finance' && r.name === 'entry:amount')
+      // Health's body measures (HLT-04) are their fields; a count of measuring days says nothing.
+      && !(m.key === 'health' && r.name === 'measure:count'))
     add(m.key, m.name, [...own, ...records])
   }
   // Two records modules can name a measure alike; the second one is told apart.
