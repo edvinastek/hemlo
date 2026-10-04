@@ -99,3 +99,7 @@ import { CopySheet } from '../ui/CopySheet'
   src/lib/holidays.ts:57, src/screens/Auth.tsx:18, src/screens/Onboarding.tsx:111, src/ui/ActivityPicker.tsx:15,
   src/ui/Nav.tsx:232. AddMenu's "Hidden ones stay under More." means the menu's own More button (correct).
 - tips-rules WHAT_MOVED: three additive v18 lines (Sleep tab, Body tab sections, Nutrition card's add).
+- GEN-26 import: habits, supplements and chores import .ics with their repeats (their datasets; chores import only
+  .ics). A GetIt calendar file read into "Calendar" puts each X-GETIT-KIND event back into its module (habit,
+  supplement, chore, planned payment) instead of making a task; same-named ones already there are skipped. Checked
+  in the harness: export → delete habits → import gives the identical rules (flexible included).
