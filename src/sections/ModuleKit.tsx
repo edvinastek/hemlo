@@ -13,7 +13,8 @@ import { CalendarView, ListView, TableView, Totals } from '../modules/views'
 import { BoardView } from '../modules/views/Board'
 import { GridView } from '../modules/views/Grid'
 import { ChartView } from '../modules/views/Chart'
-import { ViewBar } from '../modules/ModuleHead'
+import { ViewBar, useModuleMenuItems } from '../modules/ModuleHead'
+import { CopyToDaySheet, useListTools } from '../modules/RecordTools'
 import { useBackClose } from '../ui/useBackClose'
 import './kit.css'
 
@@ -62,42 +63,55 @@ export function defTabs(def: ModuleDef | null | undefined, skip: string[] = []):
 /** One of the module's own views, drawn as the generic module page draws it,
  *  with its add button and record sheet; `onClose` adds the line over it
  *  with the way back to the page. */
-export function DefView({ def, viewKey, profileId, fab = true, onClose }: {
+export function DefView({ def, viewKey, profileId, fab = true, onClose, repeat = true }: {
   def: ModuleDef; viewKey: string; profileId: string; fab?: boolean; onClose?: () => void
+  /** Offer "Change repeat" for several records (not for Finance's entries). */
+  repeat?: boolean
 }) {
   const view = def.views.find((v) => v.key === viewKey)
   const entity = def.entities.find((e) => e.name === view?.entity) ?? def.entities[0]
   const recs = useRecords(profileId, def.key, entity)
   const lookups = useLookups(profileId, entity?.fields ?? [])
-  const [sheet, setSheet] = useState<{ rec?: Rec; day?: string } | null>(null)
+  const [sheet, setSheet] = useState<{ rec?: Rec; day?: string; copy?: Record<string, unknown> } | null>(null)
+  const [copying, setCopying] = useState<Rec | null>(null)
+  const type: ViewDef['type'] = view && PAGE_VIEW_TYPES.includes(view.type) ? view.type : 'list'
+  // Sort and filter, and hold to select (GEN-52), as on a built module's page;
+  // their items go in the page's one ⋮ (CALM-03).
+  const tools = useListTools({ def, entity, viewKey, viewType: type, profileId, recs, lookups, repeat })
+  useModuleMenuItems(tools.menu, `${viewKey}|${tools.menu.map((m) => (m ? m.label : '')).join('|')}`)
   if (!view || !entity) return <p className="empty">This view is no longer here.</p>
-  const type: ViewDef['type'] = PAGE_VIEW_TYPES.includes(view.type) ? view.type : 'list'
   const open = (rec: Rec) => setSheet({ rec })
   const noun = entity.label.toLowerCase()
+  const list = tools.arranged ?? recs
   return (
     <>
-      {onClose && <ViewBar name={view.name} onClose={onClose} />}
-      {recs === undefined ? null : (
+      {onClose && <ViewBar name={view.name} onClose={() => { tools.sel.stop(); onClose() }} />}
+      {recs === undefined || list === undefined ? null : (
         <>
-          {type !== 'form' && <Totals entity={entity} recs={recs} />}
-          {type === 'calendar' && <CalendarView entity={entity} view={view} recs={recs} lookups={lookups} onOpen={open} onAdd={(day) => setSheet({ day })} />}
-          {type === 'board' && <BoardView key={view.key} def={def} entity={entity} view={view} recs={recs} lookups={lookups} profileId={profileId} onOpen={open} />}
-          {type === 'grid' && <GridView key={view.key} def={def} entity={entity} view={view} recs={recs} lookups={lookups} profileId={profileId} onOpen={open} />}
-          {type === 'chart' && <ChartView key={view.key} entity={entity} view={view} recs={recs} />}
+          {tools.line}
+          {tools.filteredOut && <p className="mp-note">No {noun} passes this filter.</p>}
+          {type !== 'form' && <Totals entity={entity} recs={list} />}
+          {type === 'calendar' && <CalendarView entity={entity} view={view} recs={list} lookups={lookups} onOpen={open} onAdd={(day) => setSheet({ day })} />}
+          {type === 'board' && <BoardView key={view.key} def={def} entity={entity} view={view} recs={list} lookups={lookups} profileId={profileId} onOpen={open} />}
+          {type === 'grid' && <GridView key={view.key} def={def} entity={entity} view={view} recs={list} lookups={lookups} profileId={profileId} onOpen={open} />}
+          {type === 'chart' && <ChartView key={view.key} entity={entity} view={view} recs={list} />}
           {(type === 'list' || type === 'table' || type === 'form') && recs.length === 0 && (
             <p className="empty">No {noun}s yet. Tap the round + button to add the first one.</p>
           )}
-          {(type === 'list' || type === 'form') && recs.length > 0 && <ListView entity={entity} recs={recs} lookups={lookups} onOpen={open} />}
-          {type === 'table' && recs.length > 0 && (
-            <TableView def={def} entity={entity} view={view} recs={recs} lookups={lookups} profileId={profileId} onOpen={open} />
+          {(type === 'list' || type === 'form') && list.length > 0 && <ListView entity={entity} recs={list} lookups={lookups} onOpen={open} sel={type === 'list' ? tools.sel : undefined} />}
+          {type === 'table' && list.length > 0 && (
+            <TableView def={def} entity={entity} view={view} recs={list} lookups={lookups} profileId={profileId} onOpen={open} sel={tools.sel} />
           )}
+          {tools.overlays(list)}
         </>
       )}
       {fab && <button type="button" className="fab" aria-label={`Add ${noun}`} onClick={() => setSheet({})}>+</button>}
       {sheet && (
-        <RecordSheet key={sheet.rec?.id ?? `new-${sheet.day ?? ''}`} def={def} entity={entity} profileId={profileId}
-          rec={sheet.rec} day={sheet.day} lookups={lookups} onClose={() => setSheet(null)} />
+        <RecordSheet key={sheet.rec?.id ?? `new-${sheet.day ?? ''}-${sheet.copy ? 'copy' : ''}`} def={def} entity={entity} profileId={profileId}
+          rec={sheet.rec} day={sheet.day} start={sheet.copy} lookups={lookups} onClose={() => setSheet(null)}
+          onDuplicate={(values) => setSheet({ copy: values })} onCopyTo={(rec) => { setSheet(null); setCopying(rec) }} />
       )}
+      {copying && <CopyToDaySheet def={def} entity={entity} profileId={profileId} rec={copying} onClose={() => setCopying(null)} />}
     </>
   )
 }

@@ -9,10 +9,13 @@ import { readSettings } from './settings'
 import { dayItems, eventMayTouch, type DayItem } from './day-items-rules'
 import { reviewSettings } from './review'
 import { setTaskDone } from './tasks'
-import { toggleHabit } from './tracking'
+import { setSupplementsTaken, supplementSlots, toggleHabit } from './tracking'
 import { toggleChore } from './chores'
+import { financeDaySources, togglePaid } from './finance'
+import { doneDays, pickLog, refillDaysIn, supplementDue, supplementStock } from './tracking-rules'
+import { moduleView } from './module-view-rules'
 import {
-  canTickFromReminder, isQuiet, itemReminderText, itemRoute, notificationId, placeReminder, reminderText, reminderViews,
+  PAYMENT_TIME, REFILL_TIME, isQuiet, itemReminderText, itemRoute, notificationId, placeReminder, refillText, reminderActions, reminderText, reminderViews,
 } from './reminder-text'
 import type { ModuleRecord } from './types'
 
@@ -60,6 +63,8 @@ async function ensureChannel() {
   await LocalNotifications.registerActionTypes({
     types: [
       { id: 'tick', actions: [{ id: 'done', title: 'Done' }, { id: 'snooze', title: `In ${SNOOZE_MIN} min` }] },
+      // A planned payment's day (FIN-04): Paid writes its entry, as a tick on Today does.
+      { id: 'pay', actions: [{ id: 'done', title: 'Paid' }, { id: 'snooze', title: `In ${SNOOZE_MIN} min` }] },
       { id: 'later', actions: [{ id: 'snooze', title: `In ${SNOOZE_MIN} min` }] },
     ],
   })
@@ -67,12 +72,16 @@ async function ensureChannel() {
 }
 
 /** One reminder to schedule: what it says, when, and what it is about. */
-interface Due { key: string; at: Date; title: string; body: string; item: Pick<DayItem, 'kind' | 'ref' | 'day' | 'module_key'>; route: string }
+interface Due { key: string; at: Date; title: string; body: string; item: Pick<DayItem, 'kind' | 'ref' | 'day' | 'module_key'>; route: string
+  /** A refill reminder: nothing to tick, only to see (SUP-05). */
+  refill?: boolean }
 
 /** Everything timed in the next three days whose module sends reminders
- *  (REM-02): tasks as before, and now habits, chores, the person's own
- *  events and dated records, each following its module's "Send reminders"
- *  switch, by the same day list Today and Plan draw. */
+ *  (REM-02): tasks as before, and now habits, chores, supplements (at their
+ *  slot's time), planned payments (on their day, at their time or in the
+ *  morning), the person's own events and dated records, each following its
+ *  module's "Send reminders" switch, by the same day list Today and Plan
+ *  draw; and a supplement's refill reminder when its stock runs low (SUP-05). */
 async function upcoming(profileId: string, now: Date, settings: ReminderSettings, persona: string | null): Promise<Due[]> {
   const profile = await db.profile.get(profileId)
   if (!profile) return []
@@ -81,7 +90,7 @@ async function upcoming(profileId: string, now: Date, settings: ReminderSettings
   const built = (await db.module.toArray()).filter((m) => !m.builtin && !m.deleted_at)
   const enabled = await enabledModules(profileId, built)
   const views = reminderViews(enabled, readSettings(profile).module_views)
-  const [tasks, habits, chores, events, records, habitLogs, choreLogs] = await Promise.all([
+  const [tasks, habits, chores, events, records, habitLogs, choreLogs, supplements] = await Promise.all([
     db.task.where('[profile_id+planned_date]').between([profileId, from], [profileId, to], true, true).toArray(),
     db.habit.where('profile_id').equals(profileId).toArray(),
     db.chore.where('household_id').equals(profile.household_id).toArray(),
@@ -90,11 +99,23 @@ async function upcoming(profileId: string, now: Date, settings: ReminderSettings
     db.module_record.where('record_date').between(from, to, true, true).filter((r) => r.profile_id === profileId).toArray(),
     db.habit_log.where('log_date').between(format(addDays(now, -7), 'yyyy-MM-dd'), to, true, true).toArray(),
     db.chore_log.toArray(),
+    db.supplement.where('profile_id').equals(profileId).filter((x) => x.active && !x.deleted_at).toArray(),
   ])
+  // Supplements: every tick since the oldest stock count (for the refill
+  // reminder), which covers the horizon's ticks too.
+  const counted = supplements.filter((x) => x.stock_count != null && x.stock_from)
+  const since = counted.map((x) => x.stock_from!).sort()[0] ?? from
+  const supplementLogs = supplements.length
+    ? await db.supplement_log.where('supplement_id').anyOf(supplements.map((x) => x.id)).filter((l) => l.log_date >= (since < from ? since : from) && l.log_date <= to).toArray()
+    : []
+  const [slots, finance] = await Promise.all([supplementSlots(profileId), financeDaySources(profileId, from, to)])
+  // A payment with no time of its own reminds in the morning of its day.
+  const payments = finance.payments.map((p) => (p.time ? p : { ...p, time: PAYMENT_TIME }))
   const days = Array.from({ length: HORIZON_DAYS }, (_, i) => format(addDays(now, i), 'yyyy-MM-dd'))
   const items = dayItems(days, 'plan', {
     today: from, enabled, views,
-    tasks, habits, habitLogs, chores, choreLogs, supplements: [], supplementLogs: [],
+    tasks, habits, habitLogs, chores, choreLogs, supplements, supplementLogs, supplementSlots: slots,
+    payments, paidPayments: finance.paidPayments,
     events, records, recordTitle: (r: ModuleRecord) => recordTitle(r),
   })
   const { limit } = await reviewSettings()
@@ -110,6 +131,32 @@ async function upcoming(profileId: string, now: Date, settings: ReminderSettings
     if (!when) continue
     const text = item.kind === 'task' && item.task ? reminderText(item.task, persona, limit) : itemReminderText(item, persona)
     out.push({ key: item.key, at: when, ...text, item, route: itemRoute(item, from) })
+  }
+  // Refill reminders (SUP-05): the day a supplement's doses reach the
+  // warning, and its last day, at its slot's time (else the morning), while
+  // Supplements sends reminders.
+  if (counted.length && enabled.includes('supplements') && moduleView(readSettings(profile).module_views, 'supplements').reminders) {
+    for (const x of counted) {
+      const ticked = doneDays(supplementLogs.filter((l) => l.supplement_id === x.id))
+      const time = slots.find((sl) => sl.key === x.time_slot)?.time ?? REFILL_TIME
+      for (const day of refillDaysIn(x, ticked, from, days)) {
+        // How it stands that day, every dose before it taken on time.
+        const before = ticked.concat(days.filter((d) => d >= from && d < day && supplementDue(x, d) && !ticked.includes(d)))
+        const st = supplementStock(x, before, day)
+        if (!st || st.daysLeft === null) continue
+        const at = new Date(`${day}T00:00:00`)
+        const [h, m] = time.split(':').map(Number)
+        at.setHours(h, m, 0, 0)
+        if (at <= now) continue
+        const when = placeReminder(at, settings)
+        if (!when) continue
+        out.push({
+          key: `refill:${x.id}:${day}`, at: when, ...refillText(x.name, st.left, st.daysLeft, persona),
+          item: { kind: 'supplements', ref: { table: 'supplement', id: x.time_slot ?? 'any' }, day, module_key: 'supplements' }, route: '/m/supplements',
+          refill: true,
+        })
+      }
+    }
   }
   return out
 }
@@ -145,8 +192,8 @@ export async function rescheduleReminders(profileId: string, persona: string | n
         id: notificationId(d.key), title: d.title, body: d.body, channelId: 'reminders',
         schedule: { at: d.at, allowWhileIdle: true },
         isExactNotification: false,
-        actionTypeId: canTickFromReminder(d.item.kind) ? 'tick' : 'later',
-        extra: { profileId, kind: d.item.kind, id: d.item.ref.id, day: d.item.day, route: d.route, title: d.title, body: d.body },
+        actionTypeId: d.refill ? 'later' : reminderActions(d.item.kind),
+        extra: { profileId, kind: d.refill ? 'refill' : d.item.kind, id: d.item.ref.id, day: d.item.day, route: d.route, title: d.title, body: d.body },
       })),
     })
     return due.length
@@ -172,14 +219,34 @@ export async function rescheduleReminders(profileId: string, persona: string | n
 export const useReminderRoute = create<{ route: string | null }>(() => ({ route: null }))
 export const openRoute = (route: string) => useReminderRoute.setState({ route })
 
-type Extra = { profileId?: string; kind?: DayItem['kind']; id?: string; day?: string; route?: string; title?: string; body?: string }
+type Extra = { profileId?: string; kind?: DayItem['kind'] | 'refill'; id?: string; day?: string; route?: string; title?: string; body?: string }
 
-/** Tick the item a reminder was about, if it is not ticked already. */
+/** Tick the item a reminder was about, if it is not ticked already, by the
+ *  same path a tick in the app takes (GEN-31): a meal task marks its meal
+ *  eaten, a task waiting for an after-done note keeps waiting (it asks when
+ *  next opened), habits and chores tick as on Today, a supplement slot takes
+ *  what is still to take, and a payment's Paid writes its entry. */
 export async function tickFromReminder(e: Extra): Promise<void> {
   if (!e.id || !e.day) return
   if (e.kind === 'task') {
     const t = await db.task.get(e.id)
     if (t && t.status !== 'done' && !t.deleted_at) await setTaskDone(t, true)
+  } else if (e.kind === 'supplements') {
+    const profileId = e.profileId ?? useApp.getState().profile?.id
+    if (!profileId) return
+    const slots = await supplementSlots(profileId)
+    const all = await db.supplement.where('profile_id').equals(profileId).filter((x) => x.active && !x.deleted_at).toArray()
+    // The slot's supplements due that day ("any" holds those with no slot, or a slot that is gone).
+    const known = new Set(slots.map((sl) => sl.key))
+    const inSlot = all.filter((x) => (e.id === 'any' ? !x.time_slot || !known.has(x.time_slot) : x.time_slot === e.id) && supplementDue(x, e.day!))
+    const logs = inSlot.length ? await db.supplement_log.where('[supplement_id+log_date]').anyOf(inSlot.map((x) => [x.id, e.day!])).toArray() : []
+    const taken = (id: string) => !!pickLog(logs.filter((l) => l.supplement_id === id))?.done
+    await setSupplementsTaken(inSlot.filter((x) => !taken(x.id)).map((x) => x.id), e.day, true)
+  } else if (e.kind === 'payment') {
+    const profileId = e.profileId ?? useApp.getState().profile?.id
+    if (!profileId) return
+    const { paidPayments } = await financeDaySources(profileId, e.day, e.day)
+    if (!paidPayments.some((p) => p.payment_id === e.id && p.due_date === e.day)) await togglePaid(profileId, e.id, e.day, format(new Date(), 'yyyy-MM-dd'))
   } else if (e.kind === 'habit') {
     const log = await db.habit_log.where('[habit_id+log_date]').equals([e.id, e.day]).first()
     if (!log?.done) await toggleHabit(e.id, e.day)
@@ -207,7 +274,7 @@ export function listenForReminderActions() {
       if (profile) void rescheduleReminders(profile.id, profile.ai_persona_name)
     }, 1000)
   }
-  for (const t of [db.habit, db.habit_log, db.chore, db.chore_log, db.calendar_event, db.module_record] as const) {
+  for (const t of [db.habit, db.habit_log, db.chore, db.chore_log, db.calendar_event, db.module_record, db.supplement, db.supplement_log] as const) {
     ;(t as unknown as { hook: (e: string, fn: () => void) => void }).hook('creating', again)
     ;(t as unknown as { hook: (e: string, fn: () => void) => void }).hook('updating', again)
   }
@@ -221,7 +288,7 @@ export function listenForReminderActions() {
         notifications: [{
           id: notificationId(`snooze:${e.id}:${Date.now()}`), title: e.title ?? 'GetIt', body: e.body ?? '', channelId: 'reminders',
           schedule: { at, allowWhileIdle: true }, isExactNotification: false,
-          actionTypeId: e.kind && canTickFromReminder(e.kind) ? 'tick' : 'later',
+          actionTypeId: e.kind && e.kind !== 'refill' ? reminderActions(e.kind) : 'later',
           extra: { ...e, snoozed: true },
         }],
       })

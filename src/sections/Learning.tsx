@@ -4,6 +4,7 @@ import { useModuleDef } from '../modules/defs'
 import { useBuiltinRuleOn } from '../modules/rule-switch'
 import { useLookups, type Rec } from '../modules/records'
 import { RecordSheet } from '../modules/RecordSheet'
+import { MoreOptions } from '../ui/MoreOptions'
 import {
   deleteLearningRecord, planReading, restoreLearningRecord, saveBook, setBookStatus, syncStudyTasks, useLearningRecords, useReadingTasks,
 } from '../lib/learning'
@@ -263,6 +264,9 @@ function BookSheet({ profileId, rec, onClose }: { profileId: string; rec: Module
           <label>Pages<input inputMode="numeric" value={pages} onChange={(e) => setPages(e.target.value)} /></label>
           <label>Read to page<input inputMode="numeric" value={pageNow} onChange={(e) => setPageNow(e.target.value)} /></label>
         </div>
+        {/* What makes the book is above; the rest waits here (CALM-08). */}
+        <MoreOptions open={!!(b?.rating || b?.started_on || b?.finished_on)}
+          summary={[rating ? `${rating} of 5` : null, started ? 'started' : null, finished ? 'finished' : null].filter(Boolean).join(' · ') || null}>
         <div className="sleep-quality lrn-rating" role="group" aria-label="Rating, 1 to 5">
           <span>Rating</span>
           <div>
@@ -275,6 +279,7 @@ function BookSheet({ profileId, rec, onClose }: { profileId: string; rec: Module
           <label>Started<input type="date" value={started} onChange={(e) => setStarted(e.target.value)} /></label>
           <label>Finished<input type="date" value={finished} onChange={(e) => setFinished(e.target.value)} /></label>
         </div>
+        </MoreOptions>
       </div>
       {rec && b && (
         <div className="lrn-plan">

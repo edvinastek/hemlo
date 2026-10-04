@@ -3,7 +3,8 @@ import { useApp } from '../lib/store'
 import { readSettings } from '../lib/settings'
 import { saveSettings } from '../lib/write'
 import { MODULES } from '../modules/registry'
-import { SWATCHES, DEFAULT_COLOURS, contrastNote, parseHex, withColour } from '../lib/colours-rules'
+import { SWATCHES, DEFAULT_COLOURS, contrastNote, parseHex, swatchesFor, withColour } from '../lib/colours-rules'
+import { previewTheme, useLooks } from '../lib/looks'
 import { useModuleColours } from '../lib/colours'
 import { search } from '../lib/search-rules'
 import type { Profile } from '../lib/types'
@@ -24,6 +25,14 @@ function Colours({ profile }: { profile: Profile }) {
   const { built, enabled } = colours
   const [open, setOpen] = useState<string | null>(null)
   const [query, setQuery] = useState('')
+  // Colours are judged on the pages of the theme chosen in Looks (LOOK-06),
+  // its light page and its dark (or black) one, and again when it changes.
+  const { looks } = useLooks()
+  const papers = useMemo(() => ({
+    light: previewTheme(looks.theme, 'light', looks.seed).tokens.paper,
+    dark: previewTheme(looks.theme, looks.mode === 'black' ? 'black' : 'dark', looks.seed).tokens.paper,
+  }), [looks.theme, looks.seed, looks.mode])
+  const swatches = useMemo(() => swatchesFor(papers), [papers])
 
   // Work and the evening colour a day without being modules, so they always
   // have a row; then the modules that are on, in the Modules list's order,
@@ -74,21 +83,22 @@ function Colours({ profile }: { profile: Profile }) {
             shared={keys.filter((o) => o !== k && colours.of(o) === colours.of(k)).map(colours.label)}
             isDefault={!!DEFAULT_COLOURS[k]}
             open={open === k} onToggle={() => setOpen(open === k ? null : k)}
-            onPick={(hex) => set(k, hex)} />
+            onPick={(hex) => set(k, hex)} papers={papers} swatches={swatches} />
         ))}
       </div>
     </>
   )
 }
 
-function ColourRow({ name, hex, chosen, shared, isDefault, open, onToggle, onPick }: {
+function ColourRow({ name, hex, chosen, shared, isDefault, open, onToggle, onPick, papers, swatches }: {
   name: string; hex: string; chosen: boolean; shared: string[]; isDefault: boolean; open: boolean
   onToggle: () => void; onPick: (hex: string | null) => void
+  papers: { light: string; dark: string }; swatches: ReturnType<typeof swatchesFor>
 }) {
   const [typed, setTyped] = useState('')
   const [error, setError] = useState<string | null>(null)
   const swatch = SWATCHES.find((s) => s.hex === hex)
-  const note = contrastNote(hex)
+  const note = contrastNote(hex, papers)
 
   function submitTyped(e: FormEvent) {
     e.preventDefault()
@@ -114,9 +124,9 @@ function ColourRow({ name, hex, chosen, shared, isDefault, open, onToggle, onPic
       {open && (
         <div className="cs-panel">
           <div className="cs-grid" role="group" aria-label={`Colours for ${name}`}>
-            {SWATCHES.map((s) => (
-              <button key={s.hex} className="cs-pick" aria-label={s.name} aria-pressed={s.hex === hex}
-                title={s.name} style={{ '--mod': s.hex } as CSSProperties} onClick={() => onPick(s.hex)} />
+            {swatches.map((s) => (
+              <button key={s.hex} className={`cs-pick${s.note ? ' is-faint' : ''}`} aria-label={s.note ? `${s.name}. ${s.note}` : s.name} aria-pressed={s.hex === hex}
+                title={s.note ? `${s.name}: ${s.note.toLowerCase()}` : s.name} style={{ '--mod': s.hex } as CSSProperties} onClick={() => onPick(s.hex)} />
             ))}
           </div>
           <form className="cs-custom" onSubmit={submitTyped}>

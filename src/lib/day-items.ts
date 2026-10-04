@@ -12,7 +12,7 @@ import type { ModuleRecord } from './types'
 // members' names for the day's items.
 import { supplementSlots } from './tracking'
 import { cachedMembers, chorePrefs } from './household'
-import { memberName } from './chore-rules'
+import { memberName, mineOnly } from './chore-rules'
 import { financeDaySources } from './finance'
 
 /** Reads everything the day-items rules need for a range of days from the
@@ -85,6 +85,8 @@ export async function loadDayItems(profileId: string, householdId: string, from:
     recordTitle: recordTitle,
     supplementSlots: slots,
     chorePrefs: prefs,
+    // A shared household's Today shows each member their own chores (v18).
+    choresFor: mineOnly(prefs, members.length) ? me : null,
     memberName: (id) => memberName(members, id, me),
   })
 }

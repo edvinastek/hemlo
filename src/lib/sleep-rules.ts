@@ -198,15 +198,7 @@ export function bedtimeSeries(s: SleepSettings, ruleOn: boolean, today: string) 
   }
 }
 
-/** The measures Sleep gives Stats, by source key. */
-export const SLEEP_MEASURES = [
-  { source: 'sleep.hours', label: 'Hours slept', unit: 'h', summary: 'avg' as const },
-  { source: 'sleep.vs_target', label: 'Hours against the target', unit: 'h', summary: 'sum' as const },
-  { source: 'sleep.bed_late', label: 'Bedtime against the target', unit: 'min', summary: 'avg' as const },
-  { source: 'sleep.quality', label: 'Quality', unit: '/5', summary: 'avg' as const },
-]
-
-/** A value per day for one of those measures; nights without it are left out. */
+/** A value per day for one measure; nights without it are left out. */
 export function sleepSeries(nights: Night[], measure: 'hours' | 'vs_target' | 'bed_late' | 'quality', s: Pick<SleepSettings, 'target_hours' | 'bedtime'>): Record<string, number> {
   const out: Record<string, number> = {}
   for (const n of nights) {

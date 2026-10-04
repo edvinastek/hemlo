@@ -9,8 +9,10 @@ import {
   supplementSlots, toggleSupplement,
 } from '../lib/tracking'
 import {
-  MAX_SLOTS, cleanName, nextSortOrder, pickLog, slotKey, supplementDue, supplementGroups, type SupplementSlotDef,
+  MAX_SLOTS, REFILL_DAYS, cleanName, doneDays, nextSortOrder, pickLog, slotKey, stockFromNow, stockWords, supplementDue, supplementGroups,
+  supplementStock, type SupplementSlotDef,
 } from '../lib/tracking-rules'
+import { MoreOptions } from '../ui/MoreOptions'
 import { describeSchedule } from '../lib/schedule-rules'
 import { PlusGlyph, TickGlyph } from './Habits'
 import { Dropdown } from '../ui/Dropdown'
@@ -33,7 +35,13 @@ export function Supplements({ profileId, day }: { profileId: string; day: string
     const all = await db.supplement.where('profile_id').equals(profileId).toArray()
     const live = all.filter((s) => s.active && !s.deleted_at)
     const logs = live.length ? await db.supplement_log.where('[supplement_id+log_date]').anyOf(live.map((s) => [s.id, day])).toArray() : []
-    return { all, live, logs, slots: await supplementSlots(profileId) }
+    // Supplements keeping a stock count: the days ticked since it was counted (SUP-05).
+    const counted = live.filter((s) => s.stock_count != null && s.stock_from)
+    const since: Record<string, string[]> = {}
+    for (const s of counted) {
+      since[s.id] = doneDays(await db.supplement_log.where('supplement_id').equals(s.id).filter((l) => l.log_date >= s.stock_from!).toArray())
+    }
+    return { all, live, logs, since, slots: await supplementSlots(profileId) }
   }, [profileId, day])
 
   const [open, setOpen] = useState<string | null>(null)
@@ -43,7 +51,7 @@ export function Supplements({ profileId, day }: { profileId: string; day: string
 
   // Still loading, or the module is switched off: nothing is shown either way.
   if (!data) return null
-  const { live, logs, slots } = data
+  const { live, logs, slots, since } = data
   const archived = data.all.filter((s) => !s.active || s.deleted_at)
   const taken = (id: string) => !!pickLog(logs.filter((l) => l.supplement_id === id))?.done
   const today = format(new Date(), 'yyyy-MM-dd')
@@ -84,6 +92,7 @@ export function Supplements({ profileId, day }: { profileId: string; day: string
             {g.rows.map((s) => {
               const isDue = supplementDue(s, day)
               const done = taken(s.id)
+              const stock = since[s.id] ? supplementStock(s, since[s.id], today) : null
               const meta = [s.dose_text, s.rule && s.rule !== 'daily' || s.start_date || s.end_date
                 ? describeSchedule({ rule: s.rule ?? 'daily', rule_config: s.rule_config ?? {}, start_date: s.start_date ?? '2000-01-03', end_date: s.end_date })
                 : null, isDue ? null : 'not today'].filter(Boolean).join(' · ')
@@ -93,6 +102,7 @@ export function Supplements({ profileId, day }: { profileId: string; day: string
                     <div className="track-text">
                       <div className="row-name"><button type="button" aria-expanded={open === s.id} onClick={() => setOpen(open === s.id ? null : s.id)}>{s.name}</button></div>
                       {meta && <div className="row-meta">{meta}</div>}
+                      {stock && <div className={`row-meta${stock.low ? ' track-low' : ''}`}>{stockWords(stock)}</div>}
                     </div>
                     <div className="track-right">
                       <button className="tick" aria-pressed={done} aria-label={`${s.name}, ${done ? 'taken' : 'not taken'}`}
@@ -148,7 +158,9 @@ export function Supplements({ profileId, day }: { profileId: string; day: string
       )}
       {sheet && (
         <SupplementSheet profileId={profileId} supplement={sheet === 'new' ? null : sheet} slots={slots} today={today}
-          nextOrder={nextSortOrder(live)} onClose={() => setSheet(null)} />
+          nextOrder={nextSortOrder(live)} onClose={() => setSheet(null)}
+          stockNow={sheet !== 'new' && since[sheet.id] ? supplementStock(sheet, since[sheet.id], today)?.left ?? null : null}
+          takenToday={sheet !== 'new' && taken(sheet.id)} />
       )}
     </section>
   )
@@ -219,14 +231,19 @@ function SlotEditor({ profileId, slots, supplements }: { profileId: string; slot
   )
 }
 
-/** Add or edit a supplement: name, dose, slot and its own schedule. */
-export function SupplementSheet({ profileId, supplement, slots, today, nextOrder, onClose }: {
+/** Add or edit a supplement: name, dose and slot up front; its own
+ *  schedule, first day and stock in "More options" (CALM-08). */
+export function SupplementSheet({ profileId, supplement, slots, today, nextOrder, onClose, stockNow = null, takenToday = false }: {
   profileId: string
   supplement: Supplement | null
   slots: SupplementSlotDef[]
   today: string
   nextOrder: number
   onClose: () => void
+  /** Doses left now, when it keeps a count (SUP-05). */
+  stockNow?: number | null
+  /** Today's dose is ticked already (so a count typed now is after it). */
+  takenToday?: boolean
 }) {
   const [draft, setDraft] = useState<Supplement>(() => supplement ?? {
     id: crypto.randomUUID(), profile_id: profileId, name: '', dose_text: null, time_slot: slots[0]?.key ?? null,
@@ -234,6 +251,10 @@ export function SupplementSheet({ profileId, supplement, slots, today, nextOrder
     updated_at: new Date().toISOString(), deleted_at: null,
   })
   const [error, setError] = useState<string | null>(null)
+  // The count as the person sees it: doses left now. Saved as the count at
+  // the start of today, so ticks keep taking doses off (SUP-05).
+  const [left, setLeft] = useState(stockNow != null ? String(stockNow) : '')
+  const [refill, setRefill] = useState(String(supplement?.refill_days ?? REFILL_DAYS))
   const set = <K extends keyof Supplement>(k: K, v: Supplement[K]) => setDraft((d) => ({ ...d, [k]: v }))
   const start = draft.start_date ?? today
   const repeat: RepeatValue = { rule: draft.rule ?? 'daily', rule_config: draft.rule_config ?? {}, end_date: draft.end_date ?? null }
@@ -241,9 +262,17 @@ export function SupplementSheet({ profileId, supplement, slots, today, nextOrder
 
   async function save() {
     if (draft.end_date && draft.end_date < start) return setError('The last day is before the first.')
+    const n = left.trim() === '' ? null : Number(left)
+    if (n !== null && !(Number.isInteger(n) && n >= 0 && n < 100000)) return setError('Doses in stock is a whole number, or empty to keep no count.')
+    const r = Number(refill)
+    if (n !== null && !(Number.isInteger(r) && r >= 0 && r <= 365)) return setError('Remind me is a number of days from 0 to 365.')
+    // A count is written only when it was typed or changed, so ticks since keep counting.
+    const stock = n === null ? { stock_count: null, stock_from: null, refill_days: null }
+      : n === stockNow && supplement?.stock_from ? { stock_count: supplement.stock_count ?? null, stock_from: supplement.stock_from, refill_days: r }
+        : { ...stockFromNow(n, takenToday, today), refill_days: r }
     try {
       const everyDay = (draft.rule ?? 'daily') === 'daily' && !(draft.rule_config?.n && draft.rule_config.n > 1)
-      await saveSupplement({ ...draft, rule: everyDay ? null : draft.rule, rule_config: everyDay ? {} : draft.rule_config ?? {} }, supplement)
+      await saveSupplement({ ...draft, ...stock, rule: everyDay ? null : draft.rule, rule_config: everyDay ? {} : draft.rule_config ?? {} }, supplement)
       onClose()
     } catch (e) {
       setError(e instanceof Error ? e.message : 'It could not be saved.')
@@ -264,12 +293,23 @@ export function SupplementSheet({ profileId, supplement, slots, today, nextOrder
         <span className="ts-field-name">When in the day</span>
         <Dropdown label="Time slot" value={draft.time_slot ?? ''} options={slotOptions} onChange={(v) => set('time_slot', v || null)} />
       </div>
-      <RepeatPicker value={repeat} start={start} today={today} kinds={[...SUPP_KINDS]} allowNone={false}
-        onChange={(v) => setDraft((d) => ({ ...d, rule: v.rule, rule_config: v.rule_config, end_date: v.end_date }))} />
-      <label>Taken from
-        <input type="date" value={draft.start_date ?? ''} onChange={(e) => set('start_date', e.target.value || null)} />
-        <span className="row-meta">Leave empty for “from now on”. With a last day too, it is taken only in between (vitamin D in winter).</span>
-      </label>
+      <MoreOptions open={!!(draft.rule || draft.start_date || draft.end_date || left)}
+        summary={[draft.rule ? describeSchedule({ rule: draft.rule, rule_config: draft.rule_config ?? {}, start_date: start, end_date: draft.end_date ?? null }) : null,
+          draft.start_date ? `from ${draft.start_date}` : null, left ? `${left} in stock` : null].filter(Boolean).join(' · ') || null}>
+        <RepeatPicker value={repeat} start={start} today={today} kinds={[...SUPP_KINDS]} allowNone={false}
+          onChange={(v) => setDraft((d) => ({ ...d, rule: v.rule, rule_config: v.rule_config, end_date: v.end_date }))} />
+        <label title="Leave empty for from now on. With a last day too, it is taken only in between (vitamin D in winter).">Taken from
+          <input type="date" value={draft.start_date ?? ''} onChange={(e) => set('start_date', e.target.value || null)} />
+        </label>
+        <div className="two">
+          <label>Doses in stock
+            <input inputMode="numeric" value={left} placeholder="No count" onChange={(e) => setLeft(e.target.value.replace(/[^\d]/g, ''))} />
+          </label>
+          <label>Remind me, days before
+            <input inputMode="numeric" value={refill} disabled={!left} onChange={(e) => setRefill(e.target.value.replace(/[^\d]/g, ''))} />
+          </label>
+        </div>
+      </MoreOptions>
       {error && <p className="track-error" role="alert">{error}</p>}
       <div className="sheet-actions">
         <button type="button" className="btn grow" onClick={onClose}>Cancel</button>

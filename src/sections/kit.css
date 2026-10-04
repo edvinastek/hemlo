@@ -92,3 +92,9 @@ button.kit-open { width: 100%; }
 /* Three figures that need room (amounts, lengths of time): two a row. */
 .kit-figures.is-two { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 @media (min-width: 640px) { .kit-figures.is-two { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+
+/* v18: entries held to select several (GEN-52). */
+.kit-row.is-picked { background: var(--e-tint); }
+.kit-open:has(> .mp-tick) { grid-template-columns: auto minmax(0, 1fr); column-gap: var(--space-3); }
+.kit-open > .mp-tick { grid-row: span 2; }
+.kit-open:has(> .mp-tick) > :not(.mp-tick) { grid-column: 2; }

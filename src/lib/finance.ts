@@ -5,7 +5,7 @@ import { queueChange } from './sync'
 import type { ModuleRecord } from './types'
 import { describeSchedule } from './schedule-rules'
 import {
-  entryForPayment, financeSeries, paidEntry, paymentMeta, readFinanceSettings, readPayment, type Category, type FinanceSettings, type Kind, type Payment,
+  entryForPayment, paidEntry, paymentMeta, readFinanceSettings, readPayment, type Category, type FinanceSettings, type Kind, type Payment,
 } from './finance-rules'
 import type { PaymentSource } from './day-items-rules'
 import { ensureInstance, instanceFor } from '../modules/defs'
@@ -149,14 +149,4 @@ export async function financeDaySources(profileId: string, from: string, to: str
     && typeof r.data?.due_date === 'string' && r.data.due_date >= from && r.data.due_date <= to)
     .map((r) => ({ payment_id: r.data.payment_id as string, due_date: r.data.due_date as string, entry_id: r.id }))
   return { payments, paidPayments }
-}
-
-/** A value per day for one of Finance's measures (FINANCE_MEASURES in
- *  finance-rules.ts), for the stats builder, optionally for one category. */
-export async function loadFinanceSeries(profileId: string, measure: 'expense' | 'income' | 'net', from: string, to: string, category?: string): Promise<Record<string, number>> {
-  const s = readFinanceSettings((await instanceFor(profileId, MODULE))?.settings)
-  const entries = (await db.module_record.where('[profile_id+module_key]').equals([profileId, MODULE]).toArray())
-    .filter((r) => r.entity === 'entry' && !r.deleted_at)
-  const all = financeSeries(entries, measure, s.categories, category)
-  return Object.fromEntries(Object.entries(all).filter(([d]) => d >= from && d <= to))
 }

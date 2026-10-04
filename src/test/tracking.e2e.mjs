@@ -93,6 +93,8 @@ for (const d of ['Tue', 'Thu', 'Sat', 'Sun']) {
   const b = p.locator('.track-sheet .ts-day', { hasText: d })
   if (await b.getAttribute('aria-pressed') === 'true') await b.click()
 }
+// v18 (CALM-08): the pinned note waits under More options.
+await p.click('.track-sheet .mo-toggle')
 await p.fill('.track-sheet textarea[aria-label="Pinned note"]', '- [ ] Hips\n- [ ] Shoulders')
 await p.click('.track-sheet button[type=submit]')
 await settle(p)

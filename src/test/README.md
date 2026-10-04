@@ -81,6 +81,19 @@ Types, then every check that needs nothing but Node. CI runs the same command.
   and choice fields), the ready-made views and which modules they need, making, duplicating, moving and deleting views,
   ranges (last n days, this week, month and year, custom; shifted back and on), the chart picked automatically, series
   colours checked for contrast on the page, the text summary, the widget shape, and Today's cards.
+- `statsmeasures` — the measures of version 18 (STA-03): sleep against the target, 7-day sleep debt and bed and wake
+  regularity (unknown days never zero); trend weight and its rate; habit strength day by day (the Habits page's
+  figure); the extra label figures (a food or recipe line without the figure leaves it unknown); Finance's spent,
+  money in, net, budgets spread over their days and budget used (money in never counted as spending, old "amount"
+  views upgraded); shopping spend at the household's own prices.
+- `modulelists` — a built module's records arranged by a person: sorted by any field (case and accents aside, numbers
+  as numbers, empty last, ties kept), filtered by a test that fits the field, kept arrangements read safely, the line
+  over the list; copies (no repeat or calculated values carried over, the date moved keeping its time); and a record's
+  form staged into what makes it and "More options" with its closed summary (CALM-08).
+- `photos` — the photo field (MOD-12): the size a photo is made (1600 px on the longest side, never larger), its name in
+  Storage ('<profile>/<record>/<photo>.jpg' and nothing else), the field keeping only such names, which records use a
+  photo, and which kept photos are tidied away (never one in use, none younger than two days, a deleted record's after a
+  day so Undo still has it, an unknown record's after a month).
 - `ics` — calendar files (RFC 5545): tasks as floating local time or whole days, agenda events in UTC,
   (v18, GEN-26: every rule of the app reads back as itself, weekends, the 2nd Tuesday, every n months, 29 February and
   days picked by hand included; habits, chores, supplements and payments with their repeats; "after", flexible and

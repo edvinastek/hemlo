@@ -421,6 +421,12 @@ export interface Supplement {
   rule_config?: import('./schedule-rules').RuleConfig
   start_date?: string | null
   end_date?: string | null
+  /** Stock (033, SUP-05): doses at the start of stock_from; the doses left
+   *  are worked out from the ticks since (tracking-rules.ts supplementStock). */
+  stock_count?: number | null
+  stock_from?: string | null
+  /** Days ahead the refill reminder comes (7 when not set). */
+  refill_days?: number | null
   active: boolean
   sort_order: number
   updated_at: string

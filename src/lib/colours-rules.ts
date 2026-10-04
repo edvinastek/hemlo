@@ -253,11 +253,13 @@ export function contrast(a: string, b: string): number {
   return (Math.max(x, y) + 0.05) / (Math.min(x, y) + 0.05)
 }
 
-/** For a colour typed by hand: which page it will be hard to see on, if
- *  either. 3:1 is the floor for a small non-text mark. */
-export function contrastNote(hex: string): string | null {
-  const light = contrast(hex, pages.light) < 3
-  const dark = contrast(hex, pages.dark) < 3
+/** For a module's colour: which page of the chosen theme it will be hard
+ *  to see on, if either (LOOK-06). 3:1 is the floor for a small non-text
+ *  mark. `papers` are the theme's light and dark pages; left out, the pages
+ *  of the theme applied now. */
+export function contrastNote(hex: string, papers: { light: string; dark: string } = pages): string | null {
+  const light = contrast(hex, papers.light) < 3
+  const dark = contrast(hex, papers.dark) < 3
   if (light && dark) return 'Hard to see on both the light and the dark page.'
   if (light) return 'Hard to see on the light page.'
   if (dark) return 'Hard to see on the dark page.'
@@ -270,4 +272,11 @@ export function modulesByWeight(keys: (string | null)[]): string[] {
   const count = new Map<string, number>()
   for (const k of keys) if (k) count.set(k, (count.get(k) ?? 0) + 1)
   return [...count.entries()].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0])).map(([k]) => k)
+}
+
+/** The swatches as the picker shows them for a theme: each with what is
+ *  wrong with it on that theme's pages, if anything, so a swatch that a
+ *  dark or tinted page swallows is marked before it is chosen (LOOK-06). */
+export function swatchesFor(papers: { light: string; dark: string }): (Swatch & { note: string | null })[] {
+  return SWATCHES.map((s) => ({ ...s, note: contrastNote(s.hex, papers) }))
 }

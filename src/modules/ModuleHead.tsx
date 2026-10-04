@@ -26,6 +26,9 @@ interface HeadContext {
   /** A section hides the head while it shows a page of its own (the stats
    *  builder, a training session, one project). */
   hide: (on: boolean) => void
+  /** Items a view inside the page adds to the ⋮ (Sort and filter, Select). */
+  extra: MenuItem[]
+  setExtra: (items: MenuItem[]) => void
 }
 
 const Ctx = createContext<HeadContext | null>(null)
@@ -35,10 +38,12 @@ export function ModuleHeadProvider({ def, onEdit, children }: { def: ModuleDef; 
   const [slot, setSlot] = useState<HTMLElement | null>(null)
   const [claims, setClaims] = useState(0)
   const [hidden, setHidden] = useState(false)
+  const [extra, setExtra] = useState<MenuItem[]>([])
   const value: HeadContext = {
     def, onEdit, slot,
     claim: (by) => setClaims((n) => n + by),
     hide: setHidden,
+    extra, setExtra,
   }
   const head = hidden ? null : (
     <header className="page-head mp-head">
@@ -96,6 +101,7 @@ export function ModuleMenu({ views, active, onView, items = [], exportSource, ca
     <PageMenu label={`More for ${def.name}`} items={[
       views && views.length > 0 && onView ? { label: 'Views…', onSelect: () => setSheet('views') } : null,
       ...items,
+      ...ctx.extra,
       exp.item,
       { label: 'Edit module', onSelect: onEdit },
       { label: 'About this module', onSelect: () => setSheet('about') },
@@ -109,6 +115,18 @@ export function ModuleMenu({ views, active, onView, items = [], exportSource, ca
   )
   if (inline) return menu
   return ctx.slot ? createPortal(menu, ctx.slot) : null
+}
+
+/** Items a view drawn inside a module page adds to the page's one ⋮ (CALM-03),
+ *  while it is on screen. `key` says when the items have changed. */
+export function useModuleMenuItems(items: (MenuItem | null | false)[], key: string) {
+  const setExtra = useContext(Ctx)?.setExtra
+  const list = items.filter((x): x is MenuItem => !!x)
+  useLayoutEffect(() => {
+    if (!setExtra) return
+    setExtra(list)
+    return () => setExtra([])
+  }, [key, setExtra]) // eslint-disable-line react-hooks/exhaustive-deps
 }
 
 /** Hide the module head while `on` (a page of the section's own is open). */

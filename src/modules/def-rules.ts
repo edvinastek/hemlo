@@ -1,6 +1,7 @@
 import type { EntityDef, FieldDef, FieldType, ModuleDef, RuleDef, ViewDef } from './types.ts'
 import { checkFormula, evaluateFormula } from './formula.ts'
 import { MODULES } from './registry.ts'
+import { isPhotoPath } from './photo-rules.ts'
 
 /** The rules every module definition obeys, whoever wrote it. Pure: no
  *  database and no React, so the checks run in Node.
@@ -12,7 +13,7 @@ import { MODULES } from './registry.ts'
 
 export const FIELD_TYPES: FieldType[] = [
   'text', 'number', 'integer', 'boolean', 'date', 'time', 'datetime', 'select', 'lookup', 'formula', 'duration',
-  'multi', 'rating', 'percent', 'money', 'checklist', 'note', 'timespan',
+  'multi', 'rating', 'percent', 'money', 'checklist', 'note', 'timespan', 'photo',
 ]
 export type LookupKind = NonNullable<FieldDef['lookup']>
 export const LOOKUPS: LookupKind[] = ['food', 'recipe', 'exercise', 'task', 'goal', 'record']
@@ -859,6 +860,8 @@ export function coerce(f: FieldDef, v: unknown): unknown {
       const t = typeof v === 'string' ? v.replace(/\s|–|—/g, (c) => (c.trim() ? '-' : '')) : ''
       return SPAN.test(t) ? t : undefined
     }
+    // A photo is its name in Storage, never anything else (MOD-12).
+    case 'photo': return isPhotoPath(v) ? v : undefined
   }
   return undefined
 }
@@ -882,7 +885,7 @@ const WHAT: Partial<Record<FieldType, string>> = {
   number: 'a number', integer: 'a whole number', duration: 'minutes', date: 'a date', time: 'a time',
   datetime: 'a date and time', select: 'one of the options', lookup: 'something from the list', text: 'text',
   multi: 'options from the list', rating: `1 to ${RATING_MAX} stars`, percent: 'a share from 0 to 100',
-  money: 'an amount', note: 'text', checklist: 'text', timespan: 'a start and an end time',
+  money: 'an amount', note: 'text', checklist: 'text', timespan: 'a start and an end time', photo: 'a photo',
 }
 
 /** Values checked against their fields. With `partial`, only the fields
@@ -966,6 +969,14 @@ export function moduleKeywords(built: Pick<ModuleDef, 'key' | 'name' | 'keywords
     ...MODULES.filter((m) => m.key !== 'custom').map((m) => ({ key: m.key, name: m.name, keywords: m.keywords ?? [] })),
     ...built.map((m) => ({ key: m.key, name: m.name, keywords: m.keywords ?? [] })),
   ]
+}
+
+/** What setup offers for the words typed (MOD-07): every module, built
+ *  ones included, whose keywords appear in them, that is not on already;
+ *  Custom never (it is not a module to switch on). */
+export function moduleSuggestions(text: string, list: ModuleWords[], on: string[]): { key: string; name: string }[] {
+  const keys = suggestModules(text, list)
+  return list.filter((m) => keys.includes(m.key) && m.key !== 'custom' && !on.includes(m.key)).map((m) => ({ key: m.key, name: m.name }))
 }
 
 /** Modules whose keywords appear, as whole words, in what was typed. */

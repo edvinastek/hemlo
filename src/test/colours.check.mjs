@@ -2,9 +2,10 @@
 // built-in module has its own colour, and the right colour reaches a task.
 import {
   SWATCHES, DEFAULT_COLOURS, SHORT_NAMES, PAPER, colourFor, taskModule, taskColour, hashColour, moduleLabel,
-  withColour, parseHex, contrast, contrastNote, definitionColour, modulesByWeight, assignBuiltColours,
+  withColour, parseHex, contrast, contrastNote, definitionColour, modulesByWeight, assignBuiltColours, swatchesFor,
 } from '../lib/colours-rules.ts'
 import { MODULES } from '../modules/registry.ts'
+import { resolveTheme, THEMES } from '../lib/theme-rules.ts'
 
 let fail = 0
 const is = (label, got, want) => {
@@ -98,6 +99,15 @@ is('hex as typed', [parseHex('#3F6B4A'), parseHex('3f6b4a'), parseHex(' #abc '),
 is('pale yellow is hard to see on the light page', contrastNote('#f5e663'), 'Hard to see on the light page.')
 is('navy is hard to see on the dark page', contrastNote('#1a1f4a'), 'Hard to see on the dark page.')
 is('a swatch is fine', contrastNote(SWATCHES[0].hex), null)
+// LOOK-06: checked against the chosen theme's own pages, not the default ones.
+const papers = (key, dark = 'dark') => ({ light: resolveTheme(key, 'light', null).tokens.paper, dark: resolveTheme(key, dark, null).tokens.paper })
+is('a colour is judged on the pages given', contrastNote('#3a3a6a', { light: '#f8f4ed', dark: '#000000' }), 'Hard to see on the dark page.')
+is('every built-in theme gives both pages', THEMES.every((t) => /^#[0-9a-f]{6}$/i.test(papers(t.key).light) && /^#[0-9a-f]{6}$/i.test(papers(t.key).dark)), true)
+const black = swatchesFor(papers(THEMES[0].key, 'black'))
+is('the picker marks each swatch by the chosen theme (a note or none)', black.length === SWATCHES.length && black.every((x) => x.note === null || /^Hard to see/.test(x.note)), true)
+const tinted = swatchesFor({ light: '#c43f3e', dark: '#15141b' })
+is('on a page of its own colour, that swatch is marked', tinted.find((x) => x.hex === '#c43f3e').note, 'Hard to see on the light page.')
+is('on the default pages no swatch is marked', swatchesFor({ light: '#f8f4ed', dark: '#15141b' }).every((x) => x.note === null), true)
 
 // The month cell's order.
 is('most items first, then by name', modulesByWeight(['work', 'habits', null, 'work', 'evening', 'habits', 'work']), ['work', 'habits', 'evening'])

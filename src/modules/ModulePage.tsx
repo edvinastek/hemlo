@@ -22,6 +22,7 @@ import type { ModuleDef, ViewDef } from './types'
 import { PAGE_VIEW_TYPES } from './def-rules'
 import { setModuleEnabled, useModuleDef } from './defs'
 import { useLookups, useRecords, type Lookups, type Rec } from './records'
+import { CopyToDaySheet, useListTools } from './RecordTools'
 import { InlineForm, RecordSheet, formatValue } from './RecordSheet'
 import { CalendarView, ListView, TableView, Totals, recordTitle } from './views'
 import type { EntityDef } from './types'
@@ -132,7 +133,7 @@ function Body({ def, profileId, onEdit }: { def: ModuleDef; profileId: string; o
   )
 }
 
-type Sheet = { rec?: Rec; day?: string; entity: string } | null
+type Sheet = { rec?: Rec; day?: string; entity: string; copy?: Record<string, unknown> } | null
 
 function Generic({ def, profileId, onEdit, head }: { def: ModuleDef; profileId: string; onEdit: () => void; head: ReactNode }) {
   const views = def.views.filter((v) => !v.hidden && def.entities.some((e) => e.name === v.entity))
@@ -143,11 +144,16 @@ function Generic({ def, profileId, onEdit, head }: { def: ModuleDef; profileId: 
   const lookups = useLookups(profileId, entity?.fields ?? [])
   const [sheet, setSheet] = useState<Sheet>(null)
   const [query, setQuery] = useState('')
+  const [copying, setCopying] = useState<Rec | null>(null)
   // The search over a module's records (GEN-13): offered once there are
   // enough of them to look through.
   const viewType = view?.type
   const searchable = !!recs && recs.length >= SEARCH_FROM && (viewType === 'list' || viewType === 'table' || viewType === 'board')
-  const shown = useRecordSearch(entity, recs, lookups, searchable ? query : '')
+  // The view's own sort and filter (competitor review 4.2), and holding a
+  // record to select it and others (GEN-52).
+  const tools = useListTools({ def, entity, viewKey: view?.key ?? '', viewType, profileId, recs, lookups })
+  const { arranged, sel } = tools
+  const shown = useRecordSearch(entity, arranged, lookups, searchable ? query : '')
   // ?open=<id>: a record found by the Modules page's search opens in its sheet.
   const [params, setParams] = useSearchParams()
   const openId = params.get('open')
@@ -183,7 +189,8 @@ function Generic({ def, profileId, onEdit, head }: { def: ModuleDef; profileId: 
     <>
       {head}
       {/* The module's views are under the page's ⋮ (CALM-05); the first is the page. */}
-      <ModuleMenu views={views.length > 1 ? views.map((v) => ({ key: v.key, name: v.name })) : undefined} active={view?.key} onView={setActive}
+      <ModuleMenu views={views.length > 1 ? views.map((v) => ({ key: v.key, name: v.name })) : undefined} active={view?.key} onView={(k) => { sel.stop(); setActive(k) }}
+        items={tools.menu}
         exportSource={{ dataset: `m:${def.key}:${entity.name}` }} calendar={type === 'calendar' || entity.table === 'calendar_event'} />
       {view && views[0] && view.key !== views[0].key && <ViewBar name={view.name} onClose={() => setActive(views[0].key)} />}
       {recs === undefined || shown === undefined ? null : empty && type !== 'form' ? (
@@ -202,23 +209,26 @@ function Generic({ def, profileId, onEdit, head }: { def: ModuleDef; profileId: 
                 placeholder={`Search ${recs.length} ${plural(noun)}`} aria-label={`Search ${plural(noun)}`} />
             </div>
           )}
+          {tools.line}
           {searchable && query.trim() && shown.length === 0 && <p className="mp-note">No {noun} has all of “{query.trim()}”.</p>}
+          {!query.trim() && tools.filteredOut && <p className="mp-note">No {noun} passes this filter.</p>}
           {type !== 'form' && <Totals entity={entity} recs={shown} />}
           {type === 'form' && <InlineForm key={entity.name} def={def} entity={entity} profileId={profileId} lookups={lookups} />}
           {type === 'calendar' && view && (
-            <CalendarView entity={entity} view={view} recs={recs} lookups={lookups} onOpen={open} onAdd={add} />
+            <CalendarView entity={entity} view={view} recs={arranged ?? recs} lookups={lookups} onOpen={open} onAdd={add} />
           )}
           {type === 'board' && view && (
             <BoardView key={view.key} def={def} entity={entity} view={view} recs={shown} lookups={lookups} profileId={profileId} onOpen={open} />
           )}
           {type === 'grid' && view && (
-            <GridView key={view.key} def={def} entity={entity} view={view} recs={recs} lookups={lookups} profileId={profileId} onOpen={open} />
+            <GridView key={view.key} def={def} entity={entity} view={view} recs={arranged ?? recs} lookups={lookups} profileId={profileId} onOpen={open} />
           )}
-          {type === 'chart' && view && <ChartView key={view.key} entity={entity} view={view} recs={recs} />}
-          {type === 'list' && shown.length > 0 && <ListView entity={entity} recs={shown} lookups={lookups} onOpen={open} />}
+          {type === 'chart' && view && <ChartView key={view.key} entity={entity} view={view} recs={arranged ?? recs} />}
+          {type === 'list' && shown.length > 0 && <ListView entity={entity} recs={shown} lookups={lookups} onOpen={open} sel={sel} />}
           {type === 'table' && view && shown.length > 0 && (
-            <TableView def={def} entity={entity} view={view} recs={shown} lookups={lookups} profileId={profileId} onOpen={open} />
+            <TableView def={def} entity={entity} view={view} recs={shown} lookups={lookups} profileId={profileId} onOpen={open} sel={sel} />
           )}
+          {tools.overlays(shown)}
         </>
       )}
       {type !== 'form' && (
@@ -228,9 +238,13 @@ function Generic({ def, profileId, onEdit, head }: { def: ModuleDef; profileId: 
       {sheet?.rec?.row.subscription_id ? (
         <FollowedSheet event={sheet.rec.row as unknown as CalendarEvent} onClose={() => setSheet(null)} />
       ) : sheet && (
-        <RecordSheet key={sheet.rec?.id ?? `new-${sheet.day ?? ''}`} def={def} entity={sheetEntity} profileId={profileId}
-          rec={sheet.rec} day={sheet.day} lookups={lookups} onClose={() => setSheet(null)} />
+        <RecordSheet key={sheet.rec?.id ?? `new-${sheet.day ?? ''}-${sheet.copy ? 'copy' : ''}`} def={def} entity={sheetEntity} profileId={profileId}
+          rec={sheet.rec} day={sheet.day} start={sheet.copy} lookups={lookups} onClose={() => setSheet(null)}
+          onDuplicate={(values) => setSheet({ entity: sheetEntity.name, copy: values })}
+          onCopyTo={(rec) => { setSheet(null); setCopying(rec) }} />
       )}
+      {/* Copy to day: the record's sheet closes first, so no sheet is on a sheet (CALM-10). */}
+      {copying && <CopyToDaySheet def={def} entity={sheetEntity} profileId={profileId} rec={copying} onClose={() => setCopying(null)} />}
     </>
   )
 }

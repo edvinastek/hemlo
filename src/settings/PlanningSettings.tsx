@@ -4,7 +4,10 @@ import { useApp } from '../lib/store'
 import { edit } from '../lib/write'
 import { mergeSettings, NUTRIENTS, readSettings, type Commute, type Nutrient, type WorkHours } from '../lib/settings'
 import { COUNTRIES, cleanCity, countryName } from '../lib/countries'
-import { TEMPLATES, templateByKey } from '../lib/templates'
+import { TEMPLATES, modulesFor, suggestTemplate, templateByKey } from '../lib/templates'
+import { useLiveQuery } from 'dexie-react-hooks'
+import { moduleKeywords, moduleSuggestions } from '../modules/def-rules'
+import { profileModuleKeywords, setModuleEnabled } from '../modules/defs'
 import { applyTemplate } from '../lib/setup'
 import { applyWorkPlan } from '../lib/work'
 import { describeWork } from '../lib/work-rules'
@@ -120,12 +123,28 @@ function Layout({ profile }: { profile: Profile }) {
   const [pick, setPick] = useState(templateByKey(settings.template)?.key ?? TEMPLATES[0].key)
   const [confirming, setConfirming] = useState(false)
   const [templateNote, setTemplateNote] = useState<string | null>(null)
+  // A few words about the days suggest a template and modules (MOD-07), the
+  // person's own modules included, by the keywords given to each.
+  const [describe, setDescribe] = useState('')
+  const [extra, setExtra] = useState<string[]>([])
+  const words = useLiveQuery(() => profileModuleKeywords(profile.id), [profile.id]) ?? moduleKeywords()
+  const offered = moduleSuggestions(describe, words, [...modulesFor(pick), ...extra])
+  const named = (k: string) => words.find((w) => w.key === k)?.name ?? k
+
+  function onDescribe(text: string) {
+    setDescribe(text)
+    const s = suggestTemplate(text)
+    if (s && s.key !== pick) { setPick(s.key); setConfirming(false); setTemplateNote(null) }
+  }
 
   async function startAgain() {
     const tpl = templateByKey(pick)
     if (!tpl) return
     await applyTemplate(profile, tpl.key)
+    // The modules added from the words go on as well, built ones included.
+    for (const k of extra) await setModuleEnabled(profile.id, k, true)
     setConfirming(false)
+    setExtra([])
     setTemplateNote(`${tpl.name} applied.`)
   }
 
@@ -139,6 +158,21 @@ function Layout({ profile }: { profile: Profile }) {
         <p className="pl-note">
           {current ? <>Started from <b>{current.name}</b>. </> : ''}Nothing you entered is deleted.
         </p>
+        <label className="pl-describe">Describe your days in a few words
+          <input value={describe} placeholder="e.g. student, gym, the car" onChange={(e) => onDescribe(e.target.value)} />
+        </label>
+        {(offered.length > 0 || extra.length > 0) && (
+          <div className="pl-actions" aria-live="polite">
+            {extra.map((k) => (
+              <button key={k} type="button" className="chip" aria-pressed="true" aria-label={`Leave ${named(k)} out`}
+                onClick={() => setExtra((x) => x.filter((y) => y !== k))}>{named(k)} ✓</button>
+            ))}
+            {offered.map((m) => (
+              <button key={m.key} type="button" className="chip" aria-label={`Add ${m.name}`}
+                onClick={() => setExtra((x) => [...x, m.key])}>+ {m.name}</button>
+            ))}
+          </div>
+        )}
         <div className="pl-actions">
           <Dropdown label="Template" className="pl-grow" value={pick} options={TEMPLATE_OPTIONS}
             onChange={(v) => { setPick(v); setConfirming(false); setTemplateNote(null) }} />
@@ -147,7 +181,7 @@ function Layout({ profile }: { profile: Profile }) {
         {confirming && chosen && (
           <div className="pl-confirm" role="alertdialog" aria-label={`Start again from ${chosen.name}`}>
             <p>
-              On: {chosen.modules.map((k) => moduleByKey.get(k)?.name ?? k).join(', ')}. Every other module
+              On: {[...chosen.modules.map((k) => moduleByKey.get(k)?.name ?? k), ...extra.map(named)].join(', ')}. Every other module
               goes off (Custom is left as it is) and keeps what it holds. Food figures:{' '}
               {nutrientNames(chosen.nutrients)}; Today shows {chosen.today_metric === 'none' ? 'no figure' : nutrientNames([chosen.today_metric])}.
             </p>

@@ -5,7 +5,7 @@
 // 2026-10-03 is a Saturday.
 import {
   nearDay, choreStatus, duenessFill, lastDoneText, choreScheduleText, choreSections, choreRooms, roomsIn, readChorePrefs,
-  heldBack, memberName, cleanMemberName, STARTER_PACKS, packChoresToAdd, choreExportRows, choreHistoryRows,
+  heldBack, memberName, cleanMemberName, STARTER_PACKS, packChoresToAdd, choreExportRows, choreHistoryRows, mineOnly, choreIsMine,
 } from '../lib/chore-rules.ts'
 import { choreState, chorePausedOn, cleanRule } from '../lib/schedule-rules.ts'
 
@@ -64,8 +64,8 @@ is('by room, no room last', choreRooms(chores).map((r) => [r.room, r.chores.map(
 is('rooms in use', roomsIn([{ room: ' Kitchen ' }, { room: 'Bathroom' }, { room: null }, { room: 'Kitchen' }]), ['Bathroom', 'Kitchen'])
 
 // Light days and a cap (HSE-09).
-is('prefs are checked', readChorePrefs({ light_days: [5, 5, 9, 'x'], cap: 3 }), { light_days: [5], cap: 3 })
-is('every day light means none', readChorePrefs({ light_days: [0, 1, 2, 3, 4, 5, 6], cap: 0 }), { light_days: [], cap: null })
+is('prefs are checked', readChorePrefs({ light_days: [5, 5, 9, 'x'], cap: 3 }), { light_days: [5], cap: 3, mine_only: null })
+is('every day light means none', readChorePrefs({ light_days: [0, 1, 2, 3, 4, 5, 6], cap: 0 }), { light_days: [], cap: null, mine_only: null })
 const items = [
   { id: 'f1', mode: 'flexible', dueness: 1.4, doneToday: false },
   { id: 'f2', mode: 'flexible', dueness: 1.1, doneToday: false },
@@ -135,6 +135,27 @@ is('a chore in words: due today, the next in turn, last done, times', (({ schedu
 is('an "after" chore: next a week after it was done, an undone tick not counted', [rows[1].next, rows[1].times_done, rows[1].who], ['2026-10-07', 1, null])
 is('done history, newest first; a deleted chore keeps its history', choreHistoryRows(exChores, exLogs, (id) => names[id] ?? '').map((r) => [r.done_on, r.chore, r.done_by]),
   [['2026-09-30', 'Bins', 'Alex'], ['2026-09-26', 'Hoover', 'Sam'], ['2026-08-01', 'Old', null]])
+
+// v18: in a shared household, Today shows each member their own chores.
+is('mine only is on by default in a shared household, off alone', [mineOnly({ mine_only: null }, 2), mineOnly({ mine_only: null }, 1)], [true, false])
+is('…and the person\'s own choice stands either way', [mineOnly({ mine_only: false }, 3), mineOnly({ mine_only: true }, 1)], [false, true])
+is('the choice is read back, and nonsense is the default', [readChorePrefs({ mine_only: false }).mine_only, readChorePrefs({ mine_only: 'yes' }).mine_only], [false, null])
+const rota = { mode: 'fixed', rule: 'daily', rule_config: {}, start_date: '2026-09-01', end_date: null, every_days: null, paused: false,
+  assignees: ['ana', 'ben'], rotation: 'each_time' }
+const mineOn = (day, logs, me) => choreIsMine(rota, day, logs, me)
+is('a rotating chore is mine on my turn only', [mineOn('2026-10-03', [], 'ana'), mineOn('2026-10-03', [], 'ben')], [true, false])
+is('after Ana did it, it is Ben\'s', [mineOn('2026-10-04', [{ done_on: '2026-10-03', done_by: 'ana' }], 'ana'), mineOn('2026-10-04', [{ done_on: '2026-10-03', done_by: 'ana' }], 'ben')], [false, true])
+is('a chore nobody is given is everyone\'s', choreIsMine({ ...rota, assignees: [] }, '2026-10-03', [], 'ben'), true)
+const chore = (id, assignees) => ({ ...rota, id, household_id: 'h', name: id, room: null, time_of_day: null, minutes: null, note: null, sort_order: 0, updated_at: '', deleted_at: null, assignees, rotation: 'none' })
+const src = (where, choresFor) => dayItems(['2026-10-03'], where, {
+  today: '2026-10-03', enabled: ['household'], views: {}, tasks: [], habits: [], habitLogs: [],
+  chores: [chore('Bins', ['ana']), chore('Hoover', ['ben']), chore('Plants', [])], choreLogs: [], supplements: [], supplementLogs: [],
+  events: [], records: [], choresFor,
+}).map((i) => i.title)
+is('Ben\'s Today: his chores and the shared ones', src('today', 'ben'), ['Hoover', 'Plants'])
+is('…the widget the same', src('widget', 'ben'), ['Hoover', 'Plants'])
+is('Plan still shows the whole household', src('plan', 'ben'), ['Bins', 'Hoover', 'Plants'])
+is('everyone\'s chores when it is off', src('today', null), ['Bins', 'Hoover', 'Plants'])
 
 console.log(fail ? `\n${fail} check(s) failed` : '\nall checks passed')
 process.exit(fail ? 1 : 0)

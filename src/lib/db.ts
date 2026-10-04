@@ -10,6 +10,7 @@ import type { Exercise, Routine, RoutineLine } from './training-types'
 import type { Milestone } from './projects-types'
 import type { ShopPrice } from './shopping-types'
 import type { PriceCacheRow } from './price-rules'
+import type { PhotoRow } from '../modules/photos-types'
 
 /** The local copy. Every device holds the whole account, so the app works
  *  with no connection at all and merges when one comes back. */
@@ -47,6 +48,7 @@ class GetItDB extends Dexie {
   milestone!: Table<Milestone, string>
   shop_price!: Table<ShopPrice, string>
   price_cache!: Table<PriceCacheRow, string>
+  photo!: Table<PhotoRow, string>
   pending!: Table<PendingChange, number>
   conflicts!: Table<ConflictEntry, number>
   meta!: Table<{ key: string; value: unknown }, string>
@@ -137,6 +139,12 @@ class GetItDB extends Dexie {
     // on this device for a week. Never synced: anyone can ask for them again.
     this.version(13).stores({
       price_cache: 'code',
+    })
+    // Version 14 (v18, W3): photos of built modules' records (MOD-12), kept
+    // on this device for viewing offline, and those waiting to be uploaded.
+    // Not a synced table: the photo itself goes to Storage.
+    this.version(14).stores({
+      photo: 'path, profile_id, state',
     })
   }
 }

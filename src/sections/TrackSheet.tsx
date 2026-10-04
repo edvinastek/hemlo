@@ -1,22 +1,18 @@
-import { useEffect, useRef, type ReactNode } from 'react'
+import type { ReactNode } from 'react'
+import { useBackClose } from '../ui/useBackClose'
 import '../ui/tasksheet.css'
 
 /** The bottom sheet the habit, supplement and chore editors open in: the
- *  app's own sheet look, Escape and the scrim close it, and the first field
- *  takes the focus. Opened from a page, never on top of another sheet. */
+ *  app's own sheet look, Back, Escape and the scrim close it (CALM-10), and
+ *  the first field takes the focus. Opened from a page, never on top of
+ *  another sheet. */
 export function TrackSheet({ label, onClose, onSubmit, children }: {
   label: string
   onClose: () => void
   onSubmit: () => void
   children: ReactNode
 }) {
-  const close = useRef(onClose)
-  close.current = onClose
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape' && !e.defaultPrevented) close.current() }
-    document.addEventListener('keydown', onKey)
-    return () => document.removeEventListener('keydown', onKey)
-  }, [])
+  useBackClose(onClose)
   return (
     <>
       <div className="sheet-scrim" onClick={onClose} />

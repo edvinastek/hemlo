@@ -54,8 +54,28 @@ export const NUTRIENT_NAMES: Record<string, { label: string; unit: string }> = {
   fiber_g: { label: 'Fibre', unit: 'g' },
 }
 
+/** The rest of the EU label (FOOD-16): measured only when the person has
+ *  chosen to see the figure on the food pages. Foods whose label leaves a
+ *  figure out are left out of it, never counted as 0. */
+export const LABEL_FIGURE_NAMES: Record<string, { label: string; unit: string }> = {
+  sat_fat_g: { label: 'Saturates', unit: 'g' }, mufa_g: { label: 'Mono-unsaturates', unit: 'g' },
+  pufa_g: { label: 'Polyunsaturates', unit: 'g' }, sugars_g: { label: 'Sugars', unit: 'g' },
+  polyols_g: { label: 'Polyols', unit: 'g' }, starch_g: { label: 'Starch', unit: 'g' },
+  salt_g: { label: 'Salt', unit: 'g' }, alcohol_g: { label: 'Alcohol', unit: 'g' },
+}
+
+/** What else the catalogue needs to know: the extra label figures the
+ *  person tracks and the currency money is in. */
+export interface CatalogueExtras { figures?: string[]; currency?: string }
+
+/** The extra label figures to measure, in the label's order. */
+export const extraFigures = (figures: string[] | undefined) => Object.keys(LABEL_FIGURE_NAMES).filter((k) => (figures ?? []).includes(k))
+
+const FIN_DIMS = { 'field:category': 'Category', category: 'Main category', 'field:kind': 'Type' }
+const BUDGET_DIMS = { category: 'Main category' }
+
 /** The measures of a built-in module with tables of its own. */
-function builtIn(key: string, nutrients: string[]): Base[] {
+function builtIn(key: string, nutrients: string[], extras: CatalogueExtras = {}): Base[] {
   const named = (name: string, b: Base): Base => ({ ...b, name })
   switch (key) {
     case 'tasks': return [
@@ -72,6 +92,7 @@ function builtIn(key: string, nutrients: string[]): Base[] {
       named('due', COUNT('Habits due', 'The times habits were due, by their schedules.', HABIT_DIMS)),
       named('hit', { ...COUNT('Habits done when due', 'Ticks that answered a day the habit was due.', HABIT_DIMS), part: true }),
       named('amount', { ...COUNT('Habit amounts', 'What was counted on habits with a count to reach (8 glasses).', HABIT_DIMS), known: 'logged', decimals: 1, summary: 'avg' }),
+      named('strength', { ...COUNT('Habit strength', 'How well each habit holds, 0 to 100: done days raise it, missed ones lower it a little. On a day, the average of the habits in use.', HABIT_DIMS, true), unit: '%', combine: 'mean', known: 'logged', summary: 'latest' }),
     ]
     case 'supplements': return [
       named('taken_pct', { ...COUNT('Supplements taken', 'Doses ticked out of doses to take, as a percentage.', SUPP_DIMS, true), unit: '%', ratio: { part: 'supplements:taken', whole: 'supplements:due' }, summary: 'avg' }),
@@ -81,13 +102,16 @@ function builtIn(key: string, nutrients: string[]): Base[] {
     case 'nutrition': {
       const shown = nutrients.length ? nutrients : ['kcal']
       const all = Object.keys(NUTRIENT_NAMES)
-      const eaten = all.map((n) => named(n, {
-        ...COUNT(`${NUTRIENT_NAMES[n].label} eaten`, `${NUTRIENT_NAMES[n].label} in everything logged as eaten. A day with nothing logged is unknown, not a day of eating nothing.`, FOOD_DIMS, shown.includes(n)),
-        unit: NUTRIENT_NAMES[n].unit, known: 'logged', summary: 'avg',
+      const extra = extraFigures(extras.figures)
+      const names = { ...NUTRIENT_NAMES, ...LABEL_FIGURE_NAMES }
+      const left = ' Foods whose label does not give it are left out.'
+      const eaten = [...all, ...extra].map((n) => named(n, {
+        ...COUNT(`${names[n].label} eaten`, `${names[n].label} in everything logged as eaten. A day with nothing logged is unknown, not a day of eating nothing.${extra.includes(n) ? left : ''}`, FOOD_DIMS, shown.includes(n)),
+        unit: names[n].unit, known: 'logged', summary: 'avg',
       }))
-      const planned = all.map((n) => named(`planned_${n}`, {
-        ...COUNT(`${NUTRIENT_NAMES[n].label} planned`, `${NUTRIENT_NAMES[n].label} in the meals planned for the day.`, FOOD_DIMS),
-        unit: NUTRIENT_NAMES[n].unit, known: 'logged', summary: 'avg',
+      const planned = [...all, ...extra].map((n) => named(`planned_${n}`, {
+        ...COUNT(`${names[n].label} planned`, `${names[n].label} in the meals planned for the day.${extra.includes(n) ? left : ''}`, FOOD_DIMS),
+        unit: names[n].unit, known: 'logged', summary: 'avg',
       }))
       return [
         ...eaten, ...planned,
@@ -98,6 +122,8 @@ function builtIn(key: string, nutrients: string[]): Base[] {
     case 'health': return [
       named('weight', { ...COUNT('Weight', 'The weigh-ins: the latest, the change, the lowest or the average.', {}, true), unit: 'kg', decimals: 1, combine: 'last', known: 'logged', summary: 'latest' }),
       named('waist', { ...COUNT('Waist', 'Waist measurements.', {}), unit: 'cm', decimals: 1, combine: 'last', known: 'logged', summary: 'latest' }),
+      named('trend', { ...COUNT('Trend weight', 'The weight with the day-to-day swings of water and food smoothed out, on each weigh-in day.', {}, true), unit: 'kg', decimals: 1, combine: 'last', known: 'logged', summary: 'latest' }),
+      named('rate', { ...COUNT('Trend change a week', 'How fast the trend weight moves, in kg a week over the four weeks up to each weigh-in (below zero is losing).', {}), unit: 'kg', decimals: 2, combine: 'last', known: 'logged', summary: 'latest' }),
       named('weigh_ins', COUNT('Weigh-ins', 'Days with a weight logged.', {}, true)),
     ]
     case 'sleep': return [
@@ -106,6 +132,11 @@ function builtIn(key: string, nutrients: string[]): Base[] {
       named('bed', { ...COUNT('Bedtime', 'When you went to bed.', {}), unit: 'time', decimals: 0, combine: 'mean', known: 'logged', summary: 'avg' }),
       named('wake', { ...COUNT('Wake time', 'When you woke.', {}), unit: 'time', decimals: 0, combine: 'mean', known: 'logged', summary: 'avg' }),
       named('nights', COUNT('Nights logged', 'Nights with a time or hours logged.', {}, true)),
+      named('vs_target', { ...COUNT('Hours against the target', 'Each night\'s hours less your target hours: below zero is short.', {}), unit: 'h', decimals: 1, combine: 'mean', known: 'logged', summary: 'avg' }),
+      named('debt', { ...COUNT('Sleep debt (7 days)', 'Hours short of your target over the seven days up to each day, less hours over it. Nights not logged are left out, not counted as no sleep.', {}, true), unit: 'h', decimals: 1, combine: 'last', known: 'logged', summary: 'latest' }),
+      named('bed_late', { ...COUNT('Bedtime against the target', 'Minutes in bed after (above zero) or before your target bedtime.', {}), unit: 'min', decimals: 0, combine: 'mean', known: 'logged', summary: 'avg' }),
+      named('bed_spread', { ...COUNT('Bedtime regularity', 'How much bedtimes wandered over the 14 days up to each day, in ± minutes: lower is steadier. Needs three nights.', {}), unit: 'min', decimals: 0, combine: 'last', known: 'logged', summary: 'latest' }),
+      named('wake_spread', { ...COUNT('Wake time regularity', 'How much wake times wandered over the 14 days up to each day, in ± minutes: lower is steadier. Needs three nights.', {}), unit: 'min', decimals: 0, combine: 'last', known: 'logged', summary: 'latest' }),
     ]
     case 'training': return [
       named('sessions', COUNT('Sessions', 'Days with at least one set logged.', {}, true)),
@@ -127,7 +158,20 @@ function builtIn(key: string, nutrients: string[]): Base[] {
       named('bought', COUNT('Items ticked off', 'Items ticked off the shopping list, on the day they were ticked.', SHOP_DIMS, true)),
       named('trips', COUNT('Shopping trips', 'Days with anything ticked off the list.', {}, true)),
       named('added', COUNT('Items added', 'Items put on the list by hand, on the day they were added.', SHOP_DIMS)),
+      named('spent', { ...COUNT('Money spent', 'What the items ticked off cost at the prices you noted, on the day they were ticked. Items with no price of yours are left out (see Items with no price).', SHOP_DIMS, true), unit: extras.currency ?? '', decimals: 2, known: 'logged' }),
+      named('unpriced', COUNT('Items with no price', 'Items ticked off that have no price of yours, so are not in Money spent.', SHOP_DIMS)),
     ]
+    case 'finance': {
+      const cur = extras.currency ?? ''
+      return [
+        named('spent', { ...COUNT('Spent', 'Money out: every expense entry. Money in is never counted here.', FIN_DIMS, true), unit: cur, decimals: 2 }),
+        named('income', { ...COUNT('Money in', 'Every income entry.', FIN_DIMS, true), unit: cur, decimals: 2 }),
+        named('net', { ...COUNT('Money in less spent', 'Money in less money out: below zero is spending more than came in.', FIN_DIMS), unit: cur, decimals: 2 }),
+        named('budget', { ...COUNT('Budget', 'Your monthly budgets, spread evenly over each month\'s days up to today, so any range has the budget for its own days.', BUDGET_DIMS), unit: cur, decimals: 2 }),
+        named('budget_used', { ...COUNT('Budget used', 'Spending in categories with a budget, as a share of their budget for the same days. Over 100% is ahead of the budget.', BUDGET_DIMS, true), unit: '%', ratio: { part: 'finance:budget_spent', whole: 'finance:budget' }, over: true, summary: 'avg' }),
+        named('budget_spent', { ...COUNT('Spent in budgeted categories', 'Spending in categories that have a budget.', BUDGET_DIMS), unit: cur, decimals: 2, part: true }),
+      ]
+    }
     case 'projects': return [
       named('tasks_done', COUNT('Project tasks done', 'Tasks that belong to a project, ticked off.', { item: 'Project' }, true)),
       named('tasks_open', COUNT('Project tasks not done', 'Tasks of a project planned for the day and not done.', { item: 'Project' })),
@@ -191,7 +235,7 @@ export function recordMeasures(entities: EntityDef[]): Base[] {
 
 /** Every measure the modules given keep, tasks first. A module with no
  *  measures (Stats itself) adds none. */
-export function measureCatalogue(modules: ModuleInput[], nutrients: string[]): Measure[] {
+export function measureCatalogue(modules: ModuleInput[], nutrients: string[], extras: CatalogueExtras = {}): Measure[] {
   const out: Measure[] = []
   const add = (key: string, name: string, list: Base[]) => {
     for (const b of list) {
@@ -199,11 +243,14 @@ export function measureCatalogue(modules: ModuleInput[], nutrients: string[]): M
       out.push({ ...rest, key: `${key}:${m}`, module: key, group: name })
     }
   }
-  add('tasks', 'Tasks', builtIn('tasks', nutrients))
+  add('tasks', 'Tasks', builtIn('tasks', nutrients, extras))
   for (const m of modules) {
     if (m.key === 'tasks' || m.key === 'stats' || m.key === 'core' || m.key === 'custom') continue
-    const own = builtIn(m.key, nutrients)
-    add(m.key, m.name, [...own, ...recordMeasures(m.entities ?? [])])
+    const own = builtIn(m.key, nutrients, extras)
+    // Finance's amount field holds money in and money out alike: adding it up
+    // would count income as spending (P8), so Spent and Money in stand for it.
+    const records = recordMeasures(m.entities ?? []).filter((r) => !(m.key === 'finance' && r.name === 'entry:amount'))
+    add(m.key, m.name, [...own, ...records])
   }
   // Two records modules can name a measure alike; the second one is told apart.
   const seen = new Set<string>()
@@ -242,6 +289,7 @@ export function groupingsFor(measures: Measure[]): { key: string; label: string 
  *  fairly; in points for a share). */
 /** Measures that count days themselves: their average a day is meaningless. */
 export const DAY_COUNTS = new Set(['nutrition:days', 'sleep:nights', 'training:sessions', 'health:weigh_ins', 'shopping:trips'])
+
 
 export interface CardFigure {
   key: string
@@ -526,8 +574,14 @@ export const TEMPLATES: Template[] = [
   tpl('study_subject', 'Study minutes by subject', 'Minutes studied over the last 30 days, by subject.', ['learning'], {
     measures: [{ source: 'learning:study:minutes', summary: 'sum' }], rows: 'field:subject', chart: chart('bar', { sort: 'value_desc' }),
   }),
-  tpl('spending_category', 'Spending by category (month)', 'This month\'s amounts, by category.', ['finance'], {
-    measures: [{ source: 'finance:entry:amount', summary: 'sum' }], rows: 'field:category', range: { kind: 'this', unit: 'months' }, chart: chart('bar', { sort: 'value_desc' }),
+  tpl('spending_category', 'Spending by category (month)', 'This month\'s spending (money in left out), by category.', ['finance'], {
+    measures: [{ source: 'finance:spent', summary: 'sum' }], rows: 'field:category', range: { kind: 'this', unit: 'months' }, chart: chart('bar', { sort: 'value_desc' }),
+  }),
+  tpl('budget_category', 'Budget used by category (month)', 'This month\'s spending against the budget for the days so far, by main category.', ['finance'], {
+    measures: [{ source: 'finance:budget_used', summary: 'avg', target: 100, target_mode: 'at_most' }], rows: 'category', range: { kind: 'this', unit: 'months' }, chart: chart('bar', { sort: 'value_desc' }),
+  }),
+  tpl('sleep_debt', 'Sleep debt (30 days)', 'The sleep debt of the seven days up to each day, over the last 30 days.', ['sleep'], {
+    measures: [{ source: 'sleep:debt', summary: 'latest' }], chart: chart('line'),
   }),
   tpl('chores_person', 'Chores per person', 'Chores done over the last 30 days, by who did them.', ['household'], {
     measures: [{ source: 'household:chores_done', summary: 'sum' }], rows: 'person', chart: chart('bar', { sort: 'value_desc' }),

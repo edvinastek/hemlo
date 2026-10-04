@@ -13,6 +13,7 @@ import {
 import type { PickItem } from '../ui/SearchPick'
 import { REPEAT_KEY } from './repeat-rules'
 import { endRecordRepeat } from './record-repeat'
+import { copyValues, readOrder, readOrders, type ListOrder } from './list-rules'
 
 /** Records of a module's entity, wherever they live. Four built-in entities
  *  have tables of their own; everything else — every built module, and the
@@ -150,7 +151,9 @@ export function useRecords(profileId: string | null | undefined, moduleKey: stri
 
 const now = () => new Date().toISOString()
 
-export async function addRecord(profileId: string, def: ModuleDef, entity: EntityDef, values: Record<string, unknown>): Promise<Result> {
+/** `id`: the new record's id when it was chosen already (a photo taken in
+ *  the form is filed under it). */
+export async function addRecord(profileId: string, def: ModuleDef, entity: EntityDef, values: Record<string, unknown>, id?: string): Promise<Result> {
   const { data, errors } = cleanValues(entity.fields, values)
   if (Object.keys(errors).length) return { ok: false, errors }
   const table = tableOf(entity)
@@ -175,7 +178,7 @@ export async function addRecord(profileId: string, def: ModuleDef, entity: Entit
   }
   if (entity.table) return { ok: false, errors: { _: 'Records of this kind are added on their own screen.' } }
   const row: ModuleRecord = {
-    id: crypto.randomUUID(), profile_id: profileId, module_key: def.key, entity: entity.name, data,
+    id: id ?? crypto.randomUUID(), profile_id: profileId, module_key: def.key, entity: entity.name, data,
     record_date: recordDate(entity.fields, data), created_at: now(), updated_at: now(), deleted_at: null,
   }
   await db.module_record.put(row)
@@ -373,4 +376,64 @@ export function useLookups(profileId: string | null | undefined, fields: FieldDe
     for (const k of kinds) out[k] = await lookupItems(profileId, k)
     return out
   }, [profileId, kinds.join(',')]) ?? {}
+}
+
+/* ---------- several at once (GEN-52) and copies (competitor review 4.2) ---- */
+
+/** Records that may be copied: a night of sleep is one per day, so a copy
+ *  would overwrite another day's night; it is moved instead, never copied. */
+export const canCopy = (e: EntityDef) => !(e.table && TABLES[e.table]?.uniqueDay)
+
+/** Copies of records, each as a new record: on the same day (Duplicate) or
+ *  moved to `day` (Copy to day). Returns the copies made, for Undo. */
+export async function copyRecords(profileId: string, def: ModuleDef, entity: EntityDef, recs: Rec[], day?: string | null): Promise<{ made: Rec[]; errors: string[] }> {
+  const made: Rec[] = []
+  const errors: string[] = []
+  if (!canCopy(entity)) return { made, errors: ['These records are one a day, so they cannot be copied.'] }
+  for (const r of recs) {
+    const res = await addRecord(profileId, def, entity, copyValues(entity.fields, r.values, day))
+    if (res.ok) made.push(res.rec); else errors.push(Object.values(res.errors)[0] ?? 'That could not be copied.')
+  }
+  return { made, errors }
+}
+
+/** Delete several; returns what was deleted, for Undo. Followed calendars'
+ *  events are left alone. */
+export async function deleteRecords(profileId: string, def: ModuleDef, entity: EntityDef, recs: Rec[]): Promise<Rec[]> {
+  const gone: Rec[] = []
+  for (const r of recs) {
+    if (r.row.subscription_id) continue
+    await deleteRecord(profileId, def, entity, r)
+    gone.push(r)
+  }
+  return gone
+}
+
+export async function restoreRecords(profileId: string, def: ModuleDef, entity: EntityDef, recs: Rec[]): Promise<void> {
+  for (const r of recs) await restoreRecord(profileId, def, entity, r)
+}
+
+/* ---------- a view's sort and filter, kept per profile -------------------- */
+
+const ORDER_KEY = 'list_order'
+
+/** The sort and filter of each of a module's views, kept in the profile's
+ *  switch row for the module (so they follow the person to every device). */
+export function useListOrder(profileId: string | null | undefined, moduleKey: string, viewKey: string, fields: FieldDef[]): ListOrder | undefined {
+  return useLiveQuery(async () => {
+    if (!profileId) return {}
+    const inst = await db.module_instance.where('profile_id').equals(profileId).filter((m) => m.module_key === moduleKey).first()
+    return readOrder(readOrders(inst?.settings?.[ORDER_KEY])[viewKey], fields)
+  }, [profileId, moduleKey, viewKey, fields.map((f) => `${f.name}:${f.type}`).join(',')])
+}
+
+export async function saveListOrder(profileId: string, moduleKey: string, viewKey: string, order: ListOrder): Promise<void> {
+  const { ensureInstance } = await import('./defs')
+  const { isModuleOn } = await import('../lib/day')
+  // A profile with no switch row yet gets one that keeps the module as it is.
+  const inst = await ensureInstance(profileId, moduleKey, await isModuleOn(profileId, moduleKey))
+  const current = (await db.module_instance.get(inst.id)) ?? inst
+  const all = { ...readOrders(current.settings?.[ORDER_KEY]) }
+  if (order.sort || order.filter) all[viewKey] = order; else delete all[viewKey]
+  await edit('module_instance', current, { settings: { ...(current.settings ?? {}), [ORDER_KEY]: all } })
 }

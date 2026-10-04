@@ -6,8 +6,9 @@ import { DataTable, type LookupOption } from '../ui/DataTable'
 import type { EntityDef, FieldDef, ModuleDef, ViewDef } from './types'
 import { computeFormulas, firstDateField, isDateLike, mainField } from './def-rules'
 import { updateRecord, type Lookups, type Rec } from './records'
-import { formatValue } from './RecordSheet'
+import { PhotoThumb, formatValue } from './RecordSheet'
 import { eventTimes } from '../lib/day-items-rules'
+import type { Selection } from '../ui/useSelection'
 
 /** The views a module page draws, each from the same records. */
 
@@ -34,8 +35,10 @@ function titleField(entity: EntityDef, rec: Rec): FieldDef | undefined {
 }
 
 /** Cards: the main field, then what else is filled in, and the day. */
-export function ListView({ entity, recs, lookups, onOpen }: {
+export function ListView({ entity, recs, lookups, onOpen, sel }: {
   entity: EntityDef; recs: Rec[]; lookups: Lookups; onOpen: (r: Rec) => void
+  /** Hold a card to select it and others (GEN-52); a tap then ticks. */
+  sel?: Selection<Rec>
 }) {
   const dateF = firstDateField(entity.fields)
   return (
@@ -43,7 +46,7 @@ export function ListView({ entity, recs, lookups, onOpen }: {
       {recs.map((r) => {
         const calc = computeFormulas(entity.fields, r.values)
         const shownAs = titleField(entity, r)
-        const bits = entity.fields.filter((f) => !f.hidden && f !== shownAs && f !== dateF)
+        const bits = entity.fields.filter((f) => !f.hidden && f !== shownAs && f !== dateF && f.type !== 'photo')
           .map((f) => {
             const v = f.type === 'formula' ? calc[f.name] : r.values[f.name]
             if (v === null || v === undefined || v === '' || (f.type === 'boolean' && !v)) return null
@@ -52,12 +55,20 @@ export function ListView({ entity, recs, lookups, onOpen }: {
           .filter(Boolean)
           .slice(0, 5)
         const dv = dateF ? r.values[dateF.name] : null
+        const picking = !!sel?.selecting
+        const on = !!sel?.has(r.id)
+        const title = recordTitle(entity, r, lookups)
+        const pic = entity.fields.find((f) => f.type === 'photo' && !f.hidden && r.values[f.name])
         return (
           <li key={r.id}>
-            <button type="button" className="mp-card" onClick={() => onOpen(r)}>
-              <span className="mp-card-main">{recordTitle(entity, r, lookups)}</span>
+            <button type="button" className={`mp-card${picking ? ' is-pickable' : ''}${on ? ' is-picked' : ''}${pic ? ' has-thumb' : ''}`} {...sel?.hold(r.id)}
+              aria-pressed={picking ? on : undefined} aria-label={picking ? `${on ? 'Selected' : 'Select'}: ${title}` : undefined}
+              onClick={() => (picking ? sel!.toggle(r.id) : onOpen(r))}>
+              {picking && <span className={`mp-tick${on ? ' is-on' : ''}`} aria-hidden>{on ? '✓' : ''}</span>}
+              <span className="mp-card-main">{title}</span>
               <span className="mp-card-date">{dv ? formatValue(dateF!, dv) : ''}</span>
               {bits.length > 0 && <span className="mp-card-meta">{bits.join(' · ')}</span>}
+              {pic && <PhotoThumb path={r.values[pic.name]} alt={`${pic.label} of ${title}`} />}
             </button>
           </li>
         )
@@ -67,8 +78,10 @@ export function ListView({ entity, recs, lookups, onOpen }: {
 }
 
 /** The spreadsheet: every cell edits in place, calculated ones do not. */
-export function TableView({ def, entity, view, recs, lookups, profileId, onOpen }: {
+export function TableView({ def, entity, view, recs, lookups, profileId, onOpen, sel }: {
   def: ModuleDef; entity: EntityDef; view: ViewDef; recs: Rec[]; lookups: Lookups; profileId: string; onOpen: (r: Rec) => void
+  /** Hold a row to select it and others (GEN-52). */
+  sel?: Selection<Rec>
 }) {
   const [error, setError] = useState<string | null>(null)
   const byName = new Map(entity.fields.map((f) => [f.name, f]))
@@ -77,7 +90,7 @@ export function TableView({ def, entity, view, recs, lookups, profileId, onOpen 
   // Kinds a cell cannot edit in place (tags, stars, notes, checklists, a
   // start and end, a link to another module's record) read as their words
   // and open in the record's sheet; money and shares edit as numbers.
-  const asText = (f: FieldDef) => ['multi', 'rating', 'checklist', 'note', 'timespan'].includes(f.type) || (f.type === 'lookup' && f.lookup === 'record')
+  const asText = (f: FieldDef) => ['multi', 'rating', 'checklist', 'note', 'timespan', 'photo'].includes(f.type) || (f.type === 'lookup' && f.lookup === 'record')
   const shownCols: FieldDef[] = cols.map((f) => asText(f) ? { ...f, type: 'text' as const }
     : f.type === 'money' || f.type === 'percent' ? { ...f, type: 'number' as const, unit: f.type === 'percent' ? '%' : f.unit || '€' } : f)
   const rows = recs.map((r) => {
@@ -105,7 +118,11 @@ export function TableView({ def, entity, view, recs, lookups, profileId, onOpen 
         computed={(row, f) => computeFormulas(entity.fields, row)[f.name] ?? null}
         onChange={(row, field, value) => void change(row, field, value)}
         onOpen={(row) => { const r = recById.get(row.id); if (r) onOpen(r) }}
-        openLabel={(row) => `Open ${recordTitle(entity, recById.get(row.id)!, lookups)}`} />
+        openLabel={(row) => `Open ${recordTitle(entity, recById.get(row.id)!, lookups)}`}
+        selected={sel?.selecting ? new Set(sel.picked.map((r) => r.id)) : undefined}
+        onSelect={sel?.selecting ? (row, on) => sel.toggle(row.id, on) : undefined}
+        selectLabel={(row) => `Select ${recordTitle(entity, recById.get(row.id)!, lookups)}`}
+        rowProps={sel && !sel.selecting ? (row) => sel.hold(row.id) : undefined} />
       </div>
     </>
   )

@@ -5,7 +5,7 @@
  *
  *  The wording is calm on purpose (Tody's lesson): a chore is never
  *  "overdue!" or "failed". It is due, or it has been waiting a few days. */
-import { addDays, toDayNumber, weekdayOf, dayName, shortDate, isDay, describeChore, choreState, choreAssignee, type ChoreLike, type ChoreState, type RuleConfig, type RuleKind } from './schedule-rules.ts'
+import { addDays, toDayNumber, weekdayOf, dayName, shortDate, isDay, describeChore, choreState, choreAssignee, type ChoreDone, type ChoreLike, type ChoreState, type RuleConfig, type RuleKind } from './schedule-rules.ts'
 
 /* ---------- days in words -------------------------------------------------- */
 
@@ -126,9 +126,12 @@ export interface ChorePrefs {
   light_days: number[]
   /** At most this many flexible chores on one day; null for no limit. */
   cap: number | null
+  /** Today shows only the chores that are mine (assigned to me, my turn, or
+   *  nobody's in particular). Null: the default, on in a shared household. */
+  mine_only?: boolean | null
 }
 
-export const NO_PREFS: ChorePrefs = { light_days: [], cap: null }
+export const NO_PREFS: ChorePrefs = { light_days: [], cap: null, mine_only: null }
 
 /** Stored preferences, checked: anything odd is left out. */
 export function readChorePrefs(v: unknown): ChorePrefs {
@@ -137,7 +140,21 @@ export function readChorePrefs(v: unknown): ChorePrefs {
     ? [...new Set(r.light_days.filter((d): d is number => Number.isInteger(d) && (d as number) >= 0 && (d as number) <= 6))].sort()
     : []
   const cap = Number(r.cap)
-  return { light_days: light.length === 7 ? [] : light, cap: r.cap != null && Number.isInteger(cap) && cap >= 1 && cap <= 20 ? cap : null }
+  return {
+    light_days: light.length === 7 ? [] : light, cap: r.cap != null && Number.isInteger(cap) && cap >= 1 && cap <= 20 ? cap : null,
+    mine_only: typeof r.mine_only === 'boolean' ? r.mine_only : null,
+  }
+}
+
+/** Does Today show only my chores? The person's choice, else yes when the
+ *  household is shared (more than one member): every member sees their own. */
+export const mineOnly = (prefs: Pick<ChorePrefs, 'mine_only'>, memberCount: number): boolean => prefs.mine_only ?? memberCount > 1
+
+/** Is a chore mine on a day: assigned to me, my turn in its rotation, or
+ *  nobody's in particular (anyone can do it). */
+export function choreIsMine(c: ChoreLike, day: string, logs: ChoreDone[], me: string | null): boolean {
+  if (!me || !(c.assignees ?? []).length) return true
+  return choreAssignee(c, day, logs).includes(me)
 }
 
 /** Which flexible chores wait for another day: none on a light day, and

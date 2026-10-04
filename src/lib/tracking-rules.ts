@@ -299,43 +299,97 @@ const STRENGTH_DAYS = 400
  *  habit with no start day, so a new habit is not weighed down by the time
  *  before it existed. */
 export function habitStrength(h: HabitLike, done: Iterable<string>, day: string): number {
+  return habitStrengths(h, done, [day])[day] ?? 0
+}
+
+/** The strength on each of several days at once (Stats draws it day by day,
+ *  HAB-07, STA-03): the same figure habitStrength gives for each day, with
+ *  the habit's due days worked out once instead of once a day. The schedule
+ *  keeps its own start day as its anchor, so an "every other day" or "on the
+ *  15th" habit older than the look-back is read on its real days. */
+export function habitStrengths(h: HabitLike, done: Iterable<string>, days: string[]): Record<string, number> {
+  const out: Record<string, number> = {}
+  if (!days.length) return out
   const s = habitSchedule(h)
-  const doneDays = new Set<string>()
-  for (const d of done) if (d <= day) doneDays.add(d)
-  const first = isDayString(h.start_date) ? h.start_date : [...doneDays].sort()[0]
-  if (!first) return 0
-  const from = [first, addDayString(day, -STRENGTH_DAYS)].sort()[1]
-  const end = s.end_date && s.end_date < day ? s.end_date : day
-  if (end < from) return 0
-  // Values per period, oldest first: 1 done, 0 missed, a share for a week
-  // that got part of its number.
-  const values: number[] = []
-  const loose = looseOf(s)
-  if (loose) {
-    values.push(...looseValues(loose, new Set([...doneDays].filter((d) => d >= from)), end))
-  } else if (s.rule === 'times_per_week') {
-    const times = Math.max(1, s.rule_config.times ?? 1)
-    const thisWeek = fromDayNumber(mondayOf(toDayNumber(day)))
-    for (let mon = fromDayNumber(mondayOf(toDayNumber(from))); mon <= end; mon = addDayString(mon, 7)) {
-      let n = 0
-      for (let i = 0; i < 7; i++) if (doneDays.has(addDayString(mon, i))) n++
-      // The week still running counts only once its number is reached.
-      if (mon === thisWeek && n < times) continue
-      values.push(Math.min(1, n / times))
-    }
-  } else {
-    for (const d of daysIn({ ...s, start_date: s.start_date > from ? s.start_date : from }, from, end)) {
-      if (d === day && !doneDays.has(d)) continue
-      values.push(doneDays.has(d) ? 1 : 0)
-    }
+  const allDone = [...done].filter(isDayString).sort()
+  const doneAll = new Set(allDone)
+  const sorted = [...days].filter(isDayString).sort()
+  const firstOf = (day: string) => (isDayString(h.start_date) ? h.start_date : allDone.find((d) => d <= day))
+  // The window each day looks back over, and the habit's last day.
+  const windowOf = (day: string) => {
+    const first = firstOf(day)
+    if (!first) return null
+    const from = [first, addDayString(day, -STRENGTH_DAYS)].sort()[1]
+    const end = s.end_date && s.end_date < day ? s.end_date : day
+    return end < from ? null : { from, end }
   }
-  if (!values.length) return 0
-  const perDay = loose ? 1 / loose.every : s.rule === 'times_per_week' ? 1 / 7 : Math.min(1, values.length / Math.max(1, toDayNumber(end) - toDayNumber(from) + 1))
-  const halfLife = Math.max(3, Math.round(14 * perDay))
-  const step = 1 - Math.pow(0.5, 1 / halfLife)
-  let strength = 0
-  for (const v of values) strength += (v - strength) * step
-  return Math.round(strength * 100)
+  const loose = looseOf(s)
+  const weighed = (values: number[], from: string, end: string) => {
+    if (!values.length) return 0
+    const perDay = loose ? 1 / loose.every : s.rule === 'times_per_week' ? 1 / 7 : Math.min(1, values.length / Math.max(1, toDayNumber(end) - toDayNumber(from) + 1))
+    const halfLife = Math.max(3, Math.round(14 * perDay))
+    const step = 1 - Math.pow(0.5, 1 / halfLife)
+    let strength = 0
+    for (const v of values) strength += (v - strength) * step
+    return Math.round(strength * 100)
+  }
+  if (loose) {
+    // After completion and flexible habits (GEN-22): 1 for each time done,
+    // 0 for each stretch of the limit that went by without it.
+    for (const day of sorted) {
+      const w = windowOf(day)
+      if (!w) { out[day] = 0; continue }
+      const inWindow = new Set(allDone.filter((d) => d >= w.from && d <= day))
+      out[day] = weighed(looseValues(loose, inWindow, w.end), w.from, w.end)
+    }
+    return out
+  }
+  if (s.rule === 'times_per_week') {
+    const times = Math.max(1, s.rule_config.times ?? 1)
+    const perWeek = new Map<number, number>()
+    for (const d of allDone) { const m = mondayOf(toDayNumber(d)); perWeek.set(m, (perWeek.get(m) ?? 0) + 1) }
+    for (const day of sorted) {
+      const w = windowOf(day)
+      if (!w) { out[day] = 0; continue }
+      // Values per week, oldest first: a share for a week that got part of
+      // its number; the week still running counts only once its number is reached.
+      const values: number[] = []
+      const thisWeek = mondayOf(toDayNumber(day))
+      const last = toDayNumber(w.end)
+      for (let mon = mondayOf(toDayNumber(w.from)); mon <= last; mon += 7) {
+        let n = perWeek.get(mon) ?? 0
+        // In the week of the day itself, only ticks up to the day count.
+        if (mon === thisWeek) { n = 0; for (let i = 0; i < 7; i++) { const d = fromDayNumber(mon + i); if (d <= day && doneAll.has(d)) n++ } }
+        if (mon === thisWeek && n < times) continue
+        values.push(Math.min(1, n / times))
+      }
+      out[day] = weighed(values, w.from, w.end)
+    }
+    return out
+  }
+  // Every due day the windows can reach, worked out once.
+  const windows = sorted.map((d) => windowOf(d))
+  const reach = windows.filter((w): w is { from: string; end: string } => !!w)
+  if (!reach.length) { for (const d of sorted) out[d] = 0; return out }
+  const lo = reach.map((w) => w.from).sort()[0]
+  const hi = reach.map((w) => w.end).sort().at(-1)!
+  const sched = isDayString(s.start_date) ? s : { ...s, start_date: lo }
+  const due = daysIn(sched, lo, hi)
+  const firstAt = (d: string) => { let a = 0; let b = due.length; while (a < b) { const m = (a + b) >> 1; if (due[m] < d) a = m + 1; else b = m } return a }
+  sorted.forEach((day, i) => {
+    const w = windows[i]
+    if (!w) { out[day] = 0; return }
+    const values: number[] = []
+    for (let k = firstAt(w.from); k < due.length && due[k] <= w.end; k++) {
+      const d = due[k]
+      // Only ticks up to the day count; the day itself, while open, does not.
+      const hit = d <= day && doneAll.has(d)
+      if (d === day && !hit) continue
+      values.push(hit ? 1 : 0)
+    }
+    out[day] = weighed(values, w.from, w.end)
+  })
+  return out
 }
 
 export type HistoryCell = 'done' | 'missed' | 'open' | 'off' | 'future' | 'blank'
@@ -553,4 +607,114 @@ export function supplementGroups<T extends SupplementLike>(rows: T[], slots: Sup
   const groups = slots.map((slot) => ({ slot, label: slot.name, rows: live.filter((r) => r.time_slot === slot.key).sort(order) }))
   const loose = live.filter((r) => !r.time_slot || !keys.has(r.time_slot)).sort(order)
   return [...groups, { slot: null, label: 'Any time', rows: loose }].filter((g) => g.rows.length > 0)
+}
+
+/* ---------- version 18: supplement stock (SUP-05) ------------------------------- */
+
+/** A supplement's stock as kept on its row (migration 033): the doses in
+ *  the pack at the start of `stock_from`, and how many days ahead a refill
+ *  reminder comes (7 when not set). No count is ever written by a tick: the
+ *  doses left are the count less the days ticked since, so two phones
+ *  ticking offline never lose a dose. */
+export interface StockLike {
+  stock_count?: number | string | null
+  stock_from?: string | null
+  refill_days?: number | null
+  active?: boolean
+  rule?: RuleKind | null
+  rule_config?: RuleConfig | null
+  start_date?: string | null
+  end_date?: string | null
+}
+
+export const REFILL_DAYS = 7
+/** How far ahead the doses are counted out; beyond it, "plenty". */
+const STOCK_LOOKAHEAD = 400
+
+export interface Stock {
+  /** Doses left now. */
+  left: number
+  /** Days the doses last from today, today included while today's dose is
+   *  still to take; null when they outlast the look-ahead or nothing more
+   *  is due (the supplement has ended). */
+  daysLeft: number | null
+  /** The last day the doses cover, or null as above. */
+  lastDay: string | null
+  /** At or under the refill warning. */
+  low: boolean
+  refillDays: number
+}
+
+const count = (v: unknown): number | null => {
+  const n = typeof v === 'number' ? v : typeof v === 'string' && v.trim() ? Number(v) : NaN
+  return Number.isFinite(n) && n >= 0 ? Math.floor(n) : null
+}
+
+/** The stock of a supplement on `today`, from its ticked days; null when
+ *  it keeps no count. */
+export function supplementStock(s: StockLike, doneDays: Iterable<string>, today: string): Stock | null {
+  const start = count(s.stock_count)
+  if (start === null || !isDayString(s.stock_from)) return null
+  const done = new Set<string>()
+  for (const d of doneDays) if (d >= s.stock_from && d <= today) done.add(d)
+  const left = Math.max(0, start - done.size)
+  const refillDays = Number.isInteger(s.refill_days) && s.refill_days! >= 0 ? s.refill_days! : REFILL_DAYS
+  if (s.active === false) return { left, daysLeft: null, lastDay: null, low: false, refillDays }
+  // Count the doses out over the days to come; today counts while its dose
+  // is still to take.
+  let rest = left
+  let last: string | null = null
+  let first: string | null = null
+  for (let i = 0; i < STOCK_LOOKAHEAD && rest > 0; i++) {
+    const d = addDayString(today, i)
+    if (i === 0 && done.has(d)) continue
+    if (!supplementDue(s, d)) continue
+    first ??= d
+    rest--
+    last = d
+  }
+  if (rest > 0) return { left, daysLeft: null, lastDay: null, low: false, refillDays }
+  if (left === 0) return { left, daysLeft: 0, lastDay: null, low: true, refillDays }
+  // Nothing more is due at all: the doses are not running out.
+  if (!last) return { left, daysLeft: null, lastDay: null, low: false, refillDays }
+  const daysLeft = toDayNumber(last) - toDayNumber(today) + (first === today ? 1 : 0)
+  return { left, daysLeft, lastDay: last, low: daysLeft <= refillDays, refillDays }
+}
+
+/** What to keep when the person says how many doses are left now: the
+ *  count as at the start of today, so today's tick (taken already, or
+ *  later) is taken off like any other. */
+export function stockFromNow(leftNow: number, takenToday: boolean, today: string): { stock_count: number; stock_from: string } {
+  return { stock_count: Math.max(0, Math.floor(leftNow)) + (takenToday ? 1 : 0), stock_from: today }
+}
+
+/** "12 left", "12 left · about 5 days" when low, "None left". */
+export function stockWords(st: Stock): string {
+  if (st.left === 0) return 'None left'
+  if (st.low && st.daysLeft !== null) return `${st.left} left · ${st.daysLeft === 1 ? 'last day' : `${st.daysLeft} days`}`
+  return `${st.left} left`
+}
+
+/** The days in `days` a refill reminder is due: the day the doses first
+ *  reach the warning (and today, if they are under it already), and the
+ *  last day they cover. Never twice the same day. */
+export function refillDaysIn(s: StockLike, doneDays: string[], today: string, days: string[]): string[] {
+  const out = new Set<string>()
+  const now = supplementStock(s, doneDays, today)
+  if (!now || now.daysLeft === null) return []
+  for (const d of days) {
+    if (d < today) continue
+    // Days to come: as if every due day before them is taken on time.
+    const ahead = d === today ? now : supplementStock(s, [...doneDays, ...dueBetween(s, today, addDayString(d, -1), doneDays)], d)
+    if (!ahead || ahead.daysLeft === null || ahead.left === 0) continue
+    const reached = ahead.daysLeft === ahead.refillDays || (d === today && ahead.daysLeft < ahead.refillDays)
+    if (reached || ahead.daysLeft === 1) out.add(d)
+  }
+  return [...out]
+}
+
+function dueBetween(s: StockLike, from: string, to: string, done: string[]): string[] {
+  const out: string[] = []
+  for (let d = from; d <= to; d = addDayString(d, 1)) if (supplementDue(s, d) && !done.includes(d)) out.push(d)
+  return out
 }

@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { useLocation } from 'react-router-dom'
+import { useLocation, useSearchParams } from 'react-router-dom'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { format } from 'date-fns'
 import { db } from '../lib/db'
@@ -20,6 +20,7 @@ import { SWATCHES } from '../lib/colours-rules'
 import { RepeatPicker, type RepeatValue } from '../ui/RepeatPicker'
 import { NoteEditor } from '../ui/NoteEditor'
 import { offerUndo } from '../ui/Undo'
+import { MoreOptions } from '../ui/MoreOptions'
 import { TrackSheet, Choices, SwitchRow } from './TrackSheet'
 import './tracking.css'
 
@@ -50,6 +51,19 @@ export function Habits({ profileId, day }: { profileId: string; day: string }) {
   const [showArchived, setShowArchived] = useState(false)
 
   useEffect(() => { if (profile && profile.id === profileId) void retireHabitsDailyRule(profile) }, [profile?.id]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  // ?open=<habit id> (a tap on the widget's habit row, HAB-11): that habit
+  // opens with its pinned note and today's checklist, in view.
+  const [params, setParams] = useSearchParams()
+  const openId = params.get('open')
+  useEffect(() => {
+    if (!openId || !data) return
+    if (data.habits.some((h) => h.id === openId && h.active && !h.deleted_at)) {
+      setOpen(openId)
+      window.setTimeout(() => document.getElementById(`habit-${openId}`)?.scrollIntoView({ block: 'center' }), 50)
+    }
+    setParams((p) => { const next = new URLSearchParams(p); next.delete('open'); return next }, { replace: true })
+  }, [openId, data, setParams])
 
   // Still loading, or the module is switched off: nothing is shown either way.
   if (!data) return null
@@ -150,7 +164,7 @@ function HabitRow({ habit: h, logs, day, open, onToggle, onEdit, onMove, canUp, 
   const count = h.target != null
 
   return (
-    <div className={`track-item${open ? ' is-open' : ''}`}>
+    <div id={`habit-${h.id}`} className={`track-item${open ? ' is-open' : ''}`}>
       <div className={`track-row${done || state === 'met' ? ' is-done' : ''}${state === 'off' ? ' is-off' : ''}`}>
         <div className="track-main">
           <Mark habit={h} />
@@ -334,6 +348,14 @@ export function HabitSheet({ profileId, habit, today, nextOrder, onClose }: {
   const set = <K extends keyof Habit>(k: K, v: Habit[K]) => setDraft((d) => ({ ...d, [k]: v }))
   const start = draft.start_date ?? today
   const repeat: RepeatValue = { rule: draft.rule ?? 'daily', rule_config: draft.rule_config ?? {}, end_date: draft.end_date ?? null }
+  // More options opens by itself when something inside is set, and says what.
+  const moreSummary = [
+    habit && draft.start_date ? `from ${draft.start_date}` : null,
+    counting ? `to ${targetText}${draft.unit ? ` ${draft.unit}` : ''}` : null,
+    draft.colour || draft.mark ? 'colour' : null,
+    draft.note ? 'pinned note' : null,
+  ].filter(Boolean).join(' · ') || null
+  const [moreSet] = useState(() => !!(habit && (habit.target != null || habit.colour || habit.mark || habit.note)))
 
   async function save() {
     const target = counting ? Number(targetText) : null
@@ -363,10 +385,6 @@ export function HabitSheet({ profileId, habit, today, nextOrder, onClose }: {
       </label>
       <RepeatPicker value={repeat} start={start} today={today} kinds={[...HABIT_KINDS]} allowNone={false} loose
         onChange={(v) => setDraft((d) => ({ ...d, rule: v.rule ?? 'daily', rule_config: v.rule_config, end_date: v.end_date }))} />
-      <label>Starts on
-        <input type="date" value={draft.start_date ?? ''} onChange={(e) => set('start_date', e.target.value || null)} />
-        {habit && <span className="row-meta">Ticks from before the start day are kept, and count again if it moves back.</span>}
-      </label>
       <Choices label="When in the day" value={when} onChange={setWhen}
         options={[{ value: 'any', label: 'Any time' }, ...DAY_PARTS.map((p) => ({ value: p, label: DAY_PART_LABEL[p] })), { value: 'time', label: 'At a time' }]} />
       {when === 'time' && (
@@ -374,7 +392,12 @@ export function HabitSheet({ profileId, habit, today, nextOrder, onClose }: {
           <input type="time" value={(draft.time_of_day ?? '08:00').slice(0, 5)} onChange={(e) => set('time_of_day', e.target.value || null)} />
         </label>
       )}
-      <SwitchRow label="Count towards a number" hint="For “8 glasses of water” or “10 minutes”: add to it through the day."
+      {/* What makes the habit is above; the rest waits here (CALM-08). */}
+      <MoreOptions open={moreSet} summary={moreSummary}>
+      <label title={habit ? 'Ticks from before the start day are kept, and count again if it moves back.' : undefined}>Starts on
+        <input type="date" value={draft.start_date ?? ''} onChange={(e) => set('start_date', e.target.value || null)} />
+      </label>
+      <SwitchRow label="Count towards a number" hint="8 glasses of water, 10 minutes"
         on={counting} onChange={setCounting} />
       {counting && (
         <div className="two">
@@ -399,7 +422,7 @@ export function HabitSheet({ profileId, habit, today, nextOrder, onClose }: {
       </div>
       <NoteEditor label="Pinned note" value={draft.note ?? ''} onChange={(t) => set('note', t || null)} afterDone={false}
         context={{ day: today, title: draft.name, start }} />
-      <p className="row-meta" style={{ margin: 0 }}>A checklist in the note can be ticked each day; the note itself stays as written.</p>
+      </MoreOptions>
       {error && <p className="track-error" role="alert">{error}</p>}
       <div className="sheet-actions">
         <button type="button" className="btn grow" onClick={onClose}>Cancel</button>

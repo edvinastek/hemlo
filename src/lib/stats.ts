@@ -13,8 +13,13 @@ import { computeFormulas, recordDate } from '../modules/def-rules'
 import { edit } from './write'
 import type { EntityDef } from '../modules/types'
 import type { Food, ModuleRecord, RecipeLine } from './types'
-import { choreFacts, clockHours, habitFacts, sleepHours, type Range } from './stats-rules'
-import { measureCatalogue, NUTRIENT_NAMES, viewModules, viewSpec, type Measure, type ModuleInput } from './stats-builder-rules'
+import { boughtCost, choreFacts, clockHours, financeFacts, foodFigure, habitFacts, habitStrengthFacts, partsFigure, sleepHours, sleepStatsFacts, trendFacts, type Range } from './stats-rules'
+import { extraFigures, measureCatalogue, NUTRIENT_NAMES, viewModules, viewSpec, type CatalogueExtras, type Measure, type ModuleInput } from './stats-builder-rules'
+import { readSleepSettings } from './sleep-rules'
+import { readFinanceSettings } from './finance-rules'
+import { currencyFor, itemKey } from './shopping-rules'
+import { rawGrams } from './calc'
+import { nutritionPrefs } from './nutrition-prefs'
 import { addDays } from './schedule-rules'
 import { loadDayItems } from './day-items'
 import { enabledModules } from './day'
@@ -51,7 +56,11 @@ export async function statsModules(profileId: string, settings: ProfileSettings,
  *  targets attached to the nutrients (for "% of days on target"). */
 export async function loadCatalogue(profileId: string, settings: ProfileSettings, showDisabled: boolean, span?: Range, everyOn = false): Promise<{ catalogue: Measure[]; modules: StatsModule[]; hiddenOff: number }> {
   const { shown, hiddenOff } = await statsModules(profileId, settings, showDisabled, everyOn)
-  const catalogue = measureCatalogue(shown, settings.nutrients)
+  const extras = await catalogueExtras(profileId)
+  const catalogue = measureCatalogue(shown, settings.nutrients, extras)
+  // Shopping prices are in the currency of the person's country.
+  const country = (await db.profile.get(profileId))?.country ?? null
+  for (const m of catalogue) if (m.key === 'shopping:spent') m.unit = currencyFor(country)
   const first = await firstDays(profileId, shown)
   for (const m of catalogue) if (first[m.module]) m.since = first[m.module]
   if (span && shown.some((m) => m.key === 'nutrition')) {
@@ -62,6 +71,14 @@ export async function loadCatalogue(profileId: string, settings: ProfileSettings
     }
   }
   return { catalogue, modules: shown, hiddenOff }
+}
+
+/** The extra label figures the person chose to see (FOOD-16) and Finance's
+ *  currency: what the catalogue needs beyond the modules. */
+async function catalogueExtras(profileId: string): Promise<CatalogueExtras> {
+  const figures = (await nutritionPrefs(profileId)).label.figures as string[]
+  const currency = readFinanceSettings((await instanceFor(profileId, 'finance'))?.settings).currency
+  return { figures, currency }
 }
 
 /** The first day each module has anything, so the days before the person
@@ -170,7 +187,7 @@ async function memberNames(householdId: string): Promise<Map<string, string>> {
 
 /* ---------- facts per module -------------------------------------------------- */
 
-interface Ctx { profileId: string; householdId: string; userId: string | null; span: Range; today: string; settings: ProfileSettings }
+interface Ctx { profileId: string; householdId: string; userId: string | null; span: Range; today: string; settings: ProfileSettings; figures: string[]; country: string | null }
 
 const live = <T extends { deleted_at?: string | null }>(rows: T[]) => rows.filter((r) => !r.deleted_at)
 const inSpan = (d: string | null | undefined, r: Range): d is string => !!d && d >= r.start && d <= r.end
@@ -218,10 +235,10 @@ async function taskFacts(c: Ctx, wantProjects: boolean): Promise<Fact[]> {
 async function habitsFacts(c: Ctx): Promise<Fact[]> {
   const habits = (await db.habit.where('profile_id').equals(c.profileId).toArray()).filter((h) => !h.deleted_at)
   if (!habits.length) return []
-  // A week either side, so a times-a-week habit's whole weeks are known.
-  const from = addDays(c.span.start, -7)
+  // Every tick up to the end of the range: a times-a-week habit needs its
+  // whole weeks, and the strength weighs the months before the range too.
   const logs = await db.habit_log.where('habit_id').anyOf(habits.map((h) => h.id))
-    .filter((l) => l.log_date >= from && l.log_date <= c.span.end).toArray()
+    .filter((l) => l.log_date <= c.span.end).toArray()
   const by: Record<string, typeof logs> = {}
   for (const l of logs) (by[l.habit_id] ??= []).push(l)
   const done: Record<string, string[]> = {}
@@ -235,7 +252,7 @@ async function habitsFacts(c: Ctx): Promise<Fact[]> {
       if (a != null && Number.isFinite(Number(a))) (amounts[id] ??= {})[d] = Number(a)
     }
   }
-  return habitFacts(habits, done, amounts, c.span, c.today)
+  return [...habitFacts(habits, done, amounts, c.span, c.today), ...habitStrengthFacts(habits, done, c.span, c.today)]
 }
 
 const SLOT_NAME: Record<string, string> = { morning: 'Morning', midday: 'Midday', evening: 'Evening' }
@@ -275,11 +292,25 @@ async function nutritionFacts(c: Ctx): Promise<Fact[]> {
     if (!perRecipe.has(id)) perRecipe.set(id, recipeMacros(linesBy.get(id) ?? [], foods) as unknown as Macros)
     return perRecipe.get(id)!
   }
+  const extra = extraFigures(c.figures)
+  const asRow = (f: Food | undefined) => f as unknown as Record<string, unknown> | undefined
+  // The extra label figures: only where every food in it gives the figure.
+  const withExtra = (m: Macros, figure: (key: string) => number | null): Macros => {
+    const out = { ...m }
+    for (const k of extra) { const v = figure(k); if (v != null) out[k] = v; else delete out[k] }
+    return out
+  }
+  const recipeExtra = (id: string, times: number) => (key: string) => {
+    const v = partsFigure((linesBy.get(id) ?? []).map((l) => { const f = l.food_id ? foods.get(l.food_id) : undefined; return { food: asRow(f), grams: rawGrams(l, f) } }), key)
+    return v == null ? null : v * times
+  }
   const foodM = (f: Food | undefined, grams: number | null | undefined): Macros | null => {
     if (!f || grams == null) return null
     const k = Number(grams) / 100
-    return Object.fromEntries(Object.keys(NUTRIENT_NAMES).map((n) => [n, Number((f as unknown as Record<string, number | null>)[n] ?? 0) * k]))
+    const m = Object.fromEntries(Object.keys(NUTRIENT_NAMES).map((n) => [n, Number((f as unknown as Record<string, number | null>)[n] ?? 0) * k]))
+    return withExtra(m, (key) => foodFigure(asRow(f), grams, key))
   }
+  const measured = [...Object.keys(NUTRIENT_NAMES), ...extra]
   const mealName = (key: string | null | undefined) => (key ? c.settings.meals.names.find((m) => m.key === key)?.name ?? key[0].toUpperCase() + key.slice(1) : null)
   const out: Fact[] = []
   const days = new Set<string>()
@@ -290,7 +321,7 @@ async function nutritionFacts(c: Ctx): Promise<Fact[]> {
     else if (log.food_id) { m = foodM(foods.get(log.food_id), log.grams); item = foods.get(log.food_id)?.name ?? null }
     else if (log.recipe_id) {
       const per = recipeM(log.recipe_id); const n = Number(log.portions ?? 1)
-      m = Object.fromEntries(Object.entries(per).map(([k, v]) => [k, v * n])); item = recipes.get(log.recipe_id) ?? 'Recipe'
+      m = withExtra(Object.fromEntries(Object.entries(per).map(([k, v]) => [k, v * n])), recipeExtra(log.recipe_id, n)); item = recipes.get(log.recipe_id) ?? 'Recipe'
     }
     if (!m) continue
     days.add(log.log_date)
@@ -298,7 +329,7 @@ async function nutritionFacts(c: Ctx): Promise<Fact[]> {
     const meal = (log as unknown as { meal?: string | null; slot?: string | null }).meal ?? (log as unknown as { slot?: string | null }).slot ?? null
     const base = { day: log.log_date, module: 'nutrition', item, section: mealName(meal), ref: { table: 'food_log', id: log.id, label: item ?? 'Food' } }
     out.push({ ...base, measure: 'nutrition:entries', value: 1 })
-    for (const n of Object.keys(NUTRIENT_NAMES)) if (Number.isFinite(m[n])) out.push({ ...base, measure: `nutrition:${n}`, value: m[n] })
+    for (const n of measured) if (Number.isFinite(m[n])) out.push({ ...base, measure: `nutrition:${n}`, value: m[n] })
   }
   for (const d of days) out.push({ day: d, module: 'nutrition', measure: 'nutrition:days', value: 1 })
   for (const s of slots) {
@@ -306,18 +337,19 @@ async function nutritionFacts(c: Ctx): Promise<Fact[]> {
     let item: string | null = null
     if (s.kcal != null) { m = quickMacros(s); item = s.label ?? 'Quick meal' }
     else if (s.recipe_id) {
-      const per = recipeM(s.recipe_id)
-      m = Object.fromEntries(Object.entries(per).map(([k, v]) => [k, v * Number(s.portion_multiplier ?? 1)])); item = recipes.get(s.recipe_id) ?? 'Recipe'
+      const per = recipeM(s.recipe_id); const n = Number(s.portion_multiplier ?? 1)
+      m = withExtra(Object.fromEntries(Object.entries(per).map(([k, v]) => [k, v * n])), recipeExtra(s.recipe_id, n)); item = recipes.get(s.recipe_id) ?? 'Recipe'
     } else if (s.food_id) { m = foodM(foods.get(s.food_id), s.grams); item = foods.get(s.food_id)?.name ?? null }
     if (!m) continue
     const base = { day: s.slot_date, module: 'nutrition', item, section: mealName(s.slot), ref: { table: 'meal_plan_slot', id: s.id, label: item ?? 'Meal' } }
-    for (const n of Object.keys(NUTRIENT_NAMES)) if (Number.isFinite(m[n])) out.push({ ...base, measure: `nutrition:planned_${n}`, value: m[n] })
+    for (const n of measured) if (Number.isFinite(m[n])) out.push({ ...base, measure: `nutrition:planned_${n}`, value: m[n] })
   }
   return out
 }
 
 async function healthFacts(c: Ctx): Promise<Fact[]> {
-  const rows = live(await db.body_log.where('profile_id').equals(c.profileId).toArray()).filter((r) => inSpan(r.log_date, c.span))
+  const all = live(await db.body_log.where('profile_id').equals(c.profileId).toArray())
+  const rows = all.filter((r) => inSpan(r.log_date, c.span))
   // One reading a day: the latest edit wins, as on the Health page.
   const byDay = new Map<string, (typeof rows)[number]>()
   for (const r of rows) {
@@ -333,12 +365,19 @@ async function healthFacts(c: Ctx): Promise<Fact[]> {
     }
     if (r.waist_cm != null) out.push({ day: d, module: 'health', measure: 'health:waist', value: Number(r.waist_cm), ref })
   }
+  // The trend carries its history, so it reads every weigh-in up to the range's end.
+  const history = all.filter((r) => r.log_date <= c.span.end).sort((a, b) => a.log_date.localeCompare(b.log_date) || (a.updated_at ?? '').localeCompare(b.updated_at ?? ''))
+  out.push(...trendFacts(history.map((r) => ({ log_date: r.log_date, weight_kg: r.weight_kg == null ? null : Number(r.weight_kg) })), c.span))
   return out
 }
 
 async function sleepFacts(c: Ctx): Promise<Fact[]> {
-  const rows = live(await db.sleep_log.where('[profile_id+log_date]').between([c.profileId, c.span.start], [c.profileId, c.span.end], true, true).toArray())
-  const out: Fact[] = []
+  // Thirteen days before the range, so its first days have their whole
+  // window for sleep debt (7 days) and regularity (14 days).
+  const reach = live(await db.sleep_log.where('[profile_id+log_date]').between([c.profileId, addDays(c.span.start, -13)], [c.profileId, c.span.end], true, true).toArray())
+  const rows = reach.filter((r) => inSpan(r.log_date, c.span))
+  const target = readSleepSettings((await instanceFor(c.profileId, 'sleep'))?.settings)
+  const out: Fact[] = sleepStatsFacts(reach, target, c.span, c.today)
   for (const r of rows) {
     const base = { day: r.log_date, module: 'sleep', ref: { table: 'sleep_log', id: r.id, label: 'Night' } }
     const h = r.hours != null ? Number(r.hours) : sleepHours(r.went_to_bed, r.woke_at)
@@ -408,6 +447,9 @@ async function shoppingFacts(c: Ctx): Promise<Fact[]> {
   const rows = live(await db.shopping_entry.where('household_id').equals(c.householdId).toArray())
   const foodIds = [...new Set(rows.map((r) => r.food_id).filter((x): x is string => !!x))]
   const foods = new Map((await db.food.bulkGet(foodIds)).filter((f) => !!f).map((f) => [f!.id, f!.name]))
+  const prices = live(await db.shop_price.where('household_id').equals(c.householdId).toArray())
+  const priceBy = new Map<string, typeof prices>()
+  for (const p of prices) priceBy.set(p.item_key, [...(priceBy.get(p.item_key) ?? []), p])
   const out: Fact[] = []
   const trips = new Set<string>()
   for (const r of rows) {
@@ -416,7 +458,12 @@ async function shoppingFacts(c: Ctx): Promise<Fact[]> {
     const added = localDay(r.created_at)
     if (!r.plan_key && inSpan(added, c.span)) out.push({ ...base, day: added, measure: 'shopping:added', value: 1 })
     const bought = r.checked ? localDay(r.checked_at) : null
-    if (inSpan(bought, c.span)) { out.push({ ...base, day: bought, measure: 'shopping:bought', value: 1 }); trips.add(bought) }
+    if (inSpan(bought, c.span)) {
+      out.push({ ...base, day: bought, measure: 'shopping:bought', value: 1 }); trips.add(bought)
+      // What it cost at the household's own price; without one it is counted as unpriced, never as free.
+      const cost = boughtCost({ grams: r.grams, qty: r.qty, shop: r.shop }, priceBy.get(itemKey({ food_id: r.food_id, name: r.name ?? (r.food_id ? foods.get(r.food_id) : null) })) ?? [])
+      out.push(cost != null ? { ...base, day: bought, measure: 'shopping:spent', value: cost } : { ...base, day: bought, measure: 'shopping:unpriced', value: 1 })
+    }
   }
   for (const d of trips) out.push({ day: d, module: 'shopping', measure: 'shopping:trips', value: 1 })
   return out
@@ -437,6 +484,13 @@ function recordName(e: EntityDef, data: Record<string, unknown>): string | null 
 /** Any module kept in the record store (Learning, Finance, Projects, the
  *  old Household chores, every built module): records per day, each number
  *  and yes/no field, its choice and text fields as groupings. */
+/** Finance's money (FIN-02, FIN-03): spent and money in apart, and budgets. */
+async function moneyFacts(c: Ctx): Promise<Fact[]> {
+  const s = readFinanceSettings((await instanceFor(c.profileId, 'finance'))?.settings)
+  const entries = live(await db.module_record.where('[profile_id+module_key]').equals([c.profileId, 'finance']).toArray()).filter((r) => r.entity === 'entry')
+  return financeFacts(entries.map((r) => ({ id: r.id, data: r.data ?? {}, record_date: r.record_date ?? null })), s, c.span, c.today)
+}
+
 async function recordFacts(c: Ctx, m: StatsModule): Promise<Fact[]> {
   const entities = m.entities ?? []
   if (!entities.length) return []
@@ -461,6 +515,8 @@ async function recordFacts(c: Ctx, m: StatsModule): Promise<Fact[]> {
       out.push({ ...base, measure: `${m.key}:${e.name}:count`, value: 1 })
       for (const f of e.fields) {
         if (f.hidden) continue
+        // Finance's amount is money in and out alike: moneyFacts keeps them apart.
+        if (m.key === 'finance' && e.name === 'entry' && f.name === 'amount') continue
         if (NUMERIC.has(f.type)) {
           const v = num(data[f.name])
           if (v != null) out.push({ ...base, measure: `${m.key}:${e.name}:${f.name}`, value: v })
@@ -479,7 +535,9 @@ export async function loadFacts(profileId: string, span: Range, today: string, m
   const profile = await db.profile.get(profileId)
   if (!profile) return []
   const owner = await getMeta<string | null>('owner', null)
-  const c: Ctx = { profileId, householdId: profile.household_id, userId: owner, span, today, settings: readSettings(profile) }
+  const want0 = (k: string) => (!only || only.includes(k)) && modules.some((m) => m.key === k)
+  const figures = want0('nutrition') ? (await nutritionPrefs(profileId)).label.figures as string[] : []
+  const c: Ctx = { profileId, householdId: profile.household_id, userId: owner, span, today, settings: readSettings(profile), figures, country: profile.country ?? null }
   const want = (k: string) => !only || only.includes(k)
   const on = new Set(modules.map((m) => m.key))
   const jobs: Promise<Fact[]>[] = []
@@ -498,6 +556,7 @@ export async function loadFacts(profileId: string, span: Range, today: string, m
       case 'agenda': jobs.push(agendaFacts(c)); break
       case 'shopping': jobs.push(shoppingFacts(c)); break
       case 'household': jobs.push(householdFacts(c)); break
+      case 'finance': jobs.push(moneyFacts(c)); break
     }
     jobs.push(recordFacts(c, m))
   }
