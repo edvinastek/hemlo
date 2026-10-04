@@ -58,6 +58,8 @@ export interface MeasureInfo {
   /** A share: the part and whole measures it is worked out from, as a
    *  percentage. Such a measure has no facts of its own. */
   ratio?: { part: string; whole: string }
+  /** A share that can pass 100% (a budget overspent); others stop at 100. */
+  over?: boolean
   /** The groupings it can be split by besides time ('section', 'item'…). */
   dims: string[]
   /** The summary it reads best with. */
@@ -209,6 +211,9 @@ function combine(how: Combine, vs: number[]): number {
   }
 }
 
+/** A part of a whole as a percentage: at most 100 unless the measure can go over. */
+const share = (info: MeasureInfo, part: number, whole: number) => (info.over ? (100 * part) / whole : Math.min(100, (100 * part) / whole))
+
 /** The value of each day of a cell that counts, oldest first: for a
  *  measure that counts every day, every day that has happened (0 when
  *  nothing); for a logged one, only days with something; for a share, the
@@ -223,7 +228,7 @@ export function dailyValues(info: MeasureInfo, facts: Fact[], days: string[], to
     const out: [string, number][] = []
     for (const d of days) {
       const w = whole.get(d) ?? 0
-      if (d <= today && w > 0) out.push([d, Math.min(100, (100 * (part.get(d) ?? 0)) / w)])
+      if (d <= today && w > 0) out.push([d, share(info, part.get(d) ?? 0, w)])
     }
     return out
   }
@@ -270,7 +275,7 @@ export function cellValue(info: MeasureInfo, vs: ValueSpec, facts: Fact[], days:
           if (f.day > today || !daySet.has(f.day)) continue
           if (f.measure === info.ratio.part) p += f.value; else w += f.value
         }
-        return w > 0 ? Math.min(100, (100 * p) / w) : null
+        return w > 0 ? share(info, p, w) : null
       }
       if (info.combine !== 'sum') return values.length ? combine(info.combine, values) : null
       const inDays = own.filter((f) => daySet.has(f.day))

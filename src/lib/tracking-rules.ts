@@ -261,40 +261,85 @@ const STRENGTH_DAYS = 400
  *  habit with no start day, so a new habit is not weighed down by the time
  *  before it existed. */
 export function habitStrength(h: HabitLike, done: Iterable<string>, day: string): number {
+  return habitStrengths(h, done, [day])[day] ?? 0
+}
+
+/** The strength on each of several days at once (Stats draws it day by day,
+ *  HAB-07, STA-03): the same figure habitStrength gives for each day, with
+ *  the habit's due days worked out once instead of once a day. The schedule
+ *  keeps its own start day as its anchor, so an "every other day" or "on the
+ *  15th" habit older than the look-back is read on its real days. */
+export function habitStrengths(h: HabitLike, done: Iterable<string>, days: string[]): Record<string, number> {
+  const out: Record<string, number> = {}
+  if (!days.length) return out
   const s = habitSchedule(h)
-  const doneDays = new Set<string>()
-  for (const d of done) if (d <= day) doneDays.add(d)
-  const first = isDayString(h.start_date) ? h.start_date : [...doneDays].sort()[0]
-  if (!first) return 0
-  const from = [first, addDayString(day, -STRENGTH_DAYS)].sort()[1]
-  const end = s.end_date && s.end_date < day ? s.end_date : day
-  if (end < from) return 0
-  // Values per period, oldest first: 1 done, 0 missed, a share for a week
-  // that got part of its number.
-  const values: number[] = []
+  const allDone = [...done].filter(isDayString).sort()
+  const doneAll = new Set(allDone)
+  const sorted = [...days].filter(isDayString).sort()
+  const firstOf = (day: string) => (isDayString(h.start_date) ? h.start_date : allDone.find((d) => d <= day))
+  // The window each day looks back over, and the habit's last day.
+  const windowOf = (day: string) => {
+    const first = firstOf(day)
+    if (!first) return null
+    const from = [first, addDayString(day, -STRENGTH_DAYS)].sort()[1]
+    const end = s.end_date && s.end_date < day ? s.end_date : day
+    return end < from ? null : { from, end }
+  }
+  const weighed = (values: number[], from: string, end: string) => {
+    if (!values.length) return 0
+    const perDay = s.rule === 'times_per_week' ? 1 / 7 : Math.min(1, values.length / Math.max(1, toDayNumber(end) - toDayNumber(from) + 1))
+    const halfLife = Math.max(3, Math.round(14 * perDay))
+    const step = 1 - Math.pow(0.5, 1 / halfLife)
+    let strength = 0
+    for (const v of values) strength += (v - strength) * step
+    return Math.round(strength * 100)
+  }
   if (s.rule === 'times_per_week') {
     const times = Math.max(1, s.rule_config.times ?? 1)
-    const thisWeek = fromDayNumber(mondayOf(toDayNumber(day)))
-    for (let mon = fromDayNumber(mondayOf(toDayNumber(from))); mon <= end; mon = addDayString(mon, 7)) {
-      let n = 0
-      for (let i = 0; i < 7; i++) if (doneDays.has(addDayString(mon, i))) n++
-      // The week still running counts only once its number is reached.
-      if (mon === thisWeek && n < times) continue
-      values.push(Math.min(1, n / times))
+    const perWeek = new Map<number, number>()
+    for (const d of allDone) { const m = mondayOf(toDayNumber(d)); perWeek.set(m, (perWeek.get(m) ?? 0) + 1) }
+    for (const day of sorted) {
+      const w = windowOf(day)
+      if (!w) { out[day] = 0; continue }
+      // Values per week, oldest first: a share for a week that got part of
+      // its number; the week still running counts only once its number is reached.
+      const values: number[] = []
+      const thisWeek = mondayOf(toDayNumber(day))
+      const last = toDayNumber(w.end)
+      for (let mon = mondayOf(toDayNumber(w.from)); mon <= last; mon += 7) {
+        let n = perWeek.get(mon) ?? 0
+        // In the week of the day itself, only ticks up to the day count.
+        if (mon === thisWeek) { n = 0; for (let i = 0; i < 7; i++) { const d = fromDayNumber(mon + i); if (d <= day && doneAll.has(d)) n++ } }
+        if (mon === thisWeek && n < times) continue
+        values.push(Math.min(1, n / times))
+      }
+      out[day] = weighed(values, w.from, w.end)
     }
-  } else {
-    for (const d of daysIn({ ...s, start_date: s.start_date > from ? s.start_date : from }, from, end)) {
-      if (d === day && !doneDays.has(d)) continue
-      values.push(doneDays.has(d) ? 1 : 0)
-    }
+    return out
   }
-  if (!values.length) return 0
-  const perDay = s.rule === 'times_per_week' ? 1 / 7 : Math.min(1, values.length / Math.max(1, toDayNumber(end) - toDayNumber(from) + 1))
-  const halfLife = Math.max(3, Math.round(14 * perDay))
-  const step = 1 - Math.pow(0.5, 1 / halfLife)
-  let strength = 0
-  for (const v of values) strength += (v - strength) * step
-  return Math.round(strength * 100)
+  // Every due day the windows can reach, worked out once.
+  const windows = sorted.map((d) => windowOf(d))
+  const reach = windows.filter((w): w is { from: string; end: string } => !!w)
+  if (!reach.length) { for (const d of sorted) out[d] = 0; return out }
+  const lo = reach.map((w) => w.from).sort()[0]
+  const hi = reach.map((w) => w.end).sort().at(-1)!
+  const sched = isDayString(s.start_date) ? s : { ...s, start_date: lo }
+  const due = daysIn(sched, lo, hi)
+  const firstAt = (d: string) => { let a = 0; let b = due.length; while (a < b) { const m = (a + b) >> 1; if (due[m] < d) a = m + 1; else b = m } return a }
+  sorted.forEach((day, i) => {
+    const w = windows[i]
+    if (!w) { out[day] = 0; return }
+    const values: number[] = []
+    for (let k = firstAt(w.from); k < due.length && due[k] <= w.end; k++) {
+      const d = due[k]
+      // Only ticks up to the day count; the day itself, while open, does not.
+      const hit = d <= day && doneAll.has(d)
+      if (d === day && !hit) continue
+      values.push(hit ? 1 : 0)
+    }
+    out[day] = weighed(values, w.from, w.end)
+  })
+  return out
 }
 
 export type HistoryCell = 'done' | 'missed' | 'open' | 'off' | 'future' | 'blank'

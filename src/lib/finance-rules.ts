@@ -364,14 +364,7 @@ export function paymentMeta(p: Payment, currency: string, schedule: string): str
   return [p.amount != null ? `${p.kind === 'income' ? 'in ' : ''}${formatMoney(p.amount, currency)}` : null, p.category, schedule].filter(Boolean).join(' · ')
 }
 
-/** The measures Finance gives Stats, by source key. */
-export const FINANCE_MEASURES = [
-  { source: 'finance.expense', label: 'Spent', per: ['category'], summary: 'sum' as const },
-  { source: 'finance.income', label: 'Money in', per: ['category'], summary: 'sum' as const },
-  { source: 'finance.net', label: 'Money in less spent', per: [], summary: 'sum' as const },
-]
-
-/** A value per day for one of those measures, optionally for one category
+/** A value per day for one measure, optionally for one category
  *  (a top-level one counts what is under it). */
 export function financeSeries(entries: EntryLike[], measure: 'expense' | 'income' | 'net', cats: Category[], category?: string): Record<string, number> {
   const out: Record<string, number> = {}

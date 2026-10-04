@@ -152,6 +152,15 @@ function readRange(v: unknown): StatsRange {
   }
 }
 
+/** The measure keys Finance's old "amount" means, read by the filters a view
+ *  put on it: views saved before version 18 summed money in and out together
+ *  (STA-15). A view filtered to income reads Money in; any other reads Spent. */
+export function upgradeSource(source: string, filters: { field: string; op: string; value: string | number }[]): string {
+  if (source !== 'finance:entry:amount') return source
+  const income = filters.some((f) => f.field === 'field:kind' && ((f.op === 'is' && String(f.value).toLowerCase() === 'income') || (f.op === 'not' && String(f.value).toLowerCase() === 'expense')))
+  return income ? 'finance:income' : 'finance:spent'
+}
+
 /** One stored view, checked, or null when it cannot be shown. */
 export function readStatsView(x: unknown): StatsView | null {
   if (!x || typeof x !== 'object') return null
@@ -169,19 +178,22 @@ export function readStatsView(x: unknown): StatsView | null {
     if (label) compare.label = label
     if (typeof cmp.colour === 'string' && HEX.test(cmp.colour)) compare.colour = cmp.colour.toLowerCase()
   }
+  const filters = (Array.isArray(r.filters) ? r.filters : []).flatMap((f) => {
+    const ff = f as Record<string, unknown>
+    if (!ff || typeof ff.field !== 'string' || !SOURCE.test(ff.field)) return []
+    const op = ['is', 'not', 'gt', 'lt'].includes(ff.op as string) ? (ff.op as StatsFilter['op']) : 'is'
+    const value = typeof ff.value === 'number' && Number.isFinite(ff.value) ? ff.value : typeof ff.value === 'string' ? ff.value : null
+    return value == null ? [] : [{ field: ff.field, op, value: typeof value === 'string' ? value.slice(0, 80) : value }]
+  }).slice(0, MAX_FILTERS)
+  for (const m of measures) m.source = upgradeSource(m.source, filters)
+  if (compare) compare.source = upgradeSource(compare.source, filters)
   return {
     id: r.id,
     name: r.name.trim().slice(0, 60),
     measures,
     rows: typeof r.rows === 'string' && GROUP.test(r.rows) ? r.rows : 'day',
     columns: typeof r.columns === 'string' && GROUP.test(r.columns) ? r.columns : 'none',
-    filters: (Array.isArray(r.filters) ? r.filters : []).flatMap((f) => {
-      const ff = f as Record<string, unknown>
-      if (!ff || typeof ff.field !== 'string' || !SOURCE.test(ff.field)) return []
-      const op = ['is', 'not', 'gt', 'lt'].includes(ff.op as string) ? (ff.op as StatsFilter['op']) : 'is'
-      const value = typeof ff.value === 'number' && Number.isFinite(ff.value) ? ff.value : typeof ff.value === 'string' ? ff.value : null
-      return value == null ? [] : [{ field: ff.field, op, value: typeof value === 'string' ? value.slice(0, 80) : value }]
-    }).slice(0, MAX_FILTERS),
+    filters,
     range: readRange(r.range),
     chart: readChart(r.chart),
     compare,

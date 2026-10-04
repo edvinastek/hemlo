@@ -81,6 +81,11 @@ Types, then every check that needs nothing but Node. CI runs the same command.
   and choice fields), the ready-made views and which modules they need, making, duplicating, moving and deleting views,
   ranges (last n days, this week, month and year, custom; shifted back and on), the chart picked automatically, series
   colours checked for contrast on the page, the text summary, the widget shape, and Today's cards.
+- `statsmeasures` — the measures of version 18 (STA-03): sleep against the target, 7-day sleep debt and bed and wake
+  regularity (unknown days never zero); trend weight and its rate; habit strength day by day (the Habits page's
+  figure); the extra label figures (a food or recipe line without the figure leaves it unknown); Finance's spent,
+  money in, net, budgets spread over their days and budget used (money in never counted as spending, old "amount"
+  views upgraded); shopping spend at the household's own prices.
 - `ics` — calendar files (RFC 5545): tasks as floating local time or whole days, agenda events in UTC,
   repeats as RRULE/RDATE/EXDATE with changed copies; folding at 75 bytes, escaping, CRLF, stable UIDs. A file
   shaped like a Google Calendar export read back in the reader's zone (TZID, UTC, whole days, DURATION,

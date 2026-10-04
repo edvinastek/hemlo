@@ -3,7 +3,11 @@ import {
   addDays as addDay, choreState, habitDay, habitSchedule, mondayOf, fromDayNumber, toDayNumber,
   type ChoreDone, type ChoreLike, type HabitLike as ScheduledHabit,
 } from './schedule-rules.ts'
-import { addDays, weekday, weekStart } from './tracking-rules.ts'
+import { addDays, habitStrengths, weekday, weekStart } from './tracking-rules.ts'
+import { compareNight, regularity, sleepDebt, type Night, type SleepSettings } from './sleep-rules.ts'
+import { trendLine, weeklyRate, type WeighIn } from './trend-rules.ts'
+import { budgetFor, entryAmount, entryCategory, entryDay, entryKind, topOf, type EntryLike, type FinanceSettings } from './finance-rules.ts'
+import { itemCost, pickPrice, type PriceLike } from './shopping-rules.ts'
 
 /** The arithmetic behind the Stats page, with no database and no React, so
  *  every figure can be checked by hand in src/test/stats.check.mjs.
@@ -561,4 +565,153 @@ export function clockHours(t: string | null | undefined, bedtime = false): numbe
   const h = Number(m[1]) + Number(m[2]) / 60
   if (h >= 24) return null
   return bedtime && h < 12 ? h + 24 : h
+}
+
+/* ---------- version 18: the measures Stats was missing (STA-03) ------------- */
+
+/** Sleep against the person's own target (SLP-02): each night's hours less
+ *  the target and its bedtime against the target bedtime, and for every day
+ *  that has happened the sleep debt of the seven days up to it and how much
+ *  bed and wake times wandered over the fourteen days up to it. A day whose
+ *  window holds no night (or, for regularity, fewer than three) has no
+ *  figure: unknown, never zero (P8). `nights` should reach 13 days before
+ *  the range so its first days have their whole window. */
+export function sleepStatsFacts(nights: Night[], s: Pick<SleepSettings, 'target_hours' | 'bedtime'>, range: Range, today: string): Fact[] {
+  const live = nights.filter((n) => !n.deleted_at)
+  const out: Fact[] = []
+  const inRange = (d: string) => d >= range.start && d <= range.end
+  for (const n of live) {
+    if (!inRange(n.log_date)) continue
+    const c = compareNight(n, s)
+    const base = { day: n.log_date, module: 'sleep', ref: { table: 'sleep_log', id: (n as Night & { id?: string }).id ?? n.log_date, label: 'Night' } }
+    if (c.vsTarget != null) out.push({ ...base, measure: 'sleep:vs_target', value: c.vsTarget })
+    if (c.bedLate != null) out.push({ ...base, measure: 'sleep:bed_late', value: c.bedLate })
+  }
+  for (let d = range.start; d <= range.end && d <= today; d = addDay(d, 1)) {
+    const debt = sleepDebt(live, s.target_hours, d, 7)
+    if (debt.hours != null) out.push({ day: d, module: 'sleep', measure: 'sleep:debt', value: debt.hours })
+    const r = regularity(live, d, 14)
+    if (r.bed != null) out.push({ day: d, module: 'sleep', measure: 'sleep:bed_spread', value: r.bed })
+    if (r.wake != null) out.push({ day: d, module: 'sleep', measure: 'sleep:wake_spread', value: r.wake })
+  }
+  return out
+}
+
+/** Trend weight (HLT-03) on each weigh-in day of the range, and the trend's
+ *  rate a week over the four weeks up to it (when there is enough to say).
+ *  `rows` should be every weigh-in, since the trend carries its history. */
+export function trendFacts(rows: (WeighIn & { id?: string })[], range: Range): Fact[] {
+  const points = trendLine(rows)
+  const out: Fact[] = []
+  for (const p of points) {
+    if (p.day < range.start || p.day > range.end) continue
+    out.push({ day: p.day, module: 'health', measure: 'health:trend', value: p.trend })
+    const rate = weeklyRate(points, p.day, 28)
+    if (rate != null) out.push({ day: p.day, module: 'health', measure: 'health:rate', value: rate })
+  }
+  return out
+}
+
+/** Each habit's strength (HAB-07) on every day of the range that has
+ *  happened, from the day the habit started (or was first ticked). A habit
+ *  put away keeps its last strength out of the figures: it is no longer kept. */
+export function habitStrengthFacts(habits: HabitRow[], done: Record<string, string[]>, range: Range, today: string): Fact[] {
+  const out: Fact[] = []
+  for (const h of habits) {
+    if (h.deleted_at || !h.active) continue
+    const ticks = [...(done[h.id] ?? [])].sort()
+    const first = (h as { start_date?: string | null }).start_date ?? ticks[0]
+    if (!first) continue
+    const days: string[] = []
+    for (let d = range.start > first ? range.start : first; d <= range.end && d <= today; d = addDay(d, 1)) days.push(d)
+    const by = habitStrengths(h, ticks, days)
+    for (const d of days) out.push({ day: d, module: 'habits', measure: 'habits:strength', value: by[d] ?? 0, item: h.name, ref: { table: 'habit', id: h.id, label: h.name } })
+  }
+  return out
+}
+
+/** One food's figure for an amount: null when the food is unknown or its
+ *  label does not give the figure. */
+export function foodFigure(food: Record<string, unknown> | undefined, grams: number | null | undefined, key: string): number | null {
+  if (!food || grams == null || !Number.isFinite(Number(grams))) return null
+  const v = food[key]
+  if (v == null || v === '' || !Number.isFinite(Number(v))) return null
+  return (Number(v) * Number(grams)) / 100
+}
+
+/** A label figure for something made of parts (a recipe's lines): the sum,
+ *  or null when any part with an amount lacks the figure, so a total is
+ *  never quietly short (P8). */
+export function partsFigure(parts: { food: Record<string, unknown> | undefined; grams: number }[], key: string): number | null {
+  let sum = 0
+  for (const p of parts) {
+    if (!(p.grams > 0)) continue
+    const v = foodFigure(p.food, p.grams, key)
+    if (v == null) return null
+    sum += v
+  }
+  return sum
+}
+
+/** Money and budgets (FIN-02, FIN-03) as facts. Spending and money in are
+ *  separate measures, never added together; "net" is money in less spent.
+ *  Budgets are spread evenly over their month's days, up to today (and from
+ *  the first entry on), so any
+ *  range compares spending with the budget for the same days; "budget
+ *  spent" is the spending in categories that have a budget (a top-level
+ *  category's budget covers the ones under it). Groupings: the category as
+ *  entered (field:category), its top-level category (category), and the
+ *  type (field:kind). */
+export function financeFacts(entries: EntryLike[], s: FinanceSettings, range: Range, today: string): Fact[] {
+  const out: Fact[] = []
+  const cats = s.categories
+  const fold = (x: string) => x.trim().toLowerCase()
+  // Which budget a category's spending counts against in a month: its own
+  // top-level category's when that has one, else its own; null for none.
+  const coverOf = (category: string, month: string): string | null => {
+    const top = topOf(category, cats)
+    if (budgetFor(s, month, top) != null && cats.some((c) => fold(c.name) === fold(top) && c.kind === 'expense' && !c.parent)) return top
+    const own = cats.find((c) => fold(c.name) === fold(category) && c.kind === 'expense')
+    return own && budgetFor(s, month, own.name) != null ? own.name : null
+  }
+  for (const e of entries) {
+    if (e.deleted_at) continue
+    const a = entryAmount(e)
+    const d = entryDay(e)
+    if (a == null || !d || d < range.start || d > range.end) continue
+    const kind = entryKind(e)
+    const cat = entryCategory(e)
+    const top = topOf(cat, cats)
+    const label = typeof e.data.note === 'string' && e.data.note.trim() ? e.data.note.trim() : cat
+    const base = { day: d, module: 'finance', item: label, category: top, fields: { category: cat, kind }, ref: { table: 'module_record', id: e.id, label } }
+    out.push({ ...base, measure: kind === 'income' ? 'finance:income' : 'finance:spent', value: a })
+    out.push({ ...base, measure: 'finance:net', value: kind === 'income' ? a : -a })
+    if (kind === 'expense' && coverOf(cat, d.slice(0, 7))) out.push({ ...base, measure: 'finance:budget_spent', value: a })
+  }
+  // Budgets count from the first entry on: before it the person was not
+  // keeping Finance, which is not the same as spending nothing.
+  const first = entries.filter((e) => !e.deleted_at).map(entryDay).filter((d): d is string => !!d).sort()[0]
+  if (!first) return out
+  for (let d = range.start > first ? range.start : first; d <= range.end && d <= today; d = addDay(d, 1)) {
+    const month = d.slice(0, 7)
+    const days = monthLength(Number(month.slice(0, 4)), Number(month.slice(5, 7)))
+    for (const c of cats) {
+      if (c.kind !== 'expense') continue
+      const b = budgetFor(s, month, c.name)
+      if (b == null || b <= 0) continue
+      // A sub-category's own budget is inside its top-level one when that has one.
+      if (c.parent && budgetFor(s, month, c.parent) != null) continue
+      out.push({ day: d, module: 'finance', measure: 'finance:budget', value: b / days, item: c.name, category: c.parent ?? c.name, fields: { category: c.name, kind: 'expense' } })
+    }
+  }
+  return out
+}
+
+/** What a bought item cost at the household's own price (PRICE-02): the
+ *  price noted at the shop it was bought for, else the latest noted
+ *  anywhere; null when there is none or the amount cannot be priced. */
+export function boughtCost(item: { grams: number | null; qty: number | null; shop: string | null }, prices: (PriceLike & { shop: string; noted_on: string; deleted_at?: string | null })[]): number | null {
+  const p = (item.shop ? pickPrice(prices, item.shop) : null) ?? pickPrice(prices, null)
+  if (!p) return null
+  return itemCost({ grams: item.grams != null && item.grams > 0 ? Number(item.grams) : null, pieces: item.grams ? null : item.qty != null && item.qty > 0 ? Number(item.qty) : null }, p)
 }
