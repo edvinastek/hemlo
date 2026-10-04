@@ -149,12 +149,19 @@ await go('/')
 await drag(180, 560, 190, 300, 250)
 is('a vertical scroll keeps the page', path(), '/')
 // Back to the top and still, so the swipe starts on a row's name rather than
-// on its time buttons (which keep a swipe to themselves).
+// on a control that keeps a swipe to itself (a tick, a ⋮, the Show list);
+// with no row in sight, on the header.
 await p.evaluate(() => document.querySelector('.page').scrollTo(0, 0))
 await p.waitForTimeout(500)
-await drag(250, 520, 20, 530)
+const start = await p.evaluate(() => {
+  const name = [...document.querySelectorAll('.row .row-name button')].map((el) => el.getBoundingClientRect())
+    .find((r) => r.top > 120 && r.bottom < window.innerHeight - 140 && r.width > 60)
+  const head = document.querySelector('.page-head').getBoundingClientRect()
+  return name ? { x: name.left + Math.min(name.width - 10, 150), y: name.top + name.height / 2 } : { x: 220, y: head.top + 20 }
+})
+await drag(start.x, start.y, Math.max(4, start.x - 190), start.y + 6)
 is('a swipe left on Today reaches Plan', path(), '/plan')
-await drag(60, 520, 300, 530)
+await drag(60, start.y, 300, start.y + 6)
 is('a swipe right goes back to Today', path(), '/')
 
 // 5. Nobody's choice: the app picks; with many pages the hub, five at most.
