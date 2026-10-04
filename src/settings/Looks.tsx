@@ -115,7 +115,7 @@ function Looks({ profile }: { profile: Profile }) {
 
       <div className="lk-block">
         <div className="row-name" id="lk-density">Rows</div>
-        <div className="lk-seg" role="radiogroup" aria-labelledby="lk-density">
+        <div className="lk-seg is-two" role="radiogroup" aria-labelledby="lk-density">
           {DENSITIES.map((d) => (
             <button key={d.key} type="button" role="radio" aria-checked={looks.density === d.key}
               onClick={() => save({ density: d.key })}>{d.label}</button>
@@ -127,7 +127,7 @@ function Looks({ profile }: { profile: Profile }) {
       {pairingsFor(current).length > 1 && (
         <div className="lk-block">
           <div className="row-name" id="lk-fonts">Fonts</div>
-          <div className="lk-seg" role="radiogroup" aria-labelledby="lk-fonts">
+          <div className="lk-seg is-two" role="radiogroup" aria-labelledby="lk-fonts">
             {FONT_PAIRINGS.filter((f) => pairingsFor(current).includes(f.key)).map((f) => (
               <button key={f.key} type="button" role="radio" aria-checked={pairingIn(current, looks.fonts) === f.key}
                 onClick={() => save({ fonts: f.key })}>

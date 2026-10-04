@@ -15,9 +15,11 @@
 .yp-band-name { padding: 0 4px; font-family: var(--font-serif); font-size: 12px; color: var(--e-ink); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .yp-today { position: absolute; top: 0; bottom: 0; width: 2px; margin-left: -1px; background: var(--e-accent); }
 .yp-list { list-style: none; margin: var(--space-2) 0 0; padding: 0; display: grid; gap: 2px; }
-.yp-item { display: flex; align-items: baseline; gap: var(--space-2); min-height: 36px; width: 100%; text-align: left; color: inherit; flex-wrap: wrap; }
+.yp-item { display: flex; align-items: center; gap: 0 var(--space-2); min-height: 36px; width: 100%; text-align: left; color: inherit; flex-wrap: wrap; }
+.yp-item .row-name { font-family: var(--font-serif); }
+.yp-item .row-meta { margin-top: 0; }
 button.yp-item:focus-visible { outline: 2px solid var(--e-accent); outline-offset: 2px; border-radius: var(--radius-sm); }
-.yp-dot { display: inline-block; width: 10px; height: 10px; border-radius: var(--radius-pill); flex: none; align-self: center; }
+.yp-dot { display: inline-block; width: 10px; height: 10px; border-radius: var(--radius-pill); flex: none; }
 .yp-swatches { display: grid; grid-template-columns: repeat(auto-fill, minmax(36px, 1fr)); gap: var(--space-2); }
 .yp-swatch { width: 100%; aspect-ratio: 1; min-height: 36px; border-radius: var(--radius-pill); border: 2px solid transparent; }
 .yp-swatch[aria-checked='true'] { outline: 3px solid var(--e-ink); outline-offset: 2px; }

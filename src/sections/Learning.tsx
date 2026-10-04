@@ -217,7 +217,7 @@ function Study({ profileId, blocks, targets, reviews, subjects, onTarget, onFocu
         </>
       )}
       <div className="kit-gap" />
-      <button type="button" className="fab" aria-label="Add a study block or start a focus timer" onClick={() => setSheet('choose')}>+</button>
+      <button type="button" className="fab" aria-label="Add a study block or focus" onClick={() => setSheet('choose')}>+</button>
       {sheet === 'choose' && <AddChoice onBlock={() => setSheet('new')} onFocus={() => { setSheet(null); onFocus(subjects[0]) }} onClose={() => setSheet(null)} />}
       {sheet && sheet !== 'choose' && (
         <RecordSheet def={def} entity={entity} profileId={profileId} lookups={lookups} day={sheet === 'new' ? today : undefined}
