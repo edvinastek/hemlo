@@ -68,3 +68,9 @@ once on "deleted" read 600 ms after Delete (waits now). Both passed alone before
 - e2e.mjs: a check that stops on an error prints the page it was on; todayPart says which tabs were there.
 - Words: "More" left in the first run, the module editor, a rule's note, the privacy policy's paths (POLICY_VERSION
   moved to 2026-10-04) and the delete page: now Settings.
+
+## Full run 4 and 5
+- Run 4: all but books (the recipes' lines arrived after the recipes on a fresh device with a full account; the
+  check now waits for its four lines locally, then copies). nav and the first-run flash fixed before it.
+- Run 5 (fresh accounts, the README loop, no break): 29 of 29 passed, no page errors.
+- Final: npx tsc -b, npm run check, npx vite build pass. Harness deleted; shots in scratchpad/shots17/final.
