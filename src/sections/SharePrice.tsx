@@ -173,7 +173,7 @@ export function SharePrice({ profile, name, price, code, perMl, onClose }: {
         <p className="stock-hint">Sign in with your Open Food Facts account first.</p>
         <div className="sheet-actions">
           <button type="button" className="btn" onClick={onClose}>Back</button>
-          <button type="button" className="btn btn-primary grow" onClick={() => navigate('/more?page=shopping&find=Share%20prices%20with%20Open%20Prices')}>Open Settings</button>
+          <button type="button" className="btn btn-primary grow" onClick={() => navigate(`/more?find=${encodeURIComponent('Share prices with Open Prices')}`)}>Open Settings</button>
         </div>
       </section>
     )

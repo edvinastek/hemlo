@@ -9,7 +9,7 @@
  *  the account in open-prices-account.ts. Checked in plain Node with made-up
  *  answers: src/test/openprices.check.mjs. */
 
-import { OPEN_PRICES } from './price-rules.ts'
+import { OPEN_PRICES, OPEN_PRICES_AGENT } from './price-rules.ts'
 import { fold } from './search-rules.ts'
 
 /** Open Prices' API, run by Open Food Facts. */
@@ -22,7 +22,7 @@ export const NOMINATIM = 'https://nominatim.openstreetmap.org'
  *  (it records the app with each price) and as OpenStreetMap's policy asks. */
 export const APP_NAME = 'GetIt'
 export const APP_VERSION = '18'
-export const SHARE_AGENT = `${APP_NAME}/${APP_VERSION} (app.getit.planner)`
+export const SHARE_AGENT = OPEN_PRICES_AGENT
 /** Where a person makes an Open Food Facts account (the same one signs in
  *  to Open Prices). */
 export const OFF_SIGN_UP = 'https://world.openfoodfacts.org/cgi/user.pl'

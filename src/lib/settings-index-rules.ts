@@ -65,6 +65,7 @@ export const SETTINGS_INDEX: SettingEntry[] = [
   { title: 'Food', page: 'food', words: 'food nutrients calories protein carbs fat fibre what to count meals main meal' },
   { title: 'Body and goal', page: 'food', words: 'height date of birth sex activity goal weight cut bulk recomp targets' },
   { title: 'Shopping', page: 'shopping', words: 'shopping trip days list window shops aisles' },
+  { title: 'Share prices with Open Prices', page: 'shopping', words: 'open prices open food facts share price public account sign in photo receipt' },
   { title: 'Household', page: 'shopping', words: 'household share invite join leave members family partner flatmate code chores cupboard list name' },
   { title: 'Calendar links', page: 'calendars', words: 'google calendar feed ical ics subscribe follow' },
   { title: 'Public holidays', page: 'calendars', words: 'holidays bank holiday country calendar' },
