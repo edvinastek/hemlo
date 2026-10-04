@@ -3,7 +3,7 @@ import { useApp } from '../lib/store'
 import { moduleByKey } from '../modules/registry'
 import type { EntityDef, FieldDef, ModuleDef, RuleDef, ViewDef } from '../modules/types'
 import {
-  BUILTIN_RULES, LIMITS, RULE_DAY_TASK, RULE_REMIND, cleanKeywords, definitionFor, definitionProblem,
+  BUILTIN_RULES, LIMITS, RULE_DAY_TASK, RULE_REMIND, addEntity, cleanKeywords, definitionFor, definitionProblem, linkTargets, removeEntity,
   glyphProblem, isDateLike, isNumeric, overlayFrom, ruleShown, ruleSupport, viewDefaults, type StatsKind,
 } from '../modules/def-rules'
 import { deleteBuiltModule, saveModuleDef, useModuleDef, useModuleDefs } from '../modules/defs'
@@ -157,6 +157,37 @@ export function ModuleEditor({ moduleKey, onBack, tab: firstTab = 'fields' }: { 
 
 type Change = (fn: (d: ModuleDef) => void) => void
 
+/** Another kind of record in a built module (MOD-15), up to four: "Trips"
+ *  beside "Cars". It starts with a Name field and a list; a field of the
+ *  kind "Links to" ties one kind to another. */
+function AddKind({ draft, change }: { draft: ModuleDef; change: Change }) {
+  const [label, setLabel] = useState<string | null>(null)
+  const [problem, setProblem] = useState<string | null>(null)
+  if (draft.entities.length >= LIMITS.entities) return null
+  if (label === null) {
+    return <div className="me-add"><button type="button" className="btn" onClick={() => setLabel('')}>Add a kind of record</button></div>
+  }
+  const add = () => {
+    const res = addEntity(draft, label)
+    if ('problem' in res) { setProblem(res.problem); return }
+    change((d) => { d.entities = res.def.entities; d.views = res.def.views })
+    setLabel(null)
+    setProblem(null)
+  }
+  return (
+    <div className="me-add me-panel form-grid" role="group" aria-label="New kind of record">
+      <label>Kind of record<input value={label} autoFocus maxLength={LIMITS.label} placeholder="Trip, Watering, Visit"
+        onChange={(e) => { setLabel(e.target.value); setProblem(null) }}
+        onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); add() } }} /></label>
+      {problem && <p className="mf-hint is-warn" role="alert">{problem}</p>}
+      <div className="sheet-actions">
+        <button type="button" className="btn" onClick={() => { setLabel(null); setProblem(null) }}>Cancel</button>
+        <button type="button" className="btn btn-primary" onClick={add}>Add</button>
+      </div>
+    </div>
+  )
+}
+
 /** "hips, chest and arm". */
 const listWords = (w: string[]) => (w.length > 1 ? `${w.slice(0, -1).join(', ')} and ${w.at(-1)}` : w[0] ?? '')
 
@@ -187,20 +218,29 @@ function FieldsTab({ draft, base, fixed, change }: { draft: ModuleDef; base?: Mo
       {draft.entities.map((e, ei) => (
         <EntityFields key={e.name} entity={e} baseEntity={base?.entities.find((b) => b.name === e.name)}
           built={!!draft.built} fixed={fixed && !OPEN_ENTITIES[draft.key]?.includes(e.name)} showTitle={draft.entities.length > 1 || !!base} self={draft.key}
+          kinds={draft.built ? draft : undefined}
+          onRemove={draft.built && ei > 0 ? () => change((d) => { const n = removeEntity(d, e.name); d.entities = n.entities; d.views = n.views }) : undefined}
           change={(fn) => change((d) => fn(d.entities[ei], d))} />
       ))}
+      {draft.built && <AddKind draft={draft} change={change} />}
     </>
   )
 }
 
-function EntityFields({ entity, baseEntity, built, fixed, showTitle, self, change }: {
+function EntityFields({ entity, baseEntity, built, fixed, showTitle, self, kinds, onRemove, change }: {
   entity: EntityDef; baseEntity?: EntityDef; built: boolean; fixed: boolean; showTitle: boolean; self: string
+  /** A built module: its other kinds of record can be linked to (MOD-15). */
+  kinds?: ModuleDef
+  /** Take this kind of record out (not the first). */
+  onRemove?: () => void
   change: (fn: (e: EntityDef, d: ModuleDef) => void) => void
 }) {
   const [open, setOpen] = useState<string | null>(null)
   const [adding, setAdding] = useState(false)
-  // Modules the person built (not this one), for a link to their records.
-  const others = (useModuleDefs() ?? []).filter((e) => e.def.built && e.def.key !== self).map((e) => ({ key: e.def.key, name: e.def.name }))
+  // Modules the person built (not this one), for a link to their records,
+  // and this module's other kinds of record first.
+  const built0 = (useModuleDefs() ?? []).filter((e) => e.def.built && e.def.key !== self).map((e) => ({ key: e.def.key, name: e.def.name }))
+  const others = kinds ? linkTargets(kinds, entity.name, built0).map((t) => ({ key: t.module, name: t.label, entity: t.entity })) : built0
   // Fields can be added where records are module records: every built
   // module, and the light built-in ones.
   const structural = !fixed && (built || !entity.table)
@@ -226,7 +266,17 @@ function EntityFields({ entity, baseEntity, built, fixed, showTitle, self, chang
 
   return (
     <section aria-label={entity.label}>
-      {showTitle && <p className="section-title">{entity.label}</p>}
+      {showTitle && !(built && kinds && kinds.entities.length > 1) && <p className="section-title">{entity.label}</p>}
+      {/* Several kinds (MOD-15): each kind's name is changed here, and a kind after the first can go. */}
+      {built && kinds && kinds.entities.length > 1 && (
+        <div className="me-kind">
+          <label className="me-label"><span className="row-meta">Kind of record</span>
+            <input value={entity.label} maxLength={LIMITS.label} aria-label={`Name of the kind ${entity.label}`}
+              onChange={(ev) => change((e) => { e.label = ev.target.value })} />
+          </label>
+          {onRemove && <button type="button" className="btn" onClick={onRemove}>Remove</button>}
+        </div>
+      )}
       {entity.fields.map((f, i) => (
         <div key={f.name} className={`me-row${f.hidden ? ' is-off' : ''}`}>
           <label className="me-label">

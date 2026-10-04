@@ -6,7 +6,7 @@ import { parseHex } from '../lib/colours-rules'
 import { useLooks, previewTheme } from '../lib/looks'
 import { appIcon, isNative, setAppIcon } from '../lib/native'
 import {
-  ICONS, OWN, SEEDS, SYSTEM, TEXT_SIZES, THEMES, adjustedNote, checkTokens, cssVars, iconShapes,
+  DENSITIES, FONT_PAIRINGS, ICONS, OWN, SEEDS, SYSTEM, TEXT_SIZES, THEMES, adjustedNote, checkTokens, cssVars, iconShapes, pairingIn, pairingsFor,
   type AppIcon, type ResolvedTheme, type Shade, type TextSize, type ThemeMode,
 } from '../lib/theme-rules'
 import type { Profile } from '../lib/types'
@@ -20,8 +20,9 @@ const MODES: { key: ThemeMode; label: string }[] = [
 ]
 const DEFAULT_SEED = '#4777d2'
 
-/** Settings → Looks (LOOK-01 to LOOK-11, LOOK-20): the theme, light or dark,
- *  the person's own colour, text size and the app icon. Every choice shows
+/** Settings → Looks (LOOK-01 to LOOK-12, LOOK-20): the theme, light or dark,
+ *  the person's own colour, text size, row density, the font pairing a theme
+ *  offers, and the app icon. Every choice shows
  *  at once on the whole app; the two small pages at the top show the chosen
  *  theme in both its light and dark shade. All of it is free. */
 export function LooksSettings() {
@@ -111,6 +112,31 @@ function Looks({ profile }: { profile: Profile }) {
             : 'The whole page grows or shrinks with it.'}
         </p>
       </div>
+
+      <div className="lk-block">
+        <div className="row-name" id="lk-density">Rows</div>
+        <div className="lk-seg" role="radiogroup" aria-labelledby="lk-density">
+          {DENSITIES.map((d) => (
+            <button key={d.key} type="button" role="radio" aria-checked={looks.density === d.key}
+              onClick={() => save({ density: d.key })}>{d.label}</button>
+          ))}
+        </div>
+      </div>
+
+      {/* Only where the theme offers another pairing (LOOK-12): the serif and sans stay the default everywhere. */}
+      {pairingsFor(current).length > 1 && (
+        <div className="lk-block">
+          <div className="row-name" id="lk-fonts">Fonts</div>
+          <div className="lk-seg" role="radiogroup" aria-labelledby="lk-fonts">
+            {FONT_PAIRINGS.filter((f) => pairingsFor(current).includes(f.key)).map((f) => (
+              <button key={f.key} type="button" role="radio" aria-checked={pairingIn(current, looks.fonts) === f.key}
+                onClick={() => save({ fonts: f.key })}>
+                <span style={{ fontFamily: f.key === 'sans' ? 'var(--font-sans)' : 'Spectral, Georgia, serif' }}>{f.label}</span>
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
 
       <IconPicker chosen={looks.icon} onSaved={(key) => save({ icon: key })} />
 

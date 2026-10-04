@@ -128,9 +128,10 @@ eq('shopping trip defaults off', d.shopping.trip.on, false)
 eq('shops are checked', readSettings({ settings: { shopping: { shops: [{ name: 'Albert Heijn', aisles: ['Fruit', 'Fruit', 'Dairy'] }, { name: 'albert heijn' }, { name: '' }] } } }).shopping.shops,
   [{ name: 'Albert Heijn', aisles: ['Fruit', 'Dairy'] }])
 eq('trip merges one level', mergeSettings(d, { shopping: { trip: { on: true } } }).shopping.trip.time, '10:00')
-eq('looks default', d.looks, { theme: 'notebook', mode: 'system', seed: null, icon: 'classic', text_size: 'default' })
-eq('looks are checked', readSettings({ settings: { looks: { theme: 'ub', mode: 'neon', seed: '#FFA500', icon: '<x>' } } }).looks,
-  { theme: 'ub', mode: 'system', seed: '#ffa500', icon: 'classic', text_size: 'default' })
+eq('looks default', d.looks, { theme: 'notebook', mode: 'system', seed: null, icon: 'classic', text_size: 'default', density: 'comfortable', fonts: 'paired' })
+eq('looks are checked', readSettings({ settings: { looks: { theme: 'ub', mode: 'neon', seed: '#FFA500', icon: '<x>', density: 'tiny', fonts: 'comic' } } }).looks,
+  { theme: 'ub', mode: 'system', seed: '#ffa500', icon: 'classic', text_size: 'default', density: 'comfortable', fonts: 'paired' })
+eq('density and fonts kept (LOOK-08, LOOK-12)', ((l) => [l.density, l.fonts])(readSettings({ settings: { looks: { density: 'compact', fonts: 'sans' } } }).looks), ['compact', 'sans'])
 eq('at most 6 Today cards', readSettings({ settings: { today_cards: Array.from({ length: 9 }, (_, i) => ({ kind: 'module', key: 'm' + i })) } }).today_cards.length, 6)
 eq('stats views need a measure', readStatsViews([{ id: 'a', name: 'A', measures: [] }, { id: 'b', name: 'B', measures: [{ source: 'nutrition.protein_g', summary: 'avg' }], chart: { type: 'pie' } }]).map((v) => [v.id, v.chart.type]),
   [['b', 'bar']])

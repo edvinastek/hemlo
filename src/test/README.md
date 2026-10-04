@@ -327,6 +327,13 @@ Types, then every check that needs nothing but Node. CI runs the same command.
   headings, its sequence number as the reference), ABN AMRO (the headerless .TAB and the spreadsheet's header, the
   other party out of the description), Revolut (completed rows only, the fee as money out); amounts and days as each
   bank writes them; identical rows both kept; a file read a second time adding nothing.
+- Also extended in v19 (X3): `learning` (weekly targets read safely, this week's progress, known subjects, the focus
+  timer kept as a start time and pauses: elapsed and left, pause and resume, its end, minutes to log, a stored timer
+  read back, the session it logs), `projects` (templates: the two built in, a project saved as one with days from its
+  start, made again from a new start, kept ones read safely), `moduledefs` (MOD-15: kinds of record added up to four,
+  links between them checked, a kind removed with its views and links, the page's tabs, where a link can point),
+  `looks` (LOOK-08 density, LOOK-12 font pairings and which themes offer all sans), `schedule` (the looks' new keys),
+  `daytabs` (the weigh-in day on Today's Body tab).
 
 Added when the ten version 16 branches were wired together (integration):
 

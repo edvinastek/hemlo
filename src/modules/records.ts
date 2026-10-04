@@ -333,15 +333,16 @@ export function refreshExercises(): Promise<void> {
 export type Lookups = Partial<Record<string, PickItem[]>>
 
 /** The list a link field picks from. */
-export const lookupKey = (f: Pick<FieldDef, 'lookup' | 'module'>): string =>
-  f.lookup === 'record' ? `record:${f.module ?? ''}` : (f.lookup ?? '')
+export const lookupKey = (f: Pick<FieldDef, 'lookup' | 'module' | 'entity'>): string =>
+  f.lookup === 'record' ? `record:${f.module ?? ''}${f.entity ? `:${f.entity}` : ''}` : (f.lookup ?? '')
 
 /** A built module's records as things to pick: each by its title. */
-async function moduleRecordItems(profileId: string, moduleKey: string): Promise<PickItem[]> {
+async function moduleRecordItems(profileId: string, moduleKey: string, kind?: string): Promise<PickItem[]> {
   const row = await db.module.get(moduleKey)
   if (!row || row.deleted_at) return []
   const def = readBuiltDefinition(row)
-  const entity = def.entities[0]
+  // The kind of record the link names (MOD-15), else the module's first.
+  const entity = (kind && def.entities.find((e) => e.name === kind)) || def.entities[0]
   if (!entity) return []
   const main = mainField(entity.fields)
   const rows = await db.module_record.where('[profile_id+module_key]').equals([profileId, moduleKey]).toArray()
@@ -352,7 +353,7 @@ async function moduleRecordItems(profileId: string, moduleKey: string): Promise<
 }
 
 async function lookupItems(profileId: string, key: string): Promise<PickItem[]> {
-  if (key.startsWith('record:')) return moduleRecordItems(profileId, key.slice(7))
+  if (key.startsWith('record:')) { const [mod, kind] = key.slice(7).split(':'); return moduleRecordItems(profileId, mod, kind) }
   const kind = key as LookupKind
   switch (kind) {
     case 'food': return (await db.food.toArray()).filter((f) => !(f as { deleted_at?: string | null }).deleted_at).map((f) => ({ id: f.id, name: f.name }))

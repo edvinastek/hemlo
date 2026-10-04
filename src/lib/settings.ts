@@ -129,6 +129,10 @@ export interface LookSettings {
   seed: string | null
   icon: string
   text_size: 'small' | 'default' | 'large' | 'larger'
+  /** Rows Comfortable or Compact (LOOK-08, v19). */
+  density: 'comfortable' | 'compact'
+  /** Serif and sans, or all sans where the theme offers it (LOOK-12, v19). */
+  fonts: 'paired' | 'sans'
 }
 
 /** A card pinned to Today (TOD-20): a module's summary or a saved stats view. */
@@ -195,7 +199,7 @@ export const DEFAULT_SETTINGS: ProfileSettings = {
   task_templates: [],
   meals: { names: [], cards: false, main: null },
   shopping: { trip: { on: false, days: [], time: '10:00', minutes: 45, locked: false }, window_days: 4, shops: [] },
-  looks: { theme: 'notebook', mode: 'system', seed: null, icon: 'classic', text_size: 'default' },
+  looks: { theme: 'notebook', mode: 'system', seed: null, icon: 'classic', text_size: 'default', density: 'comfortable', fonts: 'paired' },
   today_cards: [],
   stats_views: [],
 }
@@ -355,6 +359,8 @@ function readLooks(v: unknown): LookSettings {
     seed: typeof l.seed === 'string' && HEX.test(l.seed) ? l.seed.toLowerCase() : null,
     icon: word(l.icon, d.icon),
     text_size: TEXT_SIZES.includes(l.text_size as LookSettings['text_size']) ? (l.text_size as LookSettings['text_size']) : d.text_size,
+    density: l.density === 'compact' ? 'compact' : 'comfortable',
+    fonts: l.fonts === 'sans' ? 'sans' : 'paired',
   }
 }
 

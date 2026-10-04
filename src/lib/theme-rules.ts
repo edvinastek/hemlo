@@ -62,6 +62,8 @@ interface ThemeDef {
   /** Colours kept exactly as they were before themes existed, so the
    *  default look does not shift for anyone. */
   keep?: { light?: Partial<ThemeTokens>; dark?: Partial<ThemeTokens> }
+  /** Font pairings besides the default serif-and-sans the theme offers (LOOK-12). */
+  fonts?: FontPairing[]
   /** Surfaces for the black page, when the theme has its own (UB keeps purple). */
   black?: Partial<ThemeBase> & { tint?: string }
 }
@@ -146,6 +148,7 @@ export const THEMES: ThemeDef[] = [
   },
   {
     key: 'harbour', name: 'Harbour', desc: 'Cool blue-grey paper with a sea-blue accent.',
+    fonts: ['sans'],
     light: { paper: '#f3f6f9', tab: '#e3eaf2', rule: '#d7dfe8', rail: '#b6c3d2', ink: '#17202b', soft: '#5a6777', accent: '#255d9c', warn: '#975809', done: '#3f6b4a', goal: '#6b5e86' },
     dark: { paper: '#0f141b', tab: '#18202a', rule: '#253040', rail: '#364457', ink: '#e6edf5', soft: '#92a1b3', accent: '#7aa9e2', warn: '#e0a049', done: '#7fb389', goal: '#b3a8d0' },
   },
@@ -161,6 +164,7 @@ export const THEMES: ThemeDef[] = [
   },
   {
     key: 'slate', name: 'Slate', desc: 'Neutral grey paper with a teal accent; quiet and technical.',
+    fonts: ['sans'],
     light: { paper: '#f4f5f6', tab: '#e6e8eb', rule: '#dbdee2', rail: '#bbc1c8', ink: '#1b1f24', soft: '#5d646e', accent: '#0d716e', warn: '#975809', done: '#4b6b2a', goal: '#6b5e86' },
     dark: { paper: '#111316', tab: '#1a1d21', rule: '#272b31', rail: '#3a4048', ink: '#e8ebee', soft: '#99a0a9', accent: '#5cc6c0', warn: '#e0a049', done: '#a9c97f', goal: '#b3a8d0' },
   },
@@ -176,11 +180,13 @@ export const THEMES: ThemeDef[] = [
   },
   {
     key: 'mono', name: 'Mono', desc: 'Black on white, no colour except your module marks.',
+    fonts: ['sans'],
     light: { paper: '#ffffff', tab: '#f0f0f0', rule: '#e3e3e3', rail: '#c4c4c4', ink: '#111111', soft: '#5a5a5a', accent: '#111111', warn: '#9e5c09', done: '#3f6b4a', goal: '#5a5a5a' },
     dark: { paper: '#0b0b0b', tab: '#181818', rule: '#262626', rail: '#3a3a3a', ink: '#f2f2f2', soft: '#a3a3a3', accent: '#f2f2f2', warn: '#e0a049', done: '#7fb389', goal: '#a3a3a3' },
   },
   {
     key: 'contrast', name: 'High contrast', desc: 'Strongest contrast for bright sun or low vision.',
+    fonts: ['sans'],
     light: { paper: '#ffffff', tab: '#ededed', rule: '#8a8a8a', rail: '#6b6b6b', ink: '#000000', soft: '#2e2e2e', accent: '#a8201a', warn: '#8a4b00', done: '#1d5a2e', goal: '#2e4a45' },
     dark: { paper: '#000000', tab: '#161616', rule: '#8a8a8a', rail: '#9a9a9a', ink: '#ffffff', soft: '#dadada', accent: '#ff8f80', warn: '#ffc266', done: '#8fe0a3', goal: '#a8d8cf' },
   },
@@ -401,6 +407,49 @@ export function textZoom(size: TextSize, phoneScale = 1): number {
   const s = TEXT_SIZES.find((x) => x.key === size)?.scale ?? 1
   const phone = Number.isFinite(phoneScale) && phoneScale > 0 ? phoneScale : 1
   return Math.round(Math.max(80, Math.min(200, s * phone * 100)))
+}
+
+/** Rows Comfortable (the default) or Compact (LOOK-08): one number on the
+ *  page's root, --density, that the rows take their padding and line height
+ *  from (app.css); tap targets stay at least 44 px either way. */
+export type Density = 'comfortable' | 'compact'
+export const DENSITIES: { key: Density; label: string; value: number }[] = [
+  { key: 'comfortable', label: 'Comfortable', value: 1 },
+  { key: 'compact', label: 'Compact', value: 0.5 },
+]
+export const densityValue = (d: Density) => DENSITIES.find((x) => x.key === d)?.value ?? 1
+
+/* ---------- font pairing (LOOK-12) --------------------------------------------- */
+
+/** The serif for what the person wrote and the sans for the system's own
+ *  words, in every theme by default. A theme may offer another pairing:
+ *  "All sans", where the person's words are set in the sans too. Only the
+ *  font variables change; no font is added. */
+export type FontPairing = 'paired' | 'sans'
+export const FONT_PAIRINGS: { key: FontPairing; label: string }[] = [
+  { key: 'paired', label: 'Serif and sans' },
+  { key: 'sans', label: 'All sans' },
+]
+const SANS_STACK = '"IBM Plex Sans", system-ui, sans-serif'
+
+/** The pairings a theme offers: the default always, then its own. Your own
+ *  colour and the phone's colours are yours to pair as you like. */
+export function pairingsFor(themeKey: string): FontPairing[] {
+  const own = themeKey === OWN || themeKey === SYSTEM ? (['sans'] as FontPairing[]) : themeDef(themeKey).fonts ?? []
+  return ['paired', ...own.filter((p) => p !== 'paired')]
+}
+
+/** The pairing in use: the chosen one if the theme offers it, else the default. */
+export const pairingIn = (themeKey: string, chosen: FontPairing): FontPairing => (pairingsFor(themeKey).includes(chosen) ? chosen : 'paired')
+
+/** The root variables for density and fonts; empty values mean "as the
+ *  style sheet has it" (the default), so nothing changes for anyone who
+ *  never chose. */
+export function layoutVars(density: Density, pairing: FontPairing): Record<string, string> {
+  return {
+    '--density': density === 'comfortable' ? '' : String(densityValue(density)),
+    '--font-serif': pairing === 'sans' ? SANS_STACK : '',
+  }
 }
 
 /* ---------- app icons (LOOK-10, LOOK-11) ------------------------------------ */

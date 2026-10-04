@@ -9,6 +9,7 @@ import {
   moduleKeywords, suggestModules, moduleSuggestions, mainField, RULE_DAY_TASK, RULE_REMIND,
   boardField, gridFields, chartFields, viewProblem, viewDefaults,
   BUILTIN_RULES, ruleSupport, ruleSwitchable, isBuiltinRuleOn,
+  addEntity, removeEntity, linkProblem, entityTabs, linkTargets,
 } from '../modules/def-rules.ts'
 import { MODULES } from '../modules/registry.ts'
 import { PRESETS, combinePresets } from '../modules/presets.ts'
@@ -373,6 +374,50 @@ is('not even JSON', readDesignFile('hello').ok, false)
 is('a newer one', readDesignFile(JSON.stringify({ ...file, version: 2 })).problem, 'That design comes from a newer GetIt. Update the app, then import it again.')
 is('a design with no fields', readDesignFile(JSON.stringify({ ...file, definition: { ...file.definition, entities: [] } })).ok, false)
 is('a file name from the module’s name', designFileName('Plant care: indoor!'), 'plant-care-indoor.getit-module.json')
+
+// Several kinds of record in one built module (MOD-15).
+const car = {
+  key: 'u_cars0001', name: 'Car', summary: '', built: true, depth: 'light', keywords: [], rules: [],
+  entities: [{ name: 'item', label: 'Car', fields: [{ name: 'name', label: 'Name', type: 'text', required: true }] }],
+  views: [{ key: 'list', name: 'List', type: 'list', entity: 'item' }],
+}
+const withTrip = addEntity(car, ' Trip ').def
+is('a kind added: named from its label, a Name field and a list of its own',
+  [withTrip.entities[1], withTrip.views[1]],
+  [{ name: 'trip', label: 'Trip', fields: [{ name: 'name', label: 'Name', type: 'text', required: true }] }, { key: 'list_trip', name: 'Trip', type: 'list', entity: 'trip' }])
+is('no name: refused', addEntity(car, '  '), { problem: 'Give the kind of record a name.' })
+is('the same name twice: refused', addEntity(withTrip, 'trip'), { problem: 'There is a kind with that name already.' })
+let four = withTrip
+for (const l of ['Service', 'Fuel']) four = addEntity(four, l).def
+is('four kinds at most', [four.entities.length, addEntity(four, 'Tyres')], [4, { problem: 'A module keeps at most 4 kinds of record.' }])
+is('a module of four kinds is a good definition', definitionProblem(four), null)
+const carLink = { name: 'car', label: 'Car', type: 'lookup', lookup: 'record', module: 'u_cars0001', entity: 'item' }
+const linked = clone(four)
+linked.entities[1].fields.push(carLink)
+is('a trip links to its car', [definitionProblem(linked), linkProblem(linked)], [null, null])
+const self = clone(four)
+self.entities[0].fields.push({ ...carLink, label: 'Other car' })
+is('a car cannot link to its own kind', linkProblem(self), 'Other car: a record cannot link to its own kind; pick another.')
+const gone = clone(four)
+gone.entities[1].fields.push({ ...carLink, entity: 'boat' })
+is('nor to a kind that is gone', definitionProblem(gone), 'Car: the kind of record it links to is gone.')
+is('a link with no kind means the first kind', linkProblem({ ...linked, entities: linked.entities.map((e, i) => (i === 1 ? { ...e, fields: e.fields.map((f) => ({ ...f, entity: undefined })) } : e)) }), null)
+const stored = readBuiltDefinition({ key: 'u_cars0001', name: 'Car', definition: definitionFor(linked) })
+is('kinds and the link survive storage', [stored.entities.map((e) => e.name), stored.entities[1].fields[1]], [['item', 'trip', 'service', 'fuel'], carLink])
+is('a link kind that is not a name is dropped, the link kept', cleanField({ ...carLink, entity: 'Bad Name!' }), { name: 'car', label: 'Car', type: 'lookup', lookup: 'record', module: 'u_cars0001' })
+const less = removeEntity(linked, 'item')
+is('the first kind stays', less.entities.length, 4)
+const noTrips = removeEntity(linked, 'trip')
+is('a kind removed takes its views', [noTrips.entities.map((e) => e.name), noTrips.views.map((v) => v.key)], [['item', 'service', 'fuel'], ['list', 'list_service', 'list_fuel']])
+const noCarLinks = removeEntity({ ...linked, entities: [...linked.entities.slice(0, 2), { ...linked.entities[2], fields: [...linked.entities[2].fields, { ...carLink, entity: 'trip', name: 'trip' }] }, linked.entities[3]] }, 'trip')
+is('and the links to it from the other kinds', noCarLinks.entities.find((e) => e.name === 'service').fields.map((f) => f.name), ['name'])
+is('one kind: no tab row', entityTabs(car), [])
+is('several kinds: a tab each with its views', entityTabs(withTrip).map((t) => [t.entity, t.name, t.views.map((v) => v.key)]), [['item', 'Car', ['list']], ['trip', 'Trip', ['list_trip']]])
+is('a kind with every view off gets a plain list', entityTabs({ ...withTrip, views: [withTrip.views[0], { ...withTrip.views[1], hidden: true }] })[1].views,
+  [{ key: 'list:trip', name: 'Trip', type: 'list', entity: 'trip' }])
+is('links can point at the other kinds first, then other modules',
+  linkTargets(withTrip, 'trip', [{ key: 'u_plants01', name: 'Plants' }, { key: 'u_cars0001', name: 'Car' }]).map((t) => t.value),
+  ['u_cars0001#item', 'u_plants01#'])
 
 console.log(fail ? `\n${fail} failed` : '\nall checks passed')
 process.exit(fail ? 1 : 0)

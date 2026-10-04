@@ -8,7 +8,7 @@ import { isNative, phoneFontScale, setTextZoom, systemAccent } from './native'
 import { sendWidgetLooks } from './widget'
 import { WIDGET_DARK, WIDGET_LIGHT, widgetPalette, type WidgetLooks } from './widget-rules'
 import {
-  OWN, SYSTEM, cssVars, isDarkShade, resolveTheme, shadeFor, textZoom, type ResolvedTheme, type Shade,
+  OWN, SYSTEM, cssVars, isDarkShade, layoutVars, pairingIn, resolveTheme, shadeFor, textZoom, type ResolvedTheme, type Shade,
 } from './theme-rules'
 
 /** Puts the chosen looks on the screen (LOOK-01 to LOOK-09): the theme's
@@ -77,6 +77,12 @@ function apply() {
   for (const [k, v] of Object.entries(cssVars(theme.tokens, theme.shade))) root.style.setProperty(k, v)
   root.dataset.theme = isDarkShade(theme.shade) ? 'dark' : 'light'
   root.dataset.shade = theme.shade
+  // Density and the font pairing (LOOK-08, LOOK-12): variables on the root;
+  // an empty one is taken off, so the style sheet's default stands.
+  for (const [k, v] of Object.entries(layoutVars(looks.density, pairingIn(looks.theme, looks.fonts)))) {
+    if (v) root.style.setProperty(k, v)
+    else root.style.removeProperty(k)
+  }
   document.querySelector('meta[name="theme-color"]')?.setAttribute('content', theme.tokens.paper)
 
   // Module colours are checked against the pages of this theme (LOOK-06).
