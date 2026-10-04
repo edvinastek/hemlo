@@ -148,8 +148,9 @@ export function Plan() {
   const followedColours = (day: string) => [...new Set(followedOn(day).map((f) => f.sub.colour))]
 
   // Milestones of projects and goals on the days in view (only while
-  // Projects is on): a quiet line that opens the project or goal.
-  const milestones = useLiveQuery(async () => (profile && view !== 'year' && view !== 'inbox'
+  // Projects is on): a quiet line that opens the project or goal; on the
+  // Year view a ◆ on the day (PRJ-03).
+  const milestones = useLiveQuery(async () => (profile && view !== 'inbox'
     ? milestonesByDay(await loadMilestones(profile.id, from, to)) : new Map<string, PlanMilestone[]>()),
   [profile?.id, from, to, view], new Map<string, PlanMilestone[]>())
   const milestonesOn = (day: string): PlanMilestone[] => milestones.get(day) ?? []
@@ -442,18 +443,25 @@ export function Plan() {
                 }}
                 marks={(day) => [...(colours.on ? modulesOnDay(day).map(colours.of) : []), ...followedColours(day)]}
                 describe={(day) => [dayWords(loadOn(day), colours.on ? modulesOnDay(day)[0] : undefined,
-                  plannedOn(day).length, colours), followedWords(followedOn(day).length), holidaysText(holidayMarks(holidays, parseISO(day)))].filter(Boolean).join(', ') || undefined}
-                extra={(day) => <HolidayMark marks={holidayMarks(holidays, parseISO(day))} variant="top" />}
+                  plannedOn(day).length, colours), followedWords(followedOn(day).length), milestonesOn(day).map(milestoneWords).join(', '),
+                  holidaysText(holidayMarks(holidays, parseISO(day)))].filter(Boolean).join(', ') || undefined}
+                extra={(day) => (
+                  <>
+                    <HolidayMark marks={holidayMarks(holidays, parseISO(day))} variant="top" />
+                    {milestonesOn(day).length > 0 && <span className="py-ms" aria-hidden="true">◆</span>}
+                  </>
+                )}
                 onDayClick={(day) => go(day, 'week', true)}
               />
             </div>
             <Key>
               <HeatLegend />
+              {milestones.size > 0 && <p className="planned-note"><span className="pw-ms-mark" aria-hidden="true">◆</span> A milestone of a project or goal</p>}
               <ModuleLegend colours={colours} keys={modulesByWeight([...itemsByDay.keys()].flatMap(modulesOnDay))} />
               <HolidayLegend countries={countriesIn([...holidays.values()], settings.holidays.countries)} />
               <FollowedLegend calendars={calendarsIn([...followedAll.values()].map((l) => l.filter((f) => !hidden.includes(f.sub.id))))} />
             </Key>
-            {profile && <YearGoals profileId={profile.id} year={Number(date.slice(0, 4))} onOpen={(link) => navigate(link)} />}
+            {profile && <YearGoals profileId={profile.id} year={Number(date.slice(0, 4))} onOpen={(link) => navigate(link)} onDay={(d) => go(d, 'week', true)} />}
           </>
         )}
 
@@ -604,9 +612,13 @@ function MilestoneLines({ list, onOpen }: { list: PlanMilestone[]; onOpen: (m: P
 /** Goals and phases (PLN-12, GEN-36): the goals that touch the year shown,
  *  and projects due in it, each with its progress; a tap opens it. Only
  *  while Projects, where goals live, is on (P1). */
-function YearGoals({ profileId, year, onOpen }: { profileId: string; year: number; onOpen: (link: string) => void }) {
+function YearGoals({ profileId, year, onOpen, onDay }: { profileId: string; year: number; onOpen: (link: string) => void; onDay: (day: string) => void }) {
   const data = useLiveQuery(async () => ((await instanceFor(profileId, 'projects'))?.enabled
     ? loadYearGoals(profileId, year) : null), [profileId, year])
+  // The year's milestones (PRJ-03), in date order, under the goals.
+  const marks = useLiveQuery(async () => ((await instanceFor(profileId, 'projects'))?.enabled
+    ? (await loadMilestones(profileId, `${year}-01-01`, `${year}-12-31`)).sort((a, b) => (a.due_date ?? '').localeCompare(b.due_date ?? '')) : []),
+  [profileId, year], [])
   if (!data) return null
   return (
     <section className="plan-goals" aria-labelledby="plan-goals-title">
@@ -635,6 +647,27 @@ function YearGoals({ profileId, year, onOpen }: { profileId: string; year: numbe
             )
           })}
         </ul>
+      )}
+      {marks.length > 0 && (
+        <>
+          <p className="section-title plan-ms-title" id="plan-ms-title">Milestones, {year}</p>
+          <ul className="plan-goal-list" aria-labelledby="plan-ms-title">
+            {marks.map((m) => (
+              <li key={m.id} className="plan-ms-row">
+                <button type="button" className={`plan-goal plan-ms-goal${m.done ? ' is-done' : ''}`} onClick={() => onOpen(milestoneLink(m))}>
+                  <span className="plan-goal-top">
+                    <span className="plan-goal-name"><span className="pw-ms-mark" aria-hidden="true">◆ </span>{m.title || 'Untitled'}</span>
+                    <span className="plan-goal-when">{[m.project_name || m.goal_title, yearDateWords(m.due_date, year).replace(/^by /, ''), m.done ? 'reached' : ''].filter(Boolean).join(' · ')}</span>
+                  </span>
+                </button>
+                {m.due_date && (
+                  <button type="button" className="btn plan-ms-day" onClick={() => onDay(m.due_date!)}
+                    aria-label={`See the week of ${m.title || 'this milestone'}`}>Week</button>
+                )}
+              </li>
+            ))}
+          </ul>
+        </>
       )}
     </section>
   )
