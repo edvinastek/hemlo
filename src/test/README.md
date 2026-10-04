@@ -218,6 +218,9 @@ Types, then every check that needs nothing but Node. CI runs the same command.
 - `hold` — the two-stage hold: a tap opens, moving before the short hold is a scroll (never a drag), the short hold
   arms the drag and a move then drags, holding still to the long hold expands, letting go in between does nothing,
   rows that cannot be dragged only expand; when the clock next matters; the hold times kept sane.
+- `selection` — selecting several rows (v18, GEN-52/53): ticking one, "Select all shown" and "Clear shown" (rows
+  ticked under another search kept), the ticked rows in the list's order, rows that have gone dropped, the count in
+  words, and a bulk delete asking once more only for several.
 - `notetemplates` — note templates: fill-ins ({date}, {weekday}, {time}, {title}, {day count}), the plain-word chips,
   putting a template in a note or asking for it after the task, keeping the list (add, edit, order, remove and undo);
   recipes in notes: the block found again, "Update from recipe" only when the recipe changed (ticks kept), several
