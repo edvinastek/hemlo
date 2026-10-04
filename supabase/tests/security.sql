@@ -769,6 +769,208 @@ begin
   execute 'reset role';
 end $$;
 
+-- Telegram reminders (038): a link code only its owner can make and no one can
+-- read back, used once and only within 10 minutes; a chat linked from Telegram
+-- only; reminders and the sent log private; each reminder handed out once ---
+create temp table _tg (code text, code2 text, old_code text);
+grant all on _tg to authenticated, anon, service_role;
+-- The service role (the server functions) writes its results here too.
+grant all on _r, _ids to service_role;
+grant usage on sequence _r_n_seq to service_role;
+insert into _tg default values;
+
+do $$
+declare n int; ok boolean;
+begin
+  -- A asks for a link code, and cannot fill the queue before linking.
+  perform set_config('role', 'authenticated', true);
+  perform set_config('request.jwt.claims', json_build_object('sub', (select a from _ids), 'role', 'authenticated')::text, true);
+  update _tg set code = public.telegram_link_start((select pa from _ids));
+  insert into _r (check_name, expected, actual) values
+    ('Telegram: A gets a 22-character link code', 'yes',
+       case when (select code from _tg) ~ '^[A-Za-z0-9_-]{22}$' then 'yes' else 'no' end),
+    ('Telegram: before linking, the reminder list is refused', '-1',
+       public.telegram_set_reminders((select pa from _ids),
+         jsonb_build_array(jsonb_build_object('key', 'task:x:1', 'due_at', now() + interval '1 hour', 'body', 'Call the dentist at 10:00.')))::text);
+  begin
+    perform code_hash from telegram_link_code;
+    insert into _r (check_name, expected, actual) values ('Telegram: A cannot read their link code back', 'denied', 'allowed');
+  exception when others then
+    insert into _r (check_name, expected, actual) values ('Telegram: A cannot read their link code back', 'denied', 'denied');
+  end;
+  begin
+    update channel_setting set telegram_chat_id = '424242', telegram_on = true where profile_id = (select pa from _ids);
+    insert into _r (check_name, expected, actual) values ('Telegram: A cannot set a chat id directly', 'denied', 'allowed');
+  exception when others then
+    insert into _r (check_name, expected, actual) values ('Telegram: A cannot set a chat id directly', 'denied', 'denied');
+  end;
+  begin
+    perform public.telegram_link_finish((select code from _tg), '424242');
+    insert into _r (check_name, expected, actual) values ('Telegram: A cannot finish a link themselves', 'denied', 'allowed');
+  exception when others then
+    insert into _r (check_name, expected, actual) values ('Telegram: A cannot finish a link themselves', 'denied', 'denied');
+  end;
+  begin
+    perform * from public.telegram_claim_due(10);
+    insert into _r (check_name, expected, actual) values ('Telegram: A cannot take due reminders', 'denied', 'allowed');
+  exception when others then
+    insert into _r (check_name, expected, actual) values ('Telegram: A cannot take due reminders', 'denied', 'denied');
+  end;
+  execute 'reset role';
+
+  insert into _r (check_name, expected, actual) values
+    ('Telegram: only the hash of the code is stored, for 10 minutes', 'hash 10',
+       (select case when code_hash = encode(sha256(convert_to((select code from _tg), 'UTF8')), 'hex') then 'hash' else 'other' end
+               || ' ' || round(extract(epoch from expires_at - now()) / 60)::text
+        from telegram_link_code where profile_id = (select pa from _ids)));
+
+  -- B, a stranger.
+  perform set_config('role', 'authenticated', true);
+  perform set_config('request.jwt.claims', json_build_object('sub', (select b from _ids), 'role', 'authenticated')::text, true);
+  begin
+    perform public.telegram_link_start((select pa from _ids));
+    insert into _r (check_name, expected, actual) values ('Telegram: B cannot make a link code for A''s profile', 'denied', 'allowed');
+  exception when others then
+    insert into _r (check_name, expected, actual) values ('Telegram: B cannot make a link code for A''s profile', 'denied', 'denied');
+  end;
+  begin
+    perform public.telegram_set_reminders((select pa from _ids), '[]'::jsonb);
+    insert into _r (check_name, expected, actual) values ('Telegram: B cannot fill A''s reminder list', 'denied', 'allowed');
+  exception when others then
+    insert into _r (check_name, expected, actual) values ('Telegram: B cannot fill A''s reminder list', 'denied', 'denied');
+  end;
+  begin
+    perform count(*) from telegram_link_code;
+    insert into _r (check_name, expected, actual) values ('Telegram: B cannot read link codes', 'denied', 'allowed');
+  exception when others then
+    insert into _r (check_name, expected, actual) values ('Telegram: B cannot read link codes', 'denied', 'denied');
+  end;
+  execute 'reset role';
+
+  -- Telegram (the webhook, as the service role): a wrong code, then A's.
+  perform set_config('role', 'service_role', true);
+  insert into _r (check_name, expected, actual) values
+    ('Telegram: a wrong code links nothing', 'false', public.telegram_link_finish('AAAAAAAAAAAAAAAAAAAAAA', '424242')::text),
+    ('Telegram: a group chat is never linked', 'false', public.telegram_link_finish((select code from _tg), '-100123')::text),
+    ('Telegram: A''s code links A''s chat', 'true', public.telegram_link_finish((select code from _tg), '424242')::text),
+    ('Telegram: the code works once', 'false', public.telegram_link_finish((select code from _tg), '999')::text);
+  execute 'reset role';
+  insert into _r (check_name, expected, actual) values
+    ('Telegram: the chat is on A''s settings', 'true 424242',
+       (select telegram_on::text || ' ' || telegram_chat_id from channel_setting where profile_id = (select pa from _ids))),
+    ('Telegram: a used code is gone', '0', (select count(*) from telegram_link_code where profile_id = (select pa from _ids))::text);
+
+  -- An expired code: made, then aged past its 10 minutes.
+  perform set_config('role', 'authenticated', true);
+  perform set_config('request.jwt.claims', json_build_object('sub', (select b from _ids), 'role', 'authenticated')::text, true);
+  update _tg set old_code = public.telegram_link_start((select pb from _ids));
+  execute 'reset role';
+  update telegram_link_code set expires_at = now() - interval '1 second' where profile_id = (select pb from _ids);
+  perform set_config('role', 'service_role', true);
+  insert into _r (check_name, expected, actual) values
+    ('Telegram: a code older than 10 minutes links nothing', 'false', public.telegram_link_finish((select old_code from _tg), '777')::text);
+  execute 'reset role';
+
+  -- A, linked now, hands over the next reminders.
+  perform set_config('role', 'authenticated', true);
+  perform set_config('request.jwt.claims', json_build_object('sub', (select a from _ids), 'role', 'authenticated')::text, true);
+  insert into _r (check_name, expected, actual) values
+    ('Telegram: A''s reminder list is kept (past and far-off items left out)', '2',
+       public.telegram_set_reminders((select pa from _ids), jsonb_build_array(
+         jsonb_build_object('key', 'task:t1:d', 'due_at', now() + interval '1 hour', 'body', 'Call the dentist at 10:00.'),
+         jsonb_build_object('key', 'habit:h1:d', 'due_at', now() + interval '2 hours', 'body', 'Time for Stretch.'),
+         jsonb_build_object('key', 'task:old:d', 'due_at', now() - interval '1 hour', 'body', 'Gone.'),
+         jsonb_build_object('key', 'task:far:d', 'due_at', now() + interval '9 days', 'body', 'Too far.')))::text);
+  begin
+    perform count(*) from telegram_reminder;
+    insert into _r (check_name, expected, actual) values ('Telegram: the reminder list is not readable through the API', 'denied', 'allowed');
+  exception when others then
+    insert into _r (check_name, expected, actual) values ('Telegram: the reminder list is not readable through the API', 'denied', 'denied');
+  end;
+  execute 'reset role';
+  -- B also queues one but has no chat, and one of A's falls due now.
+  insert into telegram_reminder (profile_id, key, due_at, body) select pb, 'task:b:d', now() - interval '1 minute', 'B''s own.' from _ids;
+  update telegram_reminder set due_at = now() - interval '1 minute' where key = 'task:t1:d';
+  insert into telegram_reminder (profile_id, key, due_at, body) select pa, 'task:stale:d', now() - interval '3 hours', 'Too late.' from _ids;
+
+  perform set_config('role', 'service_role', true);
+  insert into _r (check_name, expected, actual) values
+    ('Telegram: the due reminder is handed out, to A''s chat', '424242 Call the dentist at 10:00.',
+       (select string_agg(chat_id || ' ' || body, '; ') from public.telegram_claim_due(10))),
+    ('Telegram: a second run hands out nothing', '0', (select count(*) from public.telegram_claim_due(10))::text);
+  execute 'reset role';
+  insert into _r (check_name, expected, actual) values
+    ('Telegram: the sent log holds it once', '1', (select count(*) from telegram_sent where profile_id = (select pa from _ids))::text);
+
+  -- B sees nothing of A's.
+  perform set_config('role', 'authenticated', true);
+  perform set_config('request.jwt.claims', json_build_object('sub', (select b from _ids), 'role', 'authenticated')::text, true);
+  insert into _r (check_name, expected, actual) values
+    ('Telegram: B cannot see A''s chat', '0', (select count(*) from channel_setting where telegram_chat_id is not null)::text);
+  begin
+    perform count(*) from telegram_sent;
+    insert into _r (check_name, expected, actual) values ('Telegram: B cannot read the sent log', 'denied', 'allowed');
+  exception when others then
+    insert into _r (check_name, expected, actual) values ('Telegram: B cannot read the sent log', 'denied', 'denied');
+  end;
+  update channel_setting set telegram_chat_id = null where profile_id = (select pa from _ids);
+  get diagnostics n = row_count;
+  insert into _r (check_name, expected, actual) values ('Telegram: B cannot unlink A', '0', n::text);
+  execute 'reset role';
+
+  perform set_config('role', 'anon', true);
+  begin
+    perform public.telegram_link_start((select pa from _ids));
+    insert into _r (check_name, expected, actual) values ('Telegram: signed-out callers cannot make a link code', 'denied', 'allowed');
+  exception when others then
+    insert into _r (check_name, expected, actual) values ('Telegram: signed-out callers cannot make a link code', 'denied', 'denied');
+  end;
+  execute 'reset role';
+
+  -- /stop in Telegram unlinks A and clears what was waiting; then A links
+  -- again, and Unlink in the app does the same.
+  perform set_config('role', 'service_role', true);
+  insert into _r (check_name, expected, actual) values ('Telegram: /stop unlinks the chat', '1', public.telegram_stop('424242')::text);
+  execute 'reset role';
+  insert into _r (check_name, expected, actual) values
+    ('Telegram: after /stop nothing waits and the chat is gone', '0 false',
+       (select count(*) from telegram_reminder where profile_id = (select pa from _ids))::text || ' '
+       || (select (telegram_chat_id is not null)::text from channel_setting where profile_id = (select pa from _ids)));
+  perform set_config('role', 'authenticated', true);
+  perform set_config('request.jwt.claims', json_build_object('sub', (select a from _ids), 'role', 'authenticated')::text, true);
+  update _tg set code2 = public.telegram_link_start((select pa from _ids));
+  execute 'reset role';
+  perform set_config('role', 'service_role', true);
+  perform public.telegram_link_finish((select code2 from _tg), '424242');
+  execute 'reset role';
+  perform set_config('role', 'authenticated', true);
+  perform set_config('request.jwt.claims', json_build_object('sub', (select a from _ids), 'role', 'authenticated')::text, true);
+  perform public.telegram_set_reminders((select pa from _ids),
+    jsonb_build_array(jsonb_build_object('key', 'task:t2:d', 'due_at', now() + interval '1 hour', 'body', 'Post the letter.')));
+  update channel_setting set telegram_chat_id = null where profile_id = (select pa from _ids);
+  get diagnostics n = row_count;
+  execute 'reset role';
+  insert into _r (check_name, expected, actual) values
+    ('Telegram: A can unlink in the app, which clears what was waiting', '1 false 0',
+       n::text || ' ' || (select telegram_on::text from channel_setting where profile_id = (select pa from _ids)) || ' '
+       || (select count(*) from telegram_reminder where profile_id = (select pa from _ids))::text);
+
+  -- Linked once more, with something waiting, for the account deletion below.
+  perform set_config('role', 'authenticated', true);
+  perform set_config('request.jwt.claims', json_build_object('sub', (select a from _ids), 'role', 'authenticated')::text, true);
+  update _tg set code2 = public.telegram_link_start((select pa from _ids));
+  execute 'reset role';
+  perform set_config('role', 'service_role', true);
+  perform public.telegram_link_finish((select code2 from _tg), '424242');
+  execute 'reset role';
+  perform set_config('role', 'authenticated', true);
+  perform set_config('request.jwt.claims', json_build_object('sub', (select a from _ids), 'role', 'authenticated')::text, true);
+  perform public.telegram_link_start((select pa from _ids));
+  perform public.telegram_set_reminders((select pa from _ids),
+    jsonb_build_array(jsonb_build_object('key', 'task:t3:d', 'due_at', now() + interval '1 hour', 'body', 'Water the plants.')));
+  execute 'reset role';
+end $$;
+
 -- A deletes their account while M is still in the household ------------------
 do $$
 begin
@@ -795,6 +997,14 @@ insert into _r (check_name, expected, actual) values
   ('The household''s chores stay with the remaining member', '1', (select count(*) from chore where name = 'Hoover the stairs')::text),
   ('The remaining member keeps their own profile', '1',
      (select count(*) from profile where user_id = (select m from _ids))::text);
+
+-- 038: nothing of A's Telegram link stays behind.
+insert into _r (check_name, expected, actual) values
+  ('Deleting removes their Telegram link, link code, waiting reminders and sent log', '0 0 0 0',
+     (select count(*) from channel_setting where telegram_chat_id = '424242')::text || ' '
+     || (select count(*) from telegram_link_code where profile_id = (select pa from _ids))::text || ' '
+     || (select count(*) from telegram_reminder where profile_id = (select pa from _ids))::text || ' '
+     || (select count(*) from telegram_sent where profile_id = (select pa from _ids))::text);
 
 -- 029 (engineer H): own exercises, training routines, milestones, goal links ---
 -- M (still here) keeps an exercise of their own, a goal, a routine with a line
