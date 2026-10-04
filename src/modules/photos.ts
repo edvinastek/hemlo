@@ -8,6 +8,7 @@ import {
   PHOTO_BUCKET, PHOTO_MAX_BYTES, PHOTO_MAX_INPUT_BYTES, PHOTO_QUALITIES, fitWithin, isPhotoPath, pathsIn, photoPath,
   photoRefs, photosToRemove, type KeptPhoto, type KnownRecord,
 } from './photo-rules'
+import { isRecipePhotoPath } from '../lib/recipe-photo-rules'
 
 /** Photos on the device (MOD-12). A photo is made smaller here (about
  *  1600 px, JPEG), kept in this device's database at once, so the record
@@ -83,7 +84,8 @@ function fetchPhoto(path: string): Promise<void> {
 /** A photo to show: a local address for it, null while it is being
  *  fetched or cannot be (offline and never seen here), undefined for none. */
 export function usePhotoUrl(path: unknown): string | null | undefined {
-  const valid = isPhotoPath(path) ? path : null
+  // A record's photo, or a recipe's (REC-11, v19).
+  const valid = isPhotoPath(path) || isRecipePhotoPath(path) ? path : null
   const row = useLiveQuery(async () => (valid ? (await db.photo.get(valid)) ?? null : undefined), [valid])
   const [url, setUrl] = useState<string | null>(null)
   useEffect(() => {
@@ -144,6 +146,8 @@ export async function tidyPhotos(force = false): Promise<number> {
     if (entity) for (const p of photoRefs(entity.fields, [r])) used.add(p)
     for (const p of pathsIn(r.data)) used.add(p)
   }
+  // Recipes' photos (REC-11, v19) stay on the device while a recipe uses them.
+  for (const r of await db.recipe.toArray()) if (!r.deleted_at && r.photo_path) used.add(r.photo_path)
   let removed = 0
   const profiles = [...new Set((await db.profile.toArray()).map((p) => p.id))]
   for (const profile of profiles) {
@@ -197,4 +201,10 @@ export async function removeAllPhotos(): Promise<void> {
       if (names.length) await supabase.storage.from(PHOTO_BUCKET).remove(names)
     }
   }
+  // The person's recipes' photos (REC-11, v19), which live under recipes/.
+  const me = useApp.getState().session?.user.id
+  const recipePhotos = (await db.recipe.toArray()).filter((r) => r.owner_id === me && r.photo_path).map((r) => r.photo_path as string)
+  // And those replaced or removed in the last day, waiting to go (recipe-photo.ts).
+  for (const g of await getMeta<{ path: string }[]>('recipe-photos:aside', [])) if (isRecipePhotoPath(g.path)) recipePhotos.push(g.path)
+  if (me && recipePhotos.length) await supabase.storage.from(PHOTO_BUCKET).remove(recipePhotos)
 }

@@ -3,7 +3,9 @@ import { useLiveQuery } from 'dexie-react-hooks'
 import { format, parseISO } from 'date-fns'
 import { db } from '../lib/db'
 import { useApp } from '../lib/store'
-import { dayTotals } from '../lib/nutrition'
+import { dayDoses, dayTotals } from '../lib/nutrition'
+import { dayMicros, microsLine, type MicroPart } from '../lib/micros-rules'
+import { rawGrams } from '../lib/calc'
 import { readSettings, type Nutrient } from '../lib/settings'
 import { amountLine, nutrientLabel, shownNutrients, type QuickEntry } from '../lib/quick-food'
 import { amountChoices, findUnit, readUnits, unitKey } from '../lib/units-rules'
@@ -57,6 +59,14 @@ export function FoodDay({ day }: { day: string }) {
   }, [lines])
   // %RI, shown or hidden here and on a food's page alike (FOOD-06).
   const prefs = useNutritionPrefs()
+  // Vitamins and minerals the person shows (FOOD-17), with the supplements
+  // ticked today that count towards them (SUP-07).
+  const partsByRecipe = useMemo(() => {
+    const m = new Map<string, MicroPart[]>()
+    for (const [id, ls] of linesByRecipe) m.set(id, ls.map((l) => { const f = l.food_id ? foodMap.get(l.food_id) : undefined; return { food: f, grams: rawGrams(l, f) } }))
+    return m
+  }, [linesByRecipe, foodMap])
+  const doses = useLiveQuery(async () => (profile && prefs.micros.length ? dayDoses(profile.id, day) : []), [profile?.id, day, prefs.micros.length], [])
   const rows = useLiveQuery(async () => (profile ? slotsFor(profile.id, day) : []), [profile?.id, day], null)
   const eaten = useLiveQuery(async () => (profile ? dayTotals(profile.id, day) : null), [profile?.id, day], null)
   const target = useLiveQuery(async () => {
@@ -80,6 +90,7 @@ export function FoodDay({ day }: { day: string }) {
   const suggestion = sizeOn ? sizeMain(groups, settings.meals.main, targetKcal, look) : null
   const anything = groups.some((g) => g.items.length)
   const ri = prefs.label.ri ? riLine(dayRi(groups.flatMap((g) => g.items), foodMap, linesByRecipe)) : null
+  const micros = prefs.micros.length ? microsLine(dayMicros(groups.flatMap((g) => g.items), foodMap, partsByRecipe, doses, prefs.micros), prefs.micros) : null
 
   return (
     <div className="fd">
@@ -101,6 +112,7 @@ export function FoodDay({ day }: { day: string }) {
         </p>
       )}
       {ri && <p className="fd-ri"><span className="visually-hidden">Planned, as a share of an adult’s reference intake: </span><span aria-hidden="true">Reference intake: </span>{ri}</p>}
+      {micros && <p className="fd-ri"><span className="visually-hidden">Planned and taken, as a share of the nutrient reference values: </span><span aria-hidden="true">NRV: </span>{micros}</p>}
 
       {/* The one copy dialog (GEN-55): the days only; times and portions go as they are. */}
       {copying && <CopySheet what={{ kind: 'meals', day, groups: 'all' }} onClose={() => setCopying(false)} />}

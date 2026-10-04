@@ -6,6 +6,8 @@ import { retimeMeals } from '../lib/meals'
 import { mealKeyFor, MEAL_NAME_MAX } from '../lib/meal-rules'
 import { Dropdown } from '../ui/Dropdown'
 import { offerUndo } from '../ui/Undo'
+import { saveMicroChoice, useNutritionPrefs } from '../lib/nutrition-prefs'
+import { MICROS, type MicroCode } from '../lib/micros-rules'
 import './food-settings.css'
 
 /** Sets of meals to start from, for someone who wants fixed meals (MEAL-02).
@@ -124,6 +126,8 @@ export function FoodSettings() {
           label="Figure on Today" onChange={(today_metric) => void change({ today_metric })} />
       </div>
 
+      <MicroChoice profileId={profile.id} />
+
       <div className="setting-row fs-meals-head">
         <div>
           <div className="row-name" id="fs-meals">Meals</div>
@@ -179,6 +183,46 @@ export function FoodSettings() {
         </>
       )}
     </>
+  )
+}
+
+/** Vitamins and minerals (FOOD-17): off by default; the person picks which
+ *  the food pages, recipes and the day show, as a share of the NRV. The
+ *  list opens under the row, so the row itself stays one line. */
+function MicroChoice({ profileId }: { profileId: string }) {
+  const prefs = useNutritionPrefs()
+  const [open, setOpen] = useState(false)
+  const chosen = prefs.micros
+  const names = MICROS.filter((m) => chosen.includes(m.code)).map((m) => m.name)
+  const toggle = (code: MicroCode, on: boolean) =>
+    void saveMicroChoice(profileId, on ? [...chosen, code] : chosen.filter((c) => c !== code))
+  return (
+    <div className="setting-row">
+      <div style={{ minWidth: 0, flex: 1 }}>
+        <div className="row-name" id="fs-micros">Vitamins and minerals</div>
+        <div className="row-meta">{names.length ? names.join(', ') : 'None shown'}</div>
+        {open && (
+          <div id="fs-micros-list" role="group" aria-labelledby="fs-micros">
+            {[true, false].map((vitamin) => (
+              <div key={String(vitamin)} className="fs-checks" role="group" aria-label={vitamin ? 'Vitamins' : 'Minerals'}>
+                {MICROS.filter((m) => m.vitamin === vitamin).map((m) => (
+                  <label key={m.code} className="fs-check">
+                    <input type="checkbox" checked={chosen.includes(m.code)} onChange={(e) => toggle(m.code, e.target.checked)} />
+                    {m.name}
+                  </label>
+                ))}
+              </div>
+            ))}
+            {chosen.length > 0 && (
+              <button type="button" className="slot-link fs-micros-none" onClick={() => void saveMicroChoice(profileId, [])}>Show none</button>
+            )}
+          </div>
+        )}
+      </div>
+      <button type="button" className="btn fs-micros-btn" aria-expanded={open} aria-controls="fs-micros-list" onClick={() => setOpen(!open)}>
+        {open ? 'Done' : 'Choose'}
+      </button>
+    </div>
   )
 }
 

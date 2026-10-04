@@ -5,6 +5,7 @@ import { useApp } from './store'
 import { ensureInstance, instanceFor } from '../modules/defs'
 import { readLabelChoice, type LabelChoice } from './eu-label-rules'
 import { readUnitOverlay, withOverlay, readUnits, type FoodUnit } from './units-rules'
+import { readMicroChoice, type MicroCode } from './micros-rules'
 import type { Food } from './types'
 
 /** The nutrition module's own choices, kept in its module settings (per
@@ -13,19 +14,24 @@ import type { Food } from './types'
  *  shared foods (UNIT-16). */
 const LABEL_KEY = 'label'
 const OVERLAY_KEY = 'unit_overlay'
+/** The vitamins and minerals the person shows (FOOD-17): none by default. */
+const MICROS_KEY = 'micros'
 
-export interface NutritionPrefs { label: LabelChoice; overlay: Record<string, FoodUnit[]> }
+export interface NutritionPrefs { label: LabelChoice; overlay: Record<string, FoodUnit[]>; micros: MicroCode[] }
 
 export async function nutritionPrefs(profileId: string): Promise<NutritionPrefs> {
   const inst = await instanceFor(profileId, 'nutrition')
-  return { label: readLabelChoice(inst?.settings?.[LABEL_KEY]), overlay: readUnitOverlay(inst?.settings?.[OVERLAY_KEY]) }
+  return {
+    label: readLabelChoice(inst?.settings?.[LABEL_KEY]), overlay: readUnitOverlay(inst?.settings?.[OVERLAY_KEY]),
+    micros: readMicroChoice(inst?.settings?.[MICROS_KEY]),
+  }
 }
 
 export function useNutritionPrefs(): NutritionPrefs {
   const profileId = useApp((s) => s.profile?.id ?? null)
   return useLiveQuery(async () => (profileId ? nutritionPrefs(profileId) : EMPTY), [profileId], EMPTY)
 }
-const EMPTY: NutritionPrefs = { label: { figures: [], ri: false }, overlay: {} }
+const EMPTY: NutritionPrefs = { label: { figures: [], ri: false }, overlay: {}, micros: [] }
 
 /** Change some of the nutrition module's settings, keeping the rest (the
  *  module's own overlay and rules included). Made when the profile has no
@@ -39,6 +45,11 @@ async function saveModuleSetting(profileId: string, key: string, value: unknown)
 
 export async function saveLabelChoice(profileId: string, choice: LabelChoice) {
   await saveModuleSetting(profileId, LABEL_KEY, readLabelChoice(choice))
+}
+
+/** Which vitamins and minerals the food pages, recipes and the day show. */
+export async function saveMicroChoice(profileId: string, codes: MicroCode[]) {
+  await saveModuleSetting(profileId, MICROS_KEY, readMicroChoice(codes))
 }
 
 /** A person's own units for one shared food (empty to remove them all). */

@@ -1,6 +1,8 @@
 import { db } from './db'
 import { recipeMacros, type Macros } from './calc'
 import { quickMacros } from './quick-food'
+import { readDoseNutrients, type MicroDose } from './micros-rules'
+import { pickLog } from './tracking-rules'
 import type { Food } from './types'
 
 const ZERO: Macros = { kcal: 0, carbs_g: 0, fiber_g: 0, fat_g: 0, protein_g: 0 }
@@ -52,4 +54,39 @@ export async function dayTotals(profileId: string, day: string): Promise<Macros>
     }
   }
   return total
+}
+
+/** Calories eaten on each day from `from` to `to` (only days with something
+ *  logged), worked out exactly as dayTotals does: for the adaptive estimate
+ *  of maintenance (BODY-17). */
+export async function eatenByDay(profileId: string, from: string, to: string): Promise<{ day: string; kcal: number }[]> {
+  const logs = (await db.food_log.where('profile_id').equals(profileId).toArray())
+    .filter((l) => !l.deleted_at && l.log_date >= from && l.log_date <= to)
+  if (!logs.length) return []
+  const foods = new Map<string, Food>((await db.food.toArray()).map((f) => [f.id, f]))
+  const perRecipe = new Map<string, number>()
+  const byDay = new Map<string, number>()
+  for (const log of logs) {
+    let kcal = 0
+    if (log.kcal != null) kcal = quickMacros(log).kcal
+    else if (log.food_id) kcal = (foods.get(log.food_id)?.kcal ?? 0) * ((log.grams ?? 0) / 100)
+    else if (log.recipe_id) {
+      if (!perRecipe.has(log.recipe_id)) perRecipe.set(log.recipe_id, recipeMacros(await db.recipe_line.where('recipe_id').equals(log.recipe_id).toArray(), foods).kcal)
+      kcal = perRecipe.get(log.recipe_id)! * (log.portions ?? 1)
+    }
+    byDay.set(log.log_date, (byDay.get(log.log_date) ?? 0) + kcal)
+  }
+  return [...byDay].map(([day, kcal]) => ({ day, kcal }))
+}
+
+/** The supplements ticked on a day that count towards vitamins and
+ *  minerals (SUP-07): what one dose of each gives. */
+export async function dayDoses(profileId: string, day: string): Promise<MicroDose[]> {
+  const counting = (await db.supplement.where('profile_id').equals(profileId).toArray())
+    .filter((s) => !s.deleted_at && Object.keys(readDoseNutrients(s.nutrients)).length)
+  if (!counting.length) return []
+  const logs = await db.supplement_log.where('[supplement_id+log_date]').anyOf(counting.map((s) => [s.id, day])).toArray()
+  return counting
+    .filter((s) => pickLog(logs.filter((l) => l.supplement_id === s.id))?.done)
+    .map((s) => ({ amounts: readDoseNutrients(s.nutrients) }))
 }

@@ -105,6 +105,26 @@ Types, then every check that needs nothing but Node. CI runs the same command.
   Storage ('<profile>/<record>/<photo>.jpg' and nothing else), the field keeping only such names, which records use a
   photo, and which kept photos are tidied away (never one in use, none younger than two days, a deleted record's after a
   day so Undo still has it, an unknown record's after a month).
+- `micros` — vitamins and minerals (v19, FOOD-17, SUP-07): the 27 of Regulation (EU) 1169/2011 Annex XIII with their
+  NRVs and units (20 published by NEVO), stored figures read safely (unknown is never 0), % of the NRV, a recipe's and a
+  day's sums ("at least" when a food or a quick entry lacks one; skipped items left out; a ticked supplement's dose
+  added), the day's line, figures typed in, and the stats measures (only the ones shown, with their planned twins).
+- `cook` — cook mode (v19, REC-12): steps split one by one (numbering and bullets off, inline numbering split), timers
+  read from a step's words in English and Dutch ("simmer 20 min", "10-12 minutes" and "8 à 10 minuten" to the upper
+  bound, "1 hour 30 minutes", "1½ hours", "half an hour", "een kwartier", "1h30"; never a temperature, "2 cm", "a few
+  minutes" or more than a day), the clock, and a running timer kept as its end time (paused, resumed, rung once).
+- `recipephoto` — a recipe's photo (v19, REC-11): its name in Storage ('recipes/<recipe>/<photo>.jpg', never a
+  record's), and which photos leave Storage when (replaced or taken off, or the recipe deleted, a day later; never one
+  in use again after Undo; never someone else's).
+- `adaptive` — the adaptive estimate of maintenance (v19, BODY-17): enough data (6 of 7 days logged and a weigh-in in
+  each of the last two or three whole weeks; today left out), the arithmetic (intake less the trend's change at 7,700
+  kcal a kilo, losing and gaining), gaps, a single weigh-in, weigh-ins too close for a trend, big water swings, a
+  half-logged day, an estimate out of reason; when it is offered (50 kcal off what the targets rest on, a factor from
+  1.2 to 2.4, two weeks after Not now), the factor it sets and its About.
+- `offwrite` — an unknown product (v19, PROD-05): a nutrition table read as text (Dutch, English, German; names and
+  numbers on separate lines; two columns; "<0,5 g"; sodium to salt; vitamins in their units) and adding the product to
+  Open Food Facts with made-up answers only: the fields sent under Open Food Facts' names, the app named, the password
+  only in the forms, the photo after the figures, what each answer says, and what is caught before anything is sent.
 - `ics` — calendar files (RFC 5545): tasks as floating local time or whole days, agenda events in UTC,
   (v18, GEN-26: every rule of the app reads back as itself, weekends, the 2nd Tuesday, every n months, 29 February and
   days picked by hand included; habits, chores, supplements and payments with their repeats; "after", flexible and
@@ -186,7 +206,10 @@ Types, then every check that needs nothing but Node. CI runs the same command.
 - `nevo` — the NEVO import (027): the file read as published (the byte-order mark, quotes, CRLF, decimal commas,
   a value that is not a number refused), the food row each NEVO line becomes, unchanged, with its fixed id; GetIt's
   display names and units marked as additions; the old catalogue foods replaced, kept or hidden; and that the
-  generated part of 027 is exactly what the script makes from the file.
+  generated part of 027 is exactly what the script makes from the file. Version 19 (FOOD-17): NEVO's vitamin and
+  mineral columns read as published, each in the unit the app counts in (another unit is refused), an empty cell left
+  out, and migration 036's generated part (every food by NEVO code, known codes only, raw potatoes as NEVO gives them,
+  under 600 kB).
 - `fooddata` — the generated catalogue itself: 2,328 NEVO foods with unique names and codes, parts never above their
   wholes, energy matching the EU factors (or reviewed), units within limits, every replaced food pointing at a NEVO food;
   and migration 035 (scripts/units-usda.mjs): USDA's units added to NEVO foods with their source, every Portie-online

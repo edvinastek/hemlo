@@ -4,6 +4,7 @@
 
 import { readPlan, type BodyPlan } from './calc.ts'
 import { readAnswers, type ActivityAnswers } from './activity.ts'
+import { readAdaptiveChoice, type AdaptiveChoice } from './adaptive-rules.ts'
 
 export const WEIGHT_MIN = 30
 export const WEIGHT_MAX = 300
@@ -210,12 +211,13 @@ export function pickProfile<T extends { id: string }>(profiles: T[], active: T |
 // ---- the body settings kept with Health (BODY-03, BODY-10, BODY-16) ------------------------
 
 
-export interface BodySettings { plan: BodyPlan; activity: ActivityAnswers }
+export interface BodySettings { plan: BodyPlan; activity: ActivityAnswers; adaptive: AdaptiveChoice }
 
-/** As stored in the Health module's settings ("body"), every value checked. */
+/** As stored in the Health module's settings ("body"), every value checked.
+ *  `adaptive` is what the person did with the adaptive estimate (BODY-17). */
 export function readBodySettings(v: unknown): BodySettings {
   const r = (v && typeof v === 'object' ? v : {}) as Record<string, unknown>
-  return { plan: readPlan(r.plan), activity: readAnswers(r.activity) }
+  return { plan: readPlan(r.plan), activity: readAnswers(r.activity), adaptive: readAdaptiveChoice(r.adaptive) }
 }
 
 /** Which change led to new targets, as the note under them says it. */

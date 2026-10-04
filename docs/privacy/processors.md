@@ -113,6 +113,15 @@ non-profit ([privacy policy](https://world.openfoodfacts.org/privacy)).
   (`app_name=GetIt`). Open Prices publishes these under the ODbL with the person's Open Food Facts user name; Open Food
   Facts is the controller of the publication. GetIt keeps on the device only which of its prices were shared (the
   Open Prices id) and the last place picked per shop. Code: `src/lib/open-prices-*.ts`, `src/sections/SharePrice.tsx`.
+- Adding an unknown product (v19, PROD-05, off by default, per product, on the person's tap after ticking "Also add it
+  to Open Food Facts"): a form POST to `world.openfoodfacts.org/cgi/product_jqm2.pl` with the barcode, the name and
+  brand typed, the figures per 100 g or 100 ml (and any vitamins and minerals typed), `app_name=GetIt`,
+  `app_version=19`, a random `app_uuid` per GetIt account and device (not derived from the account; kept in the
+  device's database) and the person's own Open Food Facts `user_id` and `password` (typed each time, never stored;
+  the v18 Open Prices token does not work for Open Food Facts writes); then, if a photo of the nutrition table was
+  taken, `cgi/product_image_upload.pl` with the same credentials and the photo (resized and re-encoded on the device,
+  which drops EXIF). Open Food Facts publishes it (ODbL, photo CC BY-SA) with the person's user name and is the
+  controller of the publication. Code: `src/lib/products-write-rules.ts`, `src/ui/FoodOffShare.tsx`.
 
 ## OpenStreetMap search (Nominatim): finding a shop for a shared price
 

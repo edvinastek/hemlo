@@ -21,6 +21,7 @@ import { addProduct, lookUpBarcode, whereFor, ProductProblem } from '../lib/prod
 import { maybeShopLabel, type Product } from '../lib/products-rules'
 import { AmountInput } from './AmountInput'
 import { BarcodeScan, ScanIcon } from './BarcodeScan'
+import { FoodEditor } from './FoodEditor'
 import { MoreMenu, type MenuItem } from './MoreMenu'
 import { ProductFinderBody } from './ProductSearch'
 import { QuickNumbers } from './QuickNumbers'
@@ -123,6 +124,7 @@ export function AddFoodSheet({ day, meal: startMeal, time: startTime, food: star
   const [tab, setTabState] = useState<Tab>(readTab)
   const setTab = (t: Tab) => { setTabState(t); keepTab(t) }
   const [mode, setMode] = useState<Mode | null>(null)
+  const [labelFor, setLabelFor] = useState<string | null>(null)
   const [query, setQuery] = useState('')
   const [plate, setPlate] = useState<OnPlate[]>([])
   const [busy, setBusy] = useState(false)
@@ -274,6 +276,14 @@ export function AddFoodSheet({ day, meal: startMeal, time: startTime, food: star
     )
   }
 
+  /* ---- an unknown product, made from its label (PROD-05) ---- */
+  // The food form takes the sheet's place (never a sheet on a sheet); the
+  // new food goes on the plate.
+  if (labelFor && userId) {
+    return <FoodEditor userId={userId} barcode={labelFor} onClose={() => setLabelFor(null)}
+      onSaved={(f) => { putFood(f); setMode(null) }} />
+  }
+
   /* ---- the food ---- */
   const plateKcal = plate.length ? `${Math.round(plateTotal.kcal)} kcal` : ''
   const back = () => { setMode(null); setNote(null) }
@@ -351,7 +361,8 @@ export function AddFoodSheet({ day, meal: startMeal, time: startTime, food: star
               onFood={(food, product) => putFood(food, servingOf(product))}
               onReady={(recipe) => putRecipe(recipe)}
               onFind={() => setMode('find')}
-              onNumbers={(label) => toNumbers(label)} />
+              onNumbers={(label) => toNumbers(label)}
+              onLabel={(code) => setLabelFor(code)} />
           )}
           {mode === 'numbers' && (
             <QuickNumbers key={`${plate.length}:${numbersLabel ?? ''}`} label={numbersLabel} shown={shown} action="Put on plate"
@@ -632,10 +643,12 @@ function SavedList({ profileId, saved, hits, look, onLog, onExplode }: {
  *  its serving or its pack as the amount, and the scanner is ready for the
  *  next one. A product not known anywhere offers the search by name or the
  *  numbers. A found one can also be saved as a ready meal (PROD-10). */
-function ScanSource({ userId, country, onFood, onReady, onFind, onNumbers }: {
+function ScanSource({ userId, country, onFood, onReady, onFind, onNumbers, onLabel }: {
   userId: string | null; country: string | null
   onFood: (food: Food, product: Product) => void; onReady: (r: Recipe) => void
   onFind: () => void; onNumbers: (label: string) => void
+  /** A product nobody knows (PROD-05): make it from its label. */
+  onLabel: (barcode: string) => void
 }) {
   const where = useMemo(() => whereFor(country), [country])
   const [attempt, setAttempt] = useState(0)
@@ -687,6 +700,7 @@ function ScanSource({ userId, country, onFood, onReady, onFind, onNumbers }: {
         <div className="af-scanned" role="alert">
           <p>No product with barcode {missing} in Open Food Facts yet.{maybeShopLabel(missing) ? ' It may be a shop’s own label for something weighed at the counter.' : ''}</p>
           <div className="af-also">
+            {userId && <button type="button" className="btn" onClick={() => onLabel(missing)}>Add it from its label</button>}
             <button type="button" className="btn" onClick={onFind}>Find by name</button>
             <button type="button" className="btn" onClick={() => onNumbers(`Product ${missing}`)}>Type the numbers</button>
           </div>

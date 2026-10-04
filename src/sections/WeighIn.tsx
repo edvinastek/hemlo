@@ -9,6 +9,7 @@ import {
 } from '../lib/body-rules'
 import type { Profile } from '../lib/types'
 import { builtinRuleOn } from '../modules/rule-switch'
+import { AdaptiveOffer } from './AdaptiveOffer'
 import './weighin.css'
 import { planToday } from '../lib/day-edge'
 
@@ -148,6 +149,8 @@ export function WeighIn({ profileId, day, history: showHistory = true }: {
             {target.reason ? `Targets ${target.reason}` : 'Targets entered without a recorded calculation'}
             {' · since '}{dayLabel(target.from_date)}
           </p>
+          {/* BODY-17 (X2): the adaptive estimate, offered quietly when the logs allow. */}
+          <AdaptiveOffer profileId={profileId} day={day} today={today} />
         </div>
       ) : (
         !missing && <p className="empty">No targets yet. Save a weigh-in and they are worked out from it.</p>

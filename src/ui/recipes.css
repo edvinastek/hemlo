@@ -73,3 +73,38 @@
 /* The Recipes tab's tools. */
 .rt-tools { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2); padding: var(--space-2) var(--space-4) 0; }
 .rt-tools .ft-search { flex: 1 1 160px; }
+
+/* Cook mode (REC-12): one step at a time in big serif type, the timers the
+   step mentions, Back and Next large at the foot. Full height, so the step
+   is all there is to look at. */
+.bottom-sheet.cook { display: flex; flex-direction: column; height: calc(100dvh - var(--space-4)); max-height: none; }
+.cook-head { display: flex; align-items: baseline; gap: var(--space-2); }
+.cook-head h2 { flex: 1; min-width: 0; margin-bottom: 0; font-family: var(--font-serif); overflow-wrap: anywhere; }
+.cook-close { min-height: 44px; padding: 0 var(--space-2); }
+.cook-where { margin: 0 0 var(--space-2); font-family: var(--font-sans); font-size: 13px; color: var(--e-ink-soft); }
+.cook-page { flex: 1; min-height: 0; overflow-y: auto; overscroll-behavior: contain; padding: var(--space-2) 0; }
+.cook-step { margin: 0; font-family: var(--font-serif); font-size: clamp(22px, 6.4vw, 32px); line-height: 1.4; color: var(--e-ink); overflow-wrap: anywhere; }
+.cook-sub { margin: 0 0 var(--space-2); font-family: var(--font-sans); font-size: 14px; color: var(--e-ink-soft); }
+.cook-lines { margin: 0; padding: 0; list-style: none; }
+.cook-lines li { display: flex; justify-content: space-between; gap: var(--space-3); padding: var(--space-2) 0; border-bottom: 1px solid var(--e-rule);
+  font-family: var(--font-serif); font-size: 20px; color: var(--e-ink); }
+.cook-amount { font-family: var(--font-sans); font-size: 16px; color: var(--e-ink-soft); text-align: right; white-space: nowrap; }
+.cook-timers { display: grid; gap: var(--space-2); padding: var(--space-2) 0; }
+.cook-start { min-height: 52px; font-size: 17px; }
+.cook-timer { display: flex; align-items: center; gap: var(--space-2); flex-wrap: wrap; padding: var(--space-2) var(--space-3);
+  border: 1px solid var(--e-rule); border-radius: var(--radius-md); background: var(--e-tint); }
+.cook-timer .btn { min-height: 44px; }
+.cook-clock { flex: 1; font-family: var(--font-sans); font-size: 28px; font-variant-numeric: tabular-nums; color: var(--e-ink); }
+.cook-timer.is-done { border-color: var(--e-accent); }
+.cook-timer.is-done .cook-clock { color: var(--e-accent); }
+.cook-timer.is-compact { padding: var(--space-1) var(--space-2); background: transparent; }
+.cook-timer.is-compact .cook-clock { flex: 0 0 auto; font-size: 18px; }
+.cook-label { flex: 1; min-width: 0; font-family: var(--font-sans); font-size: 13px; color: var(--e-ink-soft); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.cook-others { display: grid; gap: var(--space-1); margin: 0 0 var(--space-2); padding: 0; list-style: none; }
+.cook-nav { display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-2); padding-top: var(--space-2); }
+.cook-big { min-height: 56px; font-size: 18px; }
+
+/* A recipe's photo (REC-11), at the top of its page. */
+.rcp-photo { margin: 0 0 var(--space-3); border-radius: var(--radius-md); overflow: hidden; background: var(--e-tint); }
+.rcp-photo img { display: block; width: 100%; max-height: 240px; object-fit: cover; }
+.rcp-photo .fe-note { display: block; padding: var(--space-3); }

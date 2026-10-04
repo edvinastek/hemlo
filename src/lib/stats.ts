@@ -20,6 +20,7 @@ import { readFinanceSettings } from './finance-rules'
 import { currencyFor, itemKey } from './shopping-rules'
 import { rawGrams } from './calc'
 import { nutritionPrefs } from './nutrition-prefs'
+import { microMeasure, readDoseNutrients, withMicroFigures } from './micros-rules'
 import { addDays } from './schedule-rules'
 import { loadDayItems } from './day-items'
 import { enabledModules } from './day'
@@ -76,9 +77,15 @@ export async function loadCatalogue(profileId: string, settings: ProfileSettings
 /** The extra label figures the person chose to see (FOOD-16) and Finance's
  *  currency: what the catalogue needs beyond the modules. */
 async function catalogueExtras(profileId: string): Promise<CatalogueExtras> {
-  const figures = (await nutritionPrefs(profileId)).label.figures as string[]
+  const figures = shownFigureKeys(await nutritionPrefs(profileId))
   const currency = readFinanceSettings((await instanceFor(profileId, 'finance'))?.settings).currency
   return { figures, currency }
+}
+
+/** The extra label figures and the vitamins and minerals (as 'm_vd') the
+ *  person shows: the extra nutrition measures (FOOD-16, FOOD-17). */
+function shownFigureKeys(p: Awaited<ReturnType<typeof nutritionPrefs>>): string[] {
+  return [...(p.label.figures as string[]), ...p.micros.map(microMeasure)]
 }
 
 /** The first day each module has anything, so the days before the person
@@ -278,7 +285,8 @@ async function nutritionFacts(c: Ctx): Promise<Fact[]> {
   const logs = live(await db.food_log.where('profile_id').equals(c.profileId).toArray()).filter((l) => inSpan(l.log_date, c.span))
   const slots = live(await db.meal_plan_slot.where('profile_id').equals(c.profileId).toArray())
     .filter((s) => inSpan(s.slot_date, c.span) && s.status !== 'skipped')
-  if (!logs.length && !slots.length) return []
+  const doses = await doseFacts(c)
+  if (!logs.length && !slots.length) return doses
   const foodIds = new Set([...logs.map((l) => l.food_id), ...slots.map((s) => s.food_id)].filter((x): x is string => !!x))
   const recipeIds = [...new Set([...logs.map((l) => l.recipe_id), ...slots.map((s) => s.recipe_id)].filter((x): x is string => !!x))]
   const lines = recipeIds.length ? await db.recipe_line.where('recipe_id').anyOf(recipeIds).toArray() : []
@@ -293,7 +301,8 @@ async function nutritionFacts(c: Ctx): Promise<Fact[]> {
     return perRecipe.get(id)!
   }
   const extra = extraFigures(c.figures)
-  const asRow = (f: Food | undefined) => f as unknown as Record<string, unknown> | undefined
+  // Vitamins and minerals read like any other figure ('m_vd').
+  const asRow = (f: Food | undefined) => (f ? withMicroFigures(f) : undefined) as Record<string, unknown> | undefined
   // The extra label figures: only where every food in it gives the figure.
   const withExtra = (m: Macros, figure: (key: string) => number | null): Macros => {
     const out = { ...m }
@@ -332,6 +341,7 @@ async function nutritionFacts(c: Ctx): Promise<Fact[]> {
     for (const n of measured) if (Number.isFinite(m[n])) out.push({ ...base, measure: `nutrition:${n}`, value: m[n] })
   }
   for (const d of days) out.push({ day: d, module: 'nutrition', measure: 'nutrition:days', value: 1 })
+  out.push(...doses)
   for (const s of slots) {
     let m: Macros | null = null
     let item: string | null = null
@@ -343,6 +353,28 @@ async function nutritionFacts(c: Ctx): Promise<Fact[]> {
     if (!m) continue
     const base = { day: s.slot_date, module: 'nutrition', item, section: mealName(s.slot), ref: { table: 'meal_plan_slot', id: s.id, label: item ?? 'Meal' } }
     for (const n of measured) if (Number.isFinite(m[n])) out.push({ ...base, measure: `nutrition:planned_${n}`, value: m[n] })
+  }
+  return out
+}
+
+/** Supplements ticked that count towards the vitamins and minerals shown
+ *  (SUP-07): each ticked dose as an amount of each, on its day. */
+async function doseFacts(c: Ctx): Promise<Fact[]> {
+  const shown = new Set(c.figures.filter((k) => k.startsWith('m_')))
+  if (!shown.size) return []
+  const counting = (await db.supplement.where('profile_id').equals(c.profileId).toArray())
+    .filter((s) => !s.deleted_at && Object.keys(readDoseNutrients(s.nutrients)).some((k) => shown.has(`m_${k}`)))
+  if (!counting.length) return []
+  const logs = await db.supplement_log.where('supplement_id').anyOf(counting.map((s) => s.id)).filter((l) => inSpan(l.log_date, c.span)).toArray()
+  const out: Fact[] = []
+  for (const s of counting) {
+    const amounts = readDoseNutrients(s.nutrients)
+    const ref = { table: 'supplement', id: s.id, label: s.name }
+    for (const d of doneDays(logs.filter((l) => l.supplement_id === s.id))) {
+      for (const [code, v] of Object.entries(amounts)) {
+        if (shown.has(`m_${code}`)) out.push({ day: d, module: 'nutrition', item: s.name, section: null, ref, measure: `nutrition:m_${code}`, value: v as number })
+      }
+    }
   }
   return out
 }
@@ -536,7 +568,7 @@ export async function loadFacts(profileId: string, span: Range, today: string, m
   if (!profile) return []
   const owner = await getMeta<string | null>('owner', null)
   const want0 = (k: string) => (!only || only.includes(k)) && modules.some((m) => m.key === k)
-  const figures = want0('nutrition') ? (await nutritionPrefs(profileId)).label.figures as string[] : []
+  const figures = want0('nutrition') ? shownFigureKeys(await nutritionPrefs(profileId)) : []
   const c: Ctx = { profileId, householdId: profile.household_id, userId: owner, span, today, settings: readSettings(profile), figures, country: profile.country ?? null }
   const want = (k: string) => !only || only.includes(k)
   const on = new Set(modules.map((m) => m.key))

@@ -1,4 +1,4 @@
-import { useId, useMemo, useState } from 'react'
+import { useId, useMemo, useRef, useState } from 'react'
 import { format } from 'date-fns'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { db } from '../lib/db'
@@ -9,6 +9,8 @@ import {
   attributionFor, figureName, figureText, shownFigures, type LabelKey,
 } from '../lib/eu-label-rules'
 import { useNutritionPrefs } from '../lib/nutrition-prefs'
+import { MICROS, microText, nrvPercent, partsMicros } from '../lib/micros-rules'
+import { rawGrams } from '../lib/calc'
 import { formatCount, gramsLabel, readQty } from '../lib/units-rules'
 import { readSharing, statusOf } from '../lib/sharing-rules'
 import {
@@ -23,6 +25,10 @@ import { saveFile } from '../lib/native'
 import { addToShoppingList } from '../lib/recipe-actions'
 import { search } from '../lib/search-rules'
 import { SharingStatus } from './SharingChoice'
+import { RecipeCook } from './RecipeCook'
+import { usePhotoUrl } from '../modules/photos'
+import { removeRecipePhoto, restoreRecipePhoto, setRecipePhoto } from '../lib/recipe-photo'
+import { splitSteps } from '../lib/cook-rules'
 import { Dropdown } from './Dropdown'
 import { MoreMenu } from './MoreMenu'
 import { FoodUnitsSheet } from './FoodUnits'
@@ -33,7 +39,7 @@ import './sharing.css'
 import { useBackClose } from './useBackClose'
 import { planToday } from '../lib/day-edge'
 
-type Panel = null | 'task' | 'meal' | 'shop' | 'export' | 'food'
+type Panel = null | 'task' | 'meal' | 'shop' | 'export' | 'food' | 'cook' | 'photo'
 
 const round1 = (n: number) => Math.round(n * 10) / 10
 const qtyText = (n: number) => String(Math.round(n * 100) / 100)
@@ -95,6 +101,9 @@ export function RecipeView({ recipe: given, lines, foods, userId, onClose, onEdi
   const keys = shownFigures(shownNutrients(readSettings(profile)).filter((k) => k !== 'kcal'), prefs.label.figures).filter((k) => k !== 'kcal')
   const perPortion = recipeFigures(own, foods, ['kcal', ...keys], 1)
   const forShown = recipeFigures(own, foods, ['kcal', ...keys], portions)
+  // Vitamins and minerals the person shows (FOOD-17), a portion.
+  const microParts = own.map((l) => { const f = l.food_id ? foods.get(l.food_id) : undefined; return { food: f, grams: rawGrams(l, f) } })
+  const microSum = prefs.micros.length ? partsMicros(microParts, prefs.micros) : null
   const attribution = attributionFor(own.flatMap((l) => (l.food_id && foods.get(l.food_id) ? [foods.get(l.food_id)!] : [])))
   const ready = readyProduct(recipe, own, foods)
 
@@ -102,6 +111,11 @@ export function RecipeView({ recipe: given, lines, foods, userId, onClose, onEdi
   useBackClose(onClose, !panel)
 
   if (panel === 'food' && ready?.food) return <FoodUnitsSheet food={ready.food} onClose={() => setPanel(null)} />
+  // Cook mode takes the page's place (never a sheet on a sheet), for the portions shown.
+  if (panel === 'cook') {
+    return <RecipeCook recipe={recipe} portions={portions} onClose={() => setPanel(null)}
+      lines={scaled.map((l) => ({ id: l.id, name: l.said ?? l.name, amount: amountOf(l) }))} />
+  }
 
   const step = (by: number) => setPortionsText(qtyText(Math.max(0.25, Math.min(999, Math.round((portions + by) * 4) / 4))))
   const sharing = readSharing(recipe)
@@ -116,7 +130,9 @@ export function RecipeView({ recipe: given, lines, foods, userId, onClose, onEdi
           <h2 id={titleId}>{recipe.name}</h2>
           {!panel && (
             <MoreMenu className="rcp-more" label={`More for ${recipe.name}`} items={[
+              splitSteps(recipe.steps).length > 0 && { label: 'Cook', onSelect: () => setPanel('cook') },
               mine && { label: 'Edit', onSelect: () => onEdit(recipe) },
+              mine && { label: recipe.photo_path ? 'Change photo…' : 'Add a photo…', onSelect: () => setPanel('photo') },
               !!userId && { label: 'Make a variation', onSelect: () => onVariation(recipe) },
               !!profile && { label: 'Add to a task’s note', onSelect: () => setPanel('task') },
               !!profile && !isReady(recipe) && { label: 'Add to shopping list', onSelect: () => setPanel('shop') },
@@ -132,6 +148,8 @@ export function RecipeView({ recipe: given, lines, foods, userId, onClose, onEdi
             : <> · {recipe.owner_id ? 'Shared by someone' : 'GetIt’s recipe'}</>}
         </p>
         {mine && sharing === 'rejected' && recipe.review_note && <p className="rcp-warn">Not accepted: {recipe.review_note}</p>}
+        {recipe.photo_path && (!panel || panel === 'photo') && <RecipePhoto path={recipe.photo_path} name={recipe.name} />}
+        {panel === 'photo' && <PhotoPanel recipe={recipe} onBack={back} onDone={close} />}
 
         {panel === 'task' && profile && <TaskPanel recipe={recipe} scaled={scaled} portions={portions} figures={perPortion} keys={keys} profileId={profile.id} onBack={back} onDone={close} />}
         {panel === 'meal' && profile && <MealPanel recipe={recipe} profileId={profile.id} onBack={back} onDone={close} />}
@@ -195,7 +213,27 @@ export function RecipeView({ recipe: given, lines, foods, userId, onClose, onEdi
                 })}
               </tbody>
             </table>
-            {(['kcal', ...keys] as LabelKey[]).some((k) => (perPortion[k]?.missing ?? 0) > 0) && (
+            {microSum && (
+              <table className="rcp-figures rcp-micros">
+                <thead><tr><th scope="col"><span className="visually-hidden">Nutrient</span></th><th scope="col">A portion</th><th scope="col">%NRV</th></tr></thead>
+                <tbody>
+                  {MICROS.filter((m) => prefs.micros.includes(m.code)).map((m) => {
+                    const v = microSum.total[m.code] ?? null
+                    const mark = microSum.missing[m.code] ? ' *' : ''
+                    const pct = nrvPercent(m.code, v)
+                    return (
+                      <tr key={m.code}>
+                        <th scope="row">{m.name}</th>
+                        <td>{microText(m.code, v)}{v !== null ? mark : ''}</td>
+                        <td>{pct === null ? '' : `${pct}%`}</td>
+                      </tr>
+                    )
+                  })}
+                </tbody>
+              </table>
+            )}
+            {((['kcal', ...keys] as LabelKey[]).some((k) => (perPortion[k]?.missing ?? 0) > 0)
+              || (microSum && prefs.micros.some((c) => microSum.missing[c] && microSum.total[c] !== undefined))) && (
               <p className="fe-note">* Some ingredients do not give this figure, so the real amount is higher.</p>
             )}
 
@@ -211,6 +249,57 @@ export function RecipeView({ recipe: given, lines, foods, userId, onClose, onEdi
         )}
       </div>
     </>
+  )
+}
+
+/** The recipe's photo (REC-11): from this device's copy, so it shows
+ *  offline once seen; a quiet line while one not yet here is fetched. */
+function RecipePhoto({ path, name }: { path: string; name: string }) {
+  const url = usePhotoUrl(path)
+  if (url === undefined) return null
+  return (
+    <div className="rcp-photo">
+      {url ? <img src={url} alt={`${name}, photo`} /> : <span className="fe-note">The photo shows once there is a connection.</span>}
+    </div>
+  )
+}
+
+/** Add, change or take off the photo (REC-11): with the camera or from the
+ *  files, made smaller on the device. Taking it off can be undone. */
+function PhotoPanel({ recipe, onBack, onDone }: { recipe: Recipe; onBack: () => void; onDone: (said: string) => void }) {
+  const camera = useRef<HTMLInputElement>(null)
+  const files = useRef<HTMLInputElement>(null)
+  const [busy, setBusy] = useState(false)
+  const [problem, setProblem] = useState<string | null>(null)
+  async function take(file: File | undefined) {
+    if (!file) return
+    setBusy(true); setProblem(null)
+    try {
+      const said = await setRecipePhoto(recipe, file)
+      if (said) setProblem(said)
+      else onDone('Photo saved.')
+    } finally { setBusy(false) }
+  }
+  async function takeOff() {
+    const before = recipe.photo_path ?? null
+    await removeRecipePhoto(recipe)
+    offerUndo('Photo taken off', () => restoreRecipePhoto(recipe, before))
+    onDone('Photo taken off.')
+  }
+  return (
+    <div className="rcp-choice">
+      <p className="rcp-section">{recipe.photo_path ? 'Change the photo' : 'Add a photo'}</p>
+      <div className="rcp-actions">
+        <button type="button" className="btn" disabled={busy} onClick={() => camera.current?.click()}>Take a photo</button>
+        <button type="button" className="btn" disabled={busy} onClick={() => files.current?.click()}>Choose a photo</button>
+        {recipe.photo_path && <button type="button" className="btn" disabled={busy} onClick={() => void takeOff()}>Take it off</button>}
+      </div>
+      <input ref={camera} type="file" accept="image/*" capture="environment" hidden onChange={(e) => { void take(e.target.files?.[0]); e.target.value = '' }} />
+      <input ref={files} type="file" accept="image/*" hidden onChange={(e) => { void take(e.target.files?.[0]); e.target.value = '' }} />
+      {busy && <p className="fe-note" role="status">Making the photo smaller…</p>}
+      {problem && <p className="rcp-warn" role="alert">{problem}</p>}
+      <div className="sheet-actions"><button type="button" className="btn grow" onClick={onBack}>Back</button></div>
+    </div>
   )
 }
 

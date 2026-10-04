@@ -122,6 +122,9 @@ export interface Food {
   /** The shared food that took this one's place (027): set on old catalogue
    *  rows NEVO replaced, which are hidden. */
   replaced_by?: string | null
+  /** Vitamins and minerals per 100 g or 100 ml (036, FOOD-17), keyed by
+   *  micros-rules.ts's codes; a key absent is unknown. */
+  micros?: Partial<Record<string, number>> | null
   deleted_at?: string | null
 }
 
@@ -149,6 +152,8 @@ export interface Recipe {
   reviewed_at?: string | null
   /** The reviewer's note, shown to the owner when it was not accepted. */
   review_note?: string | null
+  /** Its photo in Storage, 'recipes/<id>/<photo id>.jpg' (036, REC-11). */
+  photo_path?: string | null
   deleted_at?: string | null
 }
 
@@ -427,6 +432,9 @@ export interface Supplement {
   stock_from?: string | null
   /** Days ahead the refill reminder comes (7 when not set). */
   refill_days?: number | null
+  /** What one dose gives towards vitamins and minerals (036, SUP-07), in
+   *  micros-rules.ts's codes and units. */
+  nutrients?: Partial<Record<string, number>> | null
   active: boolean
   sort_order: number
   updated_at: string

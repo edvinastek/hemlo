@@ -64,6 +64,7 @@ export const SETTINGS_INDEX: SettingEntry[] = [
   { title: 'Note templates', page: 'planning', words: 'note templates checklist packing list fill-ins' },
   { title: 'Evening review', page: 'planning', words: 'review time moved times flagged extension limit' },
   { title: 'Food', page: 'food', words: 'food nutrients calories protein carbs fat fibre what to count meals main meal' },
+  { title: 'Vitamins and minerals', page: 'food', words: 'vitamins minerals micronutrients nrv reference vitamin d iron calcium potassium folate b12' },
   { title: 'Body and goal', page: 'food', words: 'height date of birth sex activity goal weight cut bulk recomp targets' },
   { title: 'Shopping', page: 'shopping', words: 'shopping trip days list window shops aisles' },
   { title: 'Share prices with Open Prices', page: 'shopping', words: 'open prices open food facts share price public account sign in photo receipt' },

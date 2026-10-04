@@ -1535,6 +1535,137 @@ begin
   insert into _r (check_name, expected, actual) values
     ('The Health catalogue no longer names a weigh-in day (any day is the default)', 'false',
        (select (default_settings ? 'weigh_in_day')::text from module where key = 'health'));
+-- 036 (engineer X2): vitamins and minerals on foods and supplement doses,
+-- and a recipe's photo in the record-photos bucket, seen exactly as the
+-- recipe is. B is the owner, M the stranger.
+do $$
+declare n int; r uuid; s uuid; f uuid; f2 text := gen_random_uuid()::text; photo text;
+begin
+  perform set_config('role', 'authenticated', true);
+  perform set_config('request.jwt.claims', json_build_object('sub', (select b from _ids), 'role', 'authenticated')::text, true);
+  insert into food (owner_id, name, kcal, micros) select b, 'B''s fortified drink', 40, '{"vd": 1.5, "ca": 120}'::jsonb from _ids returning id into f;
+  insert into _r (check_name, expected, actual) values
+    ('A food keeps its vitamins and minerals', '1.5 120', (select (micros->>'vd') || ' ' || (micros->>'ca') from food where id = f));
+  begin
+    update food set micros = '{"vd": -1}' where id = f;
+    insert into _r (check_name, expected, actual) values ('A vitamin is never below nothing', 'denied', 'allowed');
+  exception when others then
+    insert into _r (check_name, expected, actual) values ('A vitamin is never below nothing', 'denied', 'denied');
+  end;
+  begin
+    update food set micros = '{"unobtainium": 3}' where id = f;
+    insert into _r (check_name, expected, actual) values ('Only known vitamins and minerals are kept', 'denied', 'allowed');
+  exception when others then
+    insert into _r (check_name, expected, actual) values ('Only known vitamins and minerals are kept', 'denied', 'denied');
+  end;
+  begin
+    update food set micros = '{"vd": "lots"}' where id = f;
+    insert into _r (check_name, expected, actual) values ('A vitamin figure is a number', 'denied', 'allowed');
+  exception when others then
+    insert into _r (check_name, expected, actual) values ('A vitamin figure is a number', 'denied', 'denied');
+  end;
+  begin
+    update food set micros = '[1, 2]' where id = f;
+    insert into _r (check_name, expected, actual) values ('Vitamins and minerals are kept by name', 'denied', 'allowed');
+  exception when others then
+    insert into _r (check_name, expected, actual) values ('Vitamins and minerals are kept by name', 'denied', 'denied');
+  end;
+  insert into supplement (profile_id, name, nutrients) select pb, 'Vitamin D 036', '{"vd": 25}'::jsonb from _ids returning id into s;
+  insert into _r (check_name, expected, actual) values
+    ('A supplement says what a dose gives', '25', (select nutrients->>'vd' from supplement where id = s));
+  begin
+    update supplement set nutrients = '{"vd": 2000000}' where id = s;
+    insert into _r (check_name, expected, actual) values ('A dose figure stays within reason', 'denied', 'allowed');
+  exception when others then
+    insert into _r (check_name, expected, actual) values ('A dose figure stays within reason', 'denied', 'denied');
+  end;
+  update food set micros = '{"vd": 9}' where nevo_code = 1;
+  get diagnostics n = row_count;
+  insert into _r (check_name, expected, actual) values ('Nobody changes the catalogue''s vitamins', '0', n::text);
+
+  -- A recipe's photo: its name is the recipe's own folder.
+  insert into recipe (owner_id, name) select b, 'B''s soup 036' from _ids returning id into r;
+  photo := 'recipes/' || r || '/' || f2 || '.jpg';
+  update recipe set photo_path = photo where id = r;
+  insert into _r (check_name, expected, actual) values ('A recipe keeps its photo''s name', 'yes', (select case when photo_path = photo then 'yes' else 'no' end from recipe where id = r));
+  begin
+    update recipe set photo_path = 'recipes/' || gen_random_uuid() || '/' || f2 || '.jpg' where id = r;
+    insert into _r (check_name, expected, actual) values ('A recipe''s photo is in its own folder', 'denied', 'allowed');
+  exception when others then
+    insert into _r (check_name, expected, actual) values ('A recipe''s photo is in its own folder', 'denied', 'denied');
+  end;
+  execute 'reset role';
+  insert into _r (check_name, expected, actual) values
+    ('A recipe photo''s recipe is read from its name', 'yes', (select case when private.photo_recipe(photo) = r then 'yes' else 'no' end)),
+    ('A recipe photo name of any other shape belongs to no recipe', 'null null null',
+      coalesce(private.photo_recipe('recipes/' || r || '/x.jpg')::text, 'null') || ' ' || coalesce(private.photo_recipe(r || '/' || r || '/' || f2 || '.jpg')::text, 'null')
+        || ' ' || coalesce(private.photo_recipe('recipes/' || r || '/' || f2 || '.png')::text, 'null'));
+
+  if to_regclass('storage.objects') is null then
+    raise notice '036: no Storage here, so the recipe photo policies are not tried';
+    return;
+  end if;
+  perform set_config('storage.allow_delete_query', 'true', true);
+
+  -- B puts the photo up; not under someone else's recipe, not loose.
+  perform set_config('role', 'authenticated', true);
+  perform set_config('request.jwt.claims', json_build_object('sub', (select b from _ids), 'role', 'authenticated')::text, true);
+  insert into storage.objects (bucket_id, name, owner) values ('record-photos', photo, (select b from _ids));
+  insert into _r (check_name, expected, actual) values
+    ('The owner sees their recipe''s photo', '1', (select count(*) from storage.objects where name = photo)::text);
+  begin
+    insert into storage.objects (bucket_id, name, owner)
+      values ('record-photos', 'recipes/' || (select id from recipe where owner_id is null limit 1) || '/' || gen_random_uuid() || '.jpg', (select b from _ids));
+    insert into _r (check_name, expected, actual) values ('Nobody puts a photo on a recipe that is not theirs', 'denied', 'allowed');
+  exception when others then
+    insert into _r (check_name, expected, actual) values ('Nobody puts a photo on a recipe that is not theirs', 'denied', 'denied');
+  end;
+  begin
+    insert into storage.objects (bucket_id, name, owner) values ('record-photos', 'recipes/' || r || '/loose.jpg', (select b from _ids));
+    insert into _r (check_name, expected, actual) values ('A recipe photo must be named as one', 'denied', 'allowed');
+  exception when others then
+    insert into _r (check_name, expected, actual) values ('A recipe photo must be named as one', 'denied', 'denied');
+  end;
+  execute 'reset role';
+
+  -- M: a private recipe's photo is not theirs to see, change or delete.
+  perform set_config('role', 'authenticated', true);
+  perform set_config('request.jwt.claims', json_build_object('sub', (select m from _ids), 'role', 'authenticated')::text, true);
+  insert into _r (check_name, expected, actual) values
+    ('A stranger cannot see a private recipe''s photo', '0', (select count(*) from storage.objects where name = photo)::text);
+  update storage.objects set name = name where name = photo;
+  get diagnostics n = row_count;
+  insert into _r (check_name, expected, actual) values ('A stranger cannot change a recipe''s photo', '0', n::text);
+  begin
+    delete from storage.objects where name = photo;
+    get diagnostics n = row_count;
+  exception when others then n := 0;
+  end;
+  insert into _r (check_name, expected, actual) values ('A stranger cannot delete a recipe''s photo', '0', n::text);
+  execute 'reset role';
+
+  -- Approved for everyone (as review_recipe() does): everyone sees the photo,
+  -- still only B may delete it.
+  update recipe set sharing = 'public' where id = r;
+  perform set_config('role', 'authenticated', true);
+  perform set_config('request.jwt.claims', json_build_object('sub', (select m from _ids), 'role', 'authenticated')::text, true);
+  insert into _r (check_name, expected, actual) values
+    ('Everyone sees the photo of a recipe shared with everyone', '1', (select count(*) from storage.objects where name = photo)::text);
+  begin
+    delete from storage.objects where name = photo;
+    get diagnostics n = row_count;
+  exception when others then n := 0;
+  end;
+  insert into _r (check_name, expected, actual) values ('Only the owner deletes a shared recipe''s photo', '0', n::text);
+  execute 'reset role';
+
+  -- B takes the photo off with the recipe.
+  perform set_config('role', 'authenticated', true);
+  perform set_config('request.jwt.claims', json_build_object('sub', (select b from _ids), 'role', 'authenticated')::text, true);
+  delete from storage.objects where name = photo;
+  get diagnostics n = row_count;
+  insert into _r (check_name, expected, actual) values ('The owner can delete their recipe''s photo', '1', n::text);
+  execute 'reset role';
 end $$;
 
 select n, check_name, expected, actual, case when expected = actual then 'ok' else 'FAIL' end as result

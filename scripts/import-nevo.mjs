@@ -2,7 +2,8 @@
 // Builds GetIt's shared food catalogue from NEVO-online 2025/9.0 (RIVM).
 //
 //   node scripts/import-nevo.mjs <NEVO2025_v9.0.csv>           report only
-//   node scripts/import-nevo.mjs <NEVO2025_v9.0.csv> --write   rewrite migration 027's data
+//   node scripts/import-nevo.mjs <NEVO2025_v9.0.csv> --write   rewrite migration 027's data and 036's
+//                                                              vitamins and minerals
 //
 // NEVO's file is UTF-8, '|'-separated, values in double quotes, lines ending
 // CRLF, with decimal commas. One row per food, nutrients in columns named by
@@ -34,6 +35,11 @@ import {
 
 const HERE = dirname(fileURLToPath(import.meta.url))
 export const MIGRATION = join(HERE, '..', 'supabase', 'migrations', '027_food_catalogue.sql')
+/** Version 19 (FOOD-17): the vitamins and minerals go in a migration of
+ *  their own, so 027 (applied long ago) is left exactly as it is. */
+export const MICROS_MIGRATION = join(HERE, '..', 'supabase', 'migrations', '036_v19_food_extras.sql')
+export const MICROS_BEGIN = '-- BEGIN GENERATED NEVO MICRONUTRIENTS'
+export const MICROS_END = '-- END GENERATED NEVO MICRONUTRIENTS'
 const SEED = join(HERE, '..', 'seed', 'catalogue.json')
 export const BEGIN = '-- BEGIN GENERATED NEVO DATA'
 export const END = '-- END GENERATED NEVO DATA'
@@ -47,6 +53,21 @@ export const COLUMNS = {
   ENERCJ: 'kj', ENERCC: 'kcal', PROT: 'protein_g', FAT: 'fat_g', FASAT: 'sat_fat_g', FAMSCIS: 'mufa_g',
   FAPU: 'pufa_g', CHO: 'carbs_g', SUGAR: 'sugars_g', STARCH: 'starch_g', POLYL: 'polyols_g', FIBT: 'fiber_g',
   ALC: 'alcohol_g', NA: 'sodium_mg', OA: 'organic_acid_g',
+}
+
+/** The vitamins and minerals read (FOOD-17): the ones of Regulation (EU)
+ *  No 1169/2011, Annex XIII part A, that NEVO publishes, by NEVO code, with
+ *  the short code the app keeps them under (src/lib/micros-rules.ts, which
+ *  the check holds this list against) and the unit NEVO's header must give,
+ *  which is also the annex's unit, so every value goes in unchanged. NEVO
+ *  has no biotin, pantothenic acid, chloride, manganese, fluoride, chromium
+ *  or molybdenum. Vitamin A is read as retinol equivalents (VITA_RE), niacin
+ *  as published niacin (NIA), folate as dietary folate equivalents (FOL). */
+export const MICRO_COLUMNS = {
+  VITA_RE: ['va', 'µg'], VITD: ['vd', 'µg'], VITE: ['ve', 'mg'], VITK: ['vk', 'µg'], VITC: ['vc', 'mg'],
+  THIA: ['b1', 'mg'], RIBF: ['b2', 'mg'], NIA: ['b3', 'mg'], VITB6: ['b6', 'mg'], FOL: ['b9', 'µg'], VITB12: ['b12', 'µg'],
+  K: ['k', 'mg'], CA: ['ca', 'mg'], P: ['p', 'mg'], MG: ['mg', 'mg'], FE: ['fe', 'mg'], ZN: ['zn', 'mg'], CU: ['cu', 'mg'],
+  SE: ['se', 'µg'], ID: ['i', 'µg'],
 }
 
 /** A deterministic id for a NEVO food (UUID version 5 of "nevo:<code>"), so
@@ -115,17 +136,40 @@ export function readNevo(text) {
     qty: col('Hoeveelheid/Quantity'), note: col('Opmerking'),
   }
   const nutrients = Object.fromEntries(Object.keys(COLUMNS).map((k) => [k, col(k)]))
+  // Vitamins and minerals: each column NEVO's file has, with the unit
+  // checked against the one the app counts in. A column the file lacks is
+  // unknown for every food (the command line insists on all of them).
+  const micros = {}
+  for (const [code, [key, unit]] of Object.entries(MICRO_COLUMNS)) {
+    const i = head.findIndex((h) => h === code || h.startsWith(`${code} (`))
+    if (i < 0) continue
+    const got = /\(([^)]*)\)/.exec(head[i])?.[1]
+    if (got !== unit) throw new Error(`NEVO column ${code} is in ${got ?? 'no unit'}, expected ${unit}`)
+    micros[key] = i
+  }
   return body.map((r) => {
     const qty = r[at.qty].trim().toLowerCase().replace(/\s+/g, '')
     if (qty !== 'per100g' && qty !== 'per100ml') throw new Error(`Food ${r[at.code]}: quantity "${r[at.qty]}"`)
     const values = {}
     for (const [k, i] of Object.entries(nutrients)) values[COLUMNS[k]] = nevoNumber(r[i])
+    // An empty cell stays out (unknown); a published 0 is kept.
+    const m = {}
+    for (const [key, i] of Object.entries(micros)) {
+      const v = nevoNumber(r[i])
+      if (v !== null) m[key] = v
+    }
     return {
       code: Number(r[at.code]), version: r[at.version].trim(), group: r[at.group].trim(),
       nl: r[at.nl].trim(), en: r[at.en].trim(), synonyms: r[at.syn].trim() || null, note: r[at.note].trim() || null,
-      per_ml: qty === 'per100ml', values,
+      per_ml: qty === 'per100ml', values, micros: m,
     }
   })
+}
+
+/** NEVO's micronutrient columns a file lacks (by NEVO code). */
+export function missingMicroColumns(text) {
+  const [head] = parseDelimited(text.slice(0, 20000).split(/\r?\n/)[0] + '\n')
+  return Object.keys(MICRO_COLUMNS).filter((code) => !head.some((h) => h === code || h.startsWith(`${code} (`)))
 }
 
 // ---- rows for the catalogue -------------------------------------------------------------
@@ -244,12 +288,32 @@ export function generatedSql(p) {
   return out.join('\n')
 }
 
+/** The generated part of migration 036: each NEVO food's vitamins and
+ *  minerals, as published, set on its catalogue row by NEVO code. One food a
+ *  line, as [code, {figures}]: the code is shorter than the id, and keys
+ *  absent are unknown. A row is only rewritten when its figures changed, so
+ *  a second run leaves every device's copy alone. */
+export function microsSql(nevo) {
+  const rows = nevo.filter((f) => Object.keys(f.micros ?? {}).length)
+  const out = []
+  out.push(MICROS_BEGIN)
+  out.push(`-- Vitamins and minerals of ${rows.length} foods from ${NEVO_VERSION}, per 100 g or 100 ml in NEVO's units, unchanged.`)
+  out.push('-- Generated by scripts/import-nevo.mjs; do not edit by hand.')
+  out.push('update public.food f set micros = e->1')
+  out.push('from jsonb_array_elements($nevo$[')
+  rows.forEach((f, i) => out.push(JSON.stringify([f.code, f.micros]) + (i < rows.length - 1 ? ',' : '')))
+  out.push(']$nevo$::jsonb) as e')
+  out.push('where f.nevo_code = (e->>0)::int and f.owner_id is null and f.micros is distinct from e->1;')
+  out.push(MICROS_END)
+  return out.join('\n')
+}
+
 /** The migration with its generated part replaced. */
-export function withGenerated(migration, sql) {
-  const a = migration.indexOf(BEGIN)
-  const b = migration.indexOf(END)
-  if (a < 0 || b < 0 || b < a) throw new Error(`${MIGRATION} has no generated part (${BEGIN} … ${END}).`)
-  return migration.slice(0, a) + sql + migration.slice(b + END.length)
+export function withGenerated(migration, sql, begin = BEGIN, end = END) {
+  const a = migration.indexOf(begin)
+  const b = migration.indexOf(end)
+  if (a < 0 || b < 0 || b < a) throw new Error(`The migration has no generated part (${begin} … ${end}).`)
+  return migration.slice(0, a) + sql + migration.slice(b + end.length)
 }
 
 // ---- command line ---------------------------------------------------------------------------
@@ -260,7 +324,13 @@ if (process.argv[1] && fileURLToPath(import.meta.url) === process.argv[1]) {
     console.error('Usage: node scripts/import-nevo.mjs <NEVO2025_v9.0.csv> [--write]')
     process.exit(2)
   }
-  const nevo = readNevo(readFileSync(csv, 'utf8'))
+  const text = readFileSync(csv, 'utf8')
+  const lacking = missingMicroColumns(text)
+  if (lacking.length) {
+    console.error(`NEVO file lacks the vitamin and mineral columns ${lacking.join(', ')}.`)
+    process.exit(1)
+  }
+  const nevo = readNevo(text)
   const versions = [...new Set(nevo.map((f) => f.version))]
   if (versions.length !== 1 || !/2025 9\.0/.test(versions[0])) {
     console.error(`Expected one version, NEVO-Online 2025 9.0; the file says ${versions.join(', ')}.`)
@@ -270,6 +340,7 @@ if (process.argv[1] && fileURLToPath(import.meta.url) === process.argv[1]) {
   const p = plan(nevo, oldNames)
   console.log(`${nevo.length} NEVO foods; ${Object.keys(REPLACES).length} old foods replaced, ${Object.keys(KEEP).length} kept, ${p.hidden.length} hidden.`)
   console.log(`Units on ${p.rows.filter((r) => r.units.length).length} foods; cook yields on ${p.rows.filter((r) => r.cook_yield).length}.`)
+  console.log(`Vitamins and minerals on ${nevo.filter((f) => Object.keys(f.micros).length).length} foods (${nevo.reduce((n, f) => n + Object.keys(f.micros).length, 0)} figures).`)
   if (p.problems.length) {
     console.error(p.problems.join('\n'))
     process.exit(1)
@@ -277,5 +348,7 @@ if (process.argv[1] && fileURLToPath(import.meta.url) === process.argv[1]) {
   if (flag === '--write') {
     writeFileSync(MIGRATION, withGenerated(readFileSync(MIGRATION, 'utf8'), generatedSql(p)))
     console.log(`Wrote ${MIGRATION}.`)
+    writeFileSync(MICROS_MIGRATION, withGenerated(readFileSync(MICROS_MIGRATION, 'utf8'), microsSql(nevo), MICROS_BEGIN, MICROS_END))
+    console.log(`Wrote ${MICROS_MIGRATION}.`)
   }
 }
