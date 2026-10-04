@@ -165,6 +165,9 @@ Types, then every check that needs nothing but Node. CI runs the same command.
   and migration 035 (scripts/units-usda.mjs): USDA's units added to NEVO foods with their source, every Portie-online
   unit kept as it was, sizes in order, the XL egg, the bagel and chicken thighs with figures that add up, Human milk
   hidden, and the script's rules (Portie-online wins, at most eight units, plurals, ids).
+- `recipefetch` — a recipe from a web address (REC-07): addresses tidied and checked (never one on the person's own
+  network), a page read only when it holds schema.org recipe data, and what to say when a site refuses (on the web,
+  pointing to the app and to pasting).
 - `dayri` — the day's share of the reference intake (FOOD-06): foods, recipes by their lines and portions, quick
   entries' own numbers, salt from sodium, skipped items left out, and "at least" where an item lacks a figure.
 - `eulabel` — the EU 1169/2011 label: Annex XIV energy factors, energy worked out from macros and checked against the
