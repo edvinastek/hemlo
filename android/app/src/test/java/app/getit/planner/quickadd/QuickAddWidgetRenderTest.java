@@ -5,6 +5,10 @@ import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 
 import android.content.Context;
+import android.graphics.Bitmap;
+import android.graphics.Canvas;
+import android.graphics.Color;
+import android.graphics.drawable.Drawable;
 import android.net.Uri;
 import android.view.View;
 import android.widget.RemoteViews;
@@ -21,6 +25,8 @@ import org.robolectric.RuntimeEnvironment;
 import org.robolectric.annotation.Config;
 import org.robolectric.annotation.GraphicsMode;
 
+import java.io.File;
+import java.io.FileOutputStream;
 import java.util.List;
 
 import app.getit.planner.R;
@@ -149,6 +155,29 @@ public class QuickAddWidgetRenderTest {
         assertEquals(QuickAddActivity.class.getName(), first.getIntent().getComponent().getClassName());
         QuickAdd.clear(ctx);
         assertEquals(0, ShortcutManagerCompat.getDynamicShortcuts(ctx).size());
+    }
+
+    /** Every launcher shortcut icon in a row, as a launcher draws them, into
+     *  build/widget-previews/shortcut-icons.png. */
+    @Test public void shortcutIcons() throws Exception {
+        String[] keys = { "task", "inbox", "food", "event", "m:shopping", "m:health", "m:habits", "m:sleep", "m:other" };
+        float d = ctx.getResources().getDisplayMetrics().density;
+        int size = Math.round(48 * d);
+        int gap = Math.round(12 * d);
+        Bitmap b = Bitmap.createBitmap(keys.length * (size + gap) + gap, size + 2 * gap, Bitmap.Config.ARGB_8888);
+        Canvas c = new Canvas(b);
+        c.drawColor(Color.rgb(0x5f, 0x6b, 0x73));
+        for (int i = 0; i < keys.length; i++) {
+            Drawable icon = ctx.getDrawable(QuickAdd.iconFor(keys[i]));
+            int x = gap + i * (size + gap);
+            icon.setBounds(x, gap, x + size, gap + size);
+            icon.draw(c);
+        }
+        File dir = new File("build/widget-previews");
+        dir.mkdirs();
+        try (FileOutputStream out = new FileOutputStream(new File(dir, "shortcut-icons.png"))) {
+            b.compress(Bitmap.CompressFormat.PNG, 100, out);
+        }
     }
 
     private static View root(View v, int id) {

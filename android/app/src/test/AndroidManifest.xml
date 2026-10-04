@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- The unit tests' manifest (Robolectric draws the widgets with the app's
+     resources): Health Connect's client library is let in below its own
+     minimum Android here too, as the app's manifest does. -->
+<manifest xmlns:android="http://schemas.android.com/apk/res/android" xmlns:tools="http://schemas.android.com/tools">
+    <uses-sdk tools:overrideLibrary="androidx.health.connect.client" />
+</manifest>
