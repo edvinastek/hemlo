@@ -41,9 +41,26 @@ const sel = useSelection(rows)          // rows: every row that can be ticked ({
 - Bulk "Export": `const exp = useExport({ rows: sel.picked, fields, label: 'Stock (selected)' })` then
   `<SelectAction count={n} onClick={() => exp.item?.onSelect()}>Export…</SelectAction>` and render `exp.sheet`.
 
-## For W2: meals through the shared CopySheet
+## For W2: meals through the shared CopySheet (GEN-55)
 
-(see below once committed)
+```tsx
+import { CopySheet } from '../ui/CopySheet'
+// A whole day's food ("Copy day to…" in Food's ⋮):
+{copying && <CopySheet what={{ kind: 'meals', day, groups: 'all' }} onClose={() => setCopying(false)} />}
+// One meal (MealCard's "Copy to…"): groups = Food's meal keys, label = the meal's name
+{panel === 'copy' && <CopySheet what={{ kind: 'meals', day, groups: [g.key], label: title }} onClose={() => setPanel(null)} />}
+```
+
+- It calls `meals.ts:copyMeals(day, targets, groups, profileId)` (unchanged), offers Undo itself
+  ("Lunch copied to 2 days" / "Copied 3 meals to Tue 6 Oct"; `copy-rules.ts:mealCopySummary`), and
+  closes on Back/Escape. Optional `onDone(days)`.
+- The sheet shows only the days (shortcuts Tomorrow / Every weekday this week / Same day next week and the
+  scrolling calendar); no Options (time, notes, keep do not apply to meals). The source day is disabled,
+  as are past days (a copy plans ahead; copying yesterday's food onto today works).
+- With no food in the chosen meals it says "There is no food to copy here." and Copy stays off.
+- You can then delete FoodDay's `CopyDays` panel (and its native date input). Never open it from inside
+  another sheet: close the meal panel first, then open the CopySheet (CALM-10).
 
 ## Log
 - useSelection + selection-rules + SelectBar (SelectAction, SelectDelete) built and checked.
+- CopySheet `meals` case (copy.ts runCopy → copyMeals; copy-rules mealCopySummary) built and checked.

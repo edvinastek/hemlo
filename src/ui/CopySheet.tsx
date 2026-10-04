@@ -9,6 +9,7 @@ import {
   targetWords, toggleShortcut, toggleTarget, type CopyChoices, type NotesChoice, type TimeChoice,
 } from '../lib/copy-rules'
 import { runCopy, type CopyWhat } from '../lib/copy'
+import { groupKey } from '../lib/meal-rules'
 import { savePlanPrefs, usePlanPrefs } from '../lib/plan-prefs'
 import { MonthScroller } from './MonthScroller'
 import { MoreOptions } from './MoreOptions'
@@ -21,7 +22,8 @@ import './copysheet.css'
 export type { CopyWhat } from '../lib/copy'
 
 /** THE copy dialog (GEN-55, TSK-20 to TSK-25, PLN-06): one task, several,
- *  a whole day or a whole week, onto one or many days, always asking the
+ *  a whole day, a whole week or a day's meals (all, or one meal; v18), onto
+ *  one or many days, always asking the
  *  same things in the same order (P4, rule 5 of the interaction rules):
  *
  *  1. which days (a calendar, or Tomorrow / Every weekday this week / Same
@@ -50,11 +52,14 @@ export function CopySheet({ what, onClose, onDone }: { what: CopyWhat; onClose: 
   const [busy, setBusy] = useState(false)
 
   const kind = what.kind
-  const from = kind === 'task' ? what.task.planned_date ?? today
-    : kind === 'tasks' ? what.tasks[0]?.planned_date ?? today
-      : kind === 'day' ? what.day : what.monday
+  const from = what.kind === 'task' ? what.task.planned_date ?? today
+    : what.kind === 'tasks' ? what.tasks[0]?.planned_date ?? today
+      : what.kind === 'week' ? what.monday : what.day
   const week = kind === 'week'
   const isTasks = kind === 'task' || kind === 'tasks'
+  // Meals (GEN-55): only the days; Food's copy keeps their times and portions.
+  const isMeals = kind === 'meals'
+  const mealGroups = what.kind === 'meals' ? what.groups : 'all'
   const list = kind === 'task' ? [what.task] : kind === 'tasks' ? what.tasks : []
   const targets = cleanTargets(days, kind, from, range)
 
@@ -66,8 +71,8 @@ export function CopySheet({ what, onClose, onDone }: { what: CopyWhat; onClose: 
       db.task.where('[profile_id+planned_date]').between([profile.id, from], [profile.id, last], true, true).toArray(),
       db.meal_plan_slot.where('profile_id').equals(profile.id).filter((s) => s.slot_date >= from && s.slot_date <= last).toArray(),
     ])
-    return { tasks, meals }
-  }, [profile?.id, from, week, isTasks], null)
+    return { tasks, meals: mealGroups === 'all' ? meals : meals.filter((m) => mealGroups.includes(groupKey(m))) }
+  }, [profile?.id, from, week, isTasks, mealGroups === 'all' ? 'all' : mealGroups.join('|')], null)
   const counts = useMemo(() => {
     if (!source) return { tasks: 0, repeats: 0, meals: 0 }
     const all = { ...c, tasks: true, repeats: true }
@@ -81,13 +86,16 @@ export function CopySheet({ what, onClose, onDone }: { what: CopyWhat; onClose: 
 
   const title = kind === 'task' ? `Copy “${what.task.title || 'task'}” to…`
     : kind === 'tasks' ? `Copy ${what.tasks.length} ${what.tasks.length === 1 ? 'task' : 'tasks'} to…`
-      : kind === 'day' ? `Copy ${dayLabel(what.day)} to…` : `Copy the week of ${dayLabel(what.monday).slice(4)} to…`
+      : what.kind === 'day' ? `Copy ${dayLabel(what.day)} to…`
+        : what.kind === 'meals' ? `Copy ${what.label ?? `the food of ${dayLabel(what.day)}`} to…`
+          : `Copy the week of ${dayLabel(what.monday).slice(4)} to…`
 
   const picked = useMemo(() => new Set(shownDays(targets, kind)), [targets, kind])
-  const sourceDays = useMemo(() => new Set(kind === 'day' ? [from] : week ? shownDays([mondayOf(from)], 'week') : []), [kind, from, week])
+  const sourceDays = useMemo(() => new Set(kind === 'day' || isMeals ? [from] : week ? shownDays([mondayOf(from)], 'week') : []), [kind, isMeals, from, week])
   const oneTime = list.length === 1 ? list[0].planned_time?.slice(0, 5) ?? null : null
   const tpl = noteTemplates.find((t) => t.id === c.templateId)
-  const nothing = !isTasks && ((!c.tasks || counts.tasks === 0) && (!c.repeats || counts.repeats === 0) && (!c.meals || counts.meals === 0))
+  const nothing = isMeals ? !!source && counts.meals === 0
+    : !isTasks && ((!c.tasks || counts.tasks === 0) && (!c.repeats || counts.repeats === 0) && (!c.meals || counts.meals === 0))
   const badTime = c.time === 'new' && !c.newTime
 
   // The closed Options line: what the copy will do, in a few words.
@@ -105,8 +113,9 @@ export function CopySheet({ what, onClose, onDone }: { what: CopyWhat; onClose: 
     setBusy(true)
     try {
       const result = await runCopy(profile.id, what, targets, c, noteTemplates)
-      // The choices are kept for next time (TSK-22), on every device.
-      await savePlanPrefs(profile.id, { copy: c })
+      // The choices are kept for next time (TSK-22), on every device. A meals
+      // copy has none of its own.
+      if (!isMeals) await savePlanPrefs(profile.id, { copy: c })
       const skipped = result.skippedRepeats ? ` (${result.skippedRepeats} ${result.skippedRepeats === 1 ? 'repeat was' : 'repeats were'} there already)` : ''
       offerUndo(result.summary + skipped, result.undo)
       onDone?.(targets)
@@ -160,6 +169,9 @@ export function CopySheet({ what, onClose, onDone }: { what: CopyWhat; onClose: 
             onDayClick={(d) => setDays((ds) => toggleTarget(cleanTargets(ds, kind, from, range), d, kind))} />
         </section>
 
+        {isMeals && nothing && <p className="cs-count" role="status">There is no food to copy here.</p>}
+
+        {!isMeals && (
         <MoreOptions label="Options" summary={said} open={badTime || nothing}>
         {isTasks && (
           <section className="cs-part" role="radiogroup" aria-labelledby="cs-time">
@@ -211,6 +223,7 @@ export function CopySheet({ what, onClose, onDone }: { what: CopyWhat; onClose: 
           </div>
         </section>
         </MoreOptions>
+        )}
 
         <div className="sheet-actions cs-actions">
           <button type="button" className="btn" onClick={onClose}>Cancel</button>

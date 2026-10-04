@@ -4,7 +4,7 @@
 import {
   DEFAULT_CHOICES, readCopyChoices, shortcutsFor, shortcutDays, shortcutLabel, cleanTargets, toggleTarget,
   toggleShortcut, shownDays, copyNote, copyTime, copyTaskFields, copiesWithDay, mealHasFood, copyMealFields, mealCount,
-  planCopy, dayPairs, weekPairs, targetWords, copySummary, mondayOf, MAX_COPY_DAYS,
+  planCopy, dayPairs, weekPairs, targetWords, copySummary, mealCopySummary, mondayOf, MAX_COPY_DAYS,
 } from '../lib/copy-rules.ts'
 
 let fail = 0
@@ -147,6 +147,14 @@ eq('several weeks', targetWords(['2026-10-12', '2026-10-19'], 'week'), '2 weeks'
 eq('summary', copySummary({ tasks: 3, meals: 2 }, ['2026-10-06', '2026-10-07', '2026-10-08', '2026-10-09'], 'day'), 'Copied 3 tasks and 2 meals to 4 days')
 eq('summary, one task', copySummary({ tasks: 1, meals: 0 }, ['2026-10-06'], 'task'), 'Copied 1 task to Tue 6 Oct')
 eq('nothing', copySummary({ tasks: 0, meals: 0 }, ['2026-10-06'], 'day'), 'Nothing to copy')
+
+// Meals through the one copy dialog (v18, GEN-55).
+eq('meals: the same day is never a target', cleanTargets(['2026-10-07', '2026-10-08'], 'meals', '2026-10-07', { first: '2023-01-01', last: '2031-12-31' }), ['2026-10-08'])
+eq('meals: the day shortcuts', shortcutsFor('meals'), ['next_day', 'weekdays', 'next_week_day'])
+eq('meals: one meal by name', mealCopySummary(2, ['2026-10-06', '2026-10-07'], 'Lunch'), 'Lunch copied to 2 days')
+eq('meals: a day\'s food', mealCopySummary(3, ['2026-10-06'], null), 'Copied 3 meals to Tue 6 Oct')
+eq('meals: one meal counted once', mealCopySummary(1, ['2026-10-06']), 'Copied 1 meal to Tue 6 Oct')
+eq('meals: nothing', mealCopySummary(0, ['2026-10-06'], 'Lunch'), 'Nothing to copy')
 
 if (fail) { console.log(`\n${fail} copy check(s) failed`); process.exit(1) }
 console.log('\nall copy checks passed')
