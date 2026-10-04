@@ -1,11 +1,11 @@
-import { useEffect, useMemo, useState, type FormEvent, type CSSProperties, type ReactNode } from 'react'
+import { useMemo, useState, type FormEvent, type CSSProperties, type ReactNode } from 'react'
 import { db } from '../lib/db'
 import { useApp } from '../lib/store'
 import { edit, saveSettings } from '../lib/write'
 import { readSettings } from '../lib/settings'
 import {
-  addBook, addToBook, booksOf, chosen, combineIngredients, countOf, deleteBook, inBook, ingredientText, liveCount,
-  namesText, pruneBooks, recipeIngredients, recolourBook, removeFromBook, renameBook, sharedNote, splitOwned, toggleAll,
+  addBook, addToBook, bookBack, booksOf, chosen, combineIngredients, countOf, deleteBook, inBook, ingredientText, liveCount,
+  namesText, pruneBooks, putBack, recipeIngredients, recolourBook, removeFromBook, renameBook, sharedNote, splitOwned, toggleAll,
   MAX_NAME, type Book, type BookKind, type BookResult,
 } from '../lib/books-rules'
 import { search as find } from '../lib/search-rules'
@@ -16,6 +16,8 @@ import { useExport } from '../ui/ExportLink'
 import type { MenuItem } from '../ui/MoreMenu'
 import { FoodPageMenu } from './FoodMenu'
 import { useLongPress } from '../ui/useLongPress'
+import { useBackClose } from '../ui/useBackClose'
+import { offerUndo } from '../ui/Undo'
 import type { FieldDef } from '../modules/types'
 import type { Food, RecipeLine } from '../lib/types'
 import '../ui/books.css'
@@ -122,16 +124,8 @@ export function BookTable<T extends Row>({
     setSheet(null)
   }
 
-  // Escape leaves select mode, unless a sheet is open: then it closes the sheet.
-  useEffect(() => {
-    if (!selecting) return
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key !== 'Escape' || document.querySelector('.bottom-sheet, .pm-menu')) return
-      leave()
-    }
-    document.addEventListener('keydown', onKey)
-    return () => document.removeEventListener('keydown', onKey)
-  }, [selecting])
+  // Back and Escape leave select mode; a sheet opened from the bar closes first.
+  useBackClose(leave, selecting)
 
   // Holding a row starts select mode with that row ticked.
   const hold = useLongPress<string>({
@@ -171,31 +165,49 @@ export function BookTable<T extends Row>({
   async function removeHere() {
     if (!book) return
     let removed = 0
+    let before: Book[] = []
+    const ids = picked.map((p) => p.id)
     const error = await updateBooks((current) => {
-      const r = removeFromBook(current, book.id, picked.map((p) => p.id))
+      before = current
+      const r = removeFromBook(current, book.id, ids)
       removed = r.removed
       return { books: r.books }
     })
     if (error) { setStatus({ text: error, bad: true }); return }
     setSelected(new Set())
-    setStatus({ text: `Took ${countOf(removed, kind)} out of ${book.name}.` })
+    setStatus(null)
+    // Undo (GEN-54): the rows go back where they were in the book.
+    if (removed) offerUndo(`Took ${countOf(removed, kind)} out of ${book.name}`, async () => { await updateBooks((current) => ({ books: putBack(current, before, ids) })) })
   }
 
   async function remove(mine: T[], shared: number) {
     const now = new Date().toISOString()
     const table = kind === 'recipe' ? db.recipe : db.food
-    let done = 0
+    // The books as they are, so Undo can put the rows back in them.
+    const fresh = profile ? (await db.profile.get(profile.id)) ?? profile : null
+    const before = fresh ? readSettings(fresh).books : []
+    const gone: string[] = []
     for (const r of mine) {
       // The stored row, not the table's (which carries worked-out figures).
       const row = await table.get(r.id)
       if (!row) continue
       await edit(kind, row as never, { deleted_at: now } as never)
-      done++
+      gone.push(r.id)
     }
     setSelected((s) => new Set([...s].filter((id) => !mine.some((m) => m.id === id))))
     setSheet(null)
     const note = sharedNote(shared)
-    setStatus({ text: `Deleted ${countOf(done, kind)}.${note ? ` ${note}.` : ''}` })
+    setStatus(note ? { text: `${note}, so ${shared === 1 ? 'it was' : 'they were'} left out.` } : null)
+    // Undo (GEN-54): the rows come back, and into the books they were in.
+    if (gone.length) {
+      offerUndo(`Deleted ${countOf(gone.length, kind)}`, async () => {
+        for (const id of gone) {
+          const row = await table.get(id)
+          if (row && (row as { deleted_at?: string | null }).deleted_at) await edit(kind, row as never, { deleted_at: null } as never)
+        }
+        await updateBooks((current) => ({ books: putBack(current, before, gone) }))
+      })
+    }
   }
 
   const exportSource = useMemo(() => ({
@@ -219,9 +231,18 @@ export function BookTable<T extends Row>({
         }}
         onRename={(id, name) => updateBooks((current) => renameBook(current, id, name))}
         onRecolour={(id, colour) => void updateBooks((current) => ({ books: recolourBook(current, id, colour) }))}
-        onDelete={(id) => {
-          void updateBooks((current) => ({ books: deleteBook(current, id) }))
+        onDelete={async (id) => {
+          let gone: Book | undefined
+          let at = 0
+          await updateBooks((current) => {
+            at = current.findIndex((b) => b.id === id)
+            gone = current[at]
+            return { books: deleteBook(current, id) }
+          })
           setActive(null)
+          // Undo (GEN-54): the book comes back in its place, with its rows.
+          const back = gone
+          if (back) offerUndo(`Deleted the book ${back.name}`, async () => { await updateBooks((current) => ({ books: bookBack(current, back, at) })) })
         }} />
       <FoodPageMenu items={[
         ...menu,
@@ -321,7 +342,7 @@ function AddToBookSheet({ kind, books, counts, count, onClose, onPick }: {
   const [name, setName] = useState('')
   const [error, setError] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
-  useSheetEscape(onClose)
+  useBackClose(onClose)
 
   async function go(id: string | null, newName?: string) {
     if (busy) return
@@ -379,7 +400,7 @@ function DeleteSheet<T extends Row>({ kind, rows, userId, onClose, onDelete }: {
 }) {
   const { mine, shared } = splitOwned(rows, userId)
   const [busy, setBusy] = useState(false)
-  useSheetEscape(onClose)
+  useBackClose(onClose)
   const note = sharedNote(shared.length)
   const list = mine.slice(0, 6)
 
@@ -414,14 +435,6 @@ function DeleteSheet<T extends Row>({ kind, rows, userId, onClose, onDelete }: {
       </div>
     </>
   )
-}
-
-function useSheetEscape(onClose: () => void) {
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose() }
-    document.addEventListener('keydown', onKey)
-    return () => document.removeEventListener('keydown', onKey)
-  }, [onClose])
 }
 
 /** Plain text to the clipboard. Falls back to the old copy command where the

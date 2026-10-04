@@ -5,7 +5,7 @@
 import {
   readBooks, booksOf, inBook, liveCount, pruneBooks, addBook, renameBook, recolourBook, deleteBook, addToBook,
   removeFromBook, splitOwned, sharedNote, countOf, recipeIngredients, combineIngredients, roundAmount,
-  ingredientText, namesText, chosen, toggleAll, MAX_BOOKS, MAX_ITEMS,
+  ingredientText, namesText, chosen, toggleAll, MAX_BOOKS, MAX_ITEMS, putBack, bookBack,
 } from '../lib/books-rules.ts'
 import { SWATCHES } from '../lib/colours-rules.ts'
 
@@ -141,6 +141,18 @@ is('eggs and grams of the same food add up in grams',
   ingredientText(combineIngredients([eggs1, recipeIngredients({ id: 'e3', portions_per_batch: 1 }, eggLines, eggFoods)])), 'Eggs — 130 g')
 is('grams then eggs, the same', ingredientText(combineIngredients([recipeIngredients({ id: 'e3', portions_per_batch: 1 }, eggLines, eggFoods), eggs1])), 'Eggs — 130 g')
 is('a line in grams has no count', 'count' in one[0], false)
+
+// Undo (GEN-54): rows and books put back as they were.
+const ub = [{ id: 'b1', name: 'Snacks', kind: 'food', items: ['a', 'b', 'c'] }, { id: 'b2', name: 'Lunch', kind: 'food', items: ['b', 'x'] }]
+const taken = removeFromBook(ub, 'b1', ['b', 'c']).books
+is('taken out, then put back in their places', putBack(taken, ub, ['b', 'c']).find((b) => b.id === 'b1').items, ['a', 'b', 'c'])
+is('a row added since stays, after them', putBack([{ ...taken[0], items: ['a', 'n'] }, taken[1]], ub, ['b', 'c'])[0].items, ['a', 'b', 'c', 'n'])
+is('deleted rows go back into every book they were in', putBack([{ ...ub[0], items: ['a'] }, { ...ub[1], items: ['x'] }], ub, ['b', 'c']).map((b) => b.items), [['a', 'b', 'c'], ['b', 'x']])
+is('a book deleted since is left alone', putBack([ub[1]], ub, ['a']), [ub[1]])
+is('nothing missing: the same book', putBack(ub, ub, ['a'])[0], ub[0])
+is('a deleted book comes back in its place', bookBack([ub[1]], ub[0], 0).map((b) => b.id), ['b1', 'b2'])
+is('a book that is back already is not added twice', bookBack(ub, ub[0], 0).length, 2)
+is('no room past the most books', bookBack(Array.from({ length: MAX_BOOKS }, (_, i) => ({ ...ub[1], id: `k${i}` })), ub[0], 0).length, MAX_BOOKS)
 
 console.log(fail ? `\n${fail} check(s) failed` : '\nall checks passed')
 process.exit(fail ? 1 : 0)
