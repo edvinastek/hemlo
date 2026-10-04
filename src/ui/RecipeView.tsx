@@ -25,6 +25,8 @@ import { saveFile } from '../lib/native'
 import { addToShoppingList } from '../lib/recipe-actions'
 import { search } from '../lib/search-rules'
 import { SharingStatus } from './SharingChoice'
+import { RecipeCook } from './RecipeCook'
+import { splitSteps } from '../lib/cook-rules'
 import { Dropdown } from './Dropdown'
 import { MoreMenu } from './MoreMenu'
 import { FoodUnitsSheet } from './FoodUnits'
@@ -34,7 +36,7 @@ import './recipes.css'
 import './sharing.css'
 import { useBackClose } from './useBackClose'
 
-type Panel = null | 'task' | 'meal' | 'shop' | 'export' | 'food'
+type Panel = null | 'task' | 'meal' | 'shop' | 'export' | 'food' | 'cook'
 
 const round1 = (n: number) => Math.round(n * 10) / 10
 const qtyText = (n: number) => String(Math.round(n * 100) / 100)
@@ -106,6 +108,11 @@ export function RecipeView({ recipe: given, lines, foods, userId, onClose, onEdi
   useBackClose(onClose, !panel)
 
   if (panel === 'food' && ready?.food) return <FoodUnitsSheet food={ready.food} onClose={() => setPanel(null)} />
+  // Cook mode takes the page's place (never a sheet on a sheet), for the portions shown.
+  if (panel === 'cook') {
+    return <RecipeCook recipe={recipe} portions={portions} onClose={() => setPanel(null)}
+      lines={scaled.map((l) => ({ id: l.id, name: l.said ?? l.name, amount: amountOf(l) }))} />
+  }
 
   const step = (by: number) => setPortionsText(qtyText(Math.max(0.25, Math.min(999, Math.round((portions + by) * 4) / 4))))
   const sharing = readSharing(recipe)
@@ -120,6 +127,7 @@ export function RecipeView({ recipe: given, lines, foods, userId, onClose, onEdi
           <h2 id={titleId}>{recipe.name}</h2>
           {!panel && (
             <MoreMenu className="rcp-more" label={`More for ${recipe.name}`} items={[
+              splitSteps(recipe.steps).length > 0 && { label: 'Cook', onSelect: () => setPanel('cook') },
               mine && { label: 'Edit', onSelect: () => onEdit(recipe) },
               !!userId && { label: 'Make a variation', onSelect: () => onVariation(recipe) },
               !!profile && { label: 'Add to a task’s note', onSelect: () => setPanel('task') },
