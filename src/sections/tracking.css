@@ -187,3 +187,6 @@
 
 /* The time slots inside their sheet (v17: under the Supplements ⋮). */
 .mh-sheet .supp-slots { padding: 0; border-bottom: 0; }
+
+/* v18 (SUP-05): a supplement running low says so in the warning colour. */
+.track-low { color: var(--e-warn); }

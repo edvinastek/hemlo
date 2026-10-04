@@ -4,6 +4,7 @@ import {
   addDays, weekday, weekStart, isScheduled, currentStreak, doneThisWeek, streakText,
   cleanName, nextSortOrder, groupBySlot, pickLog, doneDays,
 } from '../lib/tracking-rules.ts'
+import { supplementStock, stockFromNow, stockWords, refillDaysIn } from '../lib/tracking-rules.ts'
 
 let fail = 0
 const is = (label, got, want) => {
@@ -188,6 +189,31 @@ const rows = [
 const slots = [{ key: 'wake', name: 'On waking', time: '06:45' }, { key: 'bed', name: 'Bed', time: null }]
 is('grouped by the person\'s slots; a removed slot goes to Any time', supplementGroups(rows, slots).map((g) => [g.label, g.rows.map((r) => r.id)]), [['On waking', ['b', 'a']], ['Any time', ['c']]])
 is('only the ones due that day (Saturday: no creatine)', supplementGroups(rows, slots, '2026-10-03').map((g) => g.rows.map((r) => r.id)), [['a'], ['c']])
+
+// Supplement stock (SUP-05). Sunday 4 October 2026 is "today".
+const T = '2026-10-04'
+const pills = { stock_count: 10, stock_from: '2026-10-01', refill_days: 7, active: true, rule: null, rule_config: {} }
+const taken = ['2026-09-30', '2026-10-01', '2026-10-02', '2026-10-03']
+is('each tick from the counted day takes one dose off (not the one before)', supplementStock(pills, taken, T).left, 7)
+is('7 left, today still to take: today and six more days', [supplementStock(pills, taken, T).daysLeft, supplementStock(pills, taken, T).lastDay], [7, '2026-10-10'])
+is('…which is the refill warning', supplementStock(pills, taken, T).low, true)
+is('taken today: one fewer, and the days start tomorrow', [supplementStock(pills, [...taken, T], T).left, supplementStock(pills, [...taken, T], T).daysLeft], [6, 6])
+is('two phones ticking the same day count once', supplementStock(pills, [...taken, '2026-10-03'], T).left, 7)
+is('no count kept: no stock', supplementStock({ ...pills, stock_count: null }, taken, T), null)
+is('never below none', supplementStock({ ...pills, stock_count: 2 }, taken, T), { left: 0, daysLeft: 0, lastDay: null, low: true, refillDays: 7 })
+const twice = { ...pills, stock_count: 6, stock_from: T, rule: 'weekly', rule_config: { weekdays: [1, 4] } }
+is('Mondays and Thursdays: 6 doses last until Thursday 22 Oct', supplementStock(twice, [], T).lastDay, '2026-10-22')
+is('…18 days, so not low yet', [supplementStock(twice, [], T).daysLeft, supplementStock(twice, [], T).low], [18, false])
+is('plenty for over a year is not counted out', supplementStock({ ...pills, stock_count: 900 }, taken, T).daysLeft, null)
+is('an ended supplement is not running out', supplementStock({ ...pills, end_date: '2026-10-05' }, taken, T).daysLeft, null)
+is('saying "5 left" after today\'s dose keeps 6 from today', stockFromNow(5, true, T), { stock_count: 6, stock_from: T })
+is('…and before it, 5', stockFromNow(5, false, T), { stock_count: 5, stock_from: T })
+is('words', [stockWords(supplementStock(pills, taken, T)), stockWords(supplementStock({ ...pills, stock_count: 40 }, taken, T)), stockWords(supplementStock({ ...pills, stock_count: 4 }, taken, T)), stockWords(supplementStock({ ...pills, stock_count: 3 }, taken, T))], ['7 left · 7 days', '37 left', '1 left · last day', 'None left'])
+const ten = { ...pills, stock_count: 10, stock_from: T }
+const week = Array.from({ length: 14 }, (_, i) => addDays(T, i))
+is('refill reminders: the day it reaches 7 days, and the last day', refillDaysIn(ten, [], T, week), ['2026-10-07', '2026-10-13'])
+is('already under the warning: today too', refillDaysIn({ ...ten, stock_count: 4 }, [], T, week), ['2026-10-04', '2026-10-07'])
+is('no count, no reminders', refillDaysIn({ ...ten, stock_count: null }, [], T, week), [])
 
 console.log(fail ? `\n${fail} check(s) failed` : '\nall checks passed')
 process.exit(fail ? 1 : 0)

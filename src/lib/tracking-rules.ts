@@ -541,3 +541,113 @@ export function supplementGroups<T extends SupplementLike>(rows: T[], slots: Sup
   const loose = live.filter((r) => !r.time_slot || !keys.has(r.time_slot)).sort(order)
   return [...groups, { slot: null, label: 'Any time', rows: loose }].filter((g) => g.rows.length > 0)
 }
+
+/* ---------- version 18: supplement stock (SUP-05) ------------------------------- */
+
+/** A supplement's stock as kept on its row (migration 033): the doses in
+ *  the pack at the start of `stock_from`, and how many days ahead a refill
+ *  reminder comes (7 when not set). No count is ever written by a tick: the
+ *  doses left are the count less the days ticked since, so two phones
+ *  ticking offline never lose a dose. */
+export interface StockLike {
+  stock_count?: number | string | null
+  stock_from?: string | null
+  refill_days?: number | null
+  active?: boolean
+  rule?: RuleKind | null
+  rule_config?: RuleConfig | null
+  start_date?: string | null
+  end_date?: string | null
+}
+
+export const REFILL_DAYS = 7
+/** How far ahead the doses are counted out; beyond it, "plenty". */
+const STOCK_LOOKAHEAD = 400
+
+export interface Stock {
+  /** Doses left now. */
+  left: number
+  /** Days the doses last from today, today included while today's dose is
+   *  still to take; null when they outlast the look-ahead or nothing more
+   *  is due (the supplement has ended). */
+  daysLeft: number | null
+  /** The last day the doses cover, or null as above. */
+  lastDay: string | null
+  /** At or under the refill warning. */
+  low: boolean
+  refillDays: number
+}
+
+const count = (v: unknown): number | null => {
+  const n = typeof v === 'number' ? v : typeof v === 'string' && v.trim() ? Number(v) : NaN
+  return Number.isFinite(n) && n >= 0 ? Math.floor(n) : null
+}
+
+/** The stock of a supplement on `today`, from its ticked days; null when
+ *  it keeps no count. */
+export function supplementStock(s: StockLike, doneDays: Iterable<string>, today: string): Stock | null {
+  const start = count(s.stock_count)
+  if (start === null || !isDayString(s.stock_from)) return null
+  const done = new Set<string>()
+  for (const d of doneDays) if (d >= s.stock_from && d <= today) done.add(d)
+  const left = Math.max(0, start - done.size)
+  const refillDays = Number.isInteger(s.refill_days) && s.refill_days! >= 0 ? s.refill_days! : REFILL_DAYS
+  if (s.active === false) return { left, daysLeft: null, lastDay: null, low: false, refillDays }
+  // Count the doses out over the days to come; today counts while its dose
+  // is still to take.
+  let rest = left
+  let last: string | null = null
+  let first: string | null = null
+  for (let i = 0; i < STOCK_LOOKAHEAD && rest > 0; i++) {
+    const d = addDayString(today, i)
+    if (i === 0 && done.has(d)) continue
+    if (!supplementDue(s, d)) continue
+    first ??= d
+    rest--
+    last = d
+  }
+  if (rest > 0) return { left, daysLeft: null, lastDay: null, low: false, refillDays }
+  if (left === 0) return { left, daysLeft: 0, lastDay: null, low: true, refillDays }
+  // Nothing more is due at all: the doses are not running out.
+  if (!last) return { left, daysLeft: null, lastDay: null, low: false, refillDays }
+  const daysLeft = toDayNumber(last) - toDayNumber(today) + (first === today ? 1 : 0)
+  return { left, daysLeft, lastDay: last, low: daysLeft <= refillDays, refillDays }
+}
+
+/** What to keep when the person says how many doses are left now: the
+ *  count as at the start of today, so today's tick (taken already, or
+ *  later) is taken off like any other. */
+export function stockFromNow(leftNow: number, takenToday: boolean, today: string): { stock_count: number; stock_from: string } {
+  return { stock_count: Math.max(0, Math.floor(leftNow)) + (takenToday ? 1 : 0), stock_from: today }
+}
+
+/** "12 left", "12 left · about 5 days" when low, "None left". */
+export function stockWords(st: Stock): string {
+  if (st.left === 0) return 'None left'
+  if (st.low && st.daysLeft !== null) return `${st.left} left · ${st.daysLeft === 1 ? 'last day' : `${st.daysLeft} days`}`
+  return `${st.left} left`
+}
+
+/** The days in `days` a refill reminder is due: the day the doses first
+ *  reach the warning (and today, if they are under it already), and the
+ *  last day they cover. Never twice the same day. */
+export function refillDaysIn(s: StockLike, doneDays: string[], today: string, days: string[]): string[] {
+  const out = new Set<string>()
+  const now = supplementStock(s, doneDays, today)
+  if (!now || now.daysLeft === null) return []
+  for (const d of days) {
+    if (d < today) continue
+    // Days to come: as if every due day before them is taken on time.
+    const ahead = d === today ? now : supplementStock(s, [...doneDays, ...dueBetween(s, today, addDayString(d, -1), doneDays)], d)
+    if (!ahead || ahead.daysLeft === null || ahead.left === 0) continue
+    const reached = ahead.daysLeft === ahead.refillDays || (d === today && ahead.daysLeft < ahead.refillDays)
+    if (reached || ahead.daysLeft === 1) out.add(d)
+  }
+  return [...out]
+}
+
+function dueBetween(s: StockLike, from: string, to: string, done: string[]): string[] {
+  const out: string[] = []
+  for (let d = from; d <= to; d = addDayString(d, 1)) if (supplementDue(s, d) && !done.includes(d)) out.push(d)
+  return out
+}
