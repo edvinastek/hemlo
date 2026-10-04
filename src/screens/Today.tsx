@@ -28,6 +28,7 @@ import type { DayItem } from '../lib/day-items-rules'
 import { useDayItems } from '../lib/day-items'
 import { useModuleColours } from '../lib/colours'
 import { HolidayChips } from '../ui/HolidayMark'
+import { useBackClose } from '../ui/useBackClose'
 import type { Task } from '../lib/types'
 import './today.css'
 
@@ -57,6 +58,9 @@ export function Today() {
   const { today: day } = useToday()
   const [section, setSection] = useState('today')
   const [peek, setPeek] = useState(false)
+  // Select tasks on the rail (GEN-52), from the ⋮: holding a row drags it
+  // or opens it in place (TOD-10), so the hold is not the way in here.
+  const [selecting, setSelecting] = useState(false)
   // The day's public holidays, if any countries are chosen (More → Profile).
   const holidays = useHolidays(day, day)
   const tomorrow = addDays(day, 1)
@@ -93,6 +97,9 @@ export function Today() {
   const tabs = useMemo(() => (input ? dayTabs(input) : ONLY_TODAY), [input])
   const tab = activeTab(tabs, section)
 
+  // Another tab is another list: nothing stays picked.
+  useEffect(() => { setSelecting(false) }, [tab.key])
+
   // A tab the day no longer has falls back to Today, and stays there.
   useEffect(() => {
     if (input && input.day === day && tab.key !== section) setSection(tab.key)
@@ -116,6 +123,7 @@ export function Today() {
             <h1 className="page-date">{longDate(day)}</h1>
             <PageMenu label="More for Today" sheets={exp.sheet} items={[
               { label: waiting ? `Inbox (${waiting} waiting)` : 'Inbox', onSelect: () => navigate('/plan?view=inbox') },
+              railed && { label: selecting ? 'Stop selecting' : 'Select tasks', onSelect: () => setSelecting((x) => !x) },
               ...railMenu,
               exp.item,
             ]} />
@@ -170,7 +178,8 @@ export function Today() {
           <div className="today-main">
             {railed && (
               <DayRail day={day} where="today" filter={tab.key === 'today' ? undefined : filter}
-                emptyText={tab.key === 'today' ? 'Nothing planned yet.' : `Nothing in ${tab.label} today.`} />
+                emptyText={tab.key === 'today' ? 'Nothing planned yet.' : `Nothing in ${tab.label} today.`}
+                selecting={selecting} onSelecting={setSelecting} />
             )}
           </div>
         </div>
@@ -188,11 +197,8 @@ function TomorrowPeek({ day, today, onClose }: { day: string; today: string; onC
   const items = useDayItems(day, day, 'today', today)
   const colours = useModuleColours()
   const [editing, setEditing] = useState<Task | null>(null)
-  useEffect(() => {
-    const esc = (e: KeyboardEvent) => { if (e.key === 'Escape' && !editing) onClose() }
-    window.addEventListener('keydown', esc)
-    return () => window.removeEventListener('keydown', esc)
-  }, [onClose, editing])
+  // Back and Escape close it (CALM-10); a task opened from it closes first.
+  useBackClose(onClose, !editing)
 
   if (editing) return <TaskSheet task={editing} isNew={false} onClose={() => setEditing(null)} />
   return (

@@ -70,3 +70,15 @@ export function singular(noun: string): string {
 export function deleteNeedsAsk(count: number): boolean {
   return count > 1
 }
+
+/** What "Change repeat" on several tasks did, in one line for the bar:
+ *  "3 tasks now repeat: weekly on Mon", "2 tasks stopped repeating", and the
+ *  ones without a day, which cannot repeat. */
+export function repeatManyWords(r: { changed: number; noDay: number }, rule: string | null): string {
+  const n = (k: number) => `${k} ${k === 1 ? 'task' : 'tasks'}`
+  const did = r.changed === 0 ? '' : rule
+    ? `${n(r.changed)} now ${r.changed === 1 ? 'repeats' : 'repeat'}: ${rule.charAt(0).toLowerCase()}${rule.slice(1)}.`
+    : `${n(r.changed)} stopped repeating.`
+  const left = r.noDay ? `${n(r.noDay)} without a day ${r.noDay === 1 ? 'was' : 'were'} left as ${r.noDay === 1 ? 'it was' : 'they were'}.` : ''
+  return [did, left].filter(Boolean).join(' ') || 'Nothing to change.'
+}

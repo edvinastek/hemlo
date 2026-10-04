@@ -517,3 +517,33 @@ export async function changeSeriesRule(
   const made = await materializeSeries(series.profile_id)
   if (made === 0 && navigator.onLine) void push()
 }
+
+/** "Change repeat" on several tasks at once (GEN-53). A task without a day
+ *  cannot repeat and is left as it is. A one-off starts a series from its
+ *  own day; a task in a series changes that whole series (as "all days" on
+ *  its sheet: what is past or done stays), once per series however many of
+ *  its days were picked; "does not repeat" stops a series today. */
+export async function repeatMany(tasks: Task[], value: RepeatShape, today: Date = new Date()): Promise<{ changed: number; noDay: number }> {
+  let changed = 0
+  let noDay = 0
+  const seen = new Set<string>()
+  for (const t of tasks) {
+    if (!t.planned_date) { noDay++; continue }
+    const now = (await db.task.get(t.id)) ?? t
+    if (now.series_id) {
+      // One change per series, however many of its days were picked.
+      if (seen.has(now.series_id)) { changed++; continue }
+      seen.add(now.series_id)
+      const series = await db.series.get(now.series_id)
+      if (series && !series.deleted_at) {
+        if (!value.rule) await stopSeries(series, today)
+        else await changeSeriesRule(now, now, [], value, 'all', today)
+        changed++
+        continue
+      }
+    }
+    if (!value.rule) continue
+    if (await startSeriesWith(now, value, false, [])) changed++
+  }
+  return { changed, noDay }
+}

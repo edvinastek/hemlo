@@ -30,8 +30,6 @@ import {
   toggleHidden, VIEW_NAMES, weekColumns, weekSpan, type PlanView,
 } from '../lib/plan-view-rules'
 import { savePlanPrefs, usePlanPrefs } from '../lib/plan-prefs'
-import { duplicateTasks } from '../lib/copy'
-import { deleteTasks, moveWithUndo } from '../lib/series'
 import { blankTask } from '../lib/tasks'
 import type { CalendarEvent, Task } from '../lib/types'
 import { loadMilestones, loadYearGoals } from '../lib/projects'
@@ -42,9 +40,8 @@ import { CopySheet, type CopyWhat } from '../ui/CopySheet'
 import { DayRail, useRailMenu } from '../ui/DayRail'
 import { AddFab } from '../ui/AddMenu'
 import { MoreMenu, type MenuItem } from '../ui/MoreMenu'
-import { DayPickSheet } from '../ui/DayPickSheet'
-import { SelectBar } from '../ui/SelectBar'
-import { offerUndo } from '../ui/Undo'
+import { TaskSelectBar } from '../ui/TaskSelectBar'
+import { useSelection } from '../ui/useSelection'
 import { Inbox } from './plan/Inbox'
 import { DropTemplateSheet, SaveTemplateSheet } from './plan/TemplateSheets'
 import { DaysShownSheet } from './plan/DaysShown'
@@ -99,13 +96,11 @@ export function Plan() {
   const [copying, setCopying] = useState<CopyWhat | null>(null)
   const [saving, setSaving] = useState<{ kind: 'day' | 'week'; first: string } | null>(null)
   const [dropping, setDropping] = useState<string | null>(null)
-  const [moving, setMoving] = useState<Task[] | null>(null)
   const [openEvent, setOpenEvent] = useState<CalendarEvent | null>(null)
-  const [selecting, setSelecting] = useState(false)
-  const [inboxSelecting, setInboxSelecting] = useState(false)
   const [daysOpen, setDaysOpen] = useState(false)
-  const [chosen, setChosen] = useState<Set<string>>(new Set())
-  const [sure, setSure] = useState(false)
+  // Select tasks on the day's rail (from the ⋮; holding a row there drags
+  // it or opens it in place, TOD-10).
+  const [railSelecting, setRailSelecting] = useState(false)
   // Year: only the months being drawn are worked out.
   const [yearWindow, setYearWindow] = useState<[string, string]>([addDays(date, -100), addDays(date, 160)])
 
@@ -193,22 +188,13 @@ export function Plan() {
 
   const addOn = (day: string | null) => profile && setEditing({ task: blankTask(profile.id, day ?? today, { planned_date: day }), isNew: true })
 
-  const toggleChosen = (id: string) => setChosen((s) => {
-    const n = new Set(s)
-    if (n.has(id)) n.delete(id)
-    else n.add(id)
-    return n
-  })
-  const shownTasks = span.flatMap((d) => byDay.get(d) ?? [])
-  const picked = shownTasks.filter((t) => chosen.has(t.id))
-  const endSelect = () => { setSelecting(false); setChosen(new Set()); setSure(false) }
-
-  async function moveTo(list: Task[], day: string | null) {
-    const undo = await moveWithUndo(list.map((task) => ({ task, to: day })))
-    const words = day ? `planned for ${dayLabel(day)}` : 'sent to the Inbox'
-    offerUndo(list.length === 1 ? `“${list[0].title}” ${words}` : `${list.length} tasks ${words}`, undo)
-    setChosen(new Set())
-  }
+  // Selecting several (GEN-52, GEN-53): the week's tasks, and the Inbox's.
+  // On the week a hold moves a task or swaps a day, so Select is in the ⋮.
+  const shownTasks = useMemo(() => span.flatMap((d) => byDay.get(d) ?? []), [span, byDay])
+  const weekSel = useSelection(shownTasks, { hold: false })
+  const inboxSel = useSelection(inboxTasks, { hold: false })
+  const selecting = weekSel.selecting
+  const endSelect = () => { weekSel.stop(); inboxSel.stop(); setRailSelecting(false) }
 
   const dayMenu = (day: string) => [
     { label: 'Open this day', onSelect: () => go(day, 'day', true) },
@@ -244,9 +230,10 @@ export function Plan() {
     { label: 'Save day as template…', onSelect: () => setSaving({ kind: 'day', first: date }) },
     { label: 'Add a template to this day…', onSelect: () => setDropping(date) },
     { label: 'See its week', onSelect: () => go(date, 'week', true) },
+    { label: railSelecting ? 'Stop selecting' : 'Select tasks', onSelect: () => setRailSelecting((x) => !x) },
     ...railMenu,
   ] : view === 'week' ? [
-    { label: selecting ? 'Stop selecting' : 'Select tasks', onSelect: () => (selecting ? endSelect() : setSelecting(true)) },
+    weekSel.menuItem('Select tasks'),
     { label: `Days shown: ${weekDays}…`, onSelect: () => setDaysOpen(true) },
     { label: 'Copy this week…', onSelect: () => setCopying({ kind: 'week', monday: mondayOf(date) }) },
     { label: 'Save week as template…', onSelect: () => setSaving({ kind: 'week', first: mondayOf(date) }) },
@@ -255,7 +242,7 @@ export function Plan() {
     // Year has no +, so its cells stay clear: the add is here.
     { label: `Add a task on ${dayLabel(date)}…`, onSelect: () => addOn(date) },
   ] : view === 'inbox' ? [
-    inboxCount > 0 && { label: inboxSelecting ? 'Stop selecting' : 'Select tasks', onSelect: () => setInboxSelecting((x) => !x) },
+    inboxCount > 0 && inboxSel.menuItem('Select tasks'),
   ] : []
   const monthSteps = view === 'month' && (
     <>
@@ -276,7 +263,7 @@ export function Plan() {
     <div className="page">
       <div className="page-inner">
         <PageHead date={parseISO(date)} onPick={(d) => go(key(d))} sections={SECTIONS} active={VIEW_NAMES[view]}
-          onSection={(s) => { endSelect(); setInboxSelecting(false); go(date, viewOf(s), true) }}
+          onSection={(s) => { endSelect(); go(date, viewOf(s), true) }}
           heading={view === 'inbox' ? 'Inbox' : undefined}
           title={view === 'month' ? format(parseISO(date), 'MMMM yyyy') : undefined}
           menu={menu}
@@ -292,7 +279,7 @@ export function Plan() {
             <MilestoneLines list={milestonesOn(date)} onOpen={(m) => navigate(milestoneLink(m))} />
             {/* The one merged rail of the day (it lists the repeats to come
                 past the eight weeks too, so Plan adds nothing under it). */}
-            <DayRail day={date} where="plan" />
+            <DayRail day={date} where="plan" selecting={railSelecting} onSelecting={setRailSelecting} />
           </>
         )}
 
@@ -344,16 +331,16 @@ export function Plan() {
                         return (
                           <button key={it.key} type="button"
                             className={`week-item pw-item${c ? ' has-mod' : ''}${it.done ? ' is-done' : ''}${isTask ? swap.itemClass(it.task!) : ''}`}
-                            aria-pressed={sel ? chosen.has(it.task!.id) : undefined}
+                            aria-pressed={sel ? weekSel.has(it.task!.id) : undefined}
                             disabled={selecting && !isTask}
                             {...(isTask && !selecting ? swap.itemProps(it.task!) : {})}
                             onClick={(e) => {
                               if (swap.holding) return
                               e.stopPropagation()
-                              if (sel) toggleChosen(it.task!.id)
+                              if (sel) weekSel.toggle(it.task!.id)
                               else openItem(it)
                             }}>
-                            {sel && <span className="pw-tick" aria-hidden="true">{chosen.has(it.task!.id) ? '✓' : ''}</span>}
+                            {sel && <span className="pw-tick" aria-hidden="true">{weekSel.has(it.task!.id) ? '✓' : ''}</span>}
                             {c && <i className="mod-dot" style={{ '--mod': c } as CSSProperties} aria-hidden="true" />}
                             <span><span className="t">{it.time}</span> {it.title}
                               {it.kind !== 'task' && <span className="visually-hidden">, {kindWords(it, colours)}</span>}
@@ -392,24 +379,7 @@ export function Plan() {
                 </Key>
               )
             })()}
-            {selecting && (
-              <SelectBar count={picked.length} noun="tasks" allShown={shownTasks.length > 0 && shownTasks.every((t) => chosen.has(t.id))}
-                anyShown={shownTasks.length > 0}
-                onAll={() => setChosen((s) => (shownTasks.every((t) => s.has(t.id)) ? new Set() : new Set(shownTasks.map((t) => t.id))))}
-                onDone={endSelect} status={null}>
-                <button type="button" className="btn" disabled={!picked.length} onClick={() => setCopying({ kind: 'tasks', tasks: picked })}>Copy to day…</button>
-                <button type="button" className="btn" disabled={!picked.length} onClick={() => setMoving(picked)}>Move to day…</button>
-                <button type="button" className="btn" disabled={!picked.length} onClick={() => void moveTo(picked, null)}>Send to Inbox</button>
-                <button type="button" className="btn" disabled={!picked.length}
-                  onClick={() => profile && void duplicateTasks(profile.id, picked).then((r) => { offerUndo(r.summary, r.undo); setChosen(new Set()) })}>Duplicate</button>
-                <button type="button" className="btn sb-delete" disabled={!picked.length} onBlur={() => setSure(false)}
-                  onClick={() => {
-                    if (!sure && picked.length > 1) { setSure(true); return }
-                    setSure(false)
-                    void deleteTasks(picked).then((undo) => { offerUndo(picked.length === 1 ? 'Task deleted' : `${picked.length} tasks deleted`, undo); setChosen(new Set()) })
-                  }}>{sure ? `Delete ${picked.length}? Tap again` : 'Delete'}</button>
-              </SelectBar>
-            )}
+            {selecting && profile && <TaskSelectBar sel={weekSel} shown={shownTasks} profileId={profile.id} />}
           </>
         )}
 
@@ -488,8 +458,7 @@ export function Plan() {
         )}
 
         {view === 'inbox' && profile && (
-          <Inbox profileId={profile.id} tasks={inboxTasks} onOpen={(t) => setEditing({ task: t, isNew: false })}
-            selecting={inboxSelecting} onSelecting={setInboxSelecting} />
+          <Inbox profileId={profile.id} tasks={inboxTasks} onOpen={(t) => setEditing({ task: t, isNew: false })} sel={inboxSel} />
         )}
       </div>
 
@@ -497,15 +466,11 @@ export function Plan() {
           the Inbox, food, an event, or any module's add. Not on the Inbox,
           whose capture line is its one add (CALM-01), nor on Year, where it
           would sit over the days (its add is in the ⋮). */}
-      {!selecting && view !== 'inbox' && view !== 'year' && <AddFab day={date} label={`Add something on ${dayLabel(date)}`} />}
+      {!selecting && !railSelecting && view !== 'inbox' && view !== 'year' && <AddFab day={date} label={`Add something on ${dayLabel(date)}`} />}
       {editing && <TaskSheet key={editing.task.id} task={editing.task} isNew={editing.isNew} onClose={() => setEditing(null)} />}
-      {copying && <CopySheet what={copying} onClose={() => setCopying(null)} onDone={() => setChosen(new Set())} />}
+      {copying && <CopySheet what={copying} onClose={() => setCopying(null)} />}
       {saving && <SaveTemplateSheet kind={saving.kind} first={saving.first} onClose={() => setSaving(null)} />}
       {dropping && <DropTemplateSheet day={dropping} onClose={() => setDropping(null)} onSave={() => setSaving({ kind: 'day', first: dropping })} />}
-      {moving && (
-        <DayPickSheet title={moving.length === 1 ? `Move “${moving[0].title}” to…` : `Move ${moving.length} tasks to…`} inbox
-          onPick={(d) => { const list = moving; setMoving(null); void moveTo(list, d) }} onClose={() => setMoving(null)} />
-      )}
       {openEvent && <FollowedSheet event={openEvent} onClose={() => setOpenEvent(null)} />}
       {daysOpen && (
         <DaysShownSheet value={weekDays} onClose={() => setDaysOpen(false)}

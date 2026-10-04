@@ -2,7 +2,7 @@
 // shown" and clearing, the ticked rows in the list's order, rows that have
 // gone dropped, the count in words and when a bulk delete asks once more.
 import {
-  toggleOne, allTicked, toggleShown, pickedRows, pruneGone, countWords, singular, deleteNeedsAsk,
+  toggleOne, allTicked, toggleShown, pickedRows, pruneGone, countWords, singular, deleteNeedsAsk, repeatManyWords,
 } from '../lib/selection-rules.ts'
 
 let fail = 0
@@ -48,6 +48,12 @@ is('boxes → box', singular('boxes'), 'box')
 is('payments → payment', singular('payments'), 'payment')
 is('one delete goes at once (Undo is there)', deleteNeedsAsk(1), false)
 is('several ask once more', deleteNeedsAsk(2), true)
+
+is('repeat words, several', repeatManyWords({ changed: 3, noDay: 0 }, 'Weekly on Mon'), '3 tasks now repeat: weekly on Mon.')
+is('repeat words, one', repeatManyWords({ changed: 1, noDay: 0 }, 'About every 7 days'), '1 task now repeats: about every 7 days.')
+is('repeat words, stopped', repeatManyWords({ changed: 2, noDay: 0 }, null), '2 tasks stopped repeating.')
+is('repeat words, some without a day', repeatManyWords({ changed: 1, noDay: 2 }, 'Every day'), '1 task now repeats: every day. 2 tasks without a day were left as they were.')
+is('repeat words, nothing', repeatManyWords({ changed: 0, noDay: 0 }, null), 'Nothing to change.')
 
 if (fail) { console.log(`\n${fail} failed`); process.exit(1) }
 console.log('\nselection: all passed')
