@@ -148,7 +148,7 @@ let n = 0
 const id = () => `new${++n}`
 const preview = {
   sheets: ['D_Food', 'D_Meals', 'D_Exercises'], skipped: 0,
-  exercises: [{ name: 'Squat' }, { name: 'Row' }],
+  exercises: [{ name: 'Squat' }, { name: 'Row' }, { name: 'Bench press' }, { name: ' bench  PRESS ' }],
   foods: [
     { name: 'APPLE', kcal: 52, carbs_g: 14, fiber_g: 2.4, fat_g: 0.2, protein_g: 0.3 },
     { name: 'Skyr', kcal: 63, carbs_g: 4, fiber_g: 0, fat_g: 0.2, protein_g: 11 },
@@ -162,6 +162,7 @@ const preview = {
 const plan = planImport(preview, {
   foods: [{ id: 'apple', name: 'Apple' }, { id: 'blue', name: 'Blueberry' }],
   recipes: [{ name: 'Apple and cottage cheese' }],
+  exercises: [{ name: 'squat' }],
 }, 'user-1', id, '2026-09-24T10:00:00.000Z')
 
 is('food already there is skipped, case-insensitive', plan.foodsExisting, 1)
@@ -177,8 +178,13 @@ is('unmatched line kept with its text', [planned[2].food_id, planned[2].raw_text
   [null, 'Mystery crunch', '1 handful', null])
 is('sort order follows the recipe', planned.map((l) => l.sort_order), [0, 1, 2])
 is('matched and not matched counted', [plan.linesMatched, plan.linesUnmatched, plan.unmatched], [2, 1, ['Mystery crunch – 1 handful']])
-is('exercises counted', plan.exercises, 2)
-is('ids unique', new Set([...plan.foods.map((f) => f.id), ...plan.recipes.flatMap((r) => [r.recipe.id, ...r.lines.map((l) => l.id)])]).size, 5)
+// Exercises are saved as the person's own (DATA-04).
+is('an exercise already there (the catalogue’s), or named twice, is not added again', plan.exercisesExisting, 2)
+is('new exercises become the person’s own, named once', plan.exercises.map((e) => [e.name, e.owner_id, e.deleted_at]), [['Row', 'user-1', null], ['Bench press', 'user-1', null]])
+is('with a first guess at the muscle group', plan.exercises.map((e) => e.muscle), ['back', 'chest'])
+is('a long name is cut to 80 characters', planImport({ sheets: [], skipped: 0, foods: [], recipes: [], exercises: [{ name: 'x'.repeat(200) }] },
+  { foods: [], recipes: [] }, 'u', id, 'now').exercises[0].name.length, 80)
+is('ids unique', new Set([...plan.foods.map((f) => f.id), ...plan.recipes.flatMap((r) => [r.recipe.id, ...r.lines.map((l) => l.id)]), ...plan.exercises.map((e) => e.id)]).size, 7)
 
 // Out-of-range numbers never reach a row: the server would refuse them with an
 // error the sync layer retries forever.

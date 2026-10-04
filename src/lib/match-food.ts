@@ -4,6 +4,8 @@
 
 import type { ImportPreview } from './excel'
 import { AMOUNT_AT_START, PORTION_MAX_G, leadingAmount, plainFractions, readUnits, unitFromText } from './units-rules.ts'
+import { guessMuscle, EXERCISE_NAME_MAX } from './training-rules.ts'
+import type { Muscle } from './training-types'
 
 // ---- names and tokens ----------------------------------------------------
 
@@ -341,6 +343,12 @@ export interface LineRowPlan {
   unit?: string; unit_qty?: number
 }
 
+/** One of the workbook's exercises, saved as the person's own (DATA-04). */
+export interface ExerciseRowPlan {
+  id: string; owner_id: string; name: string; muscle: Muscle | null; type: null; equipment: null; notes: null
+  created_at: string; updated_at: string; deleted_at: null
+}
+
 export interface ImportPlan {
   foods: FoodRowPlan[]
   recipes: { recipe: RecipeRowPlan; lines: LineRowPlan[] }[]
@@ -353,7 +361,9 @@ export interface ImportPlan {
   /** Lines whose amount cannot be right (more than 10 kg a portion), as the
    *  recipe wrote them and why: saved without grams, for the person to fix. */
   problems: string[]
-  exercises: number
+  /** The workbook's exercises not already there (the catalogue's or one's own). */
+  exercises: ExerciseRowPlan[]
+  exercisesExisting: number
 }
 
 type Macros = { kcal: number | null; carbs_g: number | null; fiber_g: number | null; fat_g: number | null; protein_g: number | null }
@@ -384,7 +394,7 @@ export function pendingEntry<T extends { id: string }>(table: string, row: T, fi
  *  built from should add nothing, not a second copy of everything. */
 export function planImport(
   preview: ImportPreview,
-  existing: { foods: { id: string; name: string; units?: unknown }[]; recipes: { name: string }[] },
+  existing: { foods: { id: string; name: string; units?: unknown }[]; recipes: { name: string }[]; exercises?: { name: string }[] },
   ownerId: string,
   newId: () => string,
   now: string,
@@ -394,7 +404,23 @@ export function planImport(
   const matcher = new FoodMatcher<{ id: string; name: string; units?: unknown }>(existing.foods)
   const plan: ImportPlan = {
     foods: [], recipes: [], foodsExisting: 0, recipesExisting: 0,
-    linesMatched: 0, linesUnmatched: 0, unmatched: [], problems: [], exercises: preview.exercises.length,
+    linesMatched: 0, linesUnmatched: 0, unmatched: [], problems: [], exercises: [], exercisesExisting: 0,
+  }
+
+  // Exercises become the person's own, with a first guess at the muscle
+  // group; one already there by name (the catalogue's or theirs) is not
+  // added again.
+  const exerciseNames = new Set((existing.exercises ?? []).map((e) => normalName(e.name)))
+  for (const e of preview.exercises) {
+    const name = e.name.replace(/\s+/g, ' ').trim().slice(0, EXERCISE_NAME_MAX).trim()
+    const key = normalName(name)
+    if (!key) continue
+    if (exerciseNames.has(key)) { plan.exercisesExisting++; continue }
+    exerciseNames.add(key)
+    plan.exercises.push({
+      id: newId(), owner_id: ownerId, name, muscle: guessMuscle(name), type: null, equipment: null, notes: null,
+      created_at: now, updated_at: now, deleted_at: null,
+    })
   }
 
   for (const f of preview.foods) {
