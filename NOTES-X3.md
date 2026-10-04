@@ -47,3 +47,23 @@ off by default: only show reviews when the Learning module's switch is on:
   check covers both headerless and with header.)
 - Revolut columns (Type, Product, Started Date, Completed Date, Description, Amount, Fee, Currency, State, Balance):
   tariochbctools Revolut importer https://tariochbctools.readthedocs.io/en/stable/_modules/tariochbctools/importers/revolut/importer.html
+- MOD-15 built in Edit module (built modules): "Add a kind of record" (≤ 4), name/remove each kind, "Links to"
+  can pick another kind of the same module (FieldDef.entity); ModulePage draws a tab per kind (entityTabs).
+- LOOK-08/12: LookSettings.density/fonts (settings.ts readLooks), theme-rules layoutVars/pairingsFor, looks.ts sets
+  --density / --font-serif on the root, app.css density block, Settings → Looks "Rows" and "Fonts".
+- 360 px walk (throwaway harness on 5503, deleted): every new screen light and dark, no page errors, nothing wider
+  than the screen; interactions driven (stop logs and ticks, weigh-in day saved, phase added, project from template
+  with 12 tasks, bank file imported then re-imported with 0 new). Fixed: transfer preview widened the page (.tx grid
+  column minmax(0,1fr)), Looks two-choice rows, kinds headings, phase list alignment. Shots: scratchpad/shots19/x3.
+- Verified: tsc -b, npm run check, vite build, local DB 001–037 + security suite (267 ok).
+
+## For the lead at merge
+- Shared files touched (small, additive): src/lib/db.ts (Dexie 17 `phase`), src/lib/sync.ts (+'phase' in SYNCED),
+  src/lib/bundle.ts (+'phase'), src/lib/settings.ts (looks.density/fonts), src/lib/day.ts + day-tabs.ts (weighInDay),
+  src/lib/transfer.ts / transfer-rules.ts (bank files, .tab), src/settings/TransferSettings.tsx (?dataset=, .tab),
+  src/settings/TodayCardsSettings.tsx (Reviews due offer), src/ui/ModuleEditor.tsx (Health measures open, kinds),
+  src/ui/transfer.css (one line), src/styles/app.css (density block), src/screens/Plan.tsx (1 import + 1 line
+  `<YearPhases …/>` before YearGoals in the Year view), package.json (+ studyreview bodymeasures phases bankcsv),
+  src/test/README.md, supabase/tests/security.sql (037 block before the final select), src/test/schedule.check.mjs
+  and daytabs.check.mjs (new looks keys, weigh-in day).
+- Owner applies migration 037_v19_phases_and_weigh_in_day.sql. No edge functions, no secrets.
