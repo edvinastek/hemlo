@@ -82,6 +82,9 @@ Types, then every check that needs nothing but Node. CI runs the same command.
   ranges (last n days, this week, month and year, custom; shifted back and on), the chart picked automatically, series
   colours checked for contrast on the page, the text summary, the widget shape, and Today's cards.
 - `ics` — calendar files (RFC 5545): tasks as floating local time or whole days, agenda events in UTC,
+  (v18, GEN-26: every rule of the app reads back as itself, weekends, the 2nd Tuesday, every n months, 29 February and
+  days picked by hand included; habits, chores, supplements and payments with their repeats; "after", flexible and
+  "3 times a week" in GetIt's own X-GETIT-REPEAT line, read back exactly)
   repeats as RRULE/RDATE/EXDATE with changed copies; folding at 75 bytes, escaping, CRLF, stable UIDs. A file
   shaped like a Google Calendar export read back in the reader's zone (TZID, UTC, whole days, DURATION,
   moved and cancelled repeats); every app rule written as RRULE lands on the same days both ways.

@@ -70,3 +70,10 @@ import { CopySheet } from '../ui/CopySheet'
   their first day; tasks.ts setTaskDone → series.followDone makes the next one n days after the tick (shared occurrence id),
   unticking takes it back. Flexible tasks wait on today (day-items), never in carry-over (ReviewCard one line) or the
   evening review (review.ts one line). notify.ts reminder tick now goes through setTaskDone.
+- GEN-26: ics-rules: X-GETIT-KIND / X-GETIT-REPEAT lines (looseRepeat/readLooseRepeat), scheduleEvent() for habits,
+  chores, supplements, payments; mapRule reads back weekends, monthly_nth, monthly every n, yearly (29 Feb), RDATE
+  'dates'. transfer.ts: the calendar export adds the modules' repeats (modules that are on); habit/supplement/chore
+  datasets export .ics; habits import .ics with rules; tasks keep after/flexible through X-GETIT-REPEAT. Loose series
+  have no RRULE: the feed sends their tasks. Server copy synced with scripts/copy-shared.mjs (redeploy calendar-feed
+  and calendar-fetch at merge so _shared matches). Chores and payments are NOT added to the Google feed (feed index.ts
+  unchanged; feed keeps health and money out by design).
