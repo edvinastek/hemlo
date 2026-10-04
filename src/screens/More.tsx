@@ -675,6 +675,8 @@ function DeleteAccount() {
 
   async function remove() {
     setBusy(true); setError(null)
+    // Photos live in Storage, apart from the rows: they go first (MOD-12).
+    await import('../modules/photos').then((m) => m.removeAllPhotos()).catch(() => undefined)
     const { error } = await supabase.rpc('delete_my_account')
     if (error) {
       setBusy(false)

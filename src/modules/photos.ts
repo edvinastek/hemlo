@@ -184,3 +184,17 @@ export function watchPhotos() {
   void uploadPending()
 }
 watchPhotos()
+
+/** Every photo of this device's profiles out of Storage: called just before
+ *  the account is deleted, since Storage keeps files apart from the rows. */
+export async function removeAllPhotos(): Promise<void> {
+  for (const p of await db.profile.toArray()) {
+    const { data: folders } = await supabase.storage.from(PHOTO_BUCKET).list(p.id, { limit: 1000 })
+    for (const folder of folders ?? []) {
+      if (folder.id) continue
+      const { data: files } = await supabase.storage.from(PHOTO_BUCKET).list(`${p.id}/${folder.name}`, { limit: 100 })
+      const names = (files ?? []).map((f) => `${p.id}/${folder.name}/${f.name}`)
+      if (names.length) await supabase.storage.from(PHOTO_BUCKET).remove(names)
+    }
+  }
+}
