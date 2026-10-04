@@ -119,3 +119,42 @@ export function monthDays(block: MonthBlock): string[] {
   const start = toDayNumber(`${block.key}-01`)
   return Array.from({ length: block.days }, (_, i) => fromDayNumber(start + i))
 }
+
+/* ---------- busy all-day events (AGN-07) ------------------------------------ */
+
+/** An event as the busy check needs it. `busy` is kept for events of a
+ *  followed calendar: an all-day event is free unless its calendar marks it
+ *  busy (TRANSP:OPAQUE), which is how Google Calendar writes "Busy" on a
+ *  whole-day event. The person's own events have no busy mark, so they are
+ *  free, as whole-day events are in Google Calendar by default. */
+export interface BusyEventLike {
+  title: string
+  starts_at: string
+  ends_at: string | null
+  all_day: boolean
+  busy?: boolean | null
+  deleted_at?: string | null
+}
+
+/** The titles of the busy all-day events that cover a day, in order. */
+export function busyAllDay(events: BusyEventLike[], day: string, daysOf: (e: BusyEventLike) => { first: string; last: string } | null): string[] {
+  const out: string[] = []
+  for (const e of events) {
+    if (e.deleted_at || !e.all_day || e.busy !== true) continue
+    const span = daysOf(e)
+    if (!span || day < span.first || day > span.last) continue
+    const t = e.title.trim() || 'An all-day event'
+    if (!out.includes(t)) out.push(t)
+  }
+  return out
+}
+
+/** The one-line warning: "Holiday in Spain is marked busy", "Holiday and
+ *  Trip are marked busy", "Holiday and 2 more are marked busy". Null when
+ *  there is nothing to say. */
+export function busyWords(titles: string[]): string | null {
+  if (titles.length === 0) return null
+  if (titles.length === 1) return `${titles[0]} is marked busy`
+  if (titles.length === 2) return `${titles[0]} and ${titles[1]} are marked busy`
+  return `${titles[0]} and ${titles.length - 1} more are marked busy`
+}

@@ -3,7 +3,7 @@
 // Tuesday; 2026-02-01 a Sunday; 2027-02-01 a Monday; 2028 is a leap year.
 import {
   navRange, clampDay, inRange, moveWeek, addMonths, daysInMonth, monthBlock, monthsBetween, monthTops,
-  monthAt, monthIndex, monthDays, YEARS_BACK, YEARS_AHEAD,
+  monthAt, monthIndex, monthDays, YEARS_BACK, YEARS_AHEAD, busyAllDay, busyWords,
 } from '../lib/calendar-rules.ts'
 
 let fail = 0
@@ -76,6 +76,25 @@ eq('index of the first month', monthIndex(all, '2023-09-15'), 0)
 eq('index before the range is the first', monthIndex(all, '2001-01-01'), 0)
 eq('index after the range is the last', monthIndex(all, '2050-01-01'), 96)
 eq('index across years', all[monthIndex(all, '2030-02-11')].key, '2030-02')
+
+// Busy whole-day events (v19, AGN-07): which cover a day, and the warning.
+const span = (e) => ({ first: e.starts_at.slice(0, 10), last: (e.ends_at ?? e.starts_at).slice(0, 10) })
+const evs = [
+  { title: 'Holiday in Spain', starts_at: '2026-10-12', ends_at: '2026-10-16', all_day: true, busy: true },
+  { title: 'Birthday', starts_at: '2026-10-13', ends_at: null, all_day: true, busy: false },
+  { title: 'Conference', starts_at: '2026-10-13', ends_at: null, all_day: true },
+  { title: 'Meeting', starts_at: '2026-10-13', ends_at: null, all_day: false, busy: true },
+  { title: 'Trip', starts_at: '2026-10-16', ends_at: '2026-10-18', all_day: true, busy: true },
+  { title: 'Gone', starts_at: '2026-10-13', ends_at: null, all_day: true, busy: true, deleted_at: 'x' },
+  { title: '  ', starts_at: '2026-10-20', ends_at: null, all_day: true, busy: true },
+]
+eq('a busy whole-day event covers each of its days', [busyAllDay(evs, '2026-10-12', span), busyAllDay(evs, '2026-10-13', span)], [['Holiday in Spain'], ['Holiday in Spain']])
+eq('free, unmarked, timed and deleted events are not busy', busyAllDay(evs, '2026-10-13', span).length, 1)
+eq('two on one day', busyAllDay(evs, '2026-10-16', span), ['Holiday in Spain', 'Trip'])
+eq('nothing the day before or after', [busyAllDay(evs, '2026-10-11', span), busyAllDay(evs, '2026-10-19', span)], [[], []])
+eq('an event with no title still warns', busyAllDay(evs, '2026-10-20', span), ['An all-day event'])
+eq('the warning in words', [busyWords([]), busyWords(['Holiday in Spain']), busyWords(['Holiday', 'Trip']), busyWords(['Holiday', 'Trip', 'Fair'])],
+  [null, 'Holiday in Spain is marked busy', 'Holiday and Trip are marked busy', 'Holiday and 2 more are marked busy'])
 
 console.log(fail ? `\n${fail} check(s) failed` : '\nall checks passed')
 process.exit(fail ? 1 : 0)

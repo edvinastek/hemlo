@@ -267,6 +267,23 @@ eq('the same event twice is kept once', eventsFromIcs([...read.events, ...read.e
 eq('a cap stops the list and says so', [eventsFromIcs(read.events, { zone: AMS, ...W, max: 10 }).events.length, eventsFromIcs(read.events, { zone: AMS, ...W, max: 10 }).truncated], [10, true])
 eq('a key compares moments, not spellings', eventKey({ external_uid: 'u', starts_at: '2026-10-01T07:00:00Z' }) === eventKey({ external_uid: 'u', starts_at: '2026-10-01T07:00:00.000Z' }), true)
 
+// ---- busy whole-day events (v19, AGN-07) --------------------------------------------------------
+const busyIcs = [
+  'BEGIN:VCALENDAR', 'VERSION:2.0',
+  'BEGIN:VEVENT', 'UID:spain@x', 'DTSTART;VALUE=DATE:20261012', 'DTEND;VALUE=DATE:20261017', 'TRANSP:OPAQUE', 'SUMMARY:Holiday in Spain', 'END:VEVENT',
+  'BEGIN:VEVENT', 'UID:bday@x', 'DTSTART;VALUE=DATE:20261013', 'DTEND;VALUE=DATE:20261014', 'TRANSP:TRANSPARENT', 'SUMMARY:Ann’s birthday', 'END:VEVENT',
+  'BEGIN:VEVENT', 'UID:plain@x', 'DTSTART;VALUE=DATE:20261014', 'SUMMARY:Bin day', 'END:VEVENT',
+  'BEGIN:VEVENT', 'UID:meet@x', 'DTSTART:20261013T090000Z', 'DTEND:20261013T100000Z', 'TRANSP:OPAQUE', 'SUMMARY:Meeting', 'END:VEVENT',
+  'END:VCALENDAR', '',
+].join('\r\n')
+const busyRead = parseIcs(busyIcs, { zone: AMS, today: TODAY, mapSeries: false, from: W.from, to: W.to })
+eq('TRANSP is read', busyRead.events.map((e) => e.transp), ['opaque', 'transparent', null, 'opaque'])
+const busyRows = eventsFromIcs(busyRead.events, { zone: AMS, ...W }).events
+eq('only a whole-day event marked busy is busy', busyRows.map((e) => [e.title, !!e.busy]),
+  [['Holiday in Spain', true], ['Ann’s birthday', false], ['Meeting', false], ['Bin day', false]])
+eq('marked busy later: the row changes', planReplace([{ id: '1', ...busyRows[1] }], [{ ...busyRows[1], busy: true }]).update, [{ id: '1', changes: { busy: true } }])
+eq('a row kept before busy was read is free, the same as before', planReplace([{ id: '1', ...busyRows[2] }], [busyRows[2]]).unchanged, 1)
+
 // ---- replacing a calendar's events -------------------------------------------------------------
 const inc = (uid, start, title = uid) => ({ external_uid: uid, starts_at: start, ends_at: null, all_day: false, title, location: null })
 const loc = (id, uid, start, title = uid) => ({ id, ...inc(uid, start, title) })

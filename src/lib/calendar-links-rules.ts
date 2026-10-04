@@ -425,6 +425,9 @@ export interface IncomingEvent {
   all_day: boolean
   title: string
   location: string | null
+  /** AGN-07: a whole-day event its calendar marks busy (TRANSP:OPAQUE).
+   *  Whole-day events are free unless marked; timed ones are not checked. */
+  busy?: boolean
 }
 export interface LocalEvent extends IncomingEvent { id: string }
 
@@ -461,6 +464,7 @@ export function eventsFromIcs(events: ParsedEvent[], o: { zone: string; from: st
       const row: IncomingEvent = {
         external_uid: uid, starts_at: iso(starts), ends_at: ends === null ? null : iso(ends),
         all_day: ev.allDay || !ev.time, title, location,
+        ...((ev.allDay || !ev.time) && ev.transp === 'opaque' ? { busy: true } : {}),
       }
       const key = eventKey(row)
       if (seen.has(key)) continue
@@ -488,7 +492,7 @@ export interface ReplacePlan {
   unchanged: number
 }
 
-const FIELDS: (keyof IncomingEvent)[] = ['ends_at', 'all_day', 'title', 'location']
+const FIELDS: (keyof IncomingEvent)[] = ['ends_at', 'all_day', 'title', 'location', 'busy']
 
 /** How to make a followed calendar's events on the device match its file:
  *  events found again (same UID, same start) keep their row and change only
@@ -514,8 +518,9 @@ export function planReplace(existing: LocalEvent[], incoming: IncomingEvent[]): 
     kept.add(old.id)
     const changes: Partial<IncomingEvent> = {}
     for (const f of FIELDS) {
-      const a = f === 'ends_at' && old.ends_at ? Date.parse(old.ends_at) : old[f] ?? null
-      const b = f === 'ends_at' && e.ends_at ? Date.parse(e.ends_at) : e[f] ?? null
+      // A row kept before busy was read has none: that is free, as false is.
+      const a = f === 'busy' ? !!old.busy : f === 'ends_at' && old.ends_at ? Date.parse(old.ends_at) : old[f] ?? null
+      const b = f === 'busy' ? !!e.busy : f === 'ends_at' && e.ends_at ? Date.parse(e.ends_at) : e[f] ?? null
       if (a !== b) (changes as Record<string, unknown>)[f] = e[f]
     }
     if (Object.keys(changes).length) update.push({ id: old.id, changes })
