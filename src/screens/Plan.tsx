@@ -461,7 +461,7 @@ export function Plan() {
               <HolidayLegend countries={countriesIn([...holidays.values()], settings.holidays.countries)} />
               <FollowedLegend calendars={calendarsIn([...followedAll.values()].map((l) => l.filter((f) => !hidden.includes(f.sub.id))))} />
             </Key>
-            {profile && <YearGoals profileId={profile.id} year={Number(date.slice(0, 4))} onOpen={(link) => navigate(link)} onDay={(d) => go(d, 'week', true)} />}
+            {profile && <YearGoals profileId={profile.id} year={Number(date.slice(0, 4))} onOpen={(link) => navigate(link)} />}
           </>
         )}
 
@@ -612,7 +612,7 @@ function MilestoneLines({ list, onOpen }: { list: PlanMilestone[]; onOpen: (m: P
 /** Goals and phases (PLN-12, GEN-36): the goals that touch the year shown,
  *  and projects due in it, each with its progress; a tap opens it. Only
  *  while Projects, where goals live, is on (P1). */
-function YearGoals({ profileId, year, onOpen, onDay }: { profileId: string; year: number; onOpen: (link: string) => void; onDay: (day: string) => void }) {
+function YearGoals({ profileId, year, onOpen }: { profileId: string; year: number; onOpen: (link: string) => void }) {
   const data = useLiveQuery(async () => ((await instanceFor(profileId, 'projects'))?.enabled
     ? loadYearGoals(profileId, year) : null), [profileId, year])
   // The year's milestones (PRJ-03), in date order, under the goals.
@@ -653,17 +653,13 @@ function YearGoals({ profileId, year, onOpen, onDay }: { profileId: string; year
           <p className="section-title plan-ms-title" id="plan-ms-title">Milestones, {year}</p>
           <ul className="plan-goal-list" aria-labelledby="plan-ms-title">
             {marks.map((m) => (
-              <li key={m.id} className="plan-ms-row">
+              <li key={m.id}>
                 <button type="button" className={`plan-goal plan-ms-goal${m.done ? ' is-done' : ''}`} onClick={() => onOpen(milestoneLink(m))}>
                   <span className="plan-goal-top">
                     <span className="plan-goal-name"><span className="pw-ms-mark" aria-hidden="true">◆ </span>{m.title || 'Untitled'}</span>
                     <span className="plan-goal-when">{[m.project_name || m.goal_title, yearDateWords(m.due_date, year).replace(/^by /, ''), m.done ? 'reached' : ''].filter(Boolean).join(' · ')}</span>
                   </span>
                 </button>
-                {m.due_date && (
-                  <button type="button" className="btn plan-ms-day" onClick={() => onDay(m.due_date!)}
-                    aria-label={`See the week of ${m.title || 'this milestone'}`}>Week</button>
-                )}
               </li>
             ))}
           </ul>

@@ -141,10 +141,8 @@
 .py-ms { position: absolute; right: 3px; bottom: 2px; font-size: 8px; line-height: 1; color: var(--e-ink); pointer-events: none; }
 .ms-day.is-strong .py-ms { color: var(--e-paper); }
 .plan-ms-title { margin-top: var(--space-4); }
-.plan-ms-row { display: flex; align-items: center; gap: var(--space-2); border-bottom: 1px solid var(--e-rule); }
-.plan-ms-row .plan-ms-goal { flex: 1; min-width: 0; min-height: 48px; border-bottom: 0; }
-.plan-ms-row .plan-goal-when { white-space: normal; }
-.plan-ms-day { flex: none; padding: 6px 10px; font-size: 13px; }
+.plan-ms-goal { min-height: 48px; }
+.plan-ms-goal .plan-goal-when { white-space: normal; }
 .plan-ms-goal.is-done .plan-goal-name { text-decoration: line-through; }
 
 /* ---------- the Key, the month, Days shown (v17) ---------------------------- */

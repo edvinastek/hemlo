@@ -179,6 +179,12 @@ export async function flexibleSeriesIds(profileId: string): Promise<Set<string>>
   return new Set(rows.filter((x) => looseOf(x)?.mode === 'flexible').map((x) => x.id))
 }
 
+/** Is this a flexible series (GEN-22)? */
+export async function isFlexibleSeries(seriesId: string): Promise<boolean> {
+  const s = await db.series.get(seriesId)
+  return !!s && !s.deleted_at && looseOf(s)?.mode === 'flexible'
+}
+
 /** Unticked again: the next task that the tick made goes, if it is still
  *  open (one already done stays: it happened). `doneOn` is the day the tick
  *  was made. */

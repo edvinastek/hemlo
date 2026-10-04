@@ -33,11 +33,18 @@ export async function saveTask(task: Task, changed?: (keyof Task & string)[]) {
 /** Tick or untick, from Today or from the home-screen widget. A meal's task
  *  ticks its meal eaten too, and unticking un-eats it (GEN-31). */
 export async function setTaskDone(task: Task, done: boolean) {
+  // A flexible repeat waiting on today (GEN-22) is done today: it takes
+  // today's date, so it stays on today's list, ticked, and its history says
+  // when it was really done.
+  const today = localDayOf(null)
+  const catchUp = done && !!task.series_id && !!task.planned_date && task.planned_date < today
+    && await (await import('./series')).isFlexibleSeries(task.series_id)
   const row = await saveTask({
     ...task,
+    ...(catchUp ? { planned_date: today } : {}),
     status: done ? 'done' : 'todo',
     completed_at: done ? new Date().toISOString() : null,
-  }, ['status', 'completed_at'])
+  }, catchUp ? ['status', 'completed_at', 'planned_date'] : ['status', 'completed_at'])
   if (task.source === 'meal') await (await import('./meals')).mealTaskTicked(row, done)
   if (task.series_id) await followTick(task, done)
   return row

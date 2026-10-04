@@ -14,6 +14,7 @@ import { SupplementSheet } from '../sections/Supplements'
 import { WeighIn } from '../sections/WeighIn'
 import { offerUndo } from './Undo'
 import { useBackClose } from './useBackClose'
+import './addmenu.css'
 
 /** The add sheets the round + opens in place (HAB-22, decision #4 of the
  *  competitor review): a habit, a chore, a supplement, a weigh-in and a
@@ -32,7 +33,7 @@ export function QuickAddSheet({ what, day, onClose }: { what: QuickAdd; day: str
   if (what === 'supplement') return <QuickSupplement profileId={profile.id} today={day} onClose={onClose} />
   if (what === 'weighin') {
     return (
-      <PlainSheet label="Weigh-in" onClose={onClose} done>
+      <PlainSheet label="Weigh-in" onClose={onClose} done bare>
         <WeighIn profileId={profile.id} day={day} history={false} />
       </PlainSheet>
     )
@@ -106,12 +107,16 @@ function QuickShopItem({ onClose }: { onClose: () => void }) {
 }
 
 /** A bottom sheet with a title and a Close, for what has no sheet of its own. */
-function PlainSheet({ label, onClose, children, done }: { label: string; onClose: () => void; children: ReactNode; done?: boolean }) {
+function PlainSheet({ label, onClose, children, done, bare }: {
+  label: string; onClose: () => void; children: ReactNode; done?: boolean
+  /** The content has its own heading (the weigh-in's day): no second one. */
+  bare?: boolean
+}) {
   return (
     <>
       <div className="sheet-scrim" onClick={onClose} />
-      <div className="bottom-sheet" role="dialog" aria-modal="true" aria-label={label} data-no-swipe>
-        <h2>{label}</h2>
+      <div className={`bottom-sheet${bare ? ' qa-bare' : ''}`} role="dialog" aria-modal="true" aria-label={label} data-no-swipe>
+        {!bare && <h2>{label}</h2>}
         {children}
         {done && (
           <div className="sheet-actions">
