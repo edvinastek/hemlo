@@ -2,7 +2,7 @@
 title: "GetIt — Requirements and Specification"
 subtitle: "Every requirement, the app as built in version 15, and what the next version must change"
 author: "Prepared for Edvinas Straigis"
-date: "3 October 2026 (statuses updated for version 17)"
+date: "4 October 2026 (statuses updated for version 18)"
 ---
 
 # Part A. About this document
@@ -40,8 +40,9 @@ The competitor comparison and the usability plan are in the second document ("Ge
 - **Should**: next after that (version 17).
 - **Could**: later, or when there is demand.
 
-**Status (updated for version 17, 3 October 2026):**
+**Status (updated for version 18, 4 October 2026):**
 
+- **Done (v18)**: built in version 18 (the gaps a code audit of every requirement and competitor recommendation found) and checked the same way.
 - **Done (v17)**: built in version 17 (calm by default, prices) and checked the same way.
 - **Done (v16)**: built in version 16 and checked (rule checks, the security suite, and every screen at 360 px in light and dark); the end-to-end tests against the live project still to run.
 - **Done**: built and tested in an earlier version.
