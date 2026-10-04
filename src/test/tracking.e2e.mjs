@@ -67,7 +67,8 @@ await settle(p)
 await goPage('')
 await todayPart(p, 'Body')
 await p.waitForTimeout(600)
-is('the habit shows ticked', await p.locator('button[aria-label="Stretch, done"]').getAttribute('aria-pressed'), 'true')
+// v18: the Body tab lists habits as items on the rail (never a second Habits section).
+is('the habit shows ticked', await p.locator('button[aria-label="Untick Stretch"]').getAttribute('aria-pressed'), 'true')
 r = await one(`select
   (select count(*) from public.habit where ${mine} and deleted_at is null) habits,
   (select count(*) from public.habit_log l join public.habit h on h.id = l.habit_id where h.${mine} and h.name = 'Stretch' and l.log_date = '${day}' and l.done) ticks,
@@ -130,15 +131,15 @@ is('ticking a chore records who did it', Number(r.n), 1)
 // 3. Two phones, both offline, both tick Water. One tick survives, nothing refused.
 await goPage('')
 await todayPart(p, 'Body')
-await p.locator('button[aria-label="Water, not done"]').waitFor({ timeout: 15000 })
+await p.locator('button[aria-label="Tick Water"]').waitFor({ timeout: 15000 })
 const B = await open()
 await signIn(B.p, email)
 await todayPart(B.p, 'Body')
-await B.p.locator('button[aria-label="Water, not done"]').waitFor({ timeout: 15000 })
+await B.p.locator('button[aria-label="Tick Water"]').waitFor({ timeout: 15000 })
 await A.ctx.setOffline(true)
 await B.ctx.setOffline(true)
-await p.click('button[aria-label="Water, not done"]')
-await B.p.click('button[aria-label="Water, not done"]')
+await p.click('button[aria-label="Tick Water"]')
+await B.p.click('button[aria-label="Tick Water"]')
 await settle(p, 800)
 await A.ctx.setOffline(false)
 await p.evaluate(() => window.dispatchEvent(new Event('online')))
@@ -157,7 +158,7 @@ const refused = await B.p.evaluate(async () => {
   return new Promise((res) => { const q = db.transaction('conflicts').objectStore('conflicts').getAll(); q.onsuccess = () => res(q.result.filter((c) => c.kept === 'rejected').length) })
 })
 is('and nothing was refused', refused, 0)
-is('the second phone still shows it ticked', await B.p.locator('button[aria-label="Water, done"]').count(), 1)
+is('the second phone still shows it ticked', await B.p.locator('button[aria-label="Untick Water"]').count(), 1)
 await B.b.close()
 
 // 4. A repeating task: make it, change one day, stop it.

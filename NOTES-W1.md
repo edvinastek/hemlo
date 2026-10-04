@@ -103,3 +103,12 @@ import { CopySheet } from '../ui/CopySheet'
   .ics). A GetIt calendar file read into "Calendar" puts each X-GETIT-KIND event back into its module (habit,
   supplement, chore, planned payment) instead of making a task; same-named ones already there are skipped. Checked
   in the harness: export → delete habits → import gives the identical rules (flexible included).
+- e2e updated for the new behaviour (not run here: they need the live test account): tracking.e2e (Body tab habits
+  are rail items: "Untick Stretch", "Tick Water"), nav.e2e (switching Sleep off confirms with "Switch off").
+- Screenshots (360 px, light and -dark): scratchpad/shots18/w1/ — today, today-body, today-select, repeat-many(-menu),
+  add-menu, add-habit/chore/supplement/weighin/shopping, task-repeat-menu/-after, plan-week, plan-week-select,
+  plan-year, plan-year-milestones, inbox-select, settings-module-off, export-sheet, copy-meal(-picked).
+  Harness (port 5401, Dexie seeded, sign-in stubbed, network to Supabase blocked) drove: Back closes the + menu,
+  each add sheet, export and the select mode; ticking an "after" and a flexible task makes the next (30 / 7 days
+  on), unticking removes it, ticking again brings it back; habits round-trip through a calendar file with identical
+  rules; a calendar import restores habits into Habits; meals copy through CopySheet with Undo. Harness deleted.
