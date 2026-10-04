@@ -4,7 +4,7 @@
 // habits and module records, on the chores' engine. 2026-10-05 is a Monday.
 process.env.TZ = 'Europe/Amsterdam'
 import { looseOf, looseState, describeSchedule, describeChore, habitDay, cleanRule, MAX_LOOSE_DAYS } from '../lib/schedule-rules.ts'
-import { choiceOf, ruleFor, isLooseChoice } from '../lib/repeat-choice-rules.ts'
+import { choiceOf, ruleFor, isLooseChoice, repeatOfChore, choreOfRepeat } from '../lib/repeat-choice-rules.ts'
 import { baseDates, plan, nextAfterDone, taskDueness, repeatChanged, seriesRuleFields, plannedRepeats } from '../lib/series-rules.ts'
 import { habitStreak, habitStrength, habitMonth, habitKept, looseLimit } from '../lib/tracking-rules.ts'
 import { dayItems, carryOver } from '../lib/day-items-rules.ts'
@@ -41,6 +41,14 @@ is('picking "flexible" from scratch: a week', ruleFor('flexible', MON, {}), { ru
 is('the number is kept in range', ruleFor('after', MON, { n: 5000 }).rule_config.n, MAX_LOOSE_DAYS)
 is('back to every day drops the mode', ruleFor('daily', MON, after7.rule_config), { rule: 'daily', rule_config: {} })
 is('loose choices', [isLooseChoice('after'), isLooseChoice('flexible'), isLooseChoice('daily')], [true, true, false])
+
+// Chores keep their mode in their own columns, shown in the same control.
+const chore = { mode: 'flexible', rule: null, rule_config: {}, every_days: 10, end_date: null }
+is('a flexible chore in the control', repeatOfChore(chore), { rule: 'daily', rule_config: { n: 10, mode: 'flexible' }, end_date: null })
+is('…and back', choreOfRepeat(repeatOfChore(chore)), { mode: 'flexible', rule: null, rule_config: {}, every_days: 10, end_date: null })
+is('a fixed chore stays fixed', choreOfRepeat({ rule: 'weekly', rule_config: { weekdays: [1] }, end_date: null }),
+  { mode: 'fixed', rule: 'weekly', rule_config: { weekdays: [1] }, every_days: null, end_date: null })
+is('a fixed chore with no rule shows weekly', repeatOfChore({ ...chore, mode: 'fixed', every_days: null }).rule, 'weekly')
 
 // The engine: the chores' one.
 is('never done: due from the start', looseState({ mode: 'after', every: 7 }, MON, null, MON, []).shows, true)

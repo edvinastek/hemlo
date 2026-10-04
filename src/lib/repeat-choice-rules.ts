@@ -68,3 +68,21 @@ export function ruleFor(choice: Choice, start: string, was: RuleConfig = {}, tod
   }
 }
 
+
+/* ---------- chores keep their mode in columns of their own --------------- */
+
+/** A chore as the one repeat control shows it: a fixed chore its rule, an
+ *  "after" or flexible one the loose kind of the same number of days. */
+export function repeatOfChore(c: { mode: 'fixed' | 'after' | 'flexible'; rule: RuleKind | null; rule_config: RuleConfig | null; every_days: number | null; end_date: string | null }): RepeatValue {
+  if (c.mode !== 'fixed') return { rule: 'daily', rule_config: { n: Math.max(1, Math.floor(c.every_days ?? 7)), mode: c.mode }, end_date: c.end_date }
+  return { rule: c.rule ?? 'weekly', rule_config: c.rule_config ?? {}, end_date: c.end_date }
+}
+
+/** The control's value back in a chore's columns (mode, every_days, rule). */
+export function choreOfRepeat(v: RepeatValue): { mode: 'fixed' | 'after' | 'flexible'; rule: RuleKind | null; rule_config: RuleConfig; every_days: number | null; end_date: string | null } {
+  const mode = v.rule === 'daily' ? v.rule_config?.mode : undefined
+  if (mode === 'after' || mode === 'flexible') {
+    return { mode, rule: null, rule_config: {}, every_days: Math.min(MAX_LOOSE_DAYS, Math.max(1, Math.floor(v.rule_config.n ?? 7))), end_date: v.end_date }
+  }
+  return { mode: 'fixed', rule: v.rule ?? 'weekly', rule_config: v.rule_config ?? {}, every_days: null, end_date: v.end_date }
+}
