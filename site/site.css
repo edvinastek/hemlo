@@ -14,3 +14,5 @@ button.primary { background: var(--e-accent); color: var(--e-paper); border-colo
 button:disabled { opacity: .5; cursor: default; }
 .note { font-family: var(--font-sans); font-size: 14px; color: var(--e-warn); }
 .ok { color: var(--e-done); }
+ul { padding-left: 22px; margin: 8px 0; }
+li { margin: 4px 0; }
