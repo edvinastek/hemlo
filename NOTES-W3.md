@@ -16,3 +16,14 @@ Running log. Gaps from tasks18/w3.md, numbered 1–10.
   Storage), security.sql section (B owner, M stranger since A deletes account earlier). Local proof:
   scratchpad/w3-localdb.sh with STORAGE=1 + w3-storage-stub.sql → 255 ok; plain localdb.sh → 248 ok.
   Dexie 14: photo table. photos.ts (resize, keep, upload after sync, daily tidy), photo-rules.ts + photos check.
+- Gap 4 MOD-07: moduleSuggestions (def-rules) used in Onboarding (built modules switched on at finish) and in Settings
+  → Starting layout (new describe box). Gap 5 LOOK-06: contrastNote(hex, papers), swatchesFor; ColourSettings uses
+  the chosen theme's pages live and marks swallowed swatches.
+- Gap 6/7: reminders for supplement slots (slot time), payments (time or 09:00, Paid button), refill reminders;
+  tickFromReminder via setTaskDone (GEN-31), supplements slot tick, togglePaid. Stock: supplementStock etc. in
+  tracking-rules (derived from ticks; columns 033 stock_count/stock_from/refill_days), UI on Supplements.
+- Gap 8: ChorePrefs.mine_only (null = on when >1 member); day-items-rules choresFor filters Today/widget, not Plan.
+- Gap 9: TodayWidget habit rows → app.getit.planner://open/m/habits?open=<id>; Habits reads ?open. Android compiles.
+- Gap 10: TrackSheet useBackClose; habit/chore/supplement/payment/book/record sheets staged.
+- Screens: shots18/w3 (20 × light/dark). Harness deleted.
+- Final: tsc, check, vite build, localdb 001–033 + security 248 ok (255 ok with Storage stand-in).

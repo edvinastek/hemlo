@@ -61,7 +61,7 @@ export function ListView({ entity, recs, lookups, onOpen, sel }: {
         const pic = entity.fields.find((f) => f.type === 'photo' && !f.hidden && r.values[f.name])
         return (
           <li key={r.id}>
-            <button type="button" className={`mp-card${picking ? ' is-pickable' : ''}${on ? ' is-picked' : ''}`} {...sel?.hold(r.id)}
+            <button type="button" className={`mp-card${picking ? ' is-pickable' : ''}${on ? ' is-picked' : ''}${pic ? ' has-thumb' : ''}`} {...sel?.hold(r.id)}
               aria-pressed={picking ? on : undefined} aria-label={picking ? `${on ? 'Selected' : 'Select'}: ${title}` : undefined}
               onClick={() => (picking ? sel!.toggle(r.id) : onOpen(r))}>
               {picking && <span className={`mp-tick${on ? ' is-on' : ''}`} aria-hidden>{on ? '✓' : ''}</span>}
