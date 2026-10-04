@@ -271,6 +271,15 @@ Types, then every check that needs nothing but Node. CI runs the same command.
   bed and wake times from each other, late and early the short way round the clock, each night against the target,
   sleep debt over seven days (nights not logged are unknown, never zero), how regular bed and wake times are (around
   midnight too), and the bedtime block: when it starts, how long, locked or not, and none when it is off.
+- `sleepimport` — sleep from Health Connect (SLP-05): a night across midnight given to the morning it ended, in the
+  zone it ended in (the clocks going back too; the phone's zone when a session has none), overlapping sessions (a
+  watch and a phone) and a night split by getting up joined into one, stages summed (awake and out of bed not
+  counted), naps and anything under three hours left out, the longer of two sleeps on a day kept, a day that already
+  has a night left alone, a session imported before never imported again (even after its night was deleted), a
+  deleted night's row taken back, the range by wake day, broken sessions skipped, and the summary line.
+- `quickadd` — the launcher shortcuts and the quick-add widget (NAV-24, WID-11): the + menu's first four in its own
+  order (most used, the person's order, hidden ones left out), short names of ten letters or fewer that never read
+  the same, the app.getit.planner://open/?add= link each opens, routed to Today, and only + menu keys accepted back.
 - `mealrules` — meals with no fixed slots: the person's meal names (and the old four), a typed name finding its meal,
   keys for new meals, default and own times, what each item is (a food, a recipe or ready meal, numbers) and comes to
   (unknown never 0), a day grouped into meals (cards for the person's meals, by time, "Any time" last, skipped and

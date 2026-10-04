@@ -1,4 +1,5 @@
 import { Capacitor, registerPlugin } from '@capacitor/core'
+import type { HcSession } from './sleep-import-rules'
 
 /** True inside the Android app, false in a browser and on Windows. */
 export const isNative = () => Capacitor.isNativePlatform()
@@ -117,4 +118,50 @@ export async function setAppIcon(key: string): Promise<boolean> {
 export function haptic(kind: 'tick' | 'hold' = 'tick') {
   if (android()) { void Looks.haptic({ kind }).catch(() => undefined); return }
   try { navigator.vibrate?.(kind === 'hold' ? 20 : 10) } catch { /* not every browser has it */ }
+}
+
+/* ---------- sleep from Health Connect (android/…/health/HealthPlugin.kt) ---------- */
+
+/** 'available'; 'install' when Health Connect must be installed or updated
+ *  from Google Play first; 'unsupported' on this phone (or not Android). */
+export type HealthStatus = 'available' | 'install' | 'unsupported'
+
+interface GetItHealth {
+  availability(): Promise<{ status: HealthStatus }>
+  install(): Promise<void>
+  openSettings(): Promise<void>
+  allowed(): Promise<{ allowed: boolean }>
+  requestSleep(): Promise<{ allowed: boolean }>
+  readSleep(options: { start: number; end: number }): Promise<{ sessions: HcSession[] }>
+}
+const Health = registerPlugin<GetItHealth>('GetItHealth')
+
+/** Whether Health Connect can be used here (SLP-05). */
+export async function healthStatus(): Promise<HealthStatus> {
+  if (!android()) return 'unsupported'
+  try { return (await Health.availability()).status } catch { return 'unsupported' }
+}
+
+/** Health Connect's page on Google Play. */
+export async function installHealthConnect(): Promise<void> {
+  if (android()) await Health.install().catch(() => undefined)
+}
+
+/** Health Connect's settings, where a permission refused twice can still be given. */
+export async function openHealthConnect(): Promise<boolean> {
+  if (!android()) return false
+  try { await Health.openSettings(); return true } catch { return false }
+}
+
+/** Ask for reading sleep (Health Connect's own screen), unless already allowed. */
+export async function allowSleepReading(): Promise<boolean> {
+  if (!android()) return false
+  return (await Health.requestSleep()).allowed
+}
+
+/** Sleep sessions overlapping [start, end) in milliseconds. Throws with code
+ *  'not-allowed' when the permission was taken back. */
+export async function readHealthSleep(start: number, end: number): Promise<HcSession[]> {
+  if (!android()) return []
+  return (await Health.readSleep({ start, end })).sessions ?? []
 }
