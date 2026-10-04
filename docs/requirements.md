@@ -382,7 +382,7 @@ Columns: **ID**, **Requirement** (with "Done when" where a test is needed), **Pr
 | ID | Requirement | Pri | Status | Src |
 |-----------|-----------------------------------------------------------|-----------|----------------------|--------|
 | GEN-30 | Recipe → task note (insert ingredients as a checklist, steps, macros), keeping a link back (see NOT-20). | Must | Done (v16) | R5 |
-| GEN-31 | Meal task ↔ meal: ticking a meal task on Today marks the meal eaten, and the other way round. | Must | Done (v16) | SR |
+| GEN-31 | Meal task ↔ meal: ticking a meal task on Today marks the meal eaten, and the other way round. | Must | Done (v18) | SR |
 | GEN-32 | Shopping list → agenda: a trip task when items are waiting (SHOP-20). | Must | Done (v16) | R5 |
 | GEN-33 | Shopping → stock → recipes: what is bought goes into stock, what is cooked or eaten leaves it, what is in stock is not put on the list. | Must | Done for recipe meals; manual items and quick meals not yet | R2 |
 | GEN-34 | Habits, chores, supplements, training and study items reach Today and Plan through GEN-03/GEN-04. | Must | Done (v16) | R5 |
@@ -400,7 +400,7 @@ Columns: **ID**, **Requirement** (with "Done when" where a test is needed), **Pr
 |-----------|-----------------------------------------------------------|----------|----------------------|--------|
 | GEN-50 | The round + button is context-aware: on a module page it adds that module's main thing; on Today and Plan it opens a short menu (2–6 entries) of the add types the person uses most (Task, Food, Habit tick, Note, Expense…), ordered by use and editable. | Must | Done (v16) | SR |
 | GEN-51 | Every add sheet has at most two steps, never stacks a second sheet on top, and offers **Recent · Saved · Search · Scan** where they make sense. | Must | Done (v16) | SR |
-| GEN-52 | One long-press rule in every list: **long press expands** an item in place (TOD-10) or, in tables and module lists, **enters multi-select**; the same actions are always also in a visible ⋮ menu. | Must | Done (v16) | R5, SR |
+| GEN-52 | One long-press rule in every list: **long press expands** an item in place (TOD-10) or, in tables and module lists, **enters multi-select**; the same actions are always also in a visible ⋮ menu. | Must | Done (v18: built modules' lists and tables, Finance entries) | R5, SR |
 | GEN-53 | Multi-select (where offered) shows an action bar: Select all, Copy to day…, Move to day…, Duplicate, Change repeat, Add to book, Export, Delete (last, with confirm). | Should | Done (v16) | R3, SR |
 | GEN-54 | **Undo** for 8 seconds after delete, drag, swap, move, copy and bulk actions, as a bar at the bottom. | Must | Done (v16) | SR |
 | GEN-55 | **Copy to…** works the same for tasks, meals, whole days and whole weeks (TSK-20). | Must | Done (v16) | R5 |
@@ -679,7 +679,7 @@ Columns: **ID**, **Requirement** (with "Done when" where a test is needed), **Pr
 | HAB-07 | Streak plus a forgiving **strength %** (misses lower it gently instead of resetting to 0). | Should | Done (v16) | SR |
 | HAB-08 | A habit's history as a calendar grid (year-in-pixels style), with ticks editable for past days. | Should | Done (v16) | SR |
 | HAB-10 | **Pinned note** per habit (the same note editor, checklist and templates as tasks), e.g. Mobility → the list of exercises. | Must | Done (v16) | R5 |
-| HAB-11 | The pinned note shows when the habit is expanded on Today (long press), on the Habits page and on the widget's tap-through; its checklist can be ticked for the day without changing the note itself (ticks reset each day). | Must | Partly (v16: on the Habits page and Today; not yet from the widget's tap) | R5 |
+| HAB-11 | The pinned note shows when the habit is expanded on Today (long press), on the Habits page and on the widget's tap-through; its checklist can be ticked for the day without changing the note itself (ticks reset each day). | Must | Done (v18) | R5 |
 | HAB-20 | With Habits "Show on Today" on, habits due that day appear in Today's list (at their time, or in "Any time"), not only in a tab. | Must | Done (v16) | R5 |
 | HAB-21 | With Habits "Show on Plan" on, habits appear on Plan's Day and Week views (and as a quiet count on Month). | Must | Done (v16) | R5 |
 | HAB-22 | The first habit can be added from Today's + menu and from the Habits page; the Habits tab is no longer the only route. | Must | Done (v16) | R5 |
@@ -694,7 +694,7 @@ Columns: **ID**, **Requirement** (with "Done when" where a test is needed), **Pr
 | SUP-02 | Time slots are the person's (rename, add, remove; default Morning, Midday, Evening), each with an optional time. | Should | Done (v16) | SR |
 | SUP-03 | Schedule per supplement with the shared Repeat sheet (e.g. vitamin D in winter only, creatine on training days). | Should | Done (v16) | SR |
 | SUP-04 | One tick per slot ("take all"), with per-item ticks when expanded. | Should | Done (v16) | SR |
-| SUP-05 | Optional stock count per supplement: each tick takes one dose off; a refill reminder at N days left. | Could | Open | SR |
+| SUP-05 | Optional stock count per supplement: each tick takes one dose off; a refill reminder at N days left. | Could | Done (v18) | SR |
 | SUP-06 | With "Show on Today" on, each slot appears on Today's list as one item (GEN-39). | Should | Done (v16) | SR |
 | SUP-07 | Doses can optionally count towards nutrients (e.g. vitamin D µg). | Could | Open | SR |
 
@@ -727,7 +727,7 @@ Columns: **ID**, **Requirement** (with "Done when" where a test is needed), **Pr
 | ID | Requirement | Pri | Status | Src |
 |-----------|-----------------------------------------------------------------|-----------|----------------|-------|
 | SLP-01 | Log a night (to bed, woke, quality 1–5); the night belongs to the day it ended. | Must | Done | R1 |
-| SLP-02 | **Target hours and bedtime** (the server's unused defaults), compared on every night and in Stats (sleep debt over 7 days, regularity of bed and wake times). | Must | Done (v16) | SR |
+| SLP-02 | **Target hours and bedtime** (the server's unused defaults), compared on every night and in Stats (sleep debt over 7 days, regularity of bed and wake times). | Must | Done (v18) | SR |
 | SLP-03 | Optional bedtime block on Plan, locked if chosen (rule `bedtime`, GEN-37), and a bedtime reminder (target wake time minus target hours). | Should | Done (v16) | SR |
 | SLP-04 | Past nights can be added and edited from the Sleep page. | Must | Done (v16) | SR |
 | SLP-05 | Import from Health Connect (Android) when allowed. | Could | Open | SR |
@@ -801,13 +801,13 @@ Columns: **ID**, **Requirement** (with "Done when" where a test is needed), **Pr
 |----------|-------------------------------------------------------------------|----------|---------------|-------|
 | STA-01 | Period Day / Week / Month / Year with previous and next, compared with the period before; "show switched-off modules". | Must | Done | R3 |
 | STA-02 | **Every module card expands** to list every measure the module keeps, each selectable to show on the card. | Must | Done (v16) | R5 |
-| STA-03 | Measures available (at least): tasks (done, planned, completion %, minutes, pushed, by section or module); habits (ticks, kept %, streak, strength, per habit); supplements (taken %, per item); nutrition (every tracked nutrient eaten and planned, per day and per meal, days on target, top foods); health (weight, trend, waist, change); sleep (hours, quality, debt, bed and wake times, regularity); training (sessions, sets, volume, per exercise and muscle group, best sets); learning (minutes per subject); agenda (events, hours); projects (tasks done, open); finance (spent, income, per category, against budget); household (chores done, per person, overdue); shopping (trips, items, money spent if prices are kept); built modules (every number, duration, yes/no and choice field). | Must | Partly (v16: every module measured; sleep debt and regularity, the extra EU label figures and shopping spend not yet in Stats) | R5 |
+| STA-03 | Measures available (at least): tasks (done, planned, completion %, minutes, pushed, by section or module); habits (ticks, kept %, streak, strength, per habit); supplements (taken %, per item); nutrition (every tracked nutrient eaten and planned, per day and per meal, days on target, top foods); health (weight, trend, waist, change); sleep (hours, quality, debt, bed and wake times, regularity); training (sessions, sets, volume, per exercise and muscle group, best sets); learning (minutes per subject); agenda (events, hours); projects (tasks done, open); finance (spent, income, per category, against budget); household (chores done, per person, overdue); shopping (trips, items, money spent if prices are kept); built modules (every number, duration, yes/no and choice field). | Must | Done (v18) | R5 |
 | STA-10 | **Stats builder** on one screen: **Measure** (any of STA-03) × **Summary** (sum, average, count, min, max, streak, % of days on target) × **Group by** (day, week, month, weekday, module, section, category, tag, habit, field value) × **Range** (7 / 30 / 90 days, this month, this year, custom). | Must | Done (v16) | R5 |
 | STA-11 | **Compare with**: a second measure on the same chart (two axes when units differ), or "days when X happened" shaded behind the chart, with a note when there are too few days (at least 3 with and 3 without). | Should | Done (v16) | R5 |
 | STA-12 | Chart chosen automatically (line over time, bars for categories), changeable; a **table toggle** shows the pivot (rows = groups, columns = a second grouping, cells = the summary), with tap-to-drill into the entries behind a cell. | Must | Done (v16) | R5 |
 | STA-13 | **Save as stats template**: as many as the person wants, named, ordered, edited, deleted, synced. | Must | Done (v16) | R5 |
 | STA-14 | A saved template can be pinned to the Stats page, to Today (TOD-20) and to a widget (WID-10). | Must | Done (v16) | R5 |
-| STA-15 | Ready-made templates the person can use or delete: Protein vs target (week), Calories eaten vs planned, Training volume by muscle group, Study minutes by subject, Spending by category (month), Chores per person, Sleep vs training days, Habit kept % by habit. | Should | Done (v16) | R5 |
+| STA-15 | Ready-made templates the person can use or delete: Protein vs target (week), Calories eaten vs planned, Training volume by muscle group, Study minutes by subject, Spending by category (month), Chores per person, Sleep vs training days, Habit kept % by habit. | Should | Done (v18) | R5 |
 | STA-16 | Export any stats view (CSV, Excel, JSON). | Must | Done (figures on screen) | R3 |
 | STA-17 | Year-in-pixels heat grid for any measure. | Could | Done (v16) | SR |
 | STA-18 | **Pivot set-up by the person**: choose what goes in **rows**, **columns**, **values** (any number of measures, each with its own summary) and **filters** (module, section, tag, date range, field value), and reorder or remove any of them. | Must | Done (v16) | R5 |
@@ -826,10 +826,10 @@ Columns: **ID**, **Requirement** (with "Done when" where a test is needed), **Pr
 | MOD-04 | Edit any module: rename, reorder, hide fields; add fields where records are module records; views; rules; settings; "back to the app's version". | Must | Done | R3 |
 | MOD-05 | Rules for built modules: dated records become tasks; reminder at a time. | Must | Done | R3 |
 | MOD-06 | Built-in rules that are shown must be carried out or hidden; the nine rules marked "later" are carried out by GEN-37 to GEN-40, SHOP-21, MEAL-06, HSE-05, LRN-02 and AGN-07, or removed. | Must | Done (v16) | R3 |
-| MOD-07 | Keywords typed for a module really suggest it at setup (today they are stored but not used). | Should | Done (v16) | R3 |
+| MOD-07 | Keywords typed for a module really suggest it at setup (today they are stored but not used). | Should | Done (v18) | R3 |
 | MOD-10 | **"What you track" allows several choices**: presets combine, their fields are merged (same-named fields kept once, clashes renamed), views from each are offered. | Must | Done (v16) | R5 |
 | MOD-11 | A **multi-choice** (tags) field kind. | Must | Done (v16) | R5 |
-| MOD-12 | More field kinds: rating (1–5 stars), percentage, money (with currency), photo, link to another built module, checklist, duration with start and end. | Should | Partly (v16: rating, percent, money, checklist, note, start and end, link to records; photo not yet) | SR |
+| MOD-12 | More field kinds: rating (1–5 stars), percentage, money (with currency), photo, link to another built module, checklist, duration with start and end. | Should | Partly (v18: photo field built, bucket and policies proven on a Storage stand-in; to try on the live project and with a phone's camera) | SR |
 | MOD-13 | More presets: Water intake, Mood and energy, Medication, Period and cycle (private by default), Pet care, Car fuel, Language practice, Running log, Gratitude journal, Subscriptions. | Should | Done (v16) | SR |
 | MOD-14 | Records of built modules use the shared Repeat sheet for recurring records (e.g. plant watering) and follow the "Show on" switches. | Should | Done (v16) | SR |
 | MOD-15 | Up to 4 entities per module (the definition allows it; the builder makes one) with links between them. | Could | Open | SR |
@@ -886,7 +886,7 @@ Columns: **ID**, **Requirement** (with "Done when" where a test is needed), **Pr
 | LOOK-03 | Mode: System, Light, Dark, and **Black** (AMOLED) for dark. | Must | Done (v16) | R5 |
 | LOOK-04 | **Own colour**: pick one accent (wheel, hex or swatches) and the theme is generated from it. | Should | Done (v16) | R5 |
 | LOOK-05 | Contrast guard on every theme: text at least 4.5:1, lines, markers and chart strokes at least 3:1 against their background; a colour that fails is adjusted and the person told "Adjusted for readability". | Must | Done (v16) | SR |
-| LOOK-06 | Module colours per module (16 swatches or hex), checked against the chosen theme's paper. | Must | Done (against the default paper) | R3 |
+| LOOK-06 | Module colours per module (16 swatches or hex), checked against the chosen theme's paper. | Must | Done (v18) | R3 |
 | LOOK-07 | Text size: Small, Default, Large, Larger (also follows the phone's font size). | Should | Done (v16) | SR |
 | LOOK-08 | Density: Comfortable or Compact rows. | Could | Open | SR |
 | LOOK-09 | The widget follows the app's theme and mode. | Should | Done (v16) | SR |
@@ -900,7 +900,7 @@ Columns: **ID**, **Requirement** (with "Done when" where a test is needed), **Pr
 | ID | Requirement | Pri | Status | Src |
 |-----------|-----------------------------------------------------------------------|-----------|-----------|-------|
 | REM-01 | Reminders at each timed task's time, within a few minutes, for the next 3 days, off by default, quiet hours, text hidden on the lock screen, under the name the person chooses. | Must | Done | R1 |
-| REM-02 | Reminders for habits, supplements, chores, events and built-module records follow the module's "Send reminders" switch (GEN-03). | Should | Done (v16) | SR |
+| REM-02 | Reminders for habits, supplements, chores, events and built-module records follow the module's "Send reminders" switch (GEN-03). | Should | Done (v18) | SR |
 | REM-03 | Tapping a reminder opens the item; "Done" and "In 15 min" actions on the notification. | Should | Done (v16) | SR |
 | REM-04 | A reminder in quiet hours is delayed to the end of them (setting), instead of always dropped. | Could | Done (v16) | SR |
 | REM-05 | Messaging-style reminders (Telegram) as an option. | Could | Open | R1 |
@@ -975,9 +975,9 @@ The owner after testing version 16: "the app feels really cluttery; keep most of
 | CALM-05 | Tabs only for real destinations, at most four; a module's table, board, month and calendar views are under ⋮ → Views. | Must | Done (v17) | R6 |
 | CALM-06 | A row is a title, at most one quiet line, a tick and a ⋮; metadata only when set; push, copy, duplicate, move and skip live in the opened row and the ⋮ (push buttons can be brought back from the page's ⋮). | Must | Done (v17) | R6 |
 | CALM-07 | One way to say a thing on a row: a time, "All day" and a status each once. | Must | Done (v17) | R6 |
-| CALM-08 | Forms stage their fields: what is needed to make the thing is visible; the rest sits in one "More options" that opens by itself when something inside is set and summarises it when closed. | Must | Done (v17) | R6 |
+| CALM-08 | Forms stage their fields: what is needed to make the thing is visible; the rest sits in one "More options" that opens by itself when something inside is set and summarises it when closed. | Must | Done (v18) | R6 |
 | CALM-09 | A sheet that can guess its first step skips it and shows the guess with "Change" (the add-food sheet opens on the food). | Must | Done (v17) | R6 |
-| CALM-10 | Never a sheet on a sheet; every sheet closes on Back and Escape. | Must | Done (v17) | R6 |
+| CALM-10 | Never a sheet on a sheet; every sheet closes on Back and Escape. | Must | Partly (v18: habit, chore, supplement, record and event sheets close on Back; the food, recipe and + menu sheets are not W3's) | R6 |
 | CALM-11 | No explanatory paragraphs or page subtitles on screens; empty states keep one sentence and one button; explanations live in About or a tip. | Must | Done (v17) | R6 |
 | CALM-12 | Settings is a short list of pages with one search; each row has at most one helper line. | Must | Done (v17) | R6 |
 | CALM-13 | Data credits and legal lines live in Settings → About and on the page where the data is shown in full (a food's page), not on lists. | Must | Done (v17) | R6 |
