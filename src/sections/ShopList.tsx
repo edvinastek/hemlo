@@ -29,6 +29,8 @@ import { BarcodeScan } from '../ui/BarcodeScan'
 import { AmountInput } from '../ui/AmountInput'
 import { useExport } from '../ui/ExportLink'
 import { RowMenu, ScanIcon, Sheet, TabMenu, useDeviceChoice } from './shop-ui'
+import { SharePrice, useSharedMarks, useSharing } from './SharePrice'
+import { canShare, sharedPriceUrl } from '../lib/open-prices-rules'
 import type { FieldDef } from '../modules/types'
 import type { Food, Profile, Recipe } from '../lib/types'
 
@@ -584,6 +586,15 @@ function PriceBody({ profile, view, item, filter, shown, code, perMl, onSaved }:
   const [text, setText] = useState('')
   const read = readPriceInput(text, per, packG)
   const sharedCopy = useOpenPricesFor(code)
+  // Sharing a price with Open Prices (PRICE-05): only when the person
+  // turned it on, only for a product with a barcode, and only on a tap.
+  const sharing = useSharing()
+  const marks = useSharedMarks()
+  const [sharingId, setSharingId] = useState<string | null>(null)
+  const sharingRow = sharingId ? rows.find((r) => r.id === sharingId) ?? null : null
+  if (sharingRow && code) {
+    return <SharePrice profile={profile} name={item.name} price={sharingRow} code={code} perMl={perMl} onClose={() => setSharingId(null)} />
+  }
 
   async function save(e: FormEvent) {
     e.preventDefault()
@@ -618,14 +629,23 @@ function PriceBody({ profile, view, item, filter, shown, code, perMl, onSaved }:
       {text.trim() !== '' && !read && <p className="stock-hint is-warn">That is not a price.</p>}
       {rows.length > 0 && (
         <ul>
-          {rows.map((r) => (
-            <li key={r.id}>
-              <span className="shop-price-shop">{r.shop}</span>
-              <span className="shop-price">{priceLabel(r, currency, perMl)}{r.noted_on ? ` · ${dayText(r.noted_on)}` : ''}</span>
-              <button type="button" className="shop-x" aria-label={`Remove the price at ${r.shop}`}
-                onClick={async () => offerUndo(`Price at ${r.shop} removed`, await removePrice(r))}>×</button>
-            </li>
-          ))}
+          {rows.map((r) => {
+            const mark = marks[r.id]
+            const can = sharing.on && !mark && canShare(r, code, packG, today()).ok
+            return (
+              <li key={r.id} className={can || mark ? 'has-share' : undefined}>
+                <span className="shop-price-shop">{r.shop}</span>
+                <span className="shop-price">{priceLabel(r, currency, perMl)}{r.noted_on ? ` · ${dayText(r.noted_on)}` : ''}</span>
+                {mark && <a className="op-shared" href={sharedPriceUrl(mark.id)} target="_blank" rel="noopener noreferrer">Shared</a>}
+                {can && (
+                  <button type="button" className="slot-link op-share-btn" onClick={() => setSharingId(r.id)}
+                    aria-label={`Share the price at ${r.shop} with Open Prices`}>Share</button>
+                )}
+                <button type="button" className="shop-x" aria-label={`Remove the price at ${r.shop}`}
+                  onClick={async () => offerUndo(`Price at ${r.shop} removed`, await removePrice(r))}>×</button>
+              </li>
+            )
+          })}
         </ul>
       )}
       {code && (
