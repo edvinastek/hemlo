@@ -1,0 +1,56 @@
+name: Deploy database and functions
+
+# Run by hand only (Actions → Deploy database and functions → Run workflow),
+# never on a push: it changes the live Supabase project. It runs every check
+# first, then scripts/release.mjs: the migrations not yet applied, then the
+# server functions. Secrets are not set from here (release.secrets.env stays
+# on the owner's computer; docs/release.md). Needs the repository secret
+# SUPABASE_ACCESS_TOKEN (docs/release.md says how to add it).
+on:
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: Only say what would happen
+        type: boolean
+        default: true
+
+permissions:
+  contents: read
+
+# One deploy at a time.
+concurrency:
+  group: deploy
+  cancel-in-progress: false
+
+jobs:
+  checks:
+    name: Checks
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 22, cache: npm }
+      - run: npm ci
+      - name: Types and every rule check
+        run: npm run check
+      - name: The server functions' copies of the rules are up to date
+        run: node scripts/copy-shared.mjs --check
+
+  release:
+    name: Migrations and functions
+    runs-on: ubuntu-24.04
+    needs: checks
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 22, cache: npm }
+      - name: Release
+        env:
+          SB: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+        run: |
+          if [ -z "$SB" ]; then echo "::error::Add the repository secret SUPABASE_ACCESS_TOKEN first (docs/release.md)."; exit 1; fi
+          if [ "${{ inputs.dry_run }}" = "true" ]; then
+            node scripts/release.mjs --functions --dry-run
+          else
+            node scripts/release.mjs --functions
+          fi

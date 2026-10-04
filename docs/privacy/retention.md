@@ -33,6 +33,11 @@ and the policy's "How long it is kept" section together.
 | Which own prices were shared, the last shop place and photo id per shop (v18) | The device only (local `meta` table) | Until sign-out | Cleared with the local copy. |
 | Prices and photos shared with Open Prices (v18) | Open Prices (Open Food Facts), public | Under Open Food Facts' own terms | The user, on prices.openfoodfacts.org. Not GetIt's copy; account deletion does not touch it. |
 | Which newer policy version the user has read (v18) | Supabase, the user's auth metadata (`policy_read`), and the device | Until the account is deleted | Removed with the `auth.users` row. |
+| Telegram chat id (v19, `channel_setting.telegram_chat_id`) | Supabase | Until unlinked | Unlink in the app, `/stop` or blocking the bot (`telegram_stop()`), or account deletion (cascade). Migration 038. |
+| Telegram link code (v19, `telegram_link_code`: a SHA-256 hash) | Supabase | 10 minutes, or until used | Used up on linking; expired ones purged a day later by `telegram_claim_due()`. |
+| Reminders waiting for Telegram (v19, `telegram_reminder`: key, time, the line) | Supabase | At most three days ahead; a sent one a day | Replaced by each new list from the device; past ones purged after a day; all cleared on unlink and with the account. |
+| Telegram sent log (v19, `telegram_sent`: key and time only) | Supabase | Two days | Purged by `telegram_claim_due()` every run; removed with the account. |
+| Messages delivered through Telegram (v19) | Telegram | Under Telegram's own terms | The user, in their Telegram chat. Not GetIt's copy. |
 
 ## Soft-deleted rows
 

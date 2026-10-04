@@ -5,7 +5,7 @@ Not legal advice: drafted from public sources, and to be checked by someone qual
 Every outside party that receives personal data from GetIt, what it gets, where,
 and the contract that covers it. Checked on 24 September 2026; the public site's
 host (Netlify) and the optional Open Prices sharing checked on 4 October 2026
-(version 18). A new service
+(version 18); Telegram reminders and Health Connect on 4 October 2026 (version 19). A new service
 that receives user data is added here, to `records-of-processing.md` and to
 `src/legal/policy.ts` before it goes live.
 
@@ -122,6 +122,39 @@ person taps "Search OpenStreetMap", one request per tap, at most one a second, c
 User-Agent on the phone and the page's Referer in a browser, as its
 [usage policy](https://operations.osmfoundation.org/policies/nominatim/) asks. It receives the shop name and town
 typed, and the IP address. The UK has an adequacy decision.
+
+## Telegram: reminders as messages (v19, REM-05, optional)
+
+Not a processor: an independent controller of its own messaging service. Telegram's privacy policy
+([telegram.org/privacy](https://telegram.org/privacy), checked 4 October 2026) names Telegram Messenger Inc. as the
+controller, with the European Data Protection Office (EDPO, Brussels) as its EU representative (article 27); the
+brief for version 19 names Telegram FZ-LLC (Dubai), which runs the service. The policy text names both; check which
+entity Telegram names when this is next reviewed. Telegram's policy says bots are "completely independent" from it.
+
+- Only after the person links it (Settings → Reminders → Telegram), and only while linked.
+- GetIt sends, through the Bot API (`api.telegram.org`, `sendMessage`, from the `telegram-send` function at
+  Supabase): the chat id and the reminder lines that fall due (the title the person gave the item and its time).
+  Left out, on the device (`telegramBody`, `src/lib/telegram-rules.ts`): tasks GetIt writes from meal plans and
+  training routines, tasks written by the Nutrition, Health, Training and Sleep rules, refill counts and payment
+  amounts. Nothing else: no name, email address or account.
+- GetIt receives, at the `telegram-webhook` function: Telegram's updates for the bot (which include the sender's
+  Telegram name and user name). Only `/start <code>` and `/stop` (and the bot being blocked) are acted on; nothing of
+  an update is stored except the chat id, on a successful link. The function checks Telegram's secret header.
+- Stored at Supabase (migration 038): `channel_setting.telegram_chat_id` (until unlinked), `telegram_link_code` (hash
+  of a one-time code, 10 minutes), `telegram_reminder` (the next three days' lines; deleted on unlink), `telegram_sent`
+  (key and time of each sent reminder, two days). None readable through the API, not even by the owner.
+- Transfer: Telegram's servers are outside the EEA. The person asks for the messages to be delivered there, by
+  linking; GetIt is not Telegram's customer under a contract and no SCCs apply (article 49(1)(b): the transfer is
+  necessary for the service the person asked for). Delivered messages are Telegram's to keep under its terms.
+
+## Health Connect: sleep read on the phone (v19, optional)
+
+Not a recipient: Android's Health Connect is a store on the person's own phone. Only after the person turns it on
+in the Android app and allows it in Health Connect, GetIt reads the sleep sessions allowed (start, end and stages
+where given), on the phone, and keeps them as the person's own sleep records (`sleep_log`), synced to Supabase like
+the ones typed. It reads no other kind of data, writes nothing to Health Connect, and sends what it read to no one
+else. Taking the permission back in Health Connect stops further reads; records already kept stay until deleted.
+Google Play's Health Connect policy applies to the app's listing (the permission declaration in Play Console).
 
 ## Not processors
 

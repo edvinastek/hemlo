@@ -12,8 +12,9 @@
  *  one a person agreed to (or last read) shows the one-line notice in the
  *  app (legal/PolicyNotice.tsx, G2 #16). Version 18: Netlify, household
  *  sharing, Finance, stats widgets, Open Prices sharing, photos, NEVO and
- *  USDA, notifications and the Android permissions. */
-export const POLICY_VERSION = '2026-10-05'
+ *  USDA, notifications and the Android permissions. Version 19: reminders
+ *  through Telegram, and sleep read from Health Connect. */
+export const POLICY_VERSION = '2026-10-06'
 
 export const controller = {
   name: (import.meta.env.VITE_CONTROLLER_NAME as string | undefined) ?? '',
@@ -66,6 +67,7 @@ export function privacySections(): Section[] {
         'Weight, food, training, sleep and supplement details are health data. GetIt stores them only with your explicit consent, given when you create an account (GDPR article 9(2)(a)). They are used for one thing: calculating your targets and planning your days, meals and shopping. Nothing is decided about you automatically.',
         'You can withdraw consent at any time by deleting your account. GetIt cannot plan meals or targets without these details, so withdrawing ends the service. What was stored before you withdrew was stored lawfully.',
         'A price is sent to Open Prices only when you choose to share it, at your request (GDPR article 6(1)(b)); see "Sharing prices with Open Prices" below.',
+        'Reminders go through Telegram only when you link it, at your request (GDPR article 6(1)(b)); see "Reminders through Telegram" below.',
         'The technical logs are kept to keep the service secure and working (GDPR article 6(1)(f), legitimate interest).',
       ],
     },
@@ -77,13 +79,23 @@ export function privacySections(): Section[] {
         'Photos you add to a record in a module are made smaller on your device and stored privately with Supabase, in the same place: only your account can open them, and a copy is kept on your device so you can see them offline. Deleting the record or your account deletes them.',
         'Emails to confirm your address or reset your password are sent through an email delivery service that acts for GetIt in the same way and receives only your email address and the link.',
         'On your device, a copy that lets GetIt work without a connection. Signing out removes it. On Android it is left out of phone backups and device-to-device transfers.',
-        'Reminders, if you turn them on, are set on the phone itself as local notifications: no server sends them, and on a locked phone they show no text.',
+        'Reminders on the phone, if you turn them on, are set on the phone itself as local notifications: no server sends them, and on a locked phone they show no text. Reminders through Telegram are different; see below.',
+        'Sleep from Health Connect, only if you turn it on in the Android app: GetIt reads, on the phone, only the sleep sessions you allow in Android’s Health Connect, and keeps them as your own sleep records, stored and synced like the ones you type. It reads nothing else there, writes nothing there, and sends what it read nowhere else. You can take the permission back in Health Connect at any time; the sleep records already kept stay until you delete them.',
         'Home-screen widgets, if you add them, show what you choose from the same copy, and signing out clears them. The GetIt widget shows today’s tasks and habits. A stats widget shows the figures of one saved stats view, which can be health figures such as your weight or sleep, to anyone who sees your home screen. To keep health figures off it, place stats widgets only for views without them, or take the widget off your home screen.',
         'The privacy and account deletion pages are hosted by Netlify, which sees your IP address when you visit them and acts as GetIt’s processor for that. They set no cookies. On the deletion page, your email and password go straight from your browser to Supabase.',
         'Supermarket products: when you search for a product, scan or type a barcode, or open a product’s page, the words you searched or the barcode go straight from your device to Open Food Facts (openfoodfacts.org), and to its price list Open Prices for the prices people have shared. Both are run by Open Food Facts, a French non-profit, as their own public services. Nothing else is sent: no account, name, email address or health details, and GetIt’s server is not involved. Like any website they see your IP address and the type of device; product pictures are loaded from them too. Their privacy policy is at world.openfoodfacts.org/privacy. A product you add becomes one of your own foods, stored like the others.',
         'Food figures come from the Dutch food composition table NEVO (RIVM) and, for a few foods and units, USDA FoodData Central. They are built into GetIt: looking a food up sends nothing anywhere.',
         'A recipe read from a web address: your device fetches that page itself, so the website sees your IP address, as when you open it in a browser. Nothing else is sent.',
         'In the Android app a barcode is read by Google’s code scanner, part of Google Play services on the phone: it hands GetIt only the number, so GetIt never has the camera picture and needs no camera permission. Google’s scanner sends Google figures about how it works (the phone’s model, the app’s name and version, and an identifier for this installation that does not name you), for Google’s own diagnostics, under Google’s own terms. In a browser that can read barcodes itself, the camera picture stays on the device and stops when you close the scanner.',
+      ],
+    },
+    {
+      heading: 'Reminders through Telegram',
+      body: [
+        'Off unless you link it (Settings → Reminders → Telegram). Linking shows a link to GetIt’s bot in Telegram that works once, for 10 minutes; tapping Start there tells GetIt the number of your chat with the bot, which is stored with your profile at Supabase. Telegram also passes the bot your Telegram name with every message you send it; GetIt reads only the chat number and the command, and keeps nothing else.',
+        'While it is linked, your device hands GetIt’s server the reminders for the next three days: each reminder’s line (the title you gave the task, habit, chore, event or supplement, with its time) and when it is due. A server function at Supabase sends each one to Telegram when it falls due and notes that it was sent, for two days, so it never goes twice. Reminders GetIt writes from your meal, training, body and sleep plans stay on the phone, and so do amounts of money and supplement counts: a health detail goes only if you wrote it in a title yourself.',
+        'Telegram (run by Telegram FZ-LLC and Telegram Messenger Inc., outside the European Union) delivers the messages and keeps them under its own terms and privacy policy (telegram.org/privacy), as an independent controller, not as GetIt’s processor. GetIt sends Telegram nothing else: not your name, email address or account.',
+        'Unlink in the app, or send /stop to the bot, or block it: GetIt forgets the chat and the reminders waiting at once. Deleting your account does the same. Messages already delivered stay in your Telegram chat until you delete them there.',
       ],
     },
     {
@@ -103,6 +115,7 @@ export function privacySections(): Section[] {
         'In a household, every member sees and can change what the household shares: the stock list (what is in the cupboard, fridge and freezer, with places, dates and notes), the shopping list and its lists, the prices anyone typed for the household’s shops, and the chores (their names, rooms, notes and schedule, who they are assigned to, and who did them when). Members see each other’s names as they set them in the household. They can read a food that is in the shared stock list (its name, brand, barcode, figures and shops) while it is there. Your profile, health details, plan, Finance, habits, supplements and modules stay private to you.',
         'The one exception is a recipe you choose to propose to everyone. The app’s owner reads it first, with the name on your profile, to approve or decline it. Once approved, everyone signed in to GetIt can see the recipe and its ingredients, without your name. It stops being shared when you set it back to Only me or delete it, and it is deleted with your account.',
         'Prices you choose to share with Open Prices are public, as described above.',
+        'Telegram receives the reminder lines you chose to get there, if you link it, as described above.',
         'Google, which distributes the app through Google Play, receives nothing you enter in GetIt, unless you choose to link a calendar, as below.',
         'Calendar links, only if you make one. A link to show GetIt in Google Calendar lets whoever has it read the titles, times, sections and places of your tasks and of the events you put in your own agenda, from three months back to a year ahead, and your task notes only if you turn that on. Nothing else. Nothing about your health: planned meals, training, weigh-ins, sleep, habits and supplements are left out, whatever their title, and so is everything from modules you built yourself. Not your name: the calendar is called just GetIt. Not the events of calendars you follow. You give it to Google Calendar yourself; Google then fetches it every few hours and keeps what it reads under its own terms. Anyone you pass the link to can read it too, so keep it private; making a new link or turning it off stops the old one at once.',
         'A calendar you follow is fetched by GetIt’s server function at Supabase from the address you pasted, because a phone’s browser may not fetch it directly. The address is stored with your account, readable only by you (encrypted at rest by Supabase, like everything else), so your other devices can follow it too. The events themselves are kept only on your device(s), never on GetIt’s server, and only from three months back to a year ahead. Removing the calendar removes its events from GetIt and erases its address from GetIt’s server.',
@@ -122,6 +135,7 @@ export function privacySections(): Section[] {
         'In a shared household, what the household shares stays with the other members when you leave or delete your account: the stock list, the shopping list, the prices typed and the chores, without your name on them.',
         'Something you delete inside the app is hidden at once and kept, marked as deleted, so your other devices learn it is gone. It is removed for good when your account is deleted, or sooner if you ask. A calendar you stop following is the exception: its secret address is erased at once; its name, colour and when it was last fetched are kept, marked as deleted.',
         'Prices you shared with Open Prices stay public there until you remove them on prices.openfoodfacts.org.',
+        'Telegram: the chat number until you unlink; reminders waiting for at most three days ahead; the note that one was sent, two days. Messages delivered stay in your Telegram chat until you delete them there.',
         'Supabase deletes its technical logs, with IP addresses, after one day.',
         'GetIt’s database currently has no automatic backups, so nothing remains after your account is deleted. If daily backups are added, deleted data will remain in them for no longer than seven days, and this policy will say so first.',
       ],
