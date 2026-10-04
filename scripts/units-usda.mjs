@@ -109,6 +109,9 @@ export const MATCHES = [
   { codes: [128], ndb: '11297', why: 'Parsley, fresh', units: [u(/^sprigs$/, 'sprig'), u(/^tbsp$/, 'tbsp')] },
   { codes: [2737], ndb: '11291', why: 'Onions, spring or scallions, raw', units: [...sml('spring onion', /^medium/, /^small/, /^large$/), u(/^tbsp chopped$/, 'tbsp chopped')] },
   { codes: [63], ndb: '11282', why: 'Onions, raw', units: [u(/^slice, medium/, 'slice')] },
+  // USDA's raw onion is the dry bulb onion, sized by its width, whatever its
+  // colour; NEVO's red onion has no Portie-online sizes.
+  { codes: [5459], ndb: '11282', why: 'Onions, raw (dry bulb onion, sized by width)', units: [...sml('onion', /^medium/, /^small$/, /^large$/), u(/^slice, medium/, 'slice')] },
   { codes: [5522], ndb: '11564', why: 'Turnips, raw', units: [...sml('turnip', /^medium$/, /^small$/, /^large$/), u(/^slice$/, 'slice')] },
   { codes: [124], ndb: '11429', why: 'Radishes, raw', units: [...sml('radish', /^medium/, /^small$/, /^large/), u(/^slice$/, 'slice')] },
   { codes: [67], ndb: '11151', why: 'Chicory, witloof, raw', units: [u(/^head$/, 'head', whole)] },
@@ -135,7 +138,9 @@ export const MATCHES = [
   { codes: [161], ndb: '09302', why: 'Raspberries, raw', units: [u(/^raspberries$/, 'raspberry')] },
   { codes: [162], ndb: '09111', why: 'Grapefruit, raw, pink and red and white', units: sml('grapefruit', /^medium/, /^small/, /^large/) },
   { codes: [163], ndb: '09070', why: 'Cherries, sweet, raw', units: [u(/^cherry$/, 'cherry', whole)] },
-  { codes: [3341], ndb: '09181', why: 'Melons, cantaloupe, raw', units: [...sml('melon', /^melon, medium/, /^melon, small/, /^melon, large/), u(/^wedge, medium/, 'wedge')] },
+  // USDA's cantaloupe is the North American netted muskmelon: NEVO's netted
+  // melon as much as its cantaloupe.
+  { codes: [3341, 166], ndb: '09181', why: 'Melons, cantaloupe (netted muskmelon), raw', units: [...sml('melon', /^melon, medium/, /^melon, small/, /^melon, large/), u(/^wedge, medium/, 'wedge')] },
   { codes: [1106], ndb: '09184', why: 'Melons, honeydew, raw', units: [u(/^melon \(5-1\/4" dia\)$/, 'melon', { size: 'M', whole: true }), u(/^melon \(6" - 7" dia\)$/, 'large melon', { size: 'L', whole: true }), u(/^wedge \(1\/8 of 5-1\/4" dia melon\)$/, 'wedge')] },
   { codes: [1105], ndb: '09326', why: 'Watermelon, raw', units: [u(/^melon/, 'watermelon', whole), u(/^wedge/, 'wedge')] },
   { codes: [690], ndb: '09139', why: 'Guavas, common, raw', units: [u(/^fruit, without refuse$/, 'guava', whole)] },
@@ -148,6 +153,7 @@ export const MATCHES = [
   { codes: [1074], ndb: '09231', why: 'Passion-fruit, purple, raw', units: [u(/^fruit without refuse$/, 'passion fruit', whole)] },
   { codes: [1090], ndb: '09164', why: 'Litchis, raw', units: [u(/^fruit without refuse$/, 'lychee', whole)] },
   { codes: [1099], ndb: '09149', why: 'Kumquats, raw', units: [u(/^fruit without refuse$/, 'kumquat', whole)] },
+  { codes: [202], ndb: '12104', why: 'Nuts, coconut meat, raw', units: [u(/^medium$/, 'coconut', whole), u(/^piece/, 'piece')] },
   { codes: [665], ndb: '09277', why: 'Plantains, yellow, raw', units: [u(/^plantain$/, 'plantain', whole)] },
   { codes: [1888], ndb: '09060', why: 'Carambola, raw', units: sml('carambola', /^medium/, /^small/, /^large/) },
   { codes: [149], ndb: '09021', why: 'Apricots, raw', replace: ['apricot'], units: [u(/^apricot$/, 'apricot', whole)] },
@@ -161,6 +167,7 @@ export const MATCHES = [
   { codes: [2801, 2802, 2818], ndb: '18239', why: 'Croissants, butter', units: [...sml('croissant', /^croissant, medium$/, /^croissant, small$/, /^croissant, large$/, {}), u(/^croissant, mini$/, 'mini croissant')] },
   { codes: [2795], ndb: '18353', why: 'Rolls, hard (includes kaiser)', units: [u(/^roll \(3-1\/2" dia\)$/, 'roll')] },
   { codes: [230], ndb: '18342', why: 'Rolls, dinner, plain', units: [u(/^roll \(1 oz\)$/, 'roll'), u(/^roll \(hamburger/, 'large roll')] },
+  { codes: [2797], ndb: '18347', why: 'Rolls, dinner, wheat', units: [u(/^roll \(1 oz\)$/, 'roll')] },
   { codes: [2798], ndb: '18348', why: 'Rolls, dinner, whole-wheat', units: [u(/^medium \(2-1\/2" dia\)$/, 'roll'), u(/^roll \(hamburger/, 'large roll')] },
   { codes: [2790], ndb: '18041', why: 'Bread, pita, white', units: [u(/^pita, small/, 'small pita', { size: 'S' }), u(/^pita, large/, 'large pita', { size: 'L' })] },
 ]
