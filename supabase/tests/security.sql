@@ -1349,6 +1349,108 @@ begin
     ('The repeat is as B left it', 'weekly 10', (select rule || ' ' || count::text from calendar_event where id = e));
 end $$;
 
+-- 033 (engineer W3): a supplement's stock count, and photos on built
+-- modules' records in the private record-photos bucket. A has deleted their
+-- account by now, so B is the owner here and M the stranger.
+do $$
+declare n int; s uuid; pa_ text; pb_ text; rec text := gen_random_uuid()::text; f text := gen_random_uuid()::text;
+begin
+  perform set_config('role', 'authenticated', true);
+  perform set_config('request.jwt.claims', json_build_object('sub', (select b from _ids), 'role', 'authenticated')::text, true);
+  insert into supplement (profile_id, name, stock_count, stock_from, refill_days)
+    select pb, 'Magnesium 033', 60, date '2026-10-01', 7 from _ids returning id into s;
+  insert into _r (check_name, expected, actual) values
+    ('A supplement keeps its stock count, its day and its refill warning', '60 2026-10-01 7',
+       (select stock_count::text || ' ' || stock_from::text || ' ' || refill_days::text from supplement where id = s));
+  begin
+    update supplement set stock_count = -1 where id = s;
+    insert into _r (check_name, expected, actual) values ('A stock count is never below nothing', 'denied', 'allowed');
+  exception when others then
+    insert into _r (check_name, expected, actual) values ('A stock count is never below nothing', 'denied', 'denied');
+  end;
+  begin
+    update supplement set stock_from = null where id = s;
+    insert into _r (check_name, expected, actual) values ('A stock count always says from which day', 'denied', 'allowed');
+  exception when others then
+    insert into _r (check_name, expected, actual) values ('A stock count always says from which day', 'denied', 'denied');
+  end;
+  begin
+    update supplement set refill_days = 400 where id = s;
+    insert into _r (check_name, expected, actual) values ('A refill warning is at most a year ahead', 'denied', 'allowed');
+  exception when others then
+    insert into _r (check_name, expected, actual) values ('A refill warning is at most a year ahead', 'denied', 'denied');
+  end;
+  execute 'reset role';
+  perform set_config('role', 'authenticated', true);
+  perform set_config('request.jwt.claims', json_build_object('sub', (select m from _ids), 'role', 'authenticated')::text, true);
+  update supplement set stock_count = 0 where id = s;
+  get diagnostics n = row_count;
+  insert into _r (check_name, expected, actual) values ('A stranger cannot change another''s stock count', '0', n::text);
+  execute 'reset role';
+
+  -- Photo names: only '<profile>/<record>/<uuid>.jpg' belongs to anyone.
+  insert into _r (check_name, expected, actual) values
+    ('A photo''s profile is read from its name', 'yes', (select case when private.photo_profile(pb || '/' || rec || '/' || f || '.jpg') = pb then 'yes' else 'no' end from _ids)),
+    ('A photo name of any other shape belongs to nobody', 'null null null',
+      (select coalesce(private.photo_profile(pb || '/' || f || '.jpg')::text, 'null') || ' ' || coalesce(private.photo_profile(pb || '/' || rec || '/../x.jpg')::text, 'null')
+         || ' ' || coalesce(private.photo_profile(pb || '/' || rec || '/' || f || '.png')::text, 'null') from _ids));
+
+  if to_regclass('storage.objects') is null then
+    raise notice '033: no Storage here, so the photo policies are not tried';
+    return;
+  end if;
+  select pb::text, (select id::text from profile where user_id = (select m from _ids) limit 1) into pa_, pb_ from _ids;
+  -- Live Storage refuses SQL deletes unless asked (the app deletes through
+  -- its API); asked here so the delete policy itself is what is tried.
+  perform set_config('storage.allow_delete_query', 'true', true);
+  insert into _r (check_name, expected, actual) values
+    ('The photo bucket is private, JPEG only, 2 MB at most', 'false image/jpeg 2097152',
+      (select public::text || ' ' || array_to_string(allowed_mime_types, ',') || ' ' || file_size_limit::text from storage.buckets where id = 'record-photos'));
+
+  -- B puts a photo in B's own folder.
+  perform set_config('role', 'authenticated', true);
+  perform set_config('request.jwt.claims', json_build_object('sub', (select b from _ids), 'role', 'authenticated')::text, true);
+  insert into storage.objects (bucket_id, name, owner) values ('record-photos', pa_ || '/' || rec || '/' || f || '.jpg', (select b from _ids));
+  insert into _r (check_name, expected, actual) values
+    ('The owner sees their own photo', '1', (select count(*) from storage.objects where bucket_id = 'record-photos' and name like pa_ || '/%')::text);
+  begin
+    insert into storage.objects (bucket_id, name, owner) values ('record-photos', pb_ || '/' || rec || '/' || gen_random_uuid() || '.jpg', (select b from _ids));
+    insert into _r (check_name, expected, actual) values ('The owner cannot put a photo in someone else''s folder', 'denied', 'allowed');
+  exception when others then
+    insert into _r (check_name, expected, actual) values ('The owner cannot put a photo in someone else''s folder', 'denied', 'denied');
+  end;
+  begin
+    insert into storage.objects (bucket_id, name, owner) values ('record-photos', pa_ || '/loose.jpg', (select b from _ids));
+    insert into _r (check_name, expected, actual) values ('A photo must sit under a record', 'denied', 'allowed');
+  exception when others then
+    insert into _r (check_name, expected, actual) values ('A photo must sit under a record', 'denied', 'denied');
+  end;
+  execute 'reset role';
+
+  -- M, someone else, neither sees nor deletes it. (A household member sees
+  -- exactly what module_record's policy lets them see: the same
+  -- private.my_profiles(), tried for records above.)
+  perform set_config('role', 'authenticated', true);
+  perform set_config('request.jwt.claims', json_build_object('sub', (select m from _ids), 'role', 'authenticated')::text, true);
+  insert into _r (check_name, expected, actual) values
+    ('A stranger cannot see another''s photo', '0', (select count(*) from storage.objects where bucket_id = 'record-photos')::text);
+  begin
+    delete from storage.objects where bucket_id = 'record-photos';
+    get diagnostics n = row_count;
+  exception when others then n := 0;
+  end;
+  insert into _r (check_name, expected, actual) values ('A stranger cannot delete another''s photo', '0', n::text);
+  execute 'reset role';
+
+  -- B deletes it with the record.
+  perform set_config('role', 'authenticated', true);
+  perform set_config('request.jwt.claims', json_build_object('sub', (select b from _ids), 'role', 'authenticated')::text, true);
+  delete from storage.objects where bucket_id = 'record-photos' and name like pa_ || '/%';
+  get diagnostics n = row_count;
+  insert into _r (check_name, expected, actual) values ('The owner can delete their own photo', '1', n::text);
+  execute 'reset role';
+end $$;
+
 select n, check_name, expected, actual, case when expected = actual then 'ok' else 'FAIL' end as result
 from _r order by n;
 
