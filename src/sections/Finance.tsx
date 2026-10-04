@@ -17,6 +17,7 @@ import { offerUndo } from '../ui/Undo'
 import { DefView, DeleteButton, ModuleTabs, Sheet, defTabs, localToday, useTab } from './ModuleKit'
 import { ModuleMenu, QuietAdd, useModuleMenuItems } from '../modules/ModuleHead'
 import { RecordSelectBar } from '../modules/RecordTools'
+import { MoreOptions } from '../ui/MoreOptions'
 import { useSelection } from '../ui/useSelection'
 import type { ModuleDef } from '../modules/types'
 import type { Rec } from '../modules/records'
@@ -431,17 +432,19 @@ function PaymentSheet({ profileId, s, start, onClose }: { profileId: string; s: 
           <label>Amount<input inputMode="decimal" value={amount} placeholder="Optional" onChange={(e) => setAmount(e.target.value)} /></label>
           <label>Category<CategorySelect s={s} kind={kind} value={category} onChange={setCategory} /></label>
         </div>
-        <div className="two">
-          <label>First day<input type="date" value={first} onChange={(e) => setFirst(e.target.value)} /></label>
-          <label>Time<input type="time" value={time} onChange={(e) => setTime(e.target.value)} /></label>
-        </div>
+        <label>First day<input type="date" value={first} onChange={(e) => setFirst(e.target.value)} /></label>
       </div>
       <RepeatPicker value={repeat} start={first || today} today={today} noneLabel="Once" onChange={setRepeat}
         kinds={['daily', 'weekdays', 'weekends', 'weekly', 'every_n_weeks', 'monthly', 'monthly_nth', 'yearly', 'dates']} />
-      <div className="form-grid fin-more">
-        <label>Note<input value={note} maxLength={500} onChange={(e) => setNote(e.target.value)} /></label>
-        <label className="kit-check"><input type="checkbox" checked={!active} onChange={(e) => setActive(!e.target.checked)} />Paused: not shown on the planner</label>
-      </div>
+      {/* What makes the payment is above; the rest waits here (CALM-08). */}
+      <MoreOptions open={!!(p?.time || p?.note || p?.active === false)}
+        summary={[time ? `at ${time}` : null, note.trim() ? 'note' : null, !active ? 'paused' : null].filter(Boolean).join(' · ') || null}>
+        <div className="form-grid fin-more">
+          <label title="Its reminder comes then; without one, in the morning">Time<input type="time" value={time} onChange={(e) => setTime(e.target.value)} /></label>
+          <label>Note<input value={note} maxLength={500} onChange={(e) => setNote(e.target.value)} /></label>
+          <label className="kit-check"><input type="checkbox" checked={!active} onChange={(e) => setActive(!e.target.checked)} />Paused: not shown on the planner</label>
+        </div>
+      </MoreOptions>
       {error && <p className="kit-error" role="alert">{error}</p>}
     </Sheet>
   )

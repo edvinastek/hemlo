@@ -24,6 +24,7 @@ import { NoteEditor } from '../ui/NoteEditor'
 import { Dropdown } from '../ui/Dropdown'
 import { offerUndo } from '../ui/Undo'
 import { PlusGlyph, TickGlyph } from './Habits'
+import { MoreOptions } from '../ui/MoreOptions'
 import { TrackSheet, Choices, SwitchRow } from './TrackSheet'
 import { ModuleMenu, PlainSheet } from '../modules/ModuleHead'
 import '../ui/notes.css'
@@ -483,6 +484,14 @@ export function ChoreSheet({ householdId, chore, chores, members, userId, today,
   const rooms = useMemo(() => [...new Set([...roomsIn(chores), 'Kitchen', 'Bathroom', 'Living room', 'Bedroom', 'Garden'])], [chores])
   const repeat: RepeatValue = { rule: draft.rule ?? 'weekly', rule_config: draft.rule_config ?? {}, end_date: draft.end_date }
   const people = members.length ? members : userId ? [{ user_id: userId, display_name: null }] : []
+  const moreSummary = [
+    chore && draft.start_date && draft.start_date > today ? `from ${draft.start_date}` : null,
+    draft.minutes ? `${draft.minutes} min` : null,
+    draft.time_of_day ? `at ${draft.time_of_day.slice(0, 5)}` : null,
+    draft.note ? 'note' : null,
+    draft.paused ? 'paused' : null,
+  ].filter(Boolean).join(' · ') || null
+  const [moreSet] = useState(() => !!(chore && (chore.minutes || chore.time_of_day || chore.note || chore.paused)))
 
   async function save() {
     const every = Math.floor(Number(everyText))
@@ -525,17 +534,6 @@ export function ChoreSheet({ householdId, chore, chores, members, userId, today,
           <span>{draft.mode === 'after' ? 'days after it was last done' : 'days, never “late”'}</span>
         </label>
       )}
-      <div className="two">
-        <label>Starts on
-          <input type="date" value={start} onChange={(e) => set('start_date', e.target.value || today)} />
-        </label>
-        <label>Minutes it takes
-          <input type="number" inputMode="numeric" min={0} max={1440} value={draft.minutes ?? ''} onChange={(e) => set('minutes', e.target.value === '' ? null : Math.max(0, Math.min(1440, Math.round(Number(e.target.value)))))} />
-        </label>
-      </div>
-      <label>At a time (optional)
-        <input type="time" value={draft.time_of_day?.slice(0, 5) ?? ''} onChange={(e) => set('time_of_day', e.target.value || null)} />
-      </label>
       {people.length > 0 && (
         <div className="ts-field">
           <span className="ts-field-name">Who does it</span>
@@ -547,15 +545,29 @@ export function ChoreSheet({ householdId, chore, chores, members, userId, today,
               </button>
             ))}
           </div>
-          <span className="row-meta">{draft.assignees.length ? '' : 'Nobody chosen: anyone can do it.'}</span>
+          {!draft.assignees.length && <span className="row-meta">Nobody chosen: anyone can do it.</span>}
         </div>
       )}
       {draft.assignees.length > 1 && (
         <Choices label="Taking turns" value={draft.rotation} onChange={(r) => set('rotation', r)}
           options={[{ value: 'none', label: 'All of them' }, { value: 'each_time', label: 'Each time' }, { value: 'each_week', label: 'Each week' }, { value: 'least_recent', label: 'Whoever did it longest ago' }]} />
       )}
+      {/* What makes the chore is above; the rest waits here (CALM-08). */}
+      <MoreOptions open={moreSet} summary={moreSummary}>
+      <div className="two">
+        <label>Starts on
+          <input type="date" value={start} onChange={(e) => set('start_date', e.target.value || today)} />
+        </label>
+        <label>Minutes it takes
+          <input type="number" inputMode="numeric" min={0} max={1440} value={draft.minutes ?? ''} onChange={(e) => set('minutes', e.target.value === '' ? null : Math.max(0, Math.min(1440, Math.round(Number(e.target.value)))))} />
+        </label>
+      </div>
+      <label>At a time (optional)
+        <input type="time" value={draft.time_of_day?.slice(0, 5) ?? ''} onChange={(e) => set('time_of_day', e.target.value || null)} />
+      </label>
       <NoteEditor label="Note" value={draft.note ?? ''} onChange={(t) => set('note', t || null)} afterDone={false} context={{ day: today, title: draft.name }} />
-      <SwitchRow label="Paused" hint="It stays here but does not come round until you resume it." on={draft.paused} onChange={(v) => set('paused', v)} />
+      <SwitchRow label="Paused" hint="Kept, but it does not come round until resumed." on={draft.paused} onChange={(v) => set('paused', v)} />
+      </MoreOptions>
       {error && <p className="track-error" role="alert">{error}</p>}
       <div className="sheet-actions">
         <button type="button" className="btn grow" onClick={onClose}>Cancel</button>
