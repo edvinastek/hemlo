@@ -4,6 +4,7 @@ import {
   toGrams, formatGrams, inUnit, takesStock, unitFor, stepFor, nudge, applyDelta, mealNeeds, takeOut, putBack,
   boughtGrams, sortStock, filterStock, cleanNote, stockStep, MAX_GRAMS,
   cleanPlace, placesFrom, daysUntil, dateText, expiringSoon, readDate, belowMin, cleanMin, groupKey, sortByPlace, stockCover,
+  bulkSaid, stockExportRows,
 } from '../lib/stock-rules.ts'
 
 let fail = 0
@@ -147,6 +148,17 @@ is('a recipe takes from stock', takesStock({ recipe_id: 'r', food_id: null, gram
 is('one food with grams does', takesStock({ recipe_id: null, food_id: 'f', grams: '120' }), true)
 is('one food with no amount does not', takesStock({ recipe_id: null, food_id: 'f', grams: 0 }), false)
 is('typed numbers do not', takesStock({ recipe_id: null, food_id: null, grams: 300 }), false)
+
+// Several at once (GEN-52): what the bar says, and the rows of a file.
+is('moved', bulkSaid('place', 3, 'Freezer'), '3 items moved to Freezer')
+is('one moved', bulkSaid('place', 1, 'Fridge'), '1 item moved to Fridge')
+is('no place', bulkSaid('place', 2, null), '2 items: no place set')
+is('a date', bulkSaid('date', 3, '2026-10-14'), 'Best before 14 Oct on 3 items')
+is('no date', bulkSaid('date', 2, null), '2 items: no best-before date')
+is('removed', bulkSaid('remove', 4), '4 items taken out of stock')
+is('rows of a file', stockExportRows([{ name: 'Eggs', amount: '12 eggs', grams: 600.04, place: 'Fridge', best_before: '2026-10-14', min_grams: 300, note: null }]),
+  [{ food: 'Eggs', amount: '12 eggs', grams_on_hand: 600, place: 'Fridge', best_before: '2026-10-14', min_grams: 300, note: null }])
+is('missing details are empty', stockExportRows([{ name: 'Rice', amount: '1 kg', grams: 1000 }])[0].place, null)
 
 console.log(fail ? `\n${fail} check(s) failed` : '\nall checks passed')
 process.exit(fail ? 1 : 0)

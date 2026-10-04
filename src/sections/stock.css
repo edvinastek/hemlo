@@ -118,3 +118,14 @@
    food's name stays in the serif, the app's words about it in the sans. */
 .stock-what .stock-name, .stock-soon-row .stock-name, .stock-ideas .stock-name { font-family: var(--font-serif); }
 .stock-what .stock-note, .stock-soon-row .stock-note, .stock-ideas .stock-note { font-family: var(--font-sans); }
+
+/* ---- several at once (GEN-52) ------------------------------------------------- */
+/* Selecting: a tick box on the left, the amount as plain text on the right
+   (no −/+, so a tap meant to tick never changes an amount). */
+.stock-row.is-picking { cursor: pointer; }
+.stock-pick { display: grid; grid-template-columns: 24px minmax(0, 1fr); align-items: center; gap: var(--space-3); min-height: 44px; min-width: 0; }
+.stock-pick input { width: 20px; height: 20px; margin: 0; }
+.stock-pick .stock-what { display: grid; }
+.stock-qty-text { font-family: var(--font-sans); font-size: 14px; white-space: nowrap; color: var(--e-ink); }
+.stock-qty-text.is-low { color: var(--e-warn); }
+.stock-row.is-out .stock-qty-text { color: var(--e-warn); }
