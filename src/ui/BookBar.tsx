@@ -1,6 +1,7 @@
-import { useEffect, useState, type CSSProperties, type FormEvent } from 'react'
+import { useState, type CSSProperties, type FormEvent } from 'react'
 import { SWATCHES } from '../lib/colours-rules'
 import { MAX_BOOKS, MAX_NAME, type Book, type BookKind } from '../lib/books-rules'
+import { useBackClose } from './useBackClose'
 import './books.css'
 
 /** "Mine" in the row of books: the person's own recipes or foods, the list
@@ -100,11 +101,8 @@ function BookSheet({ kind, book, full, onClose, onSave, onDelete }: {
   const [busy, setBusy] = useState(false)
   const rows = kind === 'recipe' ? 'recipes' : 'foods'
 
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') { e.stopPropagation(); onClose() } }
-    document.addEventListener('keydown', onKey, true)
-    return () => document.removeEventListener('keydown', onKey, true)
-  }, [onClose])
+  // Back and Escape close it (CALM-10).
+  useBackClose(onClose)
 
   async function submit(e: FormEvent) {
     e.preventDefault()

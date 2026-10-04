@@ -1,4 +1,4 @@
-import { useEffect, useId, useMemo, useState, type FormEvent } from 'react'
+import { useId, useMemo, useState, type FormEvent } from 'react'
 import { edit } from '../lib/write'
 import {
   LABEL, STATES, draftOf, energyFrom, readFoodForm, type FoodDraft, type FoodState, type LabelKey,
@@ -8,6 +8,7 @@ import { Dropdown } from './Dropdown'
 import { MoreOptions } from './MoreOptions'
 import type { Food } from '../lib/types'
 import './food.css'
+import { useBackClose } from './useBackClose'
 
 const STATE_OPTIONS = STATES.map((s) => ({ value: s, label: s.charAt(0).toUpperCase() + s.slice(1) }))
 /** The lines shown at once; the rest open under "More figures". */
@@ -50,11 +51,7 @@ export function FoodEditor({ food, copyOf, name, barcode, userId, onClose, onSav
   const set = (change: Partial<FoodDraft>) => { setDraft((d) => ({ ...d, ...change })); setError(null) }
   const setFigure = (key: LabelKey, v: string) => set({ figures: { ...draft.figures, [key]: v } })
 
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose() }
-    document.addEventListener('keydown', onKey)
-    return () => document.removeEventListener('keydown', onKey)
-  }, [onClose])
+  useBackClose(onClose)
 
   const read = readFoodForm(draft)
   // What is set under More options, in a few words, while it is closed.

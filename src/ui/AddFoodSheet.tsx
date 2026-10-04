@@ -7,6 +7,7 @@ import { readSettings } from '../lib/settings'
 import { shownNutrients, amountLine } from '../lib/quick-food'
 import { amountChoices, gramsLabel, readUnits } from '../lib/units-rules'
 import { search, type Searchable } from '../lib/search-rules'
+import { foodSearchText } from '../lib/eu-label-rules'
 import {
   defaultMeal, defaultTime, defaultWhen, eatenByDefault, goTos, groupDay, groupTitle, identity, itemAmount, itemKind,
   itemMacros, itemName, kcalText, knownKeys, lastAmount, lastPortions, mealName, plateFields, recentItems, resolveMeal, shiftDay,
@@ -29,6 +30,7 @@ import type { Food, MealPlanSlot, Recipe, RecipeLine } from '../lib/types'
 import './products.css'
 import './addfood.css'
 import { Tip } from './Tip'
+import { useBackClose } from './useBackClose'
 
 /** THE add-food sheet (MEAL-10 to MEAL-14, GEN-51): opened from Food → Day's
  *  round +, a meal's own +, and Today's + menu. It opens where the work is
@@ -134,12 +136,8 @@ export function AddFoodSheet({ day, meal: startMeal, time: startTime, food: star
     putFood(startFood)
   }, [history]) // eslint-disable-line react-hooks/exhaustive-deps
 
-  useEffect(() => {
-    // Escape closes an open ⋮ first (it handles that itself), then the sheet.
-    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape' && !document.querySelector('.af-sheet .pm-menu')) onClose() }
-    document.addEventListener('keydown', onKey)
-    return () => document.removeEventListener('keydown', onKey)
-  }, [onClose])
+  // Back and Escape close it (CALM-10); an open ⋮ takes Escape first.
+  useBackClose(onClose)
 
   if (!profile) return null
 
@@ -501,7 +499,8 @@ function SearchList({ profileId, foods, recipes, lines, userId, query, look, his
     mine: !!userId && r.owner_id === userId, recent: rank.get(`r:${r.id}`) ?? 0,
   })), query).filter((x) => !had.has(`r:${x.r.id}`)), [recipes, userId, rank, inside, query, lately]) // eslint-disable-line react-hooks/exhaustive-deps
   const foodHits = useMemo(() => search(foods.filter(live).map((f) => ({
-    f, name: f.name, extra: [f.brand, f.store_section].filter(Boolean).join(' '),
+    // NEVO's Dutch name and synonyms too: "kip" finds chicken, "granola" crunchy muesli.
+    f, name: f.name, extra: [foodSearchText(f), f.store_section].filter(Boolean).join(' '),
     mine: !!userId && f.owner_id === userId, recent: rank.get(`f:${f.id}`) ?? 0,
   })), query).filter((x) => !had.has(`f:${x.f.id}`)), [foods, userId, rank, query, lately]) // eslint-disable-line react-hooks/exhaustive-deps
   const savedHits = search(sortSaved(saved), query)

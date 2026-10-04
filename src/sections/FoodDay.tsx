@@ -8,11 +8,11 @@ import { readSettings, type Nutrient } from '../lib/settings'
 import { amountLine, nutrientLabel, shownNutrients, type QuickEntry } from '../lib/quick-food'
 import { amountChoices, findUnit, readUnits, unitKey } from '../lib/units-rules'
 import {
-  groupDay, groupTitle, itemAmount, knownKeys, itemKind, itemMacros, itemName, kcalText, mealName, plateFields, portionsText, shiftDay,
+  groupDay, groupTitle, itemAmount, knownKeys, itemKind, itemMacros, itemName, kcalText, mealName, plateFields, portionsText,
   sizeMain, sumItems, type Item, type Lookup, type MealGroup, type MealsCtx,
 } from '../lib/meal-rules'
 import {
-  copyMeals, makeLookup, mealsCtx, moveItems, removeItems, restoreItems, setEaten, setMealTime, setSkipped, slotsFor, unskipMeal, updateItem,
+  makeLookup, mealsCtx, moveItems, removeItems, restoreItems, setEaten, setMealTime, setSkipped, slotsFor, unskipMeal, updateItem,
 } from '../lib/meals'
 import { addSaved, savedFromItems } from '../lib/saved-meals-rules'
 import { savedMeals, writeSavedMeals } from '../lib/saved-meals'
@@ -20,9 +20,14 @@ import { isReadyMeal } from '../lib/ready-meal-rules'
 import { AmountInput } from '../ui/AmountInput'
 import { AddFoodSheet } from '../ui/AddFoodSheet'
 import { QuickNumbers } from '../ui/QuickNumbers'
+import { CopySheet } from '../ui/CopySheet'
 import { offerUndo } from '../ui/Undo'
 import { useBuiltinRuleOn } from '../modules/rule-switch'
 import { useExport } from '../ui/ExportLink'
+import { dayRi, riLine } from '../lib/day-ri-rules'
+import { saveLabelChoice, useNutritionPrefs } from '../lib/nutrition-prefs'
+import { trainingOn } from '../lib/body'
+import { dayBudget, TRAINING_ENERGY_NOTE } from '../lib/activity'
 import { MoreMenu } from '../ui/MoreMenu'
 import { FoodPageMenu } from './FoodMenu'
 import type { Food, MealPlanSlot, Recipe, RecipeLine } from '../lib/types'
@@ -44,6 +49,14 @@ export function FoodDay({ day }: { day: string }) {
   const recipes = useLiveQuery(() => db.recipe.toArray(), [], [] as Recipe[])
   const lines = useLiveQuery(() => db.recipe_line.toArray(), [], [] as RecipeLine[])
   const look = useMemo(() => makeLookup(foods, recipes, lines), [foods, recipes, lines])
+  const foodMap = useMemo(() => new Map(foods.map((f) => [f.id, f])), [foods])
+  const linesByRecipe = useMemo(() => {
+    const m = new Map<string, RecipeLine[]>()
+    for (const l of lines) m.set(l.recipe_id, [...(m.get(l.recipe_id) ?? []), l])
+    return m
+  }, [lines])
+  // %RI, shown or hidden here and on a food's page alike (FOOD-06).
+  const prefs = useNutritionPrefs()
   const rows = useLiveQuery(async () => (profile ? slotsFor(profile.id, day) : []), [profile?.id, day], null)
   const eaten = useLiveQuery(async () => (profile ? dayTotals(profile.id, day) : null), [profile?.id, day], null)
   const target = useLiveQuery(async () => {
@@ -51,6 +64,8 @@ export function FoodDay({ day }: { day: string }) {
     const list = (await db.target.where('profile_id').equals(profile.id).sortBy('from_date')).filter((t) => !t.deleted_at && t.from_date <= day)
     return list[list.length - 1] ?? null
   }, [profile?.id, day], null)
+  // Training logged separately is added to the day's budget (BODY-16).
+  const training = useLiveQuery(async () => (profile ? trainingOn(profile.id, day) : null), [profile?.id, day], null)
   const sizeOn = useBuiltinRuleOn(profile?.id, 'nutrition', 'size_main')
   const [adding, setAdding] = useState<{ meal: string | null; time?: string | null } | null>(null)
   const [copying, setCopying] = useState(false)
@@ -61,9 +76,10 @@ export function FoodDay({ day }: { day: string }) {
   const groups = rows ? groupDay(rows, ctx) : []
   const planned = sumItems(groups.flatMap((g) => g.items), look)
   const goal = (k: Nutrient) => Math.round(Number(target?.[k] ?? 0))
-  const targetKcal = goal('kcal')
+  const targetKcal = goal('kcal') > 0 ? dayBudget(goal('kcal'), training?.kcal ?? null, training?.mode ?? 'inside') : 0
   const suggestion = sizeOn ? sizeMain(groups, settings.meals.main, targetKcal, look) : null
   const anything = groups.some((g) => g.items.length)
+  const ri = prefs.label.ri ? riLine(dayRi(groups.flatMap((g) => g.items), foodMap, linesByRecipe)) : null
 
   return (
     <div className="fd">
@@ -71,21 +87,23 @@ export function FoodDay({ day }: { day: string }) {
         {shown.map((k) => (
           <span key={k}>
             {k === 'kcal' ? 'Planned' : nutrientLabel(k)} <b>{Math.round(planned.total[k])}</b>
-            {goal(k) > 0 ? ` / ${goal(k)}` : ''} {k === 'kcal' ? 'kcal' : 'g'}
+            {goal(k) > 0 ? ` / ${k === 'kcal' ? targetKcal : goal(k)}` : ''} {k === 'kcal' ? 'kcal' : 'g'}
           </span>
         ))}
         <span>Eaten <b>{Math.round(eaten?.kcal ?? 0)}</b> kcal</span>
         {planned.unknown > 0 && <span>{planned.unknown} without calories</span>}
       </div>
-
-      {copying && (
-        <CopyDays from={day} label="this day’s food" onCancel={() => setCopying(false)}
-          onCopy={async (days) => {
-            const made = await copyMeals(day, days, 'all', profile.id)
-            setCopying(false)
-            offerUndo(`${made.length} ${made.length === 1 ? 'item' : 'items'} copied to ${daysText(days)}`, () => removeItems(made))
-          }} />
+      {training?.mode === 'added' && training.sets > 0 && (
+        <p className="fd-ri">
+          {training.kcal === null
+            ? 'Training logged: weigh in to add what it burned to the day.'
+            : <>Training adds <b>{training.kcal}</b> kcal ({TRAINING_ENERGY_NOTE}).</>}
+        </p>
       )}
+      {ri && <p className="fd-ri"><span className="visually-hidden">Planned, as a share of an adult’s reference intake: </span><span aria-hidden="true">Reference intake: </span>{ri}</p>}
+
+      {/* The one copy dialog (GEN-55): the days only; times and portions go as they are. */}
+      {copying && <CopySheet what={{ kind: 'meals', day, groups: 'all' }} onClose={() => setCopying(false)} />}
 
       {rows && groups.length === 0 && <p className="fd-empty">Nothing eaten or planned on this day yet.</p>}
 
@@ -98,6 +116,7 @@ export function FoodDay({ day }: { day: string }) {
       {adding && <AddFoodSheet day={day} meal={adding.meal} time={adding.time} onClose={() => setAdding(null)} />}
       <FoodPageMenu items={[
         anything && { label: 'Copy day to…', onSelect: () => setCopying(true) },
+        { label: prefs.label.ri ? 'Hide % of reference intake' : 'Show % of reference intake', onSelect: () => void saveLabelChoice(profile.id, { ...prefs.label, ri: !prefs.label.ri }) },
         exp.item,
       ]} sheets={exp.sheet} />
       {/* The page's one add (CALM-01): the add-food sheet, which guesses the meal. */}
@@ -105,8 +124,6 @@ export function FoodDay({ day }: { day: string }) {
     </div>
   )
 }
-
-const daysText = (days: string[]) => days.length === 1 ? format(parseISO(days[0]), 'EEE d MMM') : `${days.length} days`
 
 /** One meal: its name and time, what it comes to, its items, and a ⋮ with
  *  everything that can be done to it (every gesture's action is a button). */
@@ -170,14 +187,7 @@ function MealCard({ group: g, day, profileId, look, ctx, shown, suggestion, onAd
           <button type="button" className="btn" onClick={() => setPanel(null)}>Done</button>
         </div>
       )}
-      {panel === 'copy' && (
-        <CopyDays from={day} label={title} onCancel={() => setPanel(null)}
-          onCopy={async (days) => {
-            const made = await copyMeals(day, days, [g.key], profileId)
-            setPanel(null)
-            offerUndo(`${title} copied to ${daysText(days)}`, () => removeItems(made))
-          }} />
-      )}
+      {panel === 'copy' && <CopySheet what={{ kind: 'meals', day, groups: [g.key], label: title }} onClose={() => setPanel(null)} />}
       {panel === 'save' && (
         <form className="fd-panel" onSubmit={async (e) => {
           e.preventDefault()
@@ -329,36 +339,3 @@ function ItemEditor({ item, look, shown, onDone, onRemove }: {
     </form>
   )
 }
-
-/** Pick days to copy to (MEAL-07): the next seven, or any day typed. */
-function CopyDays({ from, label, onCopy, onCancel }: { from: string; label: string; onCopy: (days: string[]) => Promise<void>; onCancel: () => void }) {
-  const [days, setDays] = useState<string[]>([])
-  const [busy, setBusy] = useState(false)
-  const next = Array.from({ length: 7 }, (_, i) => shiftDay(from, i + 1))
-  const flip = (d: string) => setDays((list) => (list.includes(d) ? list.filter((x) => x !== d) : [...list, d].sort()))
-  return (
-    <div className="fd-panel fd-copy" role="group" aria-label={`Copy ${label} to`}>
-      <p className="row-meta">Copy {label} to (pick one or more days):</p>
-      <div className="fd-days">
-        {next.map((d, i) => (
-          <button key={d} type="button" className="af-chip" aria-pressed={days.includes(d)} onClick={() => flip(d)}>
-            {i === 0 ? 'Next day' : format(parseISO(d), 'EEE')}<small>{format(parseISO(d), 'd MMM')}</small>
-          </button>
-        ))}
-        {days.filter((d) => !next.includes(d)).map((d) => (
-          <button key={d} type="button" className="af-chip" aria-pressed onClick={() => flip(d)}>{format(parseISO(d), 'EEE d MMM')}</button>
-        ))}
-        <input type="date" className="af-date" aria-label="Another day" value=""
-          onChange={(e) => { const d = e.target.value; if (d && d !== from && !days.includes(d)) setDays([...days, d].sort()) }} />
-      </div>
-      <div className="fd-edit-actions">
-        <button type="button" className="btn" onClick={onCancel}>Cancel</button>
-        <button type="button" className="btn btn-primary" disabled={!days.length || busy}
-          onClick={async () => { setBusy(true); try { await onCopy(days) } finally { setBusy(false) } }}>
-          {days.length ? `Copy to ${daysText(days)}` : 'Copy'}
-        </button>
-      </div>
-    </div>
-  )
-}
-

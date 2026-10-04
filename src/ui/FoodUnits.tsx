@@ -1,24 +1,26 @@
-import { useEffect, useId, useState, type FormEvent } from 'react'
+import { useId, useState, type FormEvent } from 'react'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { db } from '../lib/db'
 import { useApp } from '../lib/store'
 import { edit } from '../lib/write'
 import {
-  LABEL, PORTIE_ATTRIBUTION, NEVO_ATTRIBUTION, energyCheck, figureOf, figureText, riPercent, sodiumOf, sourceKind,
+  LABEL, PORTIE_ATTRIBUTION, NEVO_ATTRIBUTION, USDA_UNITS_ATTRIBUTION, energyCheck, figureOf, figureText, riPercent, sodiumOf, sourceKind,
   sourceText, copiedFromNevo,
 } from '../lib/eu-label-rules'
 import {
-  addUnit, foodWord, readUnitForm, readUnits, removeUnit, unitLine, withOverlay, MAX_UNITS, UNIT_NAME_MAX, type FoodUnit,
+  addUnit, foodWord, pluralOf, readUnitForm, readUnits, removeUnit, unitLine, withOverlay, MAX_UNITS, UNIT_NAME_MAX, type FoodUnit,
 } from '../lib/units-rules'
 import { saveLabelChoice, saveOwnUnits, useNutritionPrefs } from '../lib/nutrition-prefs'
 import { format } from 'date-fns'
 import { offerUndo } from './Undo'
 import { FoodEditor } from './FoodEditor'
 import { MoreMenu } from './MoreMenu'
+import { MoreOptions } from './MoreOptions'
 import { AddFoodSheet } from './AddFoodSheet'
 import type { Food } from '../lib/types'
 import './amount.css'
 import './food.css'
+import { useBackClose } from './useBackClose'
 
 /** One food's page: the label per 100 g or 100 ml (with %RI if wanted), what
  *  state it is in, the units it is counted in, and where the figures came
@@ -42,13 +44,9 @@ export function FoodUnitsSheet({ food: given, onClose }: { food: Food; onClose: 
   const mine = !!userId && food.owner_id === userId
   const shared = !food.owner_id
 
-  useEffect(() => {
-    if (mode !== 'view') return
-    // Escape closes the ⋮ first, when it is open, and the page after.
-    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape' && !document.querySelector('.fs-sheet .pm-menu')) onClose() }
-    document.addEventListener('keydown', onKey)
-    return () => document.removeEventListener('keydown', onKey)
-  }, [onClose, mode])
+  // Back and Escape close the page (CALM-10) while it is shown; the editor or
+  // the add-food sheet in its place takes them when open.
+  useBackClose(onClose, mode === 'view' || mode === 'delete')
 
   if (mode === 'edit' && userId) return <FoodEditor food={food} userId={userId} onClose={() => setMode('view')} />
   if (mode === 'copy' && userId) return <FoodEditor copyOf={food} userId={userId} onClose={() => setMode('view')} onSaved={() => onClose()} />
@@ -138,14 +136,17 @@ export function FoodUnitsSheet({ food: given, onClose }: { food: Food; onClose: 
           {food.store_section ? <div><dt>Aisle</dt> <dd>{food.store_section}</dd></div> : null}
           {food.stores?.length ? <div><dt>Shops</dt> <dd>{food.stores.join(', ')}</dd></div> : null}
           {food.density ? <div><dt>Weighs</dt> <dd>{Number(food.density)} g per ml</dd></div> : null}
-          {food.source_note ? <div><dt>NEVO’s note</dt> <dd lang="nl">{food.source_note}</dd></div> : null}
+          {food.source_note ? (kind === 'nevo'
+            ? <div><dt>NEVO’s note</dt> <dd lang="nl">{food.source_note}</dd></div>
+            : <div><dt>Source</dt> <dd>{food.source_note}</dd></div>) : null}
         </dl>
 
         <Units food={food} units={units} mine={mine} shared={shared} profileId={profileId} />
         {isEgg && (
           <p className="fe-note" style={{ marginTop: 'var(--space-2)' }}>
             EU egg sizes, weighed in the shell: S under 53 g, M 53–63 g, L 63–73 g, XL 73 g and over. The weights above are
-            what is eaten, without the shell.
+            what is eaten, without the shell.{units.some((u) => u.size === 'XL' && u.source !== 'mine')
+              ? ' The XL weight is worked out: 78 g in the shell, less USDA’s 12% shell.' : ''}
           </p>
         )}
 
@@ -161,6 +162,7 @@ export function FoodUnitsSheet({ food: given, onClose }: { food: Food; onClose: 
             </div>
           )}
           {units.some((u) => u.source?.startsWith('Portie')) && <div>{PORTIE_ATTRIBUTION}.</div>}
+          {units.some((u) => u.source?.includes('USDA')) && <div>{USDA_UNITS_ATTRIBUTION}.</div>}
           {kind === 'off' && <div>Product data: Open Food Facts (ODbL).</div>}
         </div>
 
@@ -191,6 +193,7 @@ function Units({ food, units, mine, shared, profileId }: {
   food: Food; units: FoodUnit[]; mine: boolean; shared: boolean; profileId: string | null
 }) {
   const word = foodWord(food.name)
+  const mixed = units.some((u) => u.source?.startsWith('Portie'))
   const [form, setForm] = useState({ name: '', plural: '', g: '' })
   const [adding, setAdding] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -238,6 +241,9 @@ function Units({ food, units, mine, shared, profileId }: {
                   {unitLine(u)}
                   {u.source === 'mine' && <span className="fs-unit-tag">yours</span>}
                   {u.source?.startsWith('Portie') && <span className="fs-unit-tag">Portie-online</span>}
+                  {/* Where Portie-online's units sit beside others, each says its source. */}
+                  {mixed && u.source === 'USDA FoodData Central' && <span className="fs-unit-tag">USDA</span>}
+                  {mixed && u.source?.startsWith('GetIt:') && <span className="fs-unit-tag">worked out</span>}
                 </span>
                 {removable(u) && (
                   <button type="button" className="re-remove" aria-label={`Remove the unit ${u.name}`} disabled={busy}
@@ -257,15 +263,20 @@ function Units({ food, units, mine, shared, profileId }: {
               <input value={form.name} maxLength={UNIT_NAME_MAX} placeholder={word} autoComplete="off"
                 onChange={(e) => { setForm({ ...form, name: e.target.value }); setError(null) }} />
             </label>
-            <label>Plural, if odd
-              <input value={form.plural} maxLength={UNIT_NAME_MAX} placeholder="optional" autoComplete="off"
-                onChange={(e) => setForm({ ...form, plural: e.target.value })} />
-            </label>
             <label>One weighs, g
               <input value={form.g} inputMode="decimal" autoComplete="off"
                 onChange={(e) => { setForm({ ...form, g: e.target.value }); setError(null) }} />
             </label>
           </div>
+          {/* The plural is worked out (CALM-08): only an odd one is typed. */}
+          <MoreOptions open={!!form.plural.trim()} summary={form.plural.trim() ? `Plural ${form.plural.trim()}` : null}>
+            <div className="fu-form is-one">
+              <label>Plural, if odd
+                <input value={form.plural} maxLength={UNIT_NAME_MAX} placeholder={pluralOf(form.name.trim() || word)} autoComplete="off"
+                  onChange={(e) => setForm({ ...form, plural: e.target.value })} />
+              </label>
+            </div>
+          </MoreOptions>
           {error && <p className="amt-hint is-warn" role="alert">{error}</p>}
           <p className="fu-facts">
             {shared ? 'Your own units on a shared food stay with you. ' : ''}Amounts already saved keep their grams.

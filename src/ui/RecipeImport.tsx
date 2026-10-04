@@ -1,4 +1,4 @@
-import { useEffect, useId, useMemo, useState } from 'react'
+import { useId, useMemo, useState } from 'react'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { db } from '../lib/db'
 import { edit } from '../lib/write'
@@ -6,15 +6,19 @@ import { FoodMatcher } from '../lib/match-food'
 import { planRecipes, readRecipes, toCsv, toGetItJson, toSchemaOrg } from '../lib/recipe-io-rules'
 import { attributionFor } from '../lib/eu-label-rules'
 import { saveFile } from '../lib/native'
+import { checkRecipeUrl, siteOf } from '../lib/recipe-fetch-rules'
+import { fetchRecipePage, RecipeFetchProblem } from '../lib/recipe-fetch'
 import { offerUndo } from './Undo'
+import { useBackClose } from './useBackClose'
 import { exportShape } from './RecipeView'
 import type { Food, Recipe, RecipeLine } from '../lib/types'
 import './recipes.css'
 
 /** Recipes in (REC-07, DATA-05): paste a recipe's text ("200 g oats, 2
  *  eggs"), a page's source with its schema.org data, or a recipe file
- *  (GetIt's JSON, a CSV); or give a web address, which works where the site
- *  lets an app read it. Shown before anything is saved: each recipe, and
+ *  (GetIt's JSON, a CSV); or give a web address: the app reads the page
+ *  through the phone's own connection, and on the web, where most sites
+ *  refuse other pages, pasting is the way. Shown before anything is saved: each recipe, and
  *  which lines found a food. Lines that did not are kept as text to finish
  *  later, so nothing typed is lost. Imported recipes are the person's own
  *  and private. */
@@ -22,6 +26,8 @@ export function RecipeImport({ userId, onClose }: { userId: string; onClose: () 
   const titleId = useId()
   const [text, setText] = useState('')
   const [url, setUrl] = useState('')
+  // A page read from the web, kept apart from what was pasted.
+  const [page, setPage] = useState<{ url: string; html: string } | null>(null)
   const [busy, setBusy] = useState(false)
   const [problem, setProblem] = useState<string | null>(null)
   const foods = useLiveQuery(() => db.food.toArray(), [], [] as Food[])
@@ -31,25 +37,19 @@ export function RecipeImport({ userId, onClose }: { userId: string; onClose: () 
     return [...live.filter((f) => f.owner_id), ...live.filter((f) => !f.owner_id)]
   }, [foods, userId])
   const matcher = useMemo(() => new FoodMatcher(visible), [visible])
-  const read = useMemo(() => readRecipes(text), [text])
+  const read = useMemo(() => readRecipes(page?.html ?? text), [page, text])
   const planned = useMemo(() => planRecipes(read.recipes, visible, (n) => matcher.match(n).food), [read, visible, matcher])
 
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose() }
-    document.addEventListener('keydown', onKey)
-    return () => document.removeEventListener('keydown', onKey)
-  }, [onClose])
+  useBackClose(onClose)
 
   async function fetchUrl() {
-    const u = url.trim()
-    if (!/^https?:\/\//i.test(u)) { setProblem('A web address starts with https://'); return }
+    const checked = checkRecipeUrl(url)
+    if ('error' in checked) { setProblem(checked.error); return }
     setBusy(true); setProblem(null)
     try {
-      const res = await fetch(u)
-      if (!res.ok) throw new Error(String(res.status))
-      setText(await res.text())
-    } catch {
-      setProblem('That site does not let an app read its pages. Open the page in a browser, choose "View source" (or Share → Copy), and paste it here.')
+      setPage({ url: checked.url, html: await fetchRecipePage(checked.url) })
+    } catch (e) {
+      setProblem(e instanceof RecipeFetchProblem ? e.message : 'That page could not be read. Open it, copy the recipe and paste it above.')
     } finally {
       setBusy(false)
     }
@@ -97,6 +97,12 @@ export function RecipeImport({ userId, onClose }: { userId: string; onClose: () 
       <div className="bottom-sheet" role="dialog" aria-modal="true" aria-labelledby={titleId}>
         <h2 id={titleId}>Import recipes</h2>
         <div className="form-grid">
+          {page ? (
+            <p className="fe-note" role="status">
+              Read from <b>{siteOf(page.url)}</b>{' '}
+              <button type="button" className="slot-link" onClick={() => setPage(null)}>Paste instead</button>
+            </p>
+          ) : (<>
           <label>
             Paste a recipe
             <textarea value={text} rows={6} placeholder={'Banana pancakes\n1 banana\n2 eggs\n30 g oats\nMethod\nMash and fry.'}
@@ -110,13 +116,17 @@ export function RecipeImport({ userId, onClose }: { userId: string; onClose: () 
                 onChange={(e) => { const f = e.target.files?.[0]; e.target.value = ''; if (f) void chooseFile(f) }} />
             </label>
           </div>
-          <div className="two">
-            <label>Or a web address<input type="url" inputMode="url" value={url} placeholder="https://" onChange={(e) => setUrl(e.target.value)} /></label>
-            <button type="button" className="btn" style={{ alignSelf: 'end', minHeight: 44 }} disabled={busy || !url.trim()} onClick={() => void fetchUrl()}>Read the page</button>
-          </div>
+          <form className="two" noValidate onSubmit={(e) => { e.preventDefault(); void fetchUrl() }}>
+            <label>Or a web address<input type="url" inputMode="url" value={url} placeholder="https://" enterKeyHint="go"
+              onChange={(e) => { setUrl(e.target.value); setProblem(null) }} /></label>
+            <button type="submit" className="btn" style={{ alignSelf: 'end', minHeight: 44 }} disabled={busy || !url.trim()}>
+              {busy ? 'Reading…' : 'Read the page'}
+            </button>
+          </form>
+          </>)}
           {problem && <p className="re-error" role="alert">{problem}</p>}
 
-          {text.trim() && (
+          {(page || text.trim()) && (
             planned.length === 0
               ? <p className="fe-note">No recipe found in that ({read.kind}).</p>
               : (
@@ -124,9 +134,9 @@ export function RecipeImport({ userId, onClose }: { userId: string; onClose: () 
                   <p className="rcp-section">Found · {read.kind}</p>
                   <ul className="rcp-list">
                     {planned.map((p, i) => (
-                      <li key={i} style={{ display: 'grid', gap: 2 }}>
+                      <li key={i} style={{ display: 'grid', gap: 2, minWidth: 0, whiteSpace: 'normal' }}>
                         <span className="row-name" style={{ fontSize: 15 }}>{p.name}</span>
-                        <span className="fe-note">
+                        <span className="fe-note" style={{ overflowWrap: 'anywhere', whiteSpace: 'normal' }}>
                           {p.portions_per_batch} {p.portions_per_batch === 1 ? 'portion' : 'portions'} · {p.matched} of {p.lines.length} ingredients found
                           {p.unmatched.length ? `; kept as text to finish: ${p.unmatched.slice(0, 4).join(', ')}${p.unmatched.length > 4 ? ` and ${p.unmatched.length - 4} more` : ''}` : ''}
                         </span>

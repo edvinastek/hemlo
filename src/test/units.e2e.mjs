@@ -45,6 +45,8 @@ const sheet = p.locator('.bottom-sheet')
 is('its page says grams only', (await sheet.locator('.fu-facts', { hasText: 'Counted in grams only' }).count()) > 0, true)
 await sheet.getByRole('button', { name: '+ Add a unit' }).click()
 await sheet.getByRole('textbox', { name: 'Unit', exact: true }).fill('egg')
+// The plural waits under More options (v18, CALM-08).
+await sheet.getByRole('button', { name: /More options/ }).click()
 await sheet.getByRole('textbox', { name: 'Plural, if odd' }).fill('eggs')
 await sheet.getByRole('textbox', { name: 'One weighs, g' }).fill('50')
 await sheet.getByRole('button', { name: 'Add unit' }).click()

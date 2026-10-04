@@ -18,6 +18,7 @@ import { BarcodeScan } from './BarcodeScan'
 import { ReadyMealForm } from './ReadyMeal'
 import type { Food, Recipe } from '../lib/types'
 import './products.css'
+import { useBackClose } from './useBackClose'
 
 /** What the finder is for: the Foods tab (keep it), Stock (put it in the
  *  cupboard), or picking a food for something else (a meal, a recipe line,
@@ -67,11 +68,7 @@ interface FinderProps {
 export function ProductFinder(props: FinderProps) {
   const titleId = useId()
   const { purpose, onClose } = props
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose() }
-    document.addEventListener('keydown', onKey)
-    return () => document.removeEventListener('keydown', onKey)
-  }, [onClose])
+  useBackClose(onClose)
   const title = purpose === 'stock' ? 'Scan to add to stock' : 'Find in stores'
   return (
     <>
@@ -453,11 +450,7 @@ export function ScanFoodSheet({ title = 'Scan a barcode', action = 'Use this foo
   const [problem, setProblem] = useState<string | null>(null)
   const [searching, setSearching] = useState(false)
   const [attempt, setAttempt] = useState(0)
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose() }
-    document.addEventListener('keydown', onKey)
-    return () => document.removeEventListener('keydown', onKey)
-  }, [onClose])
+  useBackClose(onClose)
 
   async function got(code: string) {
     setBusy(true)

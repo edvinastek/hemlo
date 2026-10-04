@@ -1,7 +1,8 @@
-import { useEffect, useId, useState } from 'react'
+import { useId, useState } from 'react'
 import { exportRecipes } from './RecipeImport'
 import type { Food, Recipe, RecipeLine } from '../lib/types'
 import './recipes.css'
+import { useBackClose } from './useBackClose'
 
 /** Every recipe out as a file, in the formats other recipe apps read: GetIt's
  *  own file (to read back in), a spreadsheet, or schema.org Recipe. Opened
@@ -16,11 +17,7 @@ export function RecipesExportSheet({ recipes, lines, foods, onClose }: {
   const titleId = useId()
   const [said, setSaid] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose() }
-    document.addEventListener('keydown', onKey)
-    return () => document.removeEventListener('keydown', onKey)
-  }, [onClose])
+  useBackClose(onClose)
 
   async function out(kind: 'json' | 'csv' | 'schema') {
     if (busy) return

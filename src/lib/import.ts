@@ -4,9 +4,10 @@
 
 import { db } from './db'
 import { push } from './sync'
+import { loadExercises } from './training'
 import type { ImportPreview } from './excel'
 import {
-  planImport, pendingEntry, type ImportPlan, type FoodRowPlan, type RecipeRowPlan, type LineRowPlan,
+  planImport, pendingEntry, type ImportPlan, type FoodRowPlan, type RecipeRowPlan, type LineRowPlan, type ExerciseRowPlan,
 } from './match-food'
 
 export type { ImportPlan }
@@ -19,7 +20,8 @@ export interface ImportSummary {
   linesMatched: number
   linesUnmatched: number
   unmatched: string[]
-  exercises: number
+  exercisesAdded: number
+  exercisesExisting: number
 }
 
 // Every field the import sets, so the server receives the whole row. updated_at
@@ -32,6 +34,7 @@ const RECIPE_FIELDS: (keyof RecipeRowPlan)[] = [
   'owner_id', 'name', 'role', 'portions_per_batch', 'cook_minutes', 'steps',
   'kcal', 'carbs_g', 'fiber_g', 'fat_g', 'protein_g', 'deleted_at',
 ]
+const EXERCISE_FIELDS: (keyof ExerciseRowPlan)[] = ['owner_id', 'name', 'muscle', 'equipment', 'notes', 'deleted_at']
 const LINE_FIELDS: (keyof LineRowPlan)[] = [
   'recipe_id', 'food_id', 'raw_text', 'grams_per_portion', 'state', 'note', 'sort_order',
 ]
@@ -43,10 +46,13 @@ export async function planWorkbook(preview: ImportPreview, ownerId: string): Pro
     !r.deleted_at && (!r.owner_id || r.owner_id === ownerId)
   const foods = (await db.food.toArray()).filter(visible)
   const recipes = (await db.recipe.toArray()).filter(visible)
+  // The catalogue's exercises and the person's own (the catalogue's may only
+  // be kept aside on this device, which loadExercises reads too).
+  const exercises = (await loadExercises()).filter(visible)
   // The person's own foods first, so a line matches their "Oats" over the
   // catalogue's when both exist.
   const ordered = [...foods.filter((f) => f.owner_id === ownerId), ...foods.filter((f) => f.owner_id !== ownerId)]
-  return planImport(preview, { foods: ordered, recipes }, ownerId, () => crypto.randomUUID(), new Date().toISOString())
+  return planImport(preview, { foods: ordered, recipes, exercises }, ownerId, () => crypto.randomUUID(), new Date().toISOString())
 }
 
 /** Writes the plan locally and queues it for the server in one transaction,
@@ -74,14 +80,16 @@ export async function saveWorkbook(preview: ImportPreview, ownerId: string): Pro
       // A line counted in a unit carries it; the rest send what they always did.
       ...own.map((l) => pendingEntry('recipe_line', l, l.unit ? [...LINE_FIELDS, 'unit', 'unit_qty'] : LINE_FIELDS, at)),
     ]),
+    ...plan.exercises.map((e) => pendingEntry('exercise', e, EXERCISE_FIELDS, at)),
   ]
 
-  await db.transaction('rw', [db.food, db.recipe, db.recipe_line, db.pending], async () => {
+  await db.transaction('rw', [db.food, db.recipe, db.recipe_line, db.exercise, db.pending], async () => {
     // The plan rows carry server columns the local types do not list (source,
     // note, the stated recipe macros); they are kept so the insert sends them.
     if (plan.foods.length) await db.food.bulkPut(plan.foods as never[])
     if (plan.recipes.length) await db.recipe.bulkPut(plan.recipes.map((r) => r.recipe) as never[])
     if (lines.length) await db.recipe_line.bulkPut(lines as never[])
+    if (plan.exercises.length) await db.exercise.bulkPut(plan.exercises as never[])
     if (queue.length) await db.pending.bulkAdd(queue)
   })
 
@@ -95,6 +103,7 @@ export async function saveWorkbook(preview: ImportPreview, ownerId: string): Pro
     linesMatched: plan.linesMatched,
     linesUnmatched: plan.linesUnmatched,
     unmatched: plan.unmatched,
-    exercises: plan.exercises,
+    exercisesAdded: plan.exercises.length,
+    exercisesExisting: plan.exercisesExisting,
   }
 }

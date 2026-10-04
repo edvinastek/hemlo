@@ -74,6 +74,8 @@ is('and off again', await sheet.locator('.fs-ri').count(), 0)
 // 3. A unit of one's own over the shared food.
 await sheet.getByRole('button', { name: '+ Add a unit' }).click()
 await sheet.getByRole('textbox', { name: 'Unit', exact: true }).fill('ring')
+// The plural waits under More options (v18, CALM-08).
+await sheet.getByRole('button', { name: /More options/ }).click()
 await sheet.getByRole('textbox', { name: 'Plural, if odd' }).fill('rings')
 await sheet.getByRole('textbox', { name: 'One weighs, g' }).fill('10')
 await sheet.getByRole('button', { name: 'Add unit' }).click()

@@ -570,8 +570,8 @@ function DataPanel() {
           {preview.preview.exercises.length > 0 && (
             <div className="setting-row">
               <div>
-                <div className="row-name">{preview.preview.exercises.length} exercises</div>
-                <div className="row-meta">Read, but not saved yet. Exercises have nowhere to go in the app so far.</div>
+                <div className="row-name">{preview.plan.exercises.length} new exercises</div>
+                {preview.plan.exercisesExisting > 0 && <div className="row-meta">{preview.plan.exercisesExisting} already there</div>}
               </div>
             </div>
           )}
@@ -633,7 +633,7 @@ function DataPanel() {
               <div className="row-meta">
                 {summary.summary.foodsExisting} foods and {summary.summary.recipesExisting} recipes were already there
                 · {summary.summary.linesMatched} ingredient lines matched to a food, {summary.summary.linesUnmatched} not
-                {summary.summary.exercises > 0 && ` · ${summary.summary.exercises} exercises not saved yet`}
+                {summary.summary.exercisesAdded > 0 && ` · ${summary.summary.exercisesAdded} exercises added to Training`}
               </div>
             </div>
             <button className="btn" onClick={() => setSummary(null)}>Close</button>

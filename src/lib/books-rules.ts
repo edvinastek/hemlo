@@ -167,6 +167,31 @@ export function removeFromBook(books: Book[], id: string, ids: string[]): { book
   return { books: next, removed }
 }
 
+/** Undo (GEN-54): rows taken out of books, or deleted, put back in the books
+ *  they were in (as `before` held them), in their old places. A book deleted
+ *  since is left alone; rows added since stay, after them. */
+export function putBack(books: Book[], before: Book[], ids: string[]): Book[] {
+  const back = new Set(ids)
+  return books.map((b) => {
+    const old = before.find((o) => o.id === b.id)
+    if (!old) return b
+    const now = new Set(b.items)
+    const missing = old.items.filter((x) => back.has(x) && !now.has(x))
+    if (!missing.length) return b
+    const keep = new Set([...b.items, ...missing])
+    const items = [...old.items.filter((x) => keep.has(x)), ...b.items.filter((x) => !old.items.includes(x))].slice(0, MAX_ITEMS)
+    return { ...b, items }
+  })
+}
+
+/** Undo (GEN-54): a deleted book back in its place, unless it is back
+ *  already or there is no room for it. */
+export function bookBack(books: Book[], book: Book, index: number): Book[] {
+  if (books.some((b) => b.id === book.id) || books.length >= MAX_BOOKS) return books
+  const at = Math.max(0, Math.min(index, books.length))
+  return [...books.slice(0, at), book, ...books.slice(at)]
+}
+
 /* ---------- several rows at once ------------------------------------------- */
 
 /** Which of the chosen rows this person may delete (their own) and which are

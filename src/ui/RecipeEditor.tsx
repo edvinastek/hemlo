@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useMemo, useState } from 'react'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { db } from '../lib/db'
 import { useApp } from '../lib/store'
@@ -23,6 +23,7 @@ import { offerUndo } from './Undo'
 import type { Food, Recipe, RecipeLine } from '../lib/types'
 import './sharing.css'
 import './recipes.css'
+import { useBackClose } from './useBackClose'
 
 const text = (n: number | null | undefined) => (n === null || n === undefined ? '' : String(n))
 
@@ -95,12 +96,10 @@ export function RecipeEditor({ recipe, lines, foods, userId, onClose, start, onS
     return { ...d, lines: next }
   })
 
-  useEffect(() => {
-    if (sub) return
-    const esc = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose() }
-    window.addEventListener('keydown', esc)
-    return () => window.removeEventListener('keydown', esc)
-  }, [onClose, sub])
+  // Back and Escape close the recipe (CALM-10), or the scan in its place;
+  // the shop search takes its own.
+  useBackClose(onClose, !sub)
+  useBackClose(() => setSub(null), sub?.kind === 'scan')
 
   const unitsOf = (foodId: string) => readUnits(allFoods.get(foodId)?.units)
   const read = readRecipe(draft, unitsOf)
