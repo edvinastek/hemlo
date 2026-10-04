@@ -1,0 +1,150 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- GetIt · Quick add (WID-11): up to four buttons, the + menu's first entries,
+     filled or hidden by QuickAddWidget (quickadd/QuickAdd.java). The colours
+     here are the default theme's; QuickAddWidget paints the chosen theme over
+     them (WidgetColours), the page through the bg image, as Today does. -->
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/widget_root"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent">
+
+    <ImageView
+        android:id="@+id/bg"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:importantForAccessibility="no"
+        android:scaleType="fitXY"
+        android:src="@drawable/widget_bg" />
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:gravity="center_vertical"
+        android:orientation="horizontal"
+        android:paddingStart="6dp"
+        android:paddingTop="4dp"
+        android:paddingEnd="6dp"
+        android:paddingBottom="4dp">
+
+        <LinearLayout
+            android:id="@+id/qa_0"
+            android:layout_width="0dp"
+            android:layout_height="match_parent"
+            android:layout_weight="1"
+            android:background="@drawable/widget_qa_press"
+            android:gravity="center"
+            android:orientation="vertical"
+            android:paddingStart="2dp"
+            android:paddingEnd="2dp">
+            <ImageView
+                android:id="@+id/qa_icon_0"
+                android:layout_width="22dp"
+                android:layout_height="22dp"
+                android:importantForAccessibility="no"
+                android:src="@drawable/glyph_qa_add"
+                android:tint="@color/widget_accent" />
+            <TextView
+                android:id="@+id/qa_text_0"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="2dp"
+                android:ellipsize="end"
+                android:fontFamily="sans-serif"
+                android:importantForAccessibility="no"
+                android:maxLines="1"
+                android:text=""
+                android:textColor="@color/widget_ink"
+                android:textSize="12sp" />
+        </LinearLayout>
+        <LinearLayout
+            android:id="@+id/qa_1"
+            android:layout_width="0dp"
+            android:layout_height="match_parent"
+            android:layout_weight="1"
+            android:background="@drawable/widget_qa_press"
+            android:gravity="center"
+            android:orientation="vertical"
+            android:paddingStart="2dp"
+            android:paddingEnd="2dp">
+            <ImageView
+                android:id="@+id/qa_icon_1"
+                android:layout_width="22dp"
+                android:layout_height="22dp"
+                android:importantForAccessibility="no"
+                android:src="@drawable/glyph_qa_add"
+                android:tint="@color/widget_accent" />
+            <TextView
+                android:id="@+id/qa_text_1"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="2dp"
+                android:ellipsize="end"
+                android:fontFamily="sans-serif"
+                android:importantForAccessibility="no"
+                android:maxLines="1"
+                android:text=""
+                android:textColor="@color/widget_ink"
+                android:textSize="12sp" />
+        </LinearLayout>
+        <LinearLayout
+            android:id="@+id/qa_2"
+            android:layout_width="0dp"
+            android:layout_height="match_parent"
+            android:layout_weight="1"
+            android:background="@drawable/widget_qa_press"
+            android:gravity="center"
+            android:orientation="vertical"
+            android:paddingStart="2dp"
+            android:paddingEnd="2dp">
+            <ImageView
+                android:id="@+id/qa_icon_2"
+                android:layout_width="22dp"
+                android:layout_height="22dp"
+                android:importantForAccessibility="no"
+                android:src="@drawable/glyph_qa_add"
+                android:tint="@color/widget_accent" />
+            <TextView
+                android:id="@+id/qa_text_2"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="2dp"
+                android:ellipsize="end"
+                android:fontFamily="sans-serif"
+                android:importantForAccessibility="no"
+                android:maxLines="1"
+                android:text=""
+                android:textColor="@color/widget_ink"
+                android:textSize="12sp" />
+        </LinearLayout>
+        <LinearLayout
+            android:id="@+id/qa_3"
+            android:layout_width="0dp"
+            android:layout_height="match_parent"
+            android:layout_weight="1"
+            android:background="@drawable/widget_qa_press"
+            android:gravity="center"
+            android:orientation="vertical"
+            android:paddingStart="2dp"
+            android:paddingEnd="2dp">
+            <ImageView
+                android:id="@+id/qa_icon_3"
+                android:layout_width="22dp"
+                android:layout_height="22dp"
+                android:importantForAccessibility="no"
+                android:src="@drawable/glyph_qa_add"
+                android:tint="@color/widget_accent" />
+            <TextView
+                android:id="@+id/qa_text_3"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="2dp"
+                android:ellipsize="end"
+                android:fontFamily="sans-serif"
+                android:importantForAccessibility="no"
+                android:maxLines="1"
+                android:text=""
+                android:textColor="@color/widget_ink"
+                android:textSize="12sp" />
+        </LinearLayout>
+    </LinearLayout>
+</FrameLayout>

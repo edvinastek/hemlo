@@ -14,6 +14,8 @@ import com.getcapacitor.annotation.CapacitorPlugin;
 
 import java.util.Locale;
 
+import app.getit.planner.quickadd.QuickAdd;
+
 /**
  * Looks on the phone's side (src/lib/native.ts): the text size the web view
  * draws at, the phone's font size and wallpaper colours, the launcher icon,
@@ -47,6 +49,8 @@ public class LooksPlugin extends Plugin {
         if (pending != null) {
             AppIcons.apply(getContext(), pending);
             prefs().edit().remove(PENDING).apply();
+            // The launcher shortcuts belong to the icon's entry: move them to the new one.
+            QuickAdd.publishShortcuts(getContext());
         }
     }
 

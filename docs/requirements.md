@@ -731,7 +731,7 @@ Columns: **ID**, **Requirement** (with "Done when" where a test is needed), **Pr
 | SLP-02 | **Target hours and bedtime** (the server's unused defaults), compared on every night and in Stats (sleep debt over 7 days, regularity of bed and wake times). | Must | Done (v18) | SR |
 | SLP-03 | Optional bedtime block on Plan, locked if chosen (rule `bedtime`, GEN-37), and a bedtime reminder (target wake time minus target hours). | Should | Done (v16) | SR |
 | SLP-04 | Past nights can be added and edited from the Sleep page. | Must | Done (v16) | SR |
-| SLP-05 | Import from Health Connect (Android) when allowed. | Could | Open | SR |
+| SLP-05 | Import from Health Connect (Android) when allowed. | Could | Partly (v19: built and checked off the phone — Sleep ⋮ → Import from Health Connect, READ_SLEEP only, 7/14/30 days, overlaps, naps, wake day and duplicates in sleepimport, migration 039 for the Health Connect id; still to do: the permission flow and a real import on a phone (store/phone-tests.md 18–29), apply 039, the Play Console Health Connect declaration and the policy's Health Connect section) | SR |
 
 ## D19. Learning and reading (LRN)
 
@@ -861,7 +861,7 @@ Columns: **ID**, **Requirement** (with "Done when" where a test is needed), **Pr
 | NAV-21 | Long press on a module in the hub: Pin to bar, Pin a card to Today, Hide, Settings. | Should | Done (v16) | SR |
 | NAV-22 | The hub has the shared search (GEN-13) over modules and their records. | Should | Done (v16) | SR |
 | NAV-23 | More is renamed "Settings" in the hub style, with the same sections. | Could | Done (v16) | SR |
-| NAV-24 | Android launcher shortcuts (up to 4) mirroring the + menu's top items (Add task, Add food…). | Could | Open | SR |
+| NAV-24 | Android launcher shortcuts (up to 4) mirroring the + menu's top items (Add task, Add food…). | Could | Done (v19) | SR |
 | NAV-25 | Each module page keeps at most two levels: the module's list, then an item. Deeper settings go in sheets. | Should | Done (v16) | SR |
 | NAV-26 | Moving functions between screens comes with a one-time "What moved where" note, and a "Classic layout" switch for one or two versions. | Should | Done (v17: "What moved where"; the Classic layout switch was replaced by CALM-17, no global layout switch) | SR |
 
@@ -913,7 +913,7 @@ Columns: **ID**, **Requirement** (with "Done when" where a test is needed), **Pr
 | WID-01 | "GetIt · Today" widget: open tasks with ticks, today's habits, done tasks, resizable, ticks applied safely. | Must | Done | R1 |
 | WID-02 | The Today widget shows items from every module set to "Show on the widget". | Should | Done (v16) | R5 |
 | WID-10 | **Stats widgets**: the person places as many as they want, each showing a saved stats view of their choice (a figure, a small chart, a ring or a short table), in 2×2, 4×2 and 4×4 sizes, refreshed whenever the data changes. | Must | Done (v16) | R5 |
-| WID-11 | **Quick add widget**: buttons for the + menu's top items. | Could | Open | SR |
+| WID-11 | **Quick add widget**: buttons for the + menu's top items. | Could | Done (v19) | SR |
 | WID-12 | Widgets refresh at once after any change in the app or on the widget. | Must | Done for Today | R3 |
 | WID-13 | Widgets follow the theme (LOOK-09) and have proper empty states. | Should | Done (v16) | SR |
 | WID-14 | A widget's settings can be changed by a long press on it (Android's own widget settings). | Should | Done (v16) | SR |

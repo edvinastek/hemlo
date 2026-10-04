@@ -14,6 +14,7 @@ import type { SleepLog } from '../lib/types'
 import { offerUndo } from '../ui/Undo'
 import { DefView, DeleteButton, ModuleTabs, Sheet, defTabs, localToday, useTab } from './ModuleKit'
 import { ModuleMenu } from '../modules/ModuleHead'
+import { SleepImportSheet, useHealthConnect } from './SleepImport'
 import './sleep.css'
 
 const QUALITY = [1, 2, 3, 4, 5]
@@ -33,6 +34,9 @@ export function Sleep({ profileId }: { profileId: string; day: string }) {
   const ruleOn = useBuiltinRuleOn(profileId, 'sleep', 'bedtime')
   const [night, setNight] = useState<SleepLog | 'new' | null>(null)
   const [target, setTarget] = useState(false)
+  // Android only, and only where Health Connect is or can be installed (SLP-05).
+  const health = useHealthConnect()
+  const [importing, setImporting] = useState(false)
   // The nights table is the Nights tab; the month and any other view of
   // the module's own are under ⋮ → Views.
   const all = defTabs(def)
@@ -48,7 +52,9 @@ export function Sleep({ profileId }: { profileId: string; day: string }) {
 
   return (
     <>
-      <ModuleMenu views={views} active={tab} onView={setTab} />
+      <ModuleMenu views={views} active={tab} onView={setTab} items={[
+        (health === 'available' || health === 'install') && { label: 'Import from Health Connect', onSelect: () => setImporting(true) },
+      ]} />
       <ModuleTabs tabs={tabs} active={tab} onTab={setTab} />
       {tab === 'overview' && (
         <>
@@ -83,6 +89,7 @@ export function Sleep({ profileId }: { profileId: string; day: string }) {
         <NightSheet key={night === 'new' ? 'new' : night.id} profileId={profileId} night={night === 'new' ? null : night}
           day={night === 'new' ? free : night.log_date} s={settings} today={today} onClose={() => setNight(null)} />
       )}
+      {importing && <SleepImportSheet profileId={profileId} today={today} onClose={() => setImporting(false)} />}
       {target && <TargetSheet profileId={profileId} s={settings} today={today} ruleOn={ruleOn} onClose={() => setTarget(false)} />}
     </>
   )

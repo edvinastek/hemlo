@@ -42,6 +42,12 @@ public final class AppIcons {
         return "classic";
     }
 
+    /** The launcher entry the phone shows now: the activity the launcher
+     *  shortcuts belong to (quickadd/QuickAdd.java). */
+    public static ComponentName launcher(Context c) {
+        return component(c, current(c));
+    }
+
     /** Turn the chosen icon on first, then every other one off, so there is
      *  never a moment with no way into the app. */
     public static void apply(Context c, String key) {

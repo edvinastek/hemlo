@@ -1,5 +1,5 @@
-import { useMemo, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useEffect, useMemo, useState } from 'react'
+import { useNavigate, useSearchParams } from 'react-router-dom'
 import { useApp } from '../lib/store'
 import { blankTask } from '../lib/tasks'
 import { useModuleDefs } from '../modules/defs'
@@ -7,6 +7,8 @@ import {
   arrangeAdd, byUse, countUse, moveEntry, toggleHidden, MODULE_ADD, type AddEntry,
 } from '../lib/today-prefs-rules'
 import { saveTodayPrefs, useTodayPrefs } from '../lib/today-prefs'
+import { addKeyFrom, quickAddItems } from '../lib/widget-quickadd-rules'
+import { sendQuickAdd } from '../lib/widget'
 import type { Task } from '../lib/types'
 import { TaskSheet } from './TaskSheet'
 import { AddFoodSheet } from './AddFoodSheet'
@@ -81,6 +83,24 @@ export function AddFab({ day, label = 'Add' }: { day: string; label?: string }) 
   // Back and Escape close the menu (CALM-10).
   const close = () => { setOpen(false); setEditing(false); setShowMore(false) }
   useBackClose(close, open)
+
+  // The launcher shortcuts and the quick-add widget offer this menu's first
+  // four, in its order (NAV-24, WID-11); Android app only.
+  const quick = defs ? JSON.stringify(quickAddItems(shown)) : ''
+  useEffect(() => { if (quick) sendQuickAdd(JSON.parse(quick)) }, [quick])
+
+  // ?add=<entry> (a launcher shortcut or the quick-add widget): that entry's
+  // sheet opens as if chosen here. An entry that is not on (its module was
+  // switched off since) just leaves the page as it is.
+  const [params, setParams] = useSearchParams()
+  const wanted = params.get('add')
+  useEffect(() => {
+    if (!wanted || !defs || !profile) return
+    setParams((p) => { const next = new URLSearchParams(p); next.delete('add'); return next }, { replace: true })
+    const key = addKeyFrom(wanted)
+    const e = key ? [...shown, ...more, ...hidden].find((x) => x.key === key) : undefined
+    if (e) choose(e)
+  }, [wanted, defs, profile?.id]) // eslint-disable-line react-hooks/exhaustive-deps
 
   if (!profile) return null
 

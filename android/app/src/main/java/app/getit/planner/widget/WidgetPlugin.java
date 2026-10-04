@@ -11,10 +11,14 @@ import org.json.JSONArray;
 
 import java.lang.ref.WeakReference;
 
+import app.getit.planner.quickadd.QuickAdd;
+import app.getit.planner.quickadd.QuickAddWidget;
+
 /**
  * The app's side of the widgets (src/lib/widget.ts): write the Today and stats
- * snapshots and the theme, collect the ticks made on the Today widget, and
- * clear the data on sign-out.
+ * snapshots, the theme and the + menu's first entries (the quick-add widget
+ * and the launcher shortcuts), collect the ticks made on the Today widget,
+ * and clear the data on sign-out.
  */
 @CapacitorPlugin(name = "GetItWidget")
 public class WidgetPlugin extends Plugin {
@@ -59,8 +63,10 @@ public class WidgetPlugin extends Plugin {
     @PluginMethod
     public void clear(PluginCall call) {
         WidgetStore.clear(getContext());
+        QuickAdd.clear(getContext());
         TodayWidget.refreshAll(getContext());
         StatsWidget.refreshAll(getContext());
+        QuickAddWidget.refreshAll(getContext());
         call.resolve();
     }
 
@@ -76,6 +82,7 @@ public class WidgetPlugin extends Plugin {
         WidgetStore.putLooks(getContext(), looks);
         TodayWidget.refreshAll(getContext());
         StatsWidget.refreshAll(getContext());
+        QuickAddWidget.refreshAll(getContext());
         call.resolve();
     }
 
@@ -89,6 +96,21 @@ public class WidgetPlugin extends Plugin {
         }
         WidgetStore.putStats(getContext(), snapshot);
         StatsWidget.refreshAll(getContext());
+        call.resolve();
+    }
+
+    /** The + menu's first entries (QuickAddItem[] as JSON, NAV-24, WID-11):
+     *  the quick-add widgets redraw and the launcher shortcuts follow. */
+    @PluginMethod
+    public void setQuickAdd(PluginCall call) {
+        String items = call.getString("items");
+        if (items == null) {
+            call.reject("items is required");
+            return;
+        }
+        QuickAdd.put(getContext(), items);
+        QuickAddWidget.refreshAll(getContext());
+        QuickAdd.publishShortcuts(getContext());
         call.resolve();
     }
 }

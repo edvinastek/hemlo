@@ -587,6 +587,9 @@ export interface SleepLog {
   woke_at: string | null
   hours: number | null
   quality: number | null
+  /** Where an imported night came from ('hc:<Health Connect ids>', 039);
+   *  absent for a night typed in the app. */
+  import_id?: string | null
   updated_at: string
   deleted_at: string | null
 }

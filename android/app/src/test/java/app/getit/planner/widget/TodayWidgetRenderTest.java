@@ -71,7 +71,7 @@ public class TodayWidgetRenderTest {
 
     /** Lays the widget out at a size, on a grey wallpaper so the rounded
      *  corners show, and saves it as build/widget-previews/<name>.png. */
-    static View save(Context ctx, RemoteViews rv, String name, int widthDp, int heightDp) throws Exception {
+    public static View save(Context ctx, RemoteViews rv, String name, int widthDp, int heightDp) throws Exception {
         FrameLayout parent = new FrameLayout(ctx);
         View v = rv.apply(ctx, parent);
         float d = ctx.getResources().getDisplayMetrics().density;

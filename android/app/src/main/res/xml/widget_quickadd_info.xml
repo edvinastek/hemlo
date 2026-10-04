@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  GetIt · Quick add (WID-11): 4 x 1 cells by default, 2 x 1 to 4 x 1 by
+  resizing; two buttons at two cells, three at three, four at four. It only
+  changes when the app sends a new + menu order or theme, so it needs no
+  periodic update.
+-->
+<appwidget-provider xmlns:android="http://schemas.android.com/apk/res/android"
+    android:minWidth="250dp"
+    android:minHeight="40dp"
+    android:minResizeWidth="110dp"
+    android:minResizeHeight="40dp"
+    android:maxResizeWidth="330dp"
+    android:maxResizeHeight="90dp"
+    android:targetCellWidth="4"
+    android:targetCellHeight="1"
+    android:resizeMode="horizontal"
+    android:updatePeriodMillis="0"
+    android:initialLayout="@layout/widget_quickadd"
+    android:previewLayout="@layout/widget_quickadd_preview"
+    android:previewImage="@drawable/widget_quickadd_preview"
+    android:description="@string/widget_quickadd_description"
+    android:widgetCategory="home_screen" />
