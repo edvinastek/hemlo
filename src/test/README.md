@@ -344,6 +344,15 @@ Added when the ten version 16 branches were wired together (integration):
   `dayitems` (a late day's order, the now line and parts of the day after midnight, chores put on today) and
   `review` (the review after midnight in a late day).
 
+- `quickadd` — natural-language quick add (v19, TSK-07, quick-add-rules.ts): the requirement's example; days (today,
+  tomorrow, weekdays, next Friday, this weekend, 23 Oct, Oct 23, 23/10, ISO, in 3 days; English and Dutch); times
+  (18:00, 18.00, 6pm, at 18, om 9 uur, 18u30, noon) and ranges (18-19:30, 6-7pm, van 9 tot 17, across midnight);
+  lengths (for 45 min, 1h30, 1.5h, an hour, anderhalf uur); repeats in the repeat control's own shape (every day,
+  weekday, week, month, year, every 2 days, every other week, every Mon Wed, elke maandag en donderdag, on Mondays),
+  a weekly repeat's first day; #sections in any case, of two words, unknown ones kept; a chip taken away leaves its
+  words in the title; and the words it must not eat (sun cream, May 2 people, 5-6 reps, €18.00, 1/2 cup, Weekly
+  review, the short Dutch day names, a second day or time).
+
 ## Browser checks
 
 They need the app built and served (`npm run build`, then
