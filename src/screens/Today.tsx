@@ -31,6 +31,11 @@ import { useBackClose } from '../ui/useBackClose'
 import { trainingOn } from '../lib/body'
 import { dayBudget } from '../lib/activity'
 import type { Task } from '../lib/types'
+import { usePlanPrefs } from '../lib/plan-prefs'
+import { lastShown, loadPlanDay, markShown } from '../lib/plan-day'
+import { offerPlanDay } from '../lib/plan-day-rules'
+import { PlanMyDay } from '../sections/PlanMyDay'
+import { CloseDay } from '../sections/CloseDay'
 import './today.css'
 
 const ONLY_TODAY: DayTab[] = [{ key: 'today', label: 'Today' }]
@@ -62,6 +67,25 @@ export function Today() {
   // Select tasks on the rail (GEN-52), from the ⋮: holding a row drags it
   // or opens it in place (TOD-10), so the hold is not the way in here.
   const [selecting, setSelecting] = useState(false)
+  // Plan my day (TOD-22) and Close the day (TOD-23): one sheet at a time.
+  const [daySheet, setDaySheet] = useState<'plan' | 'close' | null>(null)
+  const planPrefs = usePlanPrefs(profile?.id)
+  // Switched on, Plan my day opens by itself on the first open of the day,
+  // when there is something to decide (plan-day-rules offerPlanDay).
+  useEffect(() => {
+    if (!profile || !planPrefs.plan_my_day) return
+    let gone = false
+    void (async () => {
+      const last = await lastShown()
+      if (last === day) return
+      const data = await loadPlanDay(profile, day)
+      if (gone || !offerPlanDay({ on: true, lastShown: last, today: day, leftovers: data.leftovers.length, suggestions: data.suggestions.length })) return
+      await markShown(day)
+      setDaySheet((s) => s ?? 'plan')
+    })()
+    return () => { gone = true }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [profile?.id, planPrefs.plan_my_day, day])
   // The day's public holidays, if any countries are chosen (Settings → Profile).
   const holidays = useHolidays(day, day)
   const tomorrow = addDays(day, 1)
@@ -129,6 +153,8 @@ export function Today() {
             <PageMenu label="More for Today" sheets={exp.sheet} items={[
               { label: waiting ? `Inbox (${waiting} waiting)` : 'Inbox', onSelect: () => navigate('/plan?view=inbox') },
               { label: selecting ? 'Stop selecting' : 'Select tasks', onSelect: () => setSelecting((x) => !x) },
+              { label: 'Plan my day', onSelect: () => setDaySheet('plan') },
+              { label: 'Close the day', onSelect: () => setDaySheet('close') },
               ...railMenu,
               exp.item,
             ]} />
@@ -189,6 +215,8 @@ export function Today() {
 
       <AddFab day={day} />
       {peek && <TomorrowPeek day={tomorrow} today={day} onClose={() => setPeek(false)} />}
+      {daySheet === 'plan' && <PlanMyDay today={day} onClose={() => setDaySheet(null)} />}
+      {daySheet === 'close' && profile && <CloseDay profileId={profile.id} day={day} onClose={() => setDaySheet(null)} />}
     </div>
   )
 }

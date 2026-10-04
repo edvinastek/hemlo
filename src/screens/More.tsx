@@ -12,7 +12,7 @@ import { offerUndo } from '../ui/Undo'
 import './more.css'
 import { ModuleEditor } from '../ui/ModuleEditor'
 import { BuiltModules } from '../modules/ModuleBuilder'
-import { StartingLayout, WhereYouAre, WorkSettings } from '../settings/PlanningSettings'
+import { DaySettings, StartingLayout, WhereYouAre, WorkSettings } from '../settings/PlanningSettings'
 import { HoldSettings } from '../settings/HoldSettings'
 import { TodayCardsSettings } from '../settings/TodayCardsSettings'
 import { FoodSettings } from '../settings/FoodSettings'
@@ -293,11 +293,12 @@ function ProfilePanel() {
   )
 }
 
-/** Settings → Planning: the work week, how a hold behaves, Today's cards,
- *  note templates and the evening review. */
+/** Settings → Planning: your day (v19), the work week, how a hold behaves,
+ *  Today's cards, note templates and the evening review. */
 function PlanningPanel() {
   return (
     <>
+      <DaySettings />
       <WorkSettings />
       <HoldSettings />
       <TodayCardsSettings />

@@ -15,6 +15,9 @@ import type { Profile } from '../lib/types'
 import { Dropdown } from '../ui/Dropdown'
 import { SearchPick } from '../ui/SearchPick'
 import { WorkFields } from './WorkFields'
+import { savePlanPrefs, usePlanPrefs } from '../lib/plan-prefs'
+import { cleanCapacity } from '../lib/plan-view-rules'
+import { cleanClock, dayEdges, wakingMinutes } from '../lib/day-edge-rules'
 import './planning.css'
 import { planToday } from '../lib/day-edge'
 
@@ -35,6 +38,13 @@ export function WorkSettings() {
   const profile = useApp((s) => s.profile)
   if (!profile) return null
   return <Work key={profile.id} profile={profile} />
+}
+/** Settings → Planning → Your day (v19): day start and end (GEN-70), what a
+ *  day can hold (TOD-22), Plan my day (TOD-22) and quick add (TSK-07). */
+export function DaySettings() {
+  const profile = useApp((s) => s.profile)
+  if (!profile) return null
+  return <YourDay key={profile.id} profile={profile} />
 }
 export function StartingLayout() {
   const profile = useApp((s) => s.profile)
@@ -114,6 +124,71 @@ function Work({ profile }: { profile: Profile }) {
           )}
         </div>
       )}
+    </>
+  )
+}
+
+function YourDay({ profile }: { profile: Profile }) {
+  const prefs = usePlanPrefs(profile.id)
+  const edges = dayEdges(profile)
+  const waking = wakingMinutes(edges)
+  const [hours, setHours] = useState<string | null>(null)
+  const shownHours = hours ?? (prefs.capacity_min ? String(Math.round(prefs.capacity_min / 6) / 10) : '')
+  const hoursWord = (m: number) => `${Math.round(m / 6) / 10} h`
+
+  function saveEdge(field: 'day_start' | 'day_end', v: string) {
+    const t = cleanClock(v)
+    if (t && t !== cleanClock(profile[field])) void edit('profile', profile, field === 'day_start' ? { day_start: t } : { day_end: t })
+  }
+  function saveHours(v: string) {
+    setHours(null)
+    const n = Number(v.replace(',', '.'))
+    const capacity = v.trim() && Number.isFinite(n) ? cleanCapacity(n * 60) : null
+    if (capacity !== prefs.capacity_min) void savePlanPrefs(profile.id, { capacity_min: capacity })
+  }
+
+  return (
+    <>
+      <p className="section-title">Your day</p>
+      <div className="setting-row">
+        <div className="row-name">Day starts</div>
+        <input className="btn" type="time" value={edges.start} aria-label="Day starts"
+          onChange={(e) => saveEdge('day_start', e.target.value)} />
+      </div>
+      <div className="setting-row">
+        <div>
+          <div className="row-name">Day ends</div>
+          <div className="row-meta">After midnight, until then still counts as the day before.</div>
+        </div>
+        <input className="btn" type="time" value={edges.end} aria-label="Day ends"
+          onChange={(e) => saveEdge('day_end', e.target.value)} />
+      </div>
+      <div className="setting-row">
+        <div>
+          <div className="row-name">Planned time a day can hold</div>
+          <div className="row-meta">Left empty: your waking day, {hoursWord(waking)}.</div>
+        </div>
+        <span className="pl-hours">
+          <input className="btn" inputMode="decimal" value={shownHours} placeholder={String(Math.round(waking / 6) / 10)}
+            aria-label="Hours a day can hold" maxLength={4}
+            onChange={(e) => setHours(e.target.value.replace(/[^0-9.,]/g, ''))}
+            onBlur={() => hours !== null && saveHours(hours)} />
+          <span aria-hidden="true">h</span>
+        </span>
+      </div>
+      <div className="setting-row">
+        <div className="row-name">Plan my day each morning</div>
+        <button className="switch" role="switch" aria-checked={prefs.plan_my_day} aria-label="Plan my day each morning"
+          onClick={() => void savePlanPrefs(profile.id, { plan_my_day: !prefs.plan_my_day })} />
+      </div>
+      <div className="setting-row">
+        <div>
+          <div className="row-name">Read dates and times from what I type</div>
+          <div className="row-meta">“Gym tomorrow 18:00 #Training”</div>
+        </div>
+        <button className="switch" role="switch" aria-checked={prefs.quick_add} aria-label="Read dates and times from what I type"
+          onClick={() => void savePlanPrefs(profile.id, { quick_add: !prefs.quick_add })} />
+      </div>
     </>
   )
 }

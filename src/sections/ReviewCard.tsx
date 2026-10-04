@@ -12,6 +12,7 @@ import { flexibleSeriesIds } from '../lib/series'
 import { carryOver } from '../lib/day-items-rules'
 import { carry, type CarryAction } from '../lib/rail-actions'
 import { TaskSheet } from '../ui/TaskSheet'
+import { CloseDay } from './CloseDay'
 import { MoreMenu } from '../ui/MoreMenu'
 import { offerUndo } from '../ui/Undo'
 import type { Task } from '../lib/types'
@@ -54,6 +55,7 @@ export function ReviewCard({ profileId, day, variant }: { profileId: string; day
           <span className="review-toggle">{open ? 'Hide' : 'Review'}</span>
         </button>
         {open && <ReviewList tasks={tasks} day={day} today={today} />}
+        {open && day === today && <CloseDayButton profileId={profileId} day={day} />}
       </section>
     )
   }
@@ -64,6 +66,7 @@ export function ReviewCard({ profileId, day, variant }: { profileId: string; day
       {tasks.length === 0
         ? <p className="empty">Nothing left to review.</p>
         : <ReviewList tasks={tasks} day={day} today={today} />}
+      {tasks.length > 0 && day === today && <CloseDayButton profileId={profileId} day={day} />}
       <ReviewTimeControl time={settings.time} />
     </section>
   )
@@ -141,6 +144,20 @@ function ReviewItem({ task, day, today, onEdit }: {
         </form>
       )}
     </li>
+  )
+}
+
+/** Close the day (TOD-23) at review time: today's leftovers to tomorrow or
+ *  the Inbox in one go. */
+function CloseDayButton({ profileId, day }: { profileId: string; day: string }) {
+  const [open, setOpen] = useState(false)
+  return (
+    <>
+      <div className="review-close">
+        <button type="button" className="btn" aria-haspopup="dialog" onClick={() => setOpen(true)}>Close the day…</button>
+      </div>
+      {open && <CloseDay profileId={profileId} day={day} onClose={() => setOpen(false)} />}
+    </>
   )
 }
 
