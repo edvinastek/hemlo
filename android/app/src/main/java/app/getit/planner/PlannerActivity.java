@@ -4,6 +4,7 @@ import android.os.Bundle;
 
 import com.getcapacitor.BridgeActivity;
 
+import app.getit.planner.health.HealthPlugin;
 import app.getit.planner.looks.LooksPlugin;
 import app.getit.planner.widget.WidgetPlugin;
 
@@ -17,10 +18,11 @@ import app.getit.planner.widget.WidgetPlugin;
 public class PlannerActivity extends BridgeActivity {
     @Override
     public void onCreate(Bundle savedInstanceState) {
-        // The widget's and the looks' bridges live in this app, not in npm
+        // The widget's, the looks' and Health Connect's bridges live in this app, not in npm
         // packages, so they are registered here before the bridge starts.
         registerPlugin(WidgetPlugin.class);
         registerPlugin(LooksPlugin.class);
+        registerPlugin(HealthPlugin.class);
         super.onCreate(savedInstanceState);
     }
 }

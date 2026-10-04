@@ -13,6 +13,7 @@ def getitVersionCode() {
 }
 
 apply plugin: 'com.android.application'
+apply plugin: 'kotlin-android'
 
 android {
     namespace = "app.getit.planner"
@@ -53,6 +54,9 @@ android {
             }
         }
     }
+    kotlinOptions {
+        jvmTarget = '21'
+    }
     buildTypes {
         release {
             minifyEnabled false
@@ -74,6 +78,11 @@ dependencies {
     implementation "androidx.coordinatorlayout:coordinatorlayout:$androidxCoordinatorLayoutVersion"
     implementation "androidx.core:core-splashscreen:$coreSplashScreenVersion"
     implementation project(':capacitor-android')
+    // Health Connect, for importing sleep (SLP-05). Its minimum Android is 8;
+    // the app's is 7, so the manifest lets it in (overrideLibrary) and the
+    // bridge never touches it below Android 9, where Health Connect cannot run.
+    implementation 'androidx.health.connect:connect-client:1.1.0'
+    implementation 'org.jetbrains.kotlinx:kotlinx-coroutines-android:1.10.2'
     testImplementation "junit:junit:$junitVersion"
     // The widget's model reads JSON; Android's own org.json is only a stub in
     // plain JVM tests. Robolectric draws the real widget layout in a test so

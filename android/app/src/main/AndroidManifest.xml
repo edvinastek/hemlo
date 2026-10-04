@@ -236,6 +236,32 @@
             android:exported="true" />
 
         <!--
+          Sleep from Health Connect (SLP-05). Health Connect opens this screen
+          from its permission screen (Android 13 and earlier, the action) and
+          from its settings (Android 14 and later, the alias, which only the
+          system may start). It says what GetIt reads and what it does with it.
+        -->
+        <activity
+            android:name=".health.HealthPrivacyActivity"
+            android:label="@string/health_privacy_title"
+            android:theme="@style/HealthPrivacy"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="androidx.health.ACTION_SHOW_PERMISSIONS_RATIONALE" />
+            </intent-filter>
+        </activity>
+        <activity-alias
+            android:name=".health.HealthPermissionUsage"
+            android:targetActivity=".health.HealthPrivacyActivity"
+            android:permission="android.permission.START_VIEW_PERMISSION_USAGE"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW_PERMISSION_USAGE" />
+                <category android:name="android.intent.category.HEALTH_PERMISSIONS" />
+            </intent-filter>
+        </activity-alias>
+
+        <!--
           Barcodes are read by Google's code scanner in Play services, which
           opens its own camera screen and hands back only the number. Asking
           for it here has Google Play fetch the scanner with the app, so the
@@ -253,6 +279,19 @@
     </application>
 
     <uses-permission android:name="android.permission.INTERNET" />
+
+    <!--
+      Sleep from Health Connect (SLP-05): reading sleep sessions, and nothing
+      else. Health Connect asks the person only when they choose Import on the
+      Sleep page. Its client library wants Android 8; the app keeps Android 7
+      and never calls it below Android 9 (health/HealthPlugin.kt). The query
+      lets the app see whether the Health Connect app is installed.
+    -->
+    <uses-permission android:name="android.permission.health.READ_SLEEP" />
+    <uses-sdk tools:overrideLibrary="androidx.health.connect.client" />
+    <queries>
+        <package android:name="com.google.android.apps.healthdata" />
+    </queries>
 
     <!--
       Switching between accounts kept on this phone asks for the phone's own
