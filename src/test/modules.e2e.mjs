@@ -88,6 +88,8 @@ await p.getByRole('button', exact('Save')).click()
 await settle(p)
 await p.getByRole('button', exact('Back')).click()
 await p.getByRole('button', exact('Add expense')).click()
+// v18 (CALM-08): a field beyond what makes the record waits under More options.
+await p.locator('form.bottom-sheet .mo-toggle').click()
 is('the new field is on the form', await p.getByLabel('Shop').count(), 1)
 await p.getByRole('button', exact('Cancel')).click()
 r = await one(`select definition::text like '%"name": "shop"%' or definition::text like '%"name":"shop"%' has from public.module where key = '${key}'`)

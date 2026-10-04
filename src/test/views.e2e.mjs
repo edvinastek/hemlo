@@ -69,6 +69,8 @@ async function add(what, amount, category) {
   const form = p.locator('form.bottom-sheet[role=dialog]')
   await form.getByLabel('What').fill(what)
   await form.getByLabel('Amount').fill(String(amount))
+  // v18 (CALM-08): the category waits under More options.
+  if ((await form.locator('.mo-toggle').getAttribute('aria-expanded')) !== 'true') await form.locator('.mo-toggle').click()
   await form.getByRole('button', exact('Category')).click()
   await p.getByRole('listbox', { name: 'Category' }).getByRole('option', exact(category)).click()
   await p.getByRole('button', exact('Save')).click()
