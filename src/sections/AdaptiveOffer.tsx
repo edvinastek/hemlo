@@ -52,7 +52,7 @@ export function AdaptiveOffer({ profileId, day, today }: { profileId: string; da
       <p className="adapt-line">{offerText(est.kcal)}</p>
       <div className="adapt-actions">
         <button type="button" className="btn" onClick={() => void notNowAdaptive(profileId, today)}>Not now</button>
-        <button type="button" className="btn btn-primary" onClick={() => void use()}>Use</button>
+        <button type="button" className="btn" onClick={() => void use()}>Use</button>
         <MoreMenu className="adapt-more" label="More about this estimate" items={[{ label: 'About this estimate', onSelect: () => setAbout(true) }]} />
       </div>
       {about && (

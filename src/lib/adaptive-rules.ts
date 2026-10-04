@@ -159,6 +159,8 @@ export function shouldOffer(est: Adaptive, current: number | null, bmr: number |
 }
 
 const kcalText = (n: number) => Math.round(n).toLocaleString('en-GB')
+const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
+const dayText = (d: string) => `${Number(d.slice(8, 10))} ${MONTHS[Number(d.slice(5, 7)) - 1]}`
 const kgText = (n: number) => `${n < 0 ? '−' : n > 0 ? '+' : ''}${Math.abs(n).toFixed(2)}`
 
 /** The offer's line. */
@@ -170,7 +172,7 @@ export function aboutText(est: Extract<Adaptive, { ok: true }>, bmr: number, cur
   const change = (est.rate / 7) * days
   const factor = factorFrom(est.kcal, bmr)
   return [
-    `From the ${est.weeks} weeks to ${est.to}: you logged food on ${est.daysLogged} of ${days} days, ${kcalText(est.intake)} kcal a day on average, and weighed in ${est.weighIns} ${est.weighIns === 1 ? 'time' : 'times'}.`,
+    `From the ${est.weeks} weeks to ${dayText(est.to)}: you logged food on ${est.daysLogged} of ${days} days, ${kcalText(est.intake)} kcal a day on average, and weighed in ${est.weighIns} ${est.weighIns === 1 ? 'time' : 'times'}.`,
     `Your trend weight moved ${kgText(change)} kg (${kgText(est.rate)} kg a week). A kilo of body weight holds about ${kcalText(KCAL_PER_KG)} kcal, so that is ${kcalText(Math.abs(est.stored))} kcal a day ${est.stored < 0 ? 'your body gave' : 'your body stored'}.`,
     `${kcalText(est.intake)} ${est.stored < 0 ? '+' : '−'} ${kcalText(Math.abs(est.stored))} ≈ ${kcalText(est.kcal)} kcal a day keeps your weight where it is. Your targets rest on ${kcalText(current)} kcal now.`,
     factor !== null ? `Use sets your activity factor to ${factor} (${kcalText(est.kcal)} ÷ your resting ${kcalText(bmr)} kcal), and the targets are worked out again. Undo puts it back.` : '',
