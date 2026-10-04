@@ -13,6 +13,7 @@ import { useExport } from './ExportLink'
 import { NO_REPEAT, RepeatPicker, type RepeatValue } from './RepeatPicker'
 import { SelectAction, SelectBar, SelectDelete } from './SelectBar'
 import { offerUndo } from './Undo'
+import { withBusy } from '../lib/busy'
 import { useBackClose } from './useBackClose'
 import { useDayRange } from './useDayRange'
 import type { Selection } from './useSelection'
@@ -44,7 +45,9 @@ export function TaskSelectBar({ sel, shown, profileId, inbox = false }: {
     const list = picked
     const undo = await moveWithUndo(list.map((task) => ({ task, to: day })))
     const words = day ? `planned for ${dayLabel(day)}` : 'sent to the Inbox'
-    offerUndo(list.length === 1 ? `“${list[0].title}” ${words}` : `${list.length} tasks ${words}`, undo)
+    const said = list.length === 1 ? `“${list[0].title}” ${words}` : `${list.length} tasks ${words}`
+    // A busy all-day event there is said with the Undo (AGN-07).
+    offerUndo(day ? await withBusy(said, profileId, [day]) : said, undo)
     sel.clear()
   }
 

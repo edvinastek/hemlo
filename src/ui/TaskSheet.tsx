@@ -12,7 +12,9 @@ import {
 import { describeRule, repeatChanged, repeatOfSeries, TASK_RULE_KINDS } from '../lib/series-rules'
 import { cleanSection, sectionChoices } from '../lib/plan-view-rules'
 import { savePlanPrefs, usePlanPrefs } from '../lib/plan-prefs'
-import { applyTaskTemplate, duplicateOf, templateOfTask, templateRepeat, withTaskTemplate } from '../lib/task-sheet-rules'
+import { applyTaskTemplate, duplicateOf, templateOfTask, templateRepeat, withQuickAdd, withTaskTemplate } from '../lib/task-sheet-rules'
+import { readQuickAdd, type ReadingKind } from '../lib/quick-add-rules'
+import { useBusyOn } from '../lib/busy'
 import { useModuleColours } from '../lib/colours'
 import { durationBetween, endFrom, shortSpan, toMinutes } from '../lib/timeframe'
 import { Dropdown, type Option } from './Dropdown'
@@ -25,6 +27,7 @@ import { MoreMenu } from './MoreMenu'
 import { GoalField, ProjectField } from '../sections/ProjectField'
 import { useBackClose } from './useBackClose'
 import { offerUndo } from './Undo'
+import { QuickChips } from './TaskSheetChips'
 import './tasksheet.css'
 import { planToday } from '../lib/day-edge'
 
@@ -89,6 +92,14 @@ function TaskForm({ task, isNew, onClose, onDuplicate }: {
   const [noteTpl, setNoteTpl] = useState<string | null>(null)
   const [carryNote, setCarryNote] = useState(true)
   const set = <K extends keyof Task>(k: K, v: Task[K]) => setDraft((d) => ({ ...d, [k]: v }))
+  // Quick add (TSK-07): a new task's name is read as it is typed. `off`:
+  // readings whose chip was tapped (the words stay in the name); `byHand`:
+  // fields then set by hand, which keep the person's value.
+  const [typed, setTyped] = useState(false)
+  const [off, setOff] = useState<ReadingKind[]>([])
+  const [byHand, setByHand] = useState<ReadingKind[]>([])
+  const hand = (k: ReadingKind) => setByHand((h) => (h.includes(k) ? h : [...h, k]))
+
 
   useBackClose(onClose)
   // The note page closes itself on Back, keeping what was typed.
@@ -108,23 +119,40 @@ function TaskForm({ task, isNew, onClose, onDuplicate }: {
   // Redraws the control when a saved task brings its own repeat.
   const [pickerKey, setPickerKey] = useState(0)
   const seriesRepeat = useMemo<RepeatValue | null>(() => (series ? { ...repeatOfSeries(series) } as RepeatValue : null), [series])
-  const repeat: RepeatValue = repeatEdit ?? seriesRepeat ?? NO_REPEAT
-  const ruleChanged = inSeries && running && !!repeatEdit && !!series && repeatChanged(series, repeatEdit)
-
-  const day = draft.planned_date
-  const start = day ?? today
-  const endsEarly = !!repeat.rule && !!repeat.end_date && repeat.end_date < start
-  // Picking dates with none picked would be a series with nothing in it.
-  const noDates = repeat.rule === 'dates' && (repeat.rule_config.dates ?? []).length === 0
-
   // GEN-05: sections of modules that are on, the person's own, and the
   // task's own, so it never shows blank.
   const sections = sectionChoices(colours.enabled, prefs.own_sections, task.category)
   const sectionOptions: Option[] = [{ value: '', label: '—' }, ...sections.map((c) => ({ value: c, label: c })),
     { value: '__new', label: 'New section…' }]
 
+  // What the name says (TSK-07), once the person has typed in it; switched
+  // off in Settings → Planning, nothing is read.
+  const reading = useMemo(() => (isNew && typed && prefs.quick_add
+    ? readQuickAdd(draft.title, { today, base: task.planned_date, sections, off }) : null),
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  [isNew, typed, prefs.quick_add, draft.title, today, task.planned_date, sections.join('|'), off])
+  // The form as shown and saved: the draft with the readings laid over it.
+  const shown = withQuickAdd(draft, reading, byHand)
+  const chips = (reading?.chips ?? []).filter((c) => !byHand.includes(c.kind))
+  // A repeat read from the name, until one is chosen in the control.
+  const readRepeat = useMemo<RepeatValue | null>(() => (reading?.repeat && !byHand.includes('repeat') && !inSeries
+    ? { ...reading.repeat, end_date: null } : null), [reading, byHand, inSeries])
+
+  const repeat: RepeatValue = repeatEdit ?? readRepeat ?? seriesRepeat ?? NO_REPEAT
+  const ruleChanged = inSeries && running && !!repeatEdit && !!series && repeatChanged(series, repeatEdit)
+
+  const day = shown.planned_date
+  const start = day ?? today
+  const endsEarly = !!repeat.rule && !!repeat.end_date && repeat.end_date < start
+  // Picking dates with none picked would be a series with nothing in it.
+  const noDates = repeat.rule === 'dates' && (repeat.rule_config.dates ?? []).length === 0
+  // AGN-07: a whole-day event marked busy on the day being planned, said in
+  // one line above the buttons, and Save becomes "Plan anyway": a warning,
+  // never a block. Only for a new task or a day that changed.
+  const busyNote = useBusyOn(profile?.id, isNew || day !== task.planned_date ? day : null)
+
   // An end time means nothing without a start, so the choice waits for one.
-  const hasStart = toMinutes(draft.planned_time) !== null
+  const hasStart = toMinutes(shown.planned_time) !== null
   const showUntil = until && hasStart
 
   const savedTemplates = settings.task_templates
@@ -133,28 +161,36 @@ function TaskForm({ task, isNew, onClose, onDuplicate }: {
   function chooseUntil(on: boolean) {
     // Ticking never changes the length by itself: the end shown is the one the
     // current minutes give, or blank when there are none (or a day or more).
-    if (on) setEndTime(endFrom(draft.planned_time, draft.duration_min) ?? '')
+    if (on) setEndTime(endFrom(shown.planned_time, shown.duration_min) ?? '')
     setUntil(on)
   }
 
   function changeEnd(end: string) {
     setEndTime(end)
-    const mins = durationBetween(draft.planned_time, end)
-    if (mins !== null) set('duration_min', mins || null)
+    const mins = durationBetween(shown.planned_time, end)
+    if (mins !== null) { set('duration_min', mins || null); hand('length') }
   }
 
   // With an end time showing, moving the start keeps the end where it is:
   // "until five" still means five. The length is what gives.
   function changeStart(time: string) {
     set('planned_time', time || null)
+    hand('time')
     if (!showUntil || !endTime) return
     const mins = durationBetween(time, endTime)
-    if (mins !== null) set('duration_min', mins || null)
+    if (mins !== null) { set('duration_min', mins || null); hand('length') }
+  }
+
+  /** A day chosen by hand wins over one read from the name. */
+  function changeDay(d: string | null) {
+    set('planned_date', d)
+    hand('day')
   }
 
   function chooseSection(v: string) {
     if (v === '__new') { setNewSection(''); return }
     set('category', v || null)
+    hand('section')
   }
 
   async function addSection() {
@@ -162,6 +198,7 @@ function TaskForm({ task, isNew, onClose, onDuplicate }: {
     setNewSection(null)
     if (!name || !profile) return
     set('category', name)
+    hand('section')
     if (!sections.includes(name)) await savePlanPrefs(profile.id, { own_sections: [...prefs.own_sections, name].slice(-20) })
   }
 
@@ -195,9 +232,9 @@ function TaskForm({ task, isNew, onClose, onDuplicate }: {
 
   async function save(e?: React.FormEvent) {
     e?.preventDefault()
-    const title = draft.title.trim()
+    const title = shown.title.trim()
     if (!title || busy || endsEarly || noDates) return
-    const next = { ...draft, title }
+    const next = { ...shown, title }
     setDraft(next)
 
     if (!inSeries) {
@@ -233,7 +270,7 @@ function TaskForm({ task, isNew, onClose, onDuplicate }: {
 
   async function saveTemplate() {
     if (!profile) return
-    const t = templateOfTask({ ...draft, title: draft.title.trim() }, templateName, repeat.rule ? repeat : null,
+    const t = templateOfTask({ ...shown, title: shown.title.trim() }, templateName, repeat.rule ? repeat : null,
       savedTemplates.map((x) => x.id), carryNote ? usedNoteTemplate : null)
     await saveSettings(profile, { task_templates: withTaskTemplate(savedTemplates, t) })
     setSaid(`Saved as the template “${t.name}”.`)
@@ -251,14 +288,14 @@ function TaskForm({ task, isNew, onClose, onDuplicate }: {
   }
 
   const heading = isNew ? (task.planned_date ? 'New task' : 'New task for the Inbox') : 'Edit task'
-  const named = !!draft.title.trim()
+  const named = !!shown.title.trim()
   // Never a sheet on a sheet (CALM-10): while copying, the copy dialog
   // stands in for this one, and Back or Cancel there comes back here.
   if (copyOpen) {
     return <CopySheet what={{ kind: 'task', task: { ...draft, title: draft.title.trim() } }} onClose={() => setCopyOpen(false)} />
   }
   const extras = [
-    draft.category ? `Section ${draft.category}` : null,
+    shown.category ? `Section ${shown.category}` : null,
     draft.project_id ? 'a project' : null,
     draft.goal_id ? 'a goal' : null,
     draft.fixed ? 'fixed' : null,
@@ -276,7 +313,7 @@ function TaskForm({ task, isNew, onClose, onDuplicate }: {
             <MoreMenu label="More for this task" items={[
               !isNew && { label: 'Copy to…', disabled: !named, onSelect: () => setCopyOpen(true) },
               !isNew && { label: 'Duplicate', disabled: !named, onSelect: () => onDuplicate({ ...draft, title: draft.title.trim() }) },
-              { label: 'Save as template…', disabled: !named, onSelect: () => { setTemplateName(draft.title.trim()); setStep('template') } },
+              { label: 'Save as template…', disabled: !named, onSelect: () => { setTemplateName(shown.title.trim()); setStep('template') } },
             ]} />
           )}
         </div>
@@ -370,34 +407,36 @@ function TaskForm({ task, isNew, onClose, onDuplicate }: {
             <div className="form-grid">
               <label>What
                 <input autoFocus required value={draft.title} placeholder="Mobility"
-                  onChange={(e) => set('title', e.target.value)} />
+                  onChange={(e) => { set('title', e.target.value); setTyped(true) }} />
               </label>
+              {/* What quick add read from the name (TSK-07); a tap takes it away. */}
+              <QuickChips chips={chips} onRemove={(k) => setOff((o) => (o.includes(k) ? o : [...o, k]))} />
               <div className="ts-daycell">
                 <label>Day
-                  <input type="date" value={day ?? ''} onChange={(e) => set('planned_date', e.target.value || null)} />
+                  <input type="date" value={day ?? ''} onChange={(e) => changeDay(e.target.value || null)} />
                 </label>
                 {day ? (
                   <button type="button" className="ts-inbox-link"
-                    onClick={() => set('planned_date', null)}>No day (Inbox)</button>
+                    onClick={() => changeDay(null)}>No day (Inbox)</button>
                 ) : (
-                  <button type="button" className="ts-inbox-link" onClick={() => set('planned_date', today)}>Today</button>
+                  <button type="button" className="ts-inbox-link" onClick={() => changeDay(today)}>Today</button>
                 )}
               </div>
               <div className="two">
                 <label>Time
-                  <input type="time" value={draft.planned_time?.slice(0, 5) ?? ''} onChange={(e) => changeStart(e.target.value)} />
+                  <input type="time" value={shown.planned_time?.slice(0, 5) ?? ''} onChange={(e) => changeStart(e.target.value)} />
                 </label>
                 {/* Minutes, or an end time when "End time instead" is on (in
                     More options): one cell either way (TSK-02). */}
                 {showUntil ? (
                   <label>
-                    <span className="ts-dur-name">Ends{draft.duration_min ? ` · ${shortSpan(draft.duration_min)}` : ''}</span>
+                    <span className="ts-dur-name">Ends{shown.duration_min ? ` · ${shortSpan(shown.duration_min)}` : ''}</span>
                     <input type="time" aria-label="End time" value={endTime} onChange={(e) => changeEnd(e.target.value)} />
                   </label>
                 ) : (
                   <label>Minutes
-                    <input type="number" min={0} step={5} value={draft.duration_min ?? ''}
-                      onChange={(e) => set('duration_min', e.target.value ? Number(e.target.value) : null)} />
+                    <input type="number" min={0} step={5} value={shown.duration_min ?? ''}
+                      onChange={(e) => { set('duration_min', e.target.value ? Number(e.target.value) : null); hand('length') }} />
                   </label>
                 )}
               </div>
@@ -410,7 +449,8 @@ function TaskForm({ task, isNew, onClose, onDuplicate }: {
               )}
               {series !== undefined && (!inSeries || running) && (day ? (
                 <div className="ts-repeatbox">
-                  <RepeatPicker key={`${series?.id ?? 'new'}:${pickerKey}`} value={repeat} onChange={setRepeatEdit} start={start} today={today}
+                  <RepeatPicker key={`${series?.id ?? 'new'}:${pickerKey}:${readRepeat ? JSON.stringify(readRepeat) : ''}`} value={repeat}
+                    onChange={(v) => { setRepeatEdit(v); hand('repeat') }} start={start} today={today}
                     kinds={TASK_RULE_KINDS} allowCount loose noneLabel={inSeries ? 'Stop repeating' : 'Does not repeat'} />
                   {running && (
                     <button type="button" className="btn ts-stop" onClick={() => void askStop()}>Stop repeating</button>
@@ -447,7 +487,7 @@ function TaskForm({ task, isNew, onClose, onDuplicate }: {
                 <div className="ts-field">
                   <span className="ts-field-name">Section</span>
                   {newSection === null ? (
-                    <Dropdown label="Section" placeholder="—" value={draft.category ?? ''}
+                    <Dropdown label="Section" placeholder="—" value={shown.category ?? ''}
                       options={sectionOptions} onChange={chooseSection} />
                   ) : (
                     <div className="ts-newsection">
@@ -483,6 +523,7 @@ function TaskForm({ task, isNew, onClose, onDuplicate }: {
             {inSeries && confirmDelete && (
               <p className="ts-repeat-rule">Deletes this day only; the series goes on.</p>
             )}
+            {busyNote && <p className="ts-busy" role="status"><span>{busyNote}</span></p>}
             <div className="sheet-actions">
               {!isNew && !confirmDelete && <button type="button" className="btn" onClick={() => setConfirmDelete(true)}>Delete</button>}
               {!isNew && confirmDelete && (
@@ -490,7 +531,7 @@ function TaskForm({ task, isNew, onClose, onDuplicate }: {
                   onClick={() => void remove()}>{inSeries ? 'Delete this day' : 'Delete'}</button>
               )}
               <button type="button" className="btn grow" onClick={onClose}>Cancel</button>
-              <button type="submit" className="btn btn-primary" disabled={busy || endsEarly || noDates}>Save</button>
+              <button type="submit" className="btn btn-primary" disabled={busy || endsEarly || noDates}>{busyNote ? 'Plan anyway' : 'Save'}</button>
             </div>
           </>
         )}

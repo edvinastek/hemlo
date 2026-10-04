@@ -2,6 +2,8 @@
 // Save as template and starting from one (TSK-26).
 import { duplicateOf, templateOfTask, applyTaskTemplate, templateRepeat, withTaskTemplate } from '../lib/task-sheet-rules.ts'
 import { readTaskTemplates } from '../lib/template-rules.ts'
+import { withQuickAdd } from '../lib/task-sheet-rules.ts'
+import { readQuickAdd } from '../lib/quick-add-rules.ts'
 
 let fail = 0
 const eq = (label, got, want) => {
@@ -53,6 +55,19 @@ eq('an after-done one keeps the own note, without the marker', (({ note_template
   ['reading', '- [ ] pages'])
 eq('and comes back the same', applyTaskTemplate(blank, templateOfTask(asked, 'R', null, [], notes[1]), notes).notes, '- [ ] pages\n{after-done:reading}')
 eq('replace a template by id', withTaskTemplate([tpl], { ...tpl, title: 'New' }).map((t) => t.title), ['New'])
+
+// ---------- v19 quick add in the sheet (TSK-07) ----------------------------------------
+const form = { ...blank, title: 'Gym tomorrow 18:00-19:30 #Training', planned_date: '2026-10-05', planned_time: null, duration_min: null, category: null }
+const qa = (t, more = {}) => readQuickAdd(t, { today: '2026-10-05', base: '2026-10-05', sections: ['Training'], ...more })
+const read19 = withQuickAdd(form, qa(form.title))
+eq('the form takes what the line says', [read19.title, read19.planned_date, read19.planned_time, read19.duration_min, read19.category],
+  ['Gym', '2026-10-06', '18:00', 90, 'Training'])
+const hand = withQuickAdd({ ...form, planned_time: '07:00', duration_min: 30 }, qa(form.title), ['time', 'length'])
+eq('a field set by hand keeps the person’s value', [hand.planned_time, hand.duration_min, hand.planned_date], ['07:00', 30, '2026-10-06'])
+eq('nothing read: the form as it is', withQuickAdd(form, null), form)
+const swim = qa('Swim every tue')
+eq('a repeat’s first day is the day', withQuickAdd(form, swim).planned_date, '2026-10-06')
+eq('…unless the repeat was then chosen by hand', withQuickAdd(form, swim, ['repeat']).planned_date, '2026-10-05')
 
 if (fail) { console.log(`\n${fail} task sheet check(s) failed`); process.exit(1) }
 console.log('\nall task sheet checks passed')

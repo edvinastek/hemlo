@@ -353,6 +353,16 @@ Added when the ten version 16 branches were wired together (integration):
   words in the title; and the words it must not eat (sun cream, May 2 people, 5-6 reps, €18.00, 1/2 cup, Weekly
   review, the short Dutch day names, a second day or time).
 
+- `closeday` — Close the day and Plan my day (v19, TOD-23 close-day-rules.ts, TOD-22 plan-day-rules.ts): what is left
+  of today in the day's order; to tomorrow or the Inbox in one go, and what stays with its note (locked, fixed, a
+  planned meal, a flexible repeat; a repeat cannot go to the Inbox); the Undo line. Plan my day offered only when on,
+  once a day, and with something to decide; a leftover's choices; suggestions (due soon and overdue, flexible repeats
+  coming up, flexible chores nearly due and not on today, study reviews), their order, words and minutes, at most
+  eight; the workload bar against the day's capacity, warning when over; what "Start the day" does and says.
+  With `tasksheet` (quick add laid over the task sheet's fields, a field set by hand winning) and `calendar` /
+  `calendarlinks` (AGN-07: TRANSP read from a followed calendar, only a whole-day event marked busy is busy, the
+  one-line warning).
+
 ## Browser checks
 
 They need the app built and served (`npm run build`, then

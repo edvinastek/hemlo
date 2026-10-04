@@ -22,8 +22,8 @@ eq('the example: repeat in the repeat control’s shape', gym.repeat, { rule: 'w
 eq('the example: chips', gym.chips, [
   { kind: 'day', label: 'Tomorrow' }, { kind: 'time', label: '18:00–19:30' },
   { kind: 'repeat', label: 'Weekly on Mon, Wed' }, { kind: 'section', label: 'Training' }])
-eq('nothing to read: the line is the title', pick(read('Call the dentist'), 'title', 'day', 'time', 'minutes', 'repeat', 'section', 'chips'),
-  { title: 'Call the dentist', day: null, time: null, minutes: null, repeat: null, section: null, chips: [] })
+eq('nothing to read: the line is the title', pick(read('Call the dentist'), 'title', 'day', 'dayFromRepeat', 'time', 'minutes', 'repeat', 'section', 'chips'),
+  { title: 'Call the dentist', day: null, dayFromRepeat: false, time: null, minutes: null, repeat: null, section: null, chips: [] })
 
 // ---------- taking a reading away ------------------------------------------------------
 const noDay = read('Gym tomorrow 18:00-19:30 every Mon Wed #Training', { off: ['day'] })
@@ -87,7 +87,7 @@ eq('every Mon, Wed and Fri', rp('Gym every Mon, Wed and Fri'), { rule: 'weekly',
 eq('elke maandag en donderdag', rp('Sporten elke maandag en donderdag'), { rule: 'weekly', rule_config: { weekdays: [1, 4] } })
 eq('on Mondays, maandags', [rp('Yoga on mondays'), rp('Yoga maandags')], [{ rule: 'weekly', rule_config: { weekdays: [1] } }, { rule: 'weekly', rule_config: { weekdays: [1] } }])
 const tue = read('Swim every tue thu')
-eq('a weekly repeat not on today starts on its first day', [tue.day, tue.chips], ['2026-10-06', [{ kind: 'repeat', label: 'Weekly on Tue, Thu, from Tomorrow' }]])
+eq('a weekly repeat not on today starts on its first day', [tue.day, tue.dayFromRepeat, tue.chips], ['2026-10-06', true, [{ kind: 'repeat', label: 'Weekly on Tue, Thu, from Tomorrow' }]])
 eq('…from the day in view, not only today', read('Swim every fri', { base: '2026-10-10' }).day, '2026-10-16')
 eq('…and a repeat on today’s weekday keeps the day', read('Gym every mon wed').day, null)
 eq('a repeat leaves the title', read('Gym every Mon Wed').title, 'Gym')

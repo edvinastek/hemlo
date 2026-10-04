@@ -5,6 +5,7 @@ import { applyNoteTemplate, clearTicks, templateId, type NoteTemplate, type Task
 import { removeMarkers } from './after-done-rules.ts'
 import { cleanRule, type RuleConfig, type RuleKind } from './schedule-rules.ts'
 import type { Task } from './types'
+import type { QuickAddResult, ReadingKind } from './quick-add-rules.ts'
 
 /** TSK-24: the task as a new one, everything kept so anything can be
  *  changed before saving: a fresh id, not done, no history, and no series
@@ -67,4 +68,24 @@ export function templateRepeat(tpl: TaskTemplate): RepeatLike | null {
 /** Put a template in the list, replacing one with the same id. */
 export function withTaskTemplate(list: TaskTemplate[], t: TaskTemplate): TaskTemplate[] {
   return list.some((x) => x.id === t.id) ? list.map((x) => (x.id === t.id ? t : x)) : [...list, t].slice(-100)
+}
+
+/** TSK-07: the form as quick add reads it. What the line says fills in the
+ *  day, time, length and section, except a field the person then set by
+ *  hand (`byHand`), which keeps their value; the name is what is left of
+ *  the line. A day read from a repeat ("every Tue", not on the day in view)
+ *  is the day too, and is shown in the repeat's chip. */
+export function withQuickAdd(draft: Task, r: QuickAddResult | null, byHand: readonly ReadingKind[] = []): Task {
+  if (!r) return draft
+  const use = (k: ReadingKind) => !byHand.includes(k)
+  return {
+    ...draft,
+    title: r.title,
+    // A repeat's first day goes with the repeat: a repeat chosen by hand
+    // instead leaves the day alone.
+    planned_date: use('day') && r.day && (!r.dayFromRepeat || use('repeat')) ? r.day : draft.planned_date,
+    planned_time: use('time') && r.time ? r.time : draft.planned_time,
+    duration_min: use('length') && r.minutes != null ? r.minutes : draft.duration_min,
+    category: use('section') && r.section ? r.section : draft.category,
+  }
 }

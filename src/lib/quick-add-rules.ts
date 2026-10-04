@@ -29,6 +29,8 @@ export interface QuickAddResult {
   title: string
   /** Null where nothing of that kind was read. */
   day: string | null
+  /** The day is the first day of a weekly repeat, not words of its own. */
+  dayFromRepeat: boolean
   time: string | null
   minutes: number | null
   repeat: QuickRepeat | null
@@ -447,6 +449,7 @@ export function readQuickAdd(text: string, ctx: QuickAddContext): QuickAddResult
   return {
     title: cleanTitle(text, taken.filter((h) => h.kind !== 'repeat' || repeat)),
     day,
+    dayFromRepeat: !dayHit && !!from && !!repeat,
     time: timeHit?.time ?? null,
     minutes,
     repeat,
