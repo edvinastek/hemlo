@@ -1,4 +1,6 @@
-import { useEffect, useState, type FormEvent } from 'react'
+import { useEffect, useRef, useState, type FormEvent, type ReactNode } from 'react'
+import { keepPhoto, makePhoto, usePhotoUrl } from './photos'
+import { isPhotoPath } from './photo-rules'
 import { format, parseISO } from 'date-fns'
 import { Dropdown, type Option } from '../ui/Dropdown'
 import { SearchPick } from '../ui/SearchPick'
@@ -62,6 +64,7 @@ export function formatValue(f: FieldDef, value: unknown, lookups: Lookups = {}):
       const first = String(value).split('\n').map((l) => l.replace(/^[#>*\-\s]+|\[[ xX]\]\s*/g, '').trim()).find(Boolean) ?? ''
       return first.length > 80 ? `${first.slice(0, 79)}…` : first
     }
+    case 'photo': return 'Photo'
     case 'timespan': {
       const m = spanMinutes(value)
       const [a, b] = String(value).split('-')
@@ -92,32 +95,39 @@ export function blankValues(fields: FieldDef[], day?: string): Record<string, un
 /** The fields a form shows: everything not hidden. */
 export const formFields = (e: EntityDef) => e.fields.filter((f) => !f.hidden)
 
-export function RecordForm({ fields, values, onChange, errors, lookups, autoFocus }: {
+/** Where a photo taken in the form goes: the profile and the record. */
+export interface PhotoTarget { profileId: string; recordId: string }
+
+export function RecordForm({ fields, values, onChange, errors, lookups, autoFocus, photo }: {
   fields: FieldDef[]
   values: Record<string, unknown>
   onChange: (name: string, value: unknown) => void
   errors: Record<string, string>
   lookups: Lookups
   autoFocus?: boolean
+  photo?: PhotoTarget
 }) {
   const calc = computeFormulas(fields, values)
   return (
     <div className="form-grid">
       {fields.map((f, i) => (
         <FieldInput key={f.name} field={f} value={f.type === 'formula' ? calc[f.name] : values[f.name]}
-          onChange={(v) => onChange(f.name, v)} error={errors[f.name]} lookups={lookups} autoFocus={autoFocus && i === 0} />
+          onChange={(v) => onChange(f.name, v)} error={errors[f.name]} lookups={lookups} autoFocus={autoFocus && i === 0} photo={photo} />
       ))}
     </div>
   )
 }
 
-function FieldInput({ field: f, value, onChange, error, lookups, autoFocus }: {
-  field: FieldDef; value: unknown; onChange: (v: unknown) => void; error?: string; lookups: Lookups; autoFocus?: boolean
+function FieldInput({ field: f, value, onChange, error, lookups, autoFocus, photo }: {
+  field: FieldDef; value: unknown; onChange: (v: unknown) => void; error?: string; lookups: Lookups; autoFocus?: boolean; photo?: PhotoTarget
 }) {
   const label = `${f.label}${f.unit && f.type !== 'boolean' && f.type !== 'money' ? ` (${f.unit})` : f.type === 'duration' ? ' (min)' : ''}${f.required ? ' *' : ''}`
   const err = error ? <p className="mf-error" role="alert">{error}</p> : null
   const text = (v: unknown) => (v === null || v === undefined ? '' : String(v))
 
+  if (f.type === 'photo') {
+    return <PhotoInput label={label} value={value} onChange={onChange} error={err} target={photo} />
+  }
   if (f.type === 'formula') {
     return (
       <div className="mf-field">
@@ -264,6 +274,10 @@ export function RecordSheet({ def, entity, profileId, rec, day, start: startValu
   useBackClose(onClose)
   const fields = formFields(entity)
   const staged = stageFields(entity.fields)
+  // A new record's id is chosen now, so a photo taken before saving is
+  // already filed under it (MOD-12).
+  const [newId] = useState(() => crypto.randomUUID())
+  const photo: PhotoTarget = { profileId, recordId: rec?.id ?? newId }
   const [values, setValues] = useState<Record<string, unknown>>(() => rec ? { ...rec.values } : startValues ? { ...startValues } : blankValues(entity.fields, day))
   const [errors, setErrors] = useState<Record<string, string>>({})
   const [busy, setBusy] = useState(false)
@@ -294,7 +308,7 @@ export function RecordSheet({ def, entity, profileId, rec, day, start: startValu
     try {
       const res = rec
         ? await updateRecord(profileId, def, entity, rec, changed(rec.values, values, entity.fields))
-        : await addRecord(profileId, def, entity, values)
+        : await addRecord(profileId, def, entity, values, newId)
       if (!res.ok) { setErrors(res.errors); return }
       // The repeat follows the record: a new name, day or time moves it too.
       if (canRepeat && (repeat.rule || repeatWas.rule)) {
@@ -364,10 +378,10 @@ export function RecordSheet({ def, entity, profileId, rec, day, start: startValu
         {errors._ && <p className="mf-error" role="alert">{errors._}</p>}
         {fields.length === 0
           ? <p className="mf-hint">This module has no fields yet. Add some under Edit module.</p>
-          : <RecordForm fields={staged.main} values={values} errors={errors} lookups={lookups} autoFocus={!rec} onChange={onField} />}
+          : <RecordForm fields={staged.main} values={values} errors={errors} lookups={lookups} autoFocus={!rec} onChange={onField} photo={photo} />}
         {staged.more.length > 0 || ((canRepeat || isEvent) && fields.length > 0) ? (
           <MoreOptions open={!!moreSet || moreHasError} summary={moreSet}>
-            {staged.more.length > 0 && <RecordForm fields={staged.more} values={values} errors={errors} lookups={lookups} onChange={onField} />}
+            {staged.more.length > 0 && <RecordForm fields={staged.more} values={values} errors={errors} lookups={lookups} onChange={onField} photo={photo} />}
             {repeatBlock}
           </MoreOptions>
         ) : null}
@@ -404,10 +418,12 @@ export function InlineForm({ def, entity, profileId, lookups }: {
   const [values, setValues] = useState<Record<string, unknown>>(() => blankValues(entity.fields))
   const [errors, setErrors] = useState<Record<string, string>>({})
   const [saved, setSaved] = useState(false)
+  const [newId, setNewId] = useState(() => crypto.randomUUID())
   async function save(e: FormEvent) {
     e.preventDefault()
-    const res = await addRecord(profileId, def, entity, values)
+    const res = await addRecord(profileId, def, entity, values, newId)
     if (!res.ok) { setErrors(res.errors); setSaved(false); return }
+    setNewId(crypto.randomUUID())
     setValues(blankValues(entity.fields))
     setErrors({})
     setSaved(true)
@@ -415,7 +431,7 @@ export function InlineForm({ def, entity, profileId, lookups }: {
   return (
     <form className="mp-inline-form" onSubmit={(e) => void save(e)} noValidate aria-label={`Add ${entity.label.toLowerCase()}`}>
       {errors._ && <p className="mf-error" role="alert">{errors._}</p>}
-      <RecordForm fields={fields} values={values} errors={errors} lookups={lookups}
+      <RecordForm fields={fields} values={values} errors={errors} lookups={lookups} photo={{ profileId, recordId: newId }}
         onChange={(name, v) => { setSaved(false); setValues((s) => ({ ...s, [name]: v })) }} />
       <div className="sheet-actions">
         {saved && <p className="mf-hint" role="status">Saved. Add the next one.</p>}
@@ -423,4 +439,54 @@ export function InlineForm({ def, entity, profileId, lookups }: {
       </div>
     </form>
   )
+}
+
+/** A photo field (MOD-12): the photo, and ways to take one with the camera,
+ *  pick one from the files, or take it off. It is made smaller and kept on
+ *  this device at once; it reaches Storage when there is a connection. */
+function PhotoInput({ label, value, onChange, error, target }: {
+  label: string; value: unknown; onChange: (v: unknown) => void; error: ReactNode; target?: PhotoTarget
+}) {
+  const url = usePhotoUrl(value)
+  const [busy, setBusy] = useState(false)
+  const [problem, setProblem] = useState<string | null>(null)
+  const camera = useRef<HTMLInputElement>(null)
+  const files = useRef<HTMLInputElement>(null)
+  async function take(file: File | undefined) {
+    if (!file || !target) return
+    setBusy(true); setProblem(null)
+    try {
+      const made = await makePhoto(file)
+      if (!made.ok) { setProblem(made.message); return }
+      onChange(await keepPhoto(target.profileId, target.recordId, made.blob))
+    } finally { setBusy(false) }
+  }
+  const has = isPhotoPath(value)
+  return (
+    <div className="mf-field mf-photo" role="group" aria-label={label}>
+      <span>{label}</span>
+      {has && (
+        <div className="mf-photo-frame">
+          {url ? <img src={url} alt={label} /> : <span className="mf-photo-wait">{url === null ? 'The photo shows once there is a connection.' : ''}</span>}
+        </div>
+      )}
+      <div className="mf-photo-actions">
+        <button type="button" className="btn" disabled={busy || !target} onClick={() => camera.current?.click()}>{has ? 'Take another' : 'Take a photo'}</button>
+        <button type="button" className="btn" disabled={busy || !target} onClick={() => files.current?.click()}>{has ? 'Choose another' : 'Choose a photo'}</button>
+        {has && <button type="button" className="btn" disabled={busy} onClick={() => onChange(null)}>Take off</button>}
+      </div>
+      <input ref={camera} type="file" accept="image/*" capture="environment" hidden onChange={(e) => { void take(e.target.files?.[0]); e.target.value = '' }} />
+      <input ref={files} type="file" accept="image/*" hidden onChange={(e) => { void take(e.target.files?.[0]); e.target.value = '' }} />
+      {busy && <p className="mf-hint" role="status">Making the photo smaller…</p>}
+      {problem && <p className="mf-error" role="alert">{problem}</p>}
+      {error}
+    </div>
+  )
+}
+
+/** A record's photo, small, for a card. */
+export function PhotoThumb({ path, alt }: { path: unknown; alt: string }) {
+  const url = usePhotoUrl(path)
+  if (!url) return null
+  return <img className="mp-thumb" src={url} alt={alt} />
 }

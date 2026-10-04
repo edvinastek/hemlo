@@ -22,7 +22,7 @@ export interface ListOrder {
 }
 
 /** Kinds that cannot be put in order or compared (a checklist, a note). */
-const UNSORTABLE = new Set(['checklist', 'note'])
+const UNSORTABLE = new Set(['checklist', 'note', 'photo'])
 const NUMBERS = new Set(['number', 'integer', 'duration', 'formula', 'rating', 'percent', 'money'])
 const OPS = new Set<FilterOp>(['is', 'not', 'has', 'filled', 'empty', 'gt', 'lt', 'yes', 'no'])
 
@@ -44,6 +44,7 @@ export function sortDirs(f: Pick<FieldDef, 'type'>): { dir: SortDir; label: stri
 export function filterOps(f: Pick<FieldDef, 'type' | 'options'>): { op: FilterOp; label: string; needsValue: boolean }[] {
   const filled = [{ op: 'filled' as const, label: 'is filled in', needsValue: false }, { op: 'empty' as const, label: 'is empty', needsValue: false }]
   if (f.type === 'boolean') return [{ op: 'yes', label: 'is yes', needsValue: false }, { op: 'no', label: 'is no', needsValue: false }]
+  if (f.type === 'photo') return [{ op: 'filled', label: 'is there', needsValue: false }, { op: 'empty', label: 'is missing', needsValue: false }]
   if (NUMBERS.has(f.type)) return [{ op: 'gt', label: 'is more than', needsValue: true }, { op: 'lt', label: 'is less than', needsValue: true }, { op: 'is', label: 'is', needsValue: true }, ...filled]
   if (isDateLike(f)) return [{ op: 'gt', label: 'is after', needsValue: true }, { op: 'lt', label: 'is before', needsValue: true }, { op: 'is', label: 'is on', needsValue: true }, ...filled]
   if (f.type === 'select') return [{ op: 'is', label: 'is', needsValue: true }, { op: 'not', label: 'is not', needsValue: true }, ...filled]

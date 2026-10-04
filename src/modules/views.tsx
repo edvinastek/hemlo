@@ -6,7 +6,7 @@ import { DataTable, type LookupOption } from '../ui/DataTable'
 import type { EntityDef, FieldDef, ModuleDef, ViewDef } from './types'
 import { computeFormulas, firstDateField, isDateLike, mainField } from './def-rules'
 import { updateRecord, type Lookups, type Rec } from './records'
-import { formatValue } from './RecordSheet'
+import { PhotoThumb, formatValue } from './RecordSheet'
 import { eventTimes } from '../lib/day-items-rules'
 import type { Selection } from '../ui/useSelection'
 
@@ -46,7 +46,7 @@ export function ListView({ entity, recs, lookups, onOpen, sel }: {
       {recs.map((r) => {
         const calc = computeFormulas(entity.fields, r.values)
         const shownAs = titleField(entity, r)
-        const bits = entity.fields.filter((f) => !f.hidden && f !== shownAs && f !== dateF)
+        const bits = entity.fields.filter((f) => !f.hidden && f !== shownAs && f !== dateF && f.type !== 'photo')
           .map((f) => {
             const v = f.type === 'formula' ? calc[f.name] : r.values[f.name]
             if (v === null || v === undefined || v === '' || (f.type === 'boolean' && !v)) return null
@@ -58,6 +58,7 @@ export function ListView({ entity, recs, lookups, onOpen, sel }: {
         const picking = !!sel?.selecting
         const on = !!sel?.has(r.id)
         const title = recordTitle(entity, r, lookups)
+        const pic = entity.fields.find((f) => f.type === 'photo' && !f.hidden && r.values[f.name])
         return (
           <li key={r.id}>
             <button type="button" className={`mp-card${picking ? ' is-pickable' : ''}${on ? ' is-picked' : ''}`} {...sel?.hold(r.id)}
@@ -67,6 +68,7 @@ export function ListView({ entity, recs, lookups, onOpen, sel }: {
               <span className="mp-card-main">{title}</span>
               <span className="mp-card-date">{dv ? formatValue(dateF!, dv) : ''}</span>
               {bits.length > 0 && <span className="mp-card-meta">{bits.join(' · ')}</span>}
+              {pic && <PhotoThumb path={r.values[pic.name]} alt={`${pic.label} of ${title}`} />}
             </button>
           </li>
         )
@@ -88,7 +90,7 @@ export function TableView({ def, entity, view, recs, lookups, profileId, onOpen,
   // Kinds a cell cannot edit in place (tags, stars, notes, checklists, a
   // start and end, a link to another module's record) read as their words
   // and open in the record's sheet; money and shares edit as numbers.
-  const asText = (f: FieldDef) => ['multi', 'rating', 'checklist', 'note', 'timespan'].includes(f.type) || (f.type === 'lookup' && f.lookup === 'record')
+  const asText = (f: FieldDef) => ['multi', 'rating', 'checklist', 'note', 'timespan', 'photo'].includes(f.type) || (f.type === 'lookup' && f.lookup === 'record')
   const shownCols: FieldDef[] = cols.map((f) => asText(f) ? { ...f, type: 'text' as const }
     : f.type === 'money' || f.type === 'percent' ? { ...f, type: 'number' as const, unit: f.type === 'percent' ? '%' : f.unit || '€' } : f)
   const rows = recs.map((r) => {

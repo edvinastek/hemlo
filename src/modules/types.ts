@@ -9,6 +9,8 @@ export type FieldType =
   // an amount of money, a checklist, a longer note, and a stretch of time
   // from a start to an end.
   | 'multi' | 'rating' | 'percent' | 'money' | 'checklist' | 'note' | 'timespan'
+  // Version 18 (MOD-12): a photo, kept in private Storage (photo-rules.ts).
+  | 'photo'
 
 export interface FieldDef {
   name: string

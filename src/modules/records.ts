@@ -151,7 +151,9 @@ export function useRecords(profileId: string | null | undefined, moduleKey: stri
 
 const now = () => new Date().toISOString()
 
-export async function addRecord(profileId: string, def: ModuleDef, entity: EntityDef, values: Record<string, unknown>): Promise<Result> {
+/** `id`: the new record's id when it was chosen already (a photo taken in
+ *  the form is filed under it). */
+export async function addRecord(profileId: string, def: ModuleDef, entity: EntityDef, values: Record<string, unknown>, id?: string): Promise<Result> {
   const { data, errors } = cleanValues(entity.fields, values)
   if (Object.keys(errors).length) return { ok: false, errors }
   const table = tableOf(entity)
@@ -176,7 +178,7 @@ export async function addRecord(profileId: string, def: ModuleDef, entity: Entit
   }
   if (entity.table) return { ok: false, errors: { _: 'Records of this kind are added on their own screen.' } }
   const row: ModuleRecord = {
-    id: crypto.randomUUID(), profile_id: profileId, module_key: def.key, entity: entity.name, data,
+    id: id ?? crypto.randomUUID(), profile_id: profileId, module_key: def.key, entity: entity.name, data,
     record_date: recordDate(entity.fields, data), created_at: now(), updated_at: now(), deleted_at: null,
   }
   await db.module_record.put(row)

@@ -25,6 +25,7 @@ export const TYPE_OPTIONS: Option<FieldType>[] = [
   { value: 'money', label: 'Money', hint: 'An amount, in the currency you set' },
   { value: 'checklist', label: 'Checklist', hint: 'Lines to tick, kept with the record' },
   { value: 'note', label: 'Note', hint: 'Longer text, with lists and headings' },
+  { value: 'photo', label: 'Photo', hint: 'Taken with the camera or picked from your files' },
   { value: 'lookup', label: 'Link to another module', hint: 'A food, recipe, exercise, task, goal or a record of a module you built' },
   { value: 'formula', label: 'Calculated', hint: 'Worked out from other fields' },
 ]

@@ -90,6 +90,10 @@ Types, then every check that needs nothing but Node. CI runs the same command.
   as numbers, empty last, ties kept), filtered by a test that fits the field, kept arrangements read safely, the line
   over the list; copies (no repeat or calculated values carried over, the date moved keeping its time); and a record's
   form staged into what makes it and "More options" with its closed summary (CALM-08).
+- `photos` — the photo field (MOD-12): the size a photo is made (1600 px on the longest side, never larger), its name in
+  Storage ('<profile>/<record>/<photo>.jpg' and nothing else), the field keeping only such names, which records use a
+  photo, and which kept photos are tidied away (never one in use, none younger than two days, a deleted record's after a
+  day so Undo still has it, an unknown record's after a month).
 - `ics` — calendar files (RFC 5545): tasks as floating local time or whole days, agenda events in UTC,
   repeats as RRULE/RDATE/EXDATE with changed copies; folding at 75 bytes, escaping, CRLF, stable UIDs. A file
   shaped like a Google Calendar export read back in the reader's zone (TZID, UTC, whole days, DURATION,
