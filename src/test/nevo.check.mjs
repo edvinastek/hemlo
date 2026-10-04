@@ -8,7 +8,9 @@
 import { readFileSync } from 'node:fs'
 import {
   readNevo, parseDelimited, nevoNumber, foodRow, nevoId, compact, plan, generatedSql, withGenerated, BEGIN, END, MIGRATION,
+  MICRO_COLUMNS, MICROS_MIGRATION, MICROS_BEGIN, MICROS_END, microsSql, missingMicroColumns,
 } from '../../scripts/import-nevo.mjs'
+import { MICROS, readMicros } from '../lib/micros-rules.ts'
 import { displayName, stateOf, REPLACES, KEEP, NEVO_ATTRIBUTION, PORTIE } from '../../scripts/nevo-additions.mjs'
 import { saltOf, NEVO_ATTRIBUTION as APP_ATTRIBUTION } from '../lib/eu-label-rules.ts'
 
@@ -52,6 +54,24 @@ is('an empty polyols cell stays unknown', one.values.polyols_g, null)
 is('per 100 ml read from the quantity', [one.per_ml, drink.per_ml], [false, true])
 is('a value written without quotes is read the same', drink.values.kcal, 40)
 throws('a file missing a nutrient column is refused', () => readNevo('"NEVO-code"|"Food group"\r\n1|x\r\n'))
+
+// Vitamins and minerals (FOOD-17): read as published, empty stays unknown.
+is('vitamin D and iron as published', one.micros, { vd: 1.5, k: 300, fe: 2.1 })
+is('an empty cell is left out (unknown), a 0 is kept', [drink.micros, oil.micros], [{ k: 5, fe: 0 }, { vd: 0, k: 0 }])
+is('the fixture lacks most micronutrient columns, and says which',
+  missingMicroColumns(readFileSync(new URL('../../scripts/fixtures/nevo-fixture.csv', import.meta.url), 'utf8')).length, Object.keys(MICRO_COLUMNS).length - 3)
+throws('a micronutrient column in another unit is refused', () => readNevo(readFileSync(new URL('../../scripts/fixtures/nevo-fixture.csv', import.meta.url), 'utf8').replace('VITD (µg)', 'VITD (mg)')))
+is('the catalogue row (migration 027) is untouched by them', 'micros' in foodRow(one) || 'vd' in foodRow(one), false)
+is('every column read is a code the app knows, in the app’s unit',
+  Object.entries(MICRO_COLUMNS).every(([nevo, [code, unit]]) => MICROS.some((m) => m.code === code && m.unit === unit && m.nevo === nevo)), true)
+is('every vitamin or mineral the app reads from NEVO is read by the import',
+  MICROS.filter((m) => m.nevo).every((m) => MICRO_COLUMNS[m.nevo]?.[0] === m.code), true)
+const fixtureMicros = microsSql(fixture)
+is('the micros part has its markers', [fixtureMicros.startsWith(MICROS_BEGIN), fixtureMicros.endsWith(MICROS_END)], [true, true])
+is('it is set by NEVO code, on shared rows, only where it differs',
+  [/f\.nevo_code = \(e->>0\)::int/.test(fixtureMicros), /f\.owner_id is null/.test(fixtureMicros), /is distinct from e->1/.test(fixtureMicros)], [true, true, true])
+is('its data reads back as [code, figures]', JSON.parse(fixtureMicros.slice(fixtureMicros.indexOf('$nevo$[') + 6, fixtureMicros.indexOf(']$nevo$') + 1)),
+  [[90001, { vd: 1.5, k: 300, fe: 2.1 }], [90002, { k: 5, fe: 0 }], [90003, { vd: 0, k: 0 }]])
 
 // The row the catalogue gets.
 const row = foodRow(one)
@@ -107,6 +127,20 @@ is('the migration says which version it is', sql.includes("'NEVO-online 2025/9.0
 is('the app and the import use the same attribution', APP_ATTRIBUTION, NEVO_ATTRIBUTION)
 is('the attribution is NEVO’s own wording', NEVO_ATTRIBUTION, 'Based on data from NEVO online version 2025/9.0, RIVM, Bilthoven')
 is('the raw NEVO files are not in the repository', (() => { try { readFileSync(new URL('../../scripts/fixtures/NEVO2025_v9.0.csv', import.meta.url)); return 'there' } catch { return 'absent' } })(), 'absent')
+
+// The real vitamins and minerals, as migration 036 carries them.
+const sql36 = readFileSync(MICROS_MIGRATION, 'utf8')
+const part36 = sql36.slice(sql36.indexOf(MICROS_BEGIN), sql36.indexOf(MICROS_END))
+const micros36 = JSON.parse(part36.slice(part36.indexOf('$nevo$[') + 6, part36.indexOf(']$nevo$') + 1))
+const codes = new Set(data.map((r) => r.nevo_code))
+is('vitamins and minerals for (nearly) every NEVO food', micros36.length > 2300, true)
+is('each is a food in the catalogue, once', [micros36.every(([c]) => codes.has(c)), new Set(micros36.map(([c]) => c)).size === micros36.length], [true, true])
+is('every figure is a known code with a plain number, read back whole',
+  micros36.every(([, m]) => Object.keys(readMicros(m)).length === Object.keys(m).length), true)
+is('only codes NEVO publishes', [...new Set(micros36.flatMap(([, m]) => Object.keys(m)))].every((k) => Object.values(MICRO_COLUMNS).some(([c]) => c === k)), true)
+is('raw potatoes as NEVO publishes them (vitamin C 14 mg, potassium 450 mg, iron 0.5 mg; no vitamin K given)',
+  (([, m]) => [m.vc, m.k, m.fe, 'vk' in m])(micros36.find(([c]) => c === 1)), [14, 450, 0.5, false])
+is('the micros file is a sane size (under 600 kB)', sql36.length < 600_000, true)
 
 console.log(fail ? `\n${fail} failed` : '\nAll NEVO import checks passed')
 process.exit(fail ? 1 : 0)
