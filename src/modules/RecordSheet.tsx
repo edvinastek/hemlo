@@ -6,6 +6,12 @@ import { NoteEditor } from '../ui/NoteEditor'
 import { RepeatPicker, NO_REPEAT, type RepeatValue } from '../ui/RepeatPicker'
 import { offerUndo } from '../ui/Undo'
 import { Tip } from '../ui/Tip'
+import { MoreOptions } from '../ui/MoreOptions'
+import { MoreMenu } from '../ui/MoreMenu'
+import { useBackClose } from '../ui/useBackClose'
+import { describeSchedule } from '../lib/schedule-rules'
+import { canCopy } from './records'
+import { copyValues, stageFields, stagedSummary } from './list-rules'
 import type { ModuleRecord } from '../lib/types'
 import type { EntityDef, FieldDef, ModuleDef } from './types'
 import { RATING_MAX, checklistCount, computeFormulas, firstDateField, isDateLike, spanMinutes } from './def-rules'
@@ -234,8 +240,11 @@ function FieldInput({ field: f, value, onChange, error, lookups, autoFocus }: {
 
 /** Add or edit one record in a bottom sheet. Delete takes it away at once
  *  and offers Undo for 8 seconds (GEN-54). A record kept in the shared
- *  store can repeat (MOD-14): its days become tasks of the module. */
-export function RecordSheet({ def, entity, profileId, rec, day, lookups, onClose }: {
+ *  store can repeat (MOD-14): its days become tasks of the module. What
+ *  makes the record is up front; the rest, the repeat with it, waits in
+ *  "More options" (CALM-08). Back and Escape close it (CALM-10); Duplicate
+ *  and Copy to day are in the ⋮ beside its title. */
+export function RecordSheet({ def, entity, profileId, rec, day, start: startValues, lookups, onClose, onDuplicate, onCopyTo }: {
   def: ModuleDef
   entity: EntityDef
   profileId: string
@@ -243,11 +252,19 @@ export function RecordSheet({ def, entity, profileId, rec, day, lookups, onClose
   rec?: Rec
   /** A new record's day, from the calendar. */
   day?: string
+  /** A new record's values to start from (a duplicate). */
+  start?: Record<string, unknown>
   lookups: Lookups
   onClose: () => void
+  /** Duplicate: the sheet opens again on a copy, as a new record. */
+  onDuplicate?: (values: Record<string, unknown>) => void
+  /** Copy to day: the page asks for the day. */
+  onCopyTo?: (rec: Rec) => void
 }) {
+  useBackClose(onClose)
   const fields = formFields(entity)
-  const [values, setValues] = useState<Record<string, unknown>>(() => rec ? { ...rec.values } : blankValues(entity.fields, day))
+  const staged = stageFields(entity.fields)
+  const [values, setValues] = useState<Record<string, unknown>>(() => rec ? { ...rec.values } : startValues ? { ...startValues } : blankValues(entity.fields, day))
   const [errors, setErrors] = useState<Record<string, string>>({})
   const [busy, setBusy] = useState(false)
   const noun = entity.label.toLowerCase()
@@ -296,18 +313,15 @@ export function RecordSheet({ def, entity, profileId, rec, day, lookups, onClose
     offerUndo(`${entity.label} deleted`, () => restoreRecord(profileId, def, entity, rec))
   }
 
-  return (
+  const onField = (name: string, v: unknown) => { setValues((s) => ({ ...s, [name]: v })); setErrors((x) => { const { [name]: _n, _: _all, ...rest } = x; return rest }) }
+  const repeatText = repeat.rule ? describeSchedule({ rule: repeat.rule, rule_config: repeat.rule_config ?? {}, start_date: start, end_date: repeat.end_date ?? null }) : null
+  // A field with a problem is never out of sight.
+  const moreHasError = staged.more.some((f) => errors[f.name])
+  const moreSet = stagedSummary(staged.more, values, [repeatText])
+  const copyable = !!rec && canCopy(entity) && !rec.row.subscription_id
+  const repeatBlock = (
     <>
-      <div className="sheet-scrim" onClick={onClose} />
-      <form className="bottom-sheet" onSubmit={(e) => void save(e)} role="dialog" aria-label={rec ? `Edit ${noun}` : `New ${noun}`} noValidate
-        onKeyDown={(e) => { if (e.key === 'Escape') { e.stopPropagation(); onClose() } }}>
-        <h2>{rec ? `Edit ${noun}` : `New ${noun}`}</h2>
-        {errors._ && <p className="mf-error" role="alert">{errors._}</p>}
-        {fields.length === 0
-          ? <p className="mf-hint">This module has no fields yet. Add some under Edit module.</p>
-          : <RecordForm fields={fields} values={values} errors={errors} lookups={lookups} autoFocus={!rec}
-              onChange={(name, v) => { setValues((s) => ({ ...s, [name]: v })); setErrors((x) => { const { [name]: _n, _: _all, ...rest } = x; return rest }) }} />}
-        {canRepeat && fields.length > 0 && (
+      {canRepeat && fields.length > 0 && (
           <div className="mf-repeat">
             {!rec && <Tip id="record-repeat" />}
             <RepeatPicker value={repeat} onChange={setRepeat} start={start} today={today}
@@ -331,6 +345,32 @@ export function RecordSheet({ def, entity, profileId, rec, day, lookups, onClose
             )}
           </div>
         )}
+    </>
+  )
+
+  return (
+    <>
+      <div className="sheet-scrim" onClick={onClose} />
+      <form className="bottom-sheet" onSubmit={(e) => void save(e)} role="dialog" aria-modal="true" aria-label={rec ? `Edit ${noun}` : `New ${noun}`} noValidate>
+        <div className="rs-top">
+          <h2>{rec ? `Edit ${noun}` : `New ${noun}`}</h2>
+          {copyable && (onDuplicate || onCopyTo) && (
+            <MoreMenu label={`More for this ${noun}`} items={[
+              !!onCopyTo && !!firstDateField(entity.fields) && { label: 'Copy to day…', onSelect: () => onCopyTo(rec!) },
+              !!onDuplicate && { label: 'Duplicate', onSelect: () => onDuplicate(copyValues(entity.fields, values)) },
+            ]} />
+          )}
+        </div>
+        {errors._ && <p className="mf-error" role="alert">{errors._}</p>}
+        {fields.length === 0
+          ? <p className="mf-hint">This module has no fields yet. Add some under Edit module.</p>
+          : <RecordForm fields={staged.main} values={values} errors={errors} lookups={lookups} autoFocus={!rec} onChange={onField} />}
+        {staged.more.length > 0 || ((canRepeat || isEvent) && fields.length > 0) ? (
+          <MoreOptions open={!!moreSet || moreHasError} summary={moreSet}>
+            {staged.more.length > 0 && <RecordForm fields={staged.more} values={values} errors={errors} lookups={lookups} onChange={onField} />}
+            {repeatBlock}
+          </MoreOptions>
+        ) : null}
         <div className="sheet-actions">
           {rec && <button type="button" className="btn" disabled={busy} onClick={() => void remove()}>Delete</button>}
           <button type="button" className="btn grow" onClick={onClose}>Cancel</button>

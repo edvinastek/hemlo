@@ -180,9 +180,19 @@ export function copyValues(fields: FieldDef[], values: Record<string, unknown>, 
   if (day && dateF) {
     const was = typeof values[dateF.name] === 'string' ? String(values[dateF.name]) : ''
     out[dateF.name] = dateF.type === 'date' ? day : `${day}T${/T\d{2}:\d{2}/.test(was) ? was.slice(11, 16) : '09:00'}`
+    // Other dates move by as many days (an event's end with its start).
+    const shift = /^\d{4}-\d{2}-\d{2}/.test(was) ? dayNum(day) - dayNum(was.slice(0, 10)) : 0
+    for (const f of fields) {
+      const v = values[f.name]
+      if (f === dateF || !isDateLike(f) || typeof v !== 'string' || !/^\d{4}-\d{2}-\d{2}/.test(v)) continue
+      out[f.name] = `${fromDayNum(dayNum(v.slice(0, 10)) + shift)}${v.slice(10)}`
+    }
   }
   return out
 }
+
+const dayNum = (d: string) => Math.round(Date.UTC(+d.slice(0, 4), +d.slice(5, 7) - 1, +d.slice(8, 10)) / 86_400_000)
+const fromDayNum = (n: number) => new Date(n * 86_400_000).toISOString().slice(0, 10)
 
 /* ---------- a record's form, staged (CALM-08) --------------------------------- */
 

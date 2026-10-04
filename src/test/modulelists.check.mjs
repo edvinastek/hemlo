@@ -83,6 +83,8 @@ is('a copy has its own list of tags', copyValues(fields, withRepeat).tags !== wi
 is('copied to a day, the date moves', copyValues(fields, withRepeat, '2026-10-10').read_on, '2026-10-10')
 const timed = [{ name: 'at', label: 'At', type: 'datetime' }]
 is('a date and time keeps its time of day', copyValues(timed, { at: '2026-09-02T18:30' }, '2026-10-10').at, '2026-10-10T18:30')
+is('an event\'s end moves with its start', copyValues([{ name: 's', label: 'Starts', type: 'datetime' }, { name: 'e', label: 'Ends', type: 'datetime' }],
+  { s: '2026-09-30T22:00', e: '2026-10-01T01:00' }, '2026-10-10'), { s: '2026-10-10T22:00', e: '2026-10-11T01:00' })
 is('…or takes nine o\'clock when it had none', copyValues(timed, { at: null }, '2026-10-10').at, '2026-10-10T09:00')
 
 /* ---------- staging the form (CALM-08) ---------- */

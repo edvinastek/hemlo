@@ -8,6 +8,7 @@ import { computeFormulas, firstDateField, isDateLike, mainField } from './def-ru
 import { updateRecord, type Lookups, type Rec } from './records'
 import { formatValue } from './RecordSheet'
 import { eventTimes } from '../lib/day-items-rules'
+import type { Selection } from '../ui/useSelection'
 
 /** The views a module page draws, each from the same records. */
 
@@ -34,8 +35,10 @@ function titleField(entity: EntityDef, rec: Rec): FieldDef | undefined {
 }
 
 /** Cards: the main field, then what else is filled in, and the day. */
-export function ListView({ entity, recs, lookups, onOpen }: {
+export function ListView({ entity, recs, lookups, onOpen, sel }: {
   entity: EntityDef; recs: Rec[]; lookups: Lookups; onOpen: (r: Rec) => void
+  /** Hold a card to select it and others (GEN-52); a tap then ticks. */
+  sel?: Selection<Rec>
 }) {
   const dateF = firstDateField(entity.fields)
   return (
@@ -52,10 +55,16 @@ export function ListView({ entity, recs, lookups, onOpen }: {
           .filter(Boolean)
           .slice(0, 5)
         const dv = dateF ? r.values[dateF.name] : null
+        const picking = !!sel?.selecting
+        const on = !!sel?.has(r.id)
+        const title = recordTitle(entity, r, lookups)
         return (
           <li key={r.id}>
-            <button type="button" className="mp-card" onClick={() => onOpen(r)}>
-              <span className="mp-card-main">{recordTitle(entity, r, lookups)}</span>
+            <button type="button" className={`mp-card${picking ? ' is-pickable' : ''}${on ? ' is-picked' : ''}`} {...sel?.hold(r.id)}
+              aria-pressed={picking ? on : undefined} aria-label={picking ? `${on ? 'Selected' : 'Select'}: ${title}` : undefined}
+              onClick={() => (picking ? sel!.toggle(r.id) : onOpen(r))}>
+              {picking && <span className={`mp-tick${on ? ' is-on' : ''}`} aria-hidden>{on ? '✓' : ''}</span>}
+              <span className="mp-card-main">{title}</span>
               <span className="mp-card-date">{dv ? formatValue(dateF!, dv) : ''}</span>
               {bits.length > 0 && <span className="mp-card-meta">{bits.join(' · ')}</span>}
             </button>
@@ -67,8 +76,10 @@ export function ListView({ entity, recs, lookups, onOpen }: {
 }
 
 /** The spreadsheet: every cell edits in place, calculated ones do not. */
-export function TableView({ def, entity, view, recs, lookups, profileId, onOpen }: {
+export function TableView({ def, entity, view, recs, lookups, profileId, onOpen, sel }: {
   def: ModuleDef; entity: EntityDef; view: ViewDef; recs: Rec[]; lookups: Lookups; profileId: string; onOpen: (r: Rec) => void
+  /** Hold a row to select it and others (GEN-52). */
+  sel?: Selection<Rec>
 }) {
   const [error, setError] = useState<string | null>(null)
   const byName = new Map(entity.fields.map((f) => [f.name, f]))
@@ -105,7 +116,11 @@ export function TableView({ def, entity, view, recs, lookups, profileId, onOpen 
         computed={(row, f) => computeFormulas(entity.fields, row)[f.name] ?? null}
         onChange={(row, field, value) => void change(row, field, value)}
         onOpen={(row) => { const r = recById.get(row.id); if (r) onOpen(r) }}
-        openLabel={(row) => `Open ${recordTitle(entity, recById.get(row.id)!, lookups)}`} />
+        openLabel={(row) => `Open ${recordTitle(entity, recById.get(row.id)!, lookups)}`}
+        selected={sel?.selecting ? new Set(sel.picked.map((r) => r.id)) : undefined}
+        onSelect={sel?.selecting ? (row, on) => sel.toggle(row.id, on) : undefined}
+        selectLabel={(row) => `Select ${recordTitle(entity, recById.get(row.id)!, lookups)}`}
+        rowProps={sel && !sel.selecting ? (row) => sel.hold(row.id) : undefined} />
       </div>
     </>
   )
