@@ -317,3 +317,27 @@ export function stockCover(needs: Map<string, number>, have: Map<string, number>
   }
   return { share: total > 0 ? Math.round((covered / total) * 100) / 100 : 0, missing }
 }
+
+// ---- several at once (GEN-52) ----------------------------------------------------
+
+/** What a change to several items says, in the Undo bar: "3 items moved to
+ *  Freezer", "Best before 14 Oct on 3 items", "3 items taken out of stock". */
+export function bulkSaid(kind: 'place' | 'date' | 'remove', n: number, value: string | null = null): string {
+  const items = `${n} ${n === 1 ? 'item' : 'items'}`
+  if (kind === 'remove') return `${items} taken out of stock`
+  if (kind === 'place') return value ? `${items} moved to ${value}` : `${items}: no place set`
+  if (!value) return `${items}: no best-before date`
+  const M = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
+  return `Best before ${Number(value.slice(8, 10))} ${M[Number(value.slice(5, 7)) - 1]} on ${items}`
+}
+
+/** The ticked items as rows of a file (Export… in the select bar): what it
+ *  is, how much as the list shows it and in grams, where, until when, the
+ *  least to keep, the note. */
+export function stockExportRows(items: { name: string; amount: string; grams: number; place?: string | null; best_before?: string | null; min_grams?: number | null; note?: string | null }[]):
+  Record<string, string | number | null>[] {
+  return items.map((i) => ({
+    food: i.name, amount: i.amount, grams_on_hand: tidy(i.grams), place: i.place ?? null,
+    best_before: i.best_before ?? null, min_grams: i.min_grams ?? null, note: i.note ?? null,
+  }))
+}

@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { getMeta, setMeta } from '../lib/db'
 import { PageMenu } from '../ui/PageMenu'
+import { useBackClose } from '../ui/useBackClose'
 import type { MenuItem as PageMenuItem } from '../ui/MoreMenu'
 import './shop.css'
 
@@ -87,17 +88,18 @@ export function RowMenu({ label, items }: { label: string; items: MenuItem[] }) 
   )
 }
 
-/** A bottom sheet with a title and a Close button; Escape and the scrim close it. */
+/** A bottom sheet with a title and a Close button. Back (the phone's, the
+ *  browser's), Escape and the scrim close it (CALM-10): Back takes away the
+ *  history step the sheet added, so it never leaves the Shop page. */
 export function Sheet({ title, onClose, children, wide }: { title: string; onClose: () => void; children: ReactNode; wide?: boolean }) {
   const id = useId()
   const box = useRef<HTMLDivElement>(null)
+  useBackClose(onClose)
   useEffect(() => {
-    const key = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose() }
-    document.addEventListener('keydown', key)
-    // The first field (or button) gets the focus, so a keyboard user is in the sheet.
+    // The first field (or button) gets the focus, so a keyboard user is in
+    // the sheet. Once, when it opens: not again on every change inside it.
     box.current?.querySelector<HTMLElement>('[data-autofocus], input, button.btn-primary')?.focus()
-    return () => document.removeEventListener('keydown', key)
-  }, [onClose])
+  }, [])
   return (
     <>
       <div className="sheet-scrim" onClick={onClose} />

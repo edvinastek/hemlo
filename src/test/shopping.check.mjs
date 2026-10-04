@@ -9,7 +9,7 @@ import {
   forShop, sameShop, onList, groupList, reorderWithin, nextSort, mergeAmounts, recentTiles, currencyFor, formatMoney,
   readPrice, perKilo, priceLabel, itemCost, tripTotal, pickPrice, nextShoppingDay, listWindow, describeDays, tripTitle,
   planTrip, listNames, windowText, isTripTask, readShoppingModule, DEFAULT_AISLES, OTHER,
-  addSuggestions,
+  addSuggestions, listAmountChoices, amountToField, fieldToAmount,
 } from '../lib/shopping-rules.ts'
 import { suggestShops, cleanShopName, CHAINS } from '../lib/shops-rules.ts'
 
@@ -297,6 +297,51 @@ is('accents ignored', addSuggestions('creme', choices).map((c) => c.name), ['CrÃ
 is('one entry per food', addSuggestions('jonagold', choices).length, 1)
 is('nothing for one letter', addSuggestions('a', choices), [])
 is('a name typed exactly is not offered back', addSuggestions('apple juice', choices).map((c) => c.key), [])
+
+// ---- the amount field of an item linked to a food (UNIT-02) -------------------------
+{
+  const eggs = { name: 'Eggs, medium', pack_size_g: null, units: [{ name: 'egg', g: 50 }] }
+  const rice = { name: 'Rice', pack_size_g: 1000, units: [] }
+  const milk = { name: 'Milk, semi-skimmed', pack_size_g: 1000, units: [], per_ml: true }
+  const apples = { name: 'Apples', pack_size_g: null, units: [] }
+  const keys = (cs) => cs.map((c) => c.key)
+  is('eggs: grams, kilos and the egg', keys(listAmountChoices(eggs)), ['g', 'kg', 'u:egg'])
+  is('rice: packs, grams, kilos (counted in packs, not "rices")', keys(listAmountChoices(rice)), ['packs', 'g', 'kg'])
+  is('milk: packs, ml, l', keys(listAmountChoices(milk)), ['packs', 'g', 'kg'])
+  is('"2 milk" typed as a plain count opens as 2 packs', amountToField({ qty: 2, unit: null }, listAmountChoices(milk, { qty: 2, unit: null })), { text: '2', key: 'packs' })
+  is('apples: the count is in apples', listAmountChoices(apples).find((c) => c.key === 'n').label, 'apple')
+  is('milk is in ml and l', listAmountChoices(milk).filter((c) => c.key === 'g' || c.key === 'kg').map((c) => c.label), ['ml', 'l'])
+  is('a shop word saved stays on offer', keys(listAmountChoices(rice, { qty: 2, unit: 'bag' })).at(-1), 'w:bag')
+  is('"pack" with no pack size stays as a word', keys(listAmountChoices(apples, { qty: 1, unit: 'pack' })).at(-1), 'w:pack')
+
+  const c = listAmountChoices(eggs)
+  is('a new item opens on the food\'s unit, empty', amountToField({ qty: null, unit: null, grams: null }, c), { text: '', key: 'u:egg' })
+  is('rice opens on packs', amountToField({ qty: null }, listAmountChoices(rice)), { text: '', key: 'packs' })
+  is('"6 eggs" typed as a plain count opens as eggs', amountToField({ qty: 6, unit: null, grams: null }, c), { text: '6', key: 'u:egg' })
+  is('"12 egg" saved in the unit', amountToField({ qty: 12, unit: 'eggs', grams: null }, c), { text: '12', key: 'u:egg' })
+  is('500 g', amountToField({ qty: 500, unit: 'g', grams: 500 }, c), { text: '500', key: 'g' })
+  is('1.5 l of milk', amountToField({ qty: 1.5, unit: 'l', grams: 1500 }, listAmountChoices(milk)), { text: '1.5', key: 'kg' })
+  is('2 packs of rice', amountToField({ qty: 2, unit: 'pack', grams: null }, listAmountChoices(rice)), { text: '2', key: 'packs' })
+  is('2 bags kept', amountToField({ qty: 2, unit: 'bag' }, listAmountChoices(rice, { qty: 2, unit: 'bag' })), { text: '2', key: 'w:bag' })
+  is('grams alone (an old row)', amountToField({ qty: null, unit: null, grams: 1500 }, c), { text: '1.5', key: 'kg' })
+
+  is('empty is no amount', fieldToAmount('', 'u:egg', c), { qty: null, unit: null, grams: null })
+  is('6 eggs', fieldToAmount('6', 'u:egg', c), { qty: 6, unit: 'egg', grams: null })
+  is('500 g', fieldToAmount('500', 'g', c), { qty: 500, unit: 'g', grams: 500 })
+  is('1,5 kg', fieldToAmount('1,5', 'kg', c), { qty: 1.5, unit: 'kg', grams: 1500 })
+  is('750 ml of milk', fieldToAmount('750', 'g', listAmountChoices(milk)), { qty: 750, unit: 'ml', grams: 750 })
+  is('2 packs', fieldToAmount('2', 'packs', listAmountChoices(rice)), { qty: 2, unit: 'pack', grams: null })
+  is('3 apples is a plain count', fieldToAmount('3', 'n', listAmountChoices(apples)), { qty: 3, unit: null, grams: null })
+  is('a half', fieldToAmount('Â½', 'packs', listAmountChoices(rice)), { qty: 0.5, unit: 'pack', grams: null })
+  is('not a number', fieldToAmount('lots', 'g', c), null)
+  is('nought is not an amount', fieldToAmount('0', 'g', c), null)
+  is('a choice that is not there', fieldToAmount('2', 'packs', c), null)
+  // Round trip: what is saved opens the same way again.
+  const saved = fieldToAmount('2', 'u:egg', c)
+  is('saved eggs reopen as eggs', amountToField(saved, c), { text: '2', key: 'u:egg' })
+  is('the grams of saved eggs follow from the food', entryGrams(saved, eggs), 100)
+  is('and the list shows them', amountText(saved, eggs.units), '2 eggs')
+}
 
 if (fail) { console.log(`\n${fail} failed`); process.exit(1) }
 console.log('\nall shopping checks passed')

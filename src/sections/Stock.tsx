@@ -4,11 +4,13 @@ import { db } from '../lib/db'
 import { useApp } from '../lib/store'
 import { readSettings } from '../lib/settings'
 import { saveSettings } from '../lib/write'
-import { addStock, nudgeStock, removeStock, restoreStock, setStock, setStockDetails, stockFor } from '../lib/stock'
+import {
+  addStock, nudgeStock, removeStock, removeStockMany, restoreStock, setStock, setStockDetails, setStockDetailsMany, stockFor,
+} from '../lib/stock'
 import { addRecipesToList, today } from '../lib/shopping'
 import {
-  NOTE_MAX, belowMin, dateText, daysUntil, expiringSoon, formatGrams, groupKey, inUnit, placesFrom, readDate, sortByPlace,
-  sortStock, stockCover, mealNeeds, unitFor, type StockView,
+  NOTE_MAX, belowMin, bulkSaid, dateText, daysUntil, expiringSoon, formatGrams, groupKey, inUnit, placesFrom, readDate, sortByPlace,
+  sortStock, stockCover, stockExportRows, mealNeeds, unitFor, type StockView,
 } from '../lib/stock-rules'
 import {
   amountChoices, amountHint, countIn, findUnit, formatCount, formatQty, readAmount, readUnits, unitKey, type FoodUnit,
@@ -19,8 +21,11 @@ import { ProductFinder } from '../ui/ProductSearch'
 import { AmountInput } from '../ui/AmountInput'
 import { offerUndo } from '../ui/Undo'
 import { useExport } from '../ui/ExportLink'
-import { RowMenu, ScanIcon, TabMenu, useDeviceChoice } from './shop-ui'
+import { useSelection } from '../ui/useSelection'
+import { SelectAction, SelectBar, SelectDelete } from '../ui/SelectBar'
+import { RowMenu, ScanIcon, Sheet, TabMenu, useDeviceChoice } from './shop-ui'
 import type { Food, Profile, Recipe, RecipeLine, Stock } from '../lib/types'
+import type { FieldDef } from '../modules/types'
 import './stock.css'
 
 /** A row as the list shows it. `unit` is the food's unit it is kept in, when
@@ -40,6 +45,17 @@ const minOf = (item: Pick<Item, 'min_grams' | 'unit'>) =>
 
 /** More than this many things in stock and the filter field shows. */
 const FILTER_FROM = 16
+
+/** The ticked items as a file (Export… in the select bar). */
+const PICKED_FIELDS: FieldDef[] = [
+  { name: 'food', label: 'Food', type: 'text' },
+  { name: 'amount', label: 'Amount', type: 'text' },
+  { name: 'grams_on_hand', label: 'In stock', type: 'number', unit: 'g' },
+  { name: 'place', label: 'Place', type: 'text' },
+  { name: 'best_before', label: 'Best before', type: 'date' },
+  { name: 'min_grams', label: 'Keep at least', type: 'number', unit: 'g' },
+  { name: 'note', label: 'Note', type: 'text' },
+]
 
 /** Shopping's Stock tab: what is in the household's cupboard, fridge and
  *  freezer, typed in by hand and adjusted whenever someone looks. Every list
@@ -82,6 +98,36 @@ export function StockPanel({ profile, menuSlot }: { profile: Profile; menuSlot: 
   const low = items.filter((i) => belowMin(i)).length
   const soon = expiringSoon(items, day, 3)
   const exporter = useExport({ dataset: 'stock' })
+  // Several at once (GEN-52): hold a row, or Select in the ⋮.
+  const sel = useSelection(items, { onChange: (on) => { if (on) setEditing(null) } })
+  const [bulk, setBulk] = useState<null | 'place' | 'date'>(null)
+  const pickedExport = useExport(sel.picked.length ? {
+    rows: stockExportRows(sel.picked.map((i) => ({ ...i, amount: amountOf(i) }))), fields: PICKED_FIELDS,
+    label: `Stock (${sel.picked.length} selected)`,
+  } : null)
+
+  async function bulkPlace(place: string | null) {
+    const n = sel.picked.length
+    const undo = await setStockDetailsMany(sel.picked.map((i) => i.row), { place })
+    setBulk(null)
+    sel.clear()
+    offerUndo(bulkSaid('place', n, place), undo)
+  }
+
+  async function bulkDate(date: string | null) {
+    const n = sel.picked.length
+    const undo = await setStockDetailsMany(sel.picked.map((i) => i.row), { best_before: date })
+    setBulk(null)
+    sel.clear()
+    offerUndo(bulkSaid('date', n, date), undo)
+  }
+
+  async function bulkRemove() {
+    const n = sel.picked.length
+    const undo = await removeStockMany(sel.picked.map((i) => i.row))
+    sel.stop()
+    offerUndo(bulkSaid('remove', n), undo)
+  }
 
   async function toggleAuto() {
     await saveSettings(profile, { stock_auto: !auto })
@@ -95,13 +141,15 @@ export function StockPanel({ profile, menuSlot }: { profile: Profile; menuSlot: 
     <>
       <TabMenu slot={menuSlot} items={[
         items.length > 0 && { label: by === 'place' ? 'Group by aisle' : 'Group by place', onSelect: () => setGroupBy(by === 'place' ? 'aisle' : 'place') },
+        items.length > 0 && sel.menuItem(),
         { label: auto ? 'Stop taking from stock when meals are eaten' : 'Take from stock when meals are eaten', onSelect: () => void toggleAuto() },
         exporter.item,
       ]} />
       {exporter.sheet}
-      <StockAdd householdId={householdId} foods={foods} items={items} places={places} />
+      {pickedExport.sheet}
+      {!sel.selecting && <StockAdd householdId={householdId} foods={foods} items={items} places={places} />}
 
-      {soon.length > 0 && (
+      {soon.length > 0 && !sel.selecting && (
         <section className="stock-soon" aria-label="Use soon">
           <p className="section-title">Use soon</p>
           <ul>
@@ -145,20 +193,79 @@ export function StockPanel({ profile, menuSlot }: { profile: Profile; menuSlot: 
           return (
             <div key={item.id}>
               {(i === 0 || groupKey(shown[i - 1], by) !== g) && <h3 className="stock-group">{g}</h3>}
-              {editing === item.id
+              {editing === item.id && !sel.selecting
                 ? <StockEdit item={item} householdId={householdId} places={places} day={day} onDone={() => setEditing(null)} />
-                : <StockRow item={item} householdId={householdId} by={by} day={day} onEdit={() => setEditing(item.id)} />}
+                : <StockRow item={item} householdId={householdId} by={by} day={day} onEdit={() => setEditing(item.id)}
+                    hold={sel.hold(item.id)} picking={sel.selecting} picked={sel.has(item.id)} onPick={() => sel.toggle(item.id)} />}
             </div>
           )
         })}
       </div>
 
-      {items.length >= 3 && <FromStock profile={profile} have={new Map(items.map((i) => [i.food_id, i.grams]))} />}
+      {items.length >= 3 && !sel.selecting && <FromStock profile={profile} have={new Map(items.map((i) => [i.food_id, i.grams]))} />}
+
+      {sel.selecting && (
+        <SelectBar {...sel.bar(shown, 'items')}>
+          <SelectAction count={sel.picked.length} onClick={() => setBulk('place')}>Move to…</SelectAction>
+          <SelectAction count={sel.picked.length} onClick={() => setBulk('date')}>Best before…</SelectAction>
+          <SelectAction count={sel.picked.length} onClick={() => pickedExport.item?.onSelect()}>Export…</SelectAction>
+          <SelectDelete count={sel.picked.length} label="Remove" onDelete={() => void bulkRemove()} />
+        </SelectBar>
+      )}
+      {bulk === 'place' && (
+        <BulkPlace count={sel.picked.length} places={places} onSave={(p) => void bulkPlace(p)} onClose={() => setBulk(null)} />
+      )}
+      {bulk === 'date' && (
+        <BulkDate count={sel.picked.length} day={day} onSave={(d) => void bulkDate(d)} onClose={() => setBulk(null)} />
+      )}
     </>
   )
 }
 
-function StockRow({ item, householdId, by, day, onEdit }: { item: Item; householdId: string; by: 'place' | 'aisle'; day: string; onEdit: () => void }) {
+/** "Move to…" for the ticked items: one place for all of them. */
+function BulkPlace({ count, places, onSave, onClose }: { count: number; places: string[]; onSave: (place: string | null) => void; onClose: () => void }) {
+  const [place, setPlace] = useState<string | null>(null)
+  return (
+    <Sheet title={`Move ${count} ${count === 1 ? 'item' : 'items'} to`} onClose={onClose}>
+      <form className="form-grid" onSubmit={(e) => { e.preventDefault(); if (place) onSave(place) }}>
+        <PlacePick value={place} places={places} onChange={setPlace} />
+        <div className="sheet-actions">
+          <button type="button" className="btn" onClick={() => onSave(null)}>No place</button>
+          <button type="submit" className="btn btn-primary grow" disabled={!place}>{place ? `Move to ${place}` : 'Pick a place'}</button>
+        </div>
+      </form>
+    </Sheet>
+  )
+}
+
+/** "Best before…" for the ticked items: one date for all, or none. */
+function BulkDate({ count, day, onSave, onClose }: { count: number; day: string; onSave: (date: string | null) => void; onClose: () => void }) {
+  const [date, setDate] = useState('')
+  const best = date ? readDate(date, day) : null
+  return (
+    <Sheet title={`Best before, for ${count} ${count === 1 ? 'item' : 'items'}`} onClose={onClose}>
+      <form className="form-grid" onSubmit={(e) => { e.preventDefault(); if (best) onSave(best) }}>
+        <div className="stock-date-row">
+          <label className="stock-label" htmlFor="stock-bulk-date">Best before</label>
+          <input id="stock-bulk-date" type="date" value={best ?? date} onChange={(e) => setDate(e.target.value)} data-autofocus />
+        </div>
+        {best && <p className="stock-hint">{dateText(best, day)}</p>}
+        <div className="sheet-actions">
+          <button type="button" className="btn" onClick={() => onSave(null)}>Clear the date</button>
+          <button type="submit" className="btn btn-primary grow" disabled={!best}>Set the date</button>
+        </div>
+      </form>
+    </Sheet>
+  )
+}
+
+function StockRow({ item, householdId, by, day, onEdit, hold, picking, picked, onPick }: {
+  item: Item; householdId: string; by: 'place' | 'aisle'; day: string; onEdit: () => void
+  /** Holding the row starts selecting (GEN-52). */
+  hold: ReturnType<ReturnType<typeof useSelection>['hold']>
+  /** Selecting: a tap ticks the row, and the −/+ are put away. */
+  picking: boolean; picked: boolean; onPick: () => void
+}) {
   const isOut = item.grams <= 0
   const isLow = belowMin(item)
   const meta = [
@@ -168,8 +275,22 @@ function StockRow({ item, householdId, by, day, onEdit }: { item: Item; househol
     item.note ?? '',
   ].filter(Boolean)
   const past = item.best_before ? daysUntil(item.best_before, day) < 0 : false
+  if (picking) {
+    return (
+      <div className={`stock-row is-picking${isOut ? ' is-out' : ''}`}>
+        <label className="stock-pick">
+          <input type="checkbox" checked={picked} onChange={onPick} aria-label={`Select ${item.name}`} />
+          <span className="stock-what">
+            <span className="stock-name">{item.name}</span>
+            {meta.length > 0 && <span className={`stock-note${past ? ' is-past' : ''}`}>{meta.join(' · ')}</span>}
+          </span>
+        </label>
+        <span className={`stock-qty-text${isLow && !isOut ? ' is-low' : ''}`}>{isOut ? 'out' : amountOf(item)}</span>
+      </div>
+    )
+  }
   return (
-    <div className={`stock-row${isOut ? ' is-out' : ''}`}>
+    <div className={`stock-row${isOut ? ' is-out' : ''}`} {...hold}>
       <button type="button" className="stock-what" onClick={onEdit} aria-label={`Change ${item.name}`}>
         <div className="stock-name">{item.name}</div>
         {meta.length > 0 && <div className={`stock-note${past ? ' is-past' : ''}`}>{meta.join(' · ')}</div>}

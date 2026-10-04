@@ -129,6 +129,12 @@
 .shop-price-shop { font-family: var(--font-sans); font-size: 14px; }
 .shop-price { font-family: var(--font-sans); font-size: 12px; color: var(--e-ink-soft); }
 .shop-x { width: 44px; height: 44px; font-size: 20px; color: var(--e-ink-soft); }
+/* A price that can be shared (or was): Share or Shared before the ×. */
+.shop-prices li.has-share { grid-template-columns: minmax(0, 1fr) auto 44px; }
+.shop-prices li.has-share .shop-x { grid-column: 3; }
+.shop-prices li.has-share .op-share-btn, .shop-prices li.has-share .op-shared { grid-row: 1 / span 2; grid-column: 2; }
+.op-share-btn { min-height: 44px; padding: 0 var(--space-2); }
+.op-shared { font-family: var(--font-sans); font-size: 13px; color: var(--e-done); padding: 0 var(--space-2); }
 .shop-price-form { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: var(--space-2); }
 .shop-price-form > .dd, .shop-price-form > .btn { grid-column: 1 / -1; }
 .shop-price-form input { width: 100%; min-width: 0; padding: 8px 10px; min-height: 44px; font-size: 15px; }
@@ -223,3 +229,34 @@
 }
 .shop-offers:hover, .shop-offers:focus-visible { text-decoration: underline; }
 .shop-aisles-body { padding-bottom: var(--space-3); }
+
+/* ---- sharing a price with Open Prices (PRICE-05) ------------------------------ */
+.op-share { margin-top: var(--space-3); }
+.op-title { margin: 0; font-family: var(--font-sans); font-size: 15px; font-weight: 600; color: var(--e-ink); }
+.op-what { margin: 0; font-family: var(--font-sans); font-size: 14px; color: var(--e-ink); overflow-wrap: anywhere; }
+.op-chosen { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: var(--space-2); font-family: var(--font-sans); font-size: 14px; color: var(--e-ink); }
+.op-chosen > span { min-width: 0; overflow-wrap: anywhere; }
+.op-chosen .slot-link { min-height: 44px; }
+.op-search { display: grid; grid-template-columns: minmax(0, 1.3fr) minmax(0, 1fr) auto; gap: var(--space-2); }
+.op-search input { min-height: 44px; }
+.op-search .btn { min-height: 44px; }
+.op-places { list-style: none; margin: var(--space-2) 0 0; padding: 0; border: 1px solid var(--e-rule); border-radius: var(--radius-md); overflow: hidden; }
+.op-places li + li { border-top: 1px solid var(--e-rule); }
+.op-places button { display: grid; gap: 2px; width: 100%; min-height: 48px; padding: 6px var(--space-3); text-align: left; }
+.op-place-name { font-family: var(--font-sans); font-size: 15px; color: var(--e-ink); }
+.op-place-where { font-family: var(--font-sans); font-size: 12px; color: var(--e-ink-soft); overflow-wrap: anywhere; }
+.op-osm { justify-self: start; min-height: 44px; padding: 0; }
+.op-kind { display: inline-flex; justify-self: start; }
+.op-kind button { min-height: 44px; padding: 0 var(--space-4); }
+.op-shared { min-height: 44px; display: inline-flex; align-items: center; }
+.op-photo-btns { display: flex; flex-wrap: wrap; gap: var(--space-2); }
+.op-photo-btns .btn { min-height: 44px; }
+.op-preview { max-width: 100%; max-height: 180px; border-radius: var(--radius-md); border: 1px solid var(--e-rule); justify-self: start; object-fit: contain; }
+.op-check { display: flex; align-items: center; gap: var(--space-2); min-height: 44px; font-family: var(--font-sans); font-size: 14px; color: var(--e-ink); }
+.form-grid label.op-check { display: flex; color: var(--e-ink); font-size: 14px; }
+.form-grid .op-check input { width: 20px; height: 20px; flex: none; }
+@media (max-width: 400px) {
+  /* The town goes under the name on a narrow phone, Search beside it. */
+  .op-search { grid-template-columns: minmax(0, 1fr) auto; }
+  .op-search input:first-child { grid-column: 1 / -1; }
+}

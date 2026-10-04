@@ -13,7 +13,7 @@ import { findUnit, readUnits } from './units-rules'
 import {
   amountText, boughtFor, doneGrams, entryGrams, guessAisle, itemKey, listName, listNames, listWindow, matchFood,
   mergeAmounts, nextSort, planNeeds, plannedLines, planTrip, readShoppingModule, recentTiles, resolveAisle,
-  sameShop, type FoodChoice, type ListItem, type ParsedItem, type RecentTile, type ShoppingModuleSettings,
+  sameShop, isTripTask, type FoodChoice, type ListItem, type ParsedItem, type RecentTile, type ShoppingModuleSettings,
 } from './shopping-rules'
 import type { ShopPrice } from './shopping-types'
 import type { Food, ModuleInstance, Profile, RecipeLine, ShoppingEntry, Stock, Task } from './types'
@@ -416,6 +416,28 @@ export async function putInStock(profile: Profile, basket: ListItem[]): Promise<
     }
   }
   return { stocked, bought: basket.length, undo: undoFor(befores, stockBefore, stockMade) }
+}
+
+/** The shopping trip ticked off on Today or Plan (SHOP-22): with things in
+ *  the basket, the bar at the bottom offers at once to put them in stock,
+ *  without opening the list or a sheet. Nothing in the basket, nothing said.
+ *  Called by rail-actions' tick. */
+export async function offerStockAfterTrip(task: Pick<Task, 'source' | 'profile_id' | 'planned_date' | 'status'>): Promise<void> {
+  if (!isTripTask(task) || task.status !== 'done') return
+  const profile = await db.profile.get(task.profile_id)
+  if (!profile) return
+  const view = await loadShopping(profile, task.planned_date ?? today())
+  const basket = view.items.filter((i) => i.checked)
+  if (!basket.length) return
+  const { offerAction, offerUndo } = await import('../ui/Undo')
+  const n = basket.length
+  offerAction(`Shopping done. Put the ${n} bought ${n === 1 ? 'item' : 'items'} in stock?`, 'Put in stock', async () => {
+    // Read again: the basket may have changed while the offer showed.
+    const fresh = (await loadShopping(profile, task.planned_date ?? today())).items.filter((i) => i.checked)
+    if (!fresh.length) return
+    const r = await putInStock(profile, fresh)
+    offerUndo(`Basket put away${r.stocked ? `, ${r.stocked} in stock` : ''}`, r.undo)
+  })
 }
 
 /** Home from the shop without the cupboard: the basket is bought and goes

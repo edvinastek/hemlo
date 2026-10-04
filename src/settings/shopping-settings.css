@@ -24,3 +24,11 @@
   padding: var(--space-2) var(--space-3); background: var(--e-tint); border-radius: var(--radius-md); display: inline-block;
 }
 .ss-code-input { font-family: var(--font-mono); letter-spacing: 0.06em; width: 11em; }
+/* Sharing prices with Open Prices: the switch on the title's line, the
+   sign-in under it, the fields full width on a phone. */
+.ss-head { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: var(--space-3); }
+.ss-signin { display: grid; gap: var(--space-2); margin-top: var(--space-2); max-width: 420px; }
+.ss-field.ss-wide { display: grid; gap: 4px; margin-top: 0; }
+.ss-field.ss-wide input { width: 100%; box-sizing: border-box; min-height: 44px; }
+.ss-note.is-bad { color: var(--e-warn); }
+.ss-signed { margin: 0; flex: 1 1 12em; overflow-wrap: anywhere; }

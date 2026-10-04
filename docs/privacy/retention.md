@@ -12,7 +12,7 @@ and the policy's "How long it is kept" section together.
 
 | Data | Where | Kept | What removes it |
 | --- | --- | --- | --- |
-| Account, profile, plan and health data | Supabase, Frankfurt | Until the account is deleted | `delete_my_account()` (app: More → Data → Delete account; web: `delete.html`), which removes the user's households or hands shared ones on, their profiles and everything under them, and the `auth.users` row (`012_security.sql`). |
+| Account, profile, plan and health data | Supabase, Frankfurt | Until the account is deleted | `delete_my_account()` (app: Settings → Data and account → Delete account; web: `delete.html`), which removes the user's households or hands shared ones on, their profiles and everything under them, and the `auth.users` row (`012_security.sql`, `014_retention.sql`). A shared household keeps its stock, shopping list, prices and chores; the leaver's name goes (`household_member` cascades) and their id on items and chore logs becomes empty (`on delete set null`). |
 | Items deleted inside the app | Supabase | Until the account is deleted | Nothing yet. Rows get a `deleted_at` time and are hidden everywhere, but stay in the table so every device learns of the deletion when it syncs. See "Soft-deleted rows" below. |
 | Record of health consent | Supabase, the user's auth metadata (`health_consent_at`, `privacy_version`) | Until the account is deleted | Removed with the `auth.users` row. |
 | Sessions and refresh tokens | Supabase Auth | Until sign-out, expiry, or account deletion | Signing out deletes the session ([Supabase sessions](https://supabase.com/docs/guides/auth/sessions)); account deletion removes the user's sessions with the user. |
@@ -27,7 +27,12 @@ and the policy's "How long it is kept" section together.
 | Google Group and Play Console tester list | Google | Until the closed test ends | Remove members, or delete the group. |
 | Emails with users, and the request log | Contact mailbox | Two years after the request is closed | Delete by hand at the start of each quarter. |
 | Breach register | Outside the repository | Five years after the breach is closed | Delete by hand. |
-| Visitor logs of the public site | Cloudflare | Set by Cloudflare; not configurable on the free plan, and the period is not published on the pages checked | Cloudflare. See open question below. |
+| Visitor logs of the public site | Netlify | Set by Netlify; not configurable on the free plan, and the period is not published on the pages checked | Netlify. See open question below. |
+| Photos in module records (v18) | Supabase Storage, Frankfurt, private bucket (migration 033) | Until the record or the account is deleted | Deleting the record deletes the file; account deletion must delete the user's folder too (check `delete_my_account` with migration 033). A copy on the device until sign-out. |
+| Open Food Facts token for price sharing (v18) | The device only: Android secure storage, or the browser tab's session storage | Until sign-out from Open Food Facts, sharing turned off, sign-out from GetIt, or (browser) the tab closing | `src/lib/open-prices-account.ts` (also a reset hook on the local copy). |
+| Which own prices were shared, the last shop place and photo id per shop (v18) | The device only (local `meta` table) | Until sign-out | Cleared with the local copy. |
+| Prices and photos shared with Open Prices (v18) | Open Prices (Open Food Facts), public | Under Open Food Facts' own terms | The user, on prices.openfoodfacts.org. Not GetIt's copy; account deletion does not touch it. |
+| Which newer policy version the user has read (v18) | Supabase, the user's auth metadata (`policy_read`), and the device | Until the account is deleted | Removed with the `auth.users` row. |
 
 ## Soft-deleted rows
 
@@ -77,5 +82,5 @@ launch choose one:
 
 ## Open questions
 
-- Cloudflare's retention for Pages request logs on the free plan was not found on a primary source. Ask Cloudflare or check the dashboard, then fill in the table.
+- Netlify's retention for request logs of a free-plan site was not found on a primary source. Ask Netlify or check the dashboard, then fill in the table.
 - Whether `auth.audit_log_entries` is written by default for this project: check the setting in the dashboard.

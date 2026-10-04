@@ -102,3 +102,4 @@ and whenever one of the triggers above happens.
 | Date | Reviewer | Outcome |
 | --- | --- | --- |
 | 2026-09-24 | Drafted for the developer | DPIA not strictly required; short DPIA recorded; review before public launch |
+| 2026-10-04 | Version 18 changes | Outcome unchanged. New since: households share chores (with who did them), the shopping list and typed prices, and member names (household members only, by RLS); Finance amounts (private to the user, off the calendar feed); photos in built modules (private bucket); stats widgets that can put a health figure on the home screen (the user's own choice; the policy says how to avoid it); opt-in sharing of single prices with Open Prices, public under ODbL with the user's Open Food Facts name (nothing sent without a tap; photos stripped of EXIF on the device; no health data). None adds a criterion: no new special-category data, no monitoring, no combining of datasets. |

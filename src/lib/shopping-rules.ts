@@ -14,8 +14,8 @@ import { rawGrams } from './calc.ts'
 import { fold, search } from './search-rules.ts'
 import { addDays, weekdayOf, WEEK_ORDER } from './schedule-rules.ts'
 import {
-  addCounts, countOf, findUnit, formatCount, formatQty, gramsLabel, plainFractions, readQty, readUnits, wholeToBuy,
-  GRAMS_MAX, QTY_MAX, type Count, type FoodUnit,
+  addCounts, countOf, findUnit, foodWord, formatCount, formatQty, gramsLabel, plainFractions, readQty, readUnits, unitKey, wholeToBuy,
+  GRAMS_MAX, QTY_MAX, type AmountChoice, type Count, type FoodUnit,
 } from './units-rules.ts'
 import type { Food, MealPlanSlot, RecipeLine, ShoppingEntry } from './types'
 
@@ -182,6 +182,91 @@ export function entryGrams(e: { qty?: number | null; unit?: string | null; grams
   if (e.unit === 'pack' && food.pack_size_g) return Math.round(qty * Number(food.pack_size_g) * 10) / 10
   const u = e.unit ? findUnit(units, e.unit) : units.length === 1 ? units[0] : undefined
   return u ? Math.round(qty * u.g * 10) / 10 : null
+}
+
+// ---- the amount field of an item linked to a food (UNIT-02) ---------------------------
+
+/** An item with no food is typed as on paper ("2 kg", "6", "2 packs"); one
+ *  linked to a food gets the one amount field every screen uses
+ *  (ui/AmountInput.tsx): a number and the food's choices. Those are packs
+ *  (when the pack size is known), a plain count in the food's own word when
+ *  it has neither units nor a pack size ("6 apples"), grams and kilos
+ *  (millilitres and litres for a drink) and its own units ("egg"). A shop word the item was saved in
+ *  ("2 bottles") stays on offer, so opening an item never changes it.
+ *
+ *  Keys: 'packs', 'n' (a plain count), 'g', 'kg', 'u:egg' (a unit of the
+ *  food), 'w:bottle' (a shop word kept). */
+type FoodLike = Pick<Food, 'name' | 'pack_size_g'> & { units?: unknown; per_ml?: boolean | null }
+
+export function listAmountChoices(food: FoodLike, keep: { qty?: number | null; unit?: string | null } | null = null): AmountChoice[] {
+  const units = readUnits(food.units)
+  const out: AmountChoice[] = []
+  const pack = Number(food.pack_size_g)
+  if (pack > 0) out.push({ key: 'packs', label: 'packs', g: pack, unit: null })
+  // A plain count ("6 apples") for a food with neither units nor a pack
+  // size: one sold in packs is counted in packs ("2 milk" is 2 packs).
+  const bare = !!keep && !keep.unit && Number(keep.qty) > 0 && units.length !== 1
+  if (!(pack > 0) && (!units.length || bare)) out.push({ key: 'n', label: foodWord(food.name), g: 0, unit: { name: foodWord(food.name), g: 0 } })
+  out.push({ key: 'g', label: food.per_ml ? 'ml' : 'g', g: 1, unit: null })
+  out.push({ key: 'kg', label: food.per_ml ? 'l' : 'kg', g: 1000, unit: null })
+  for (const u of units) out.push({ key: unitKey(u.name), label: u.name, g: u.g, unit: u })
+  const word = keep?.unit?.trim().toLowerCase()
+  if (word && !(word === 'pack' && pack > 0) && !['g', 'kg', 'ml', 'l'].includes(word) && !findUnit(units, word)) {
+    out.push({ key: `w:${word}`, label: word, g: 0, unit: { name: word, g: 0 } })
+  }
+  return out
+}
+
+/** What the field shows for an item's amount: the number and the choice. An
+ *  item with no amount opens on packs, else the food's first unit, else a
+ *  plain count, with the number empty. */
+export function amountToField(e: { qty?: number | null; unit?: string | null; grams?: number | null }, choices: AmountChoice[]): { text: string; key: string } {
+  const has = (k: string) => choices.some((c) => c.key === k)
+  const first = has('packs') ? 'packs' : choices.find((c) => c.key.startsWith('u:'))?.key ?? (has('n') ? 'n' : 'g')
+  const qty = e.qty === null || e.qty === undefined ? null : Number(e.qty)
+  if (qty === null || !Number.isFinite(qty) || qty <= 0) {
+    // Grams with no count (from an older row): shown in grams.
+    const g = Number(e.grams)
+    return g > 0 ? { text: formatQty(g >= 1000 ? g / 1000 : g), key: g >= 1000 ? 'kg' : 'g' } : { text: '', key: first }
+  }
+  const unit = e.unit?.trim().toLowerCase() ?? null
+  if (unit === 'g' || unit === 'ml') return { text: formatQty(qty), key: 'g' }
+  if (unit === 'kg' || unit === 'l') return { text: formatQty(qty), key: 'kg' }
+  if (unit === 'pack' && has('packs')) return { text: formatQty(qty), key: 'packs' }
+  if (unit) {
+    const own = choices.find((c) => c.key.startsWith('u:') && c.unit && (c.unit.name.toLowerCase() === unit || findUnit([c.unit], unit)))
+    if (own) return { text: formatQty(qty), key: own.key }
+    if (has(`w:${unit}`)) return { text: formatQty(qty), key: `w:${unit}` }
+  }
+  // A plain count: the food's one unit when it has one, else its packs,
+  // else the count.
+  const units = choices.filter((c) => c.key.startsWith('u:'))
+  if (!unit && units.length === 1) return { text: formatQty(qty), key: units[0].key }
+  return { text: formatQty(qty), key: has('packs') ? 'packs' : has('n') ? 'n' : first }
+}
+
+/** What the list keeps for the number and choice typed, in the same shape
+ *  as a typed line (parseAmount): the count, its word, and the grams for a
+ *  weight or a volume. An empty field is no amount; null is not an amount. */
+export function fieldToAmount(text: string, key: string, choices: AmountChoice[]): Omit<ParsedItem, 'name'> | null {
+  if (!String(text ?? '').trim()) return { qty: null, unit: null, grams: null }
+  const choice = choices.find((c) => c.key === key)
+  if (!choice) return null
+  const metric = key === 'g' || key === 'kg'
+  const q = readQty(text, metric ? GRAMS_MAX : QTY_MAX)
+  if (q === null || q <= 0) return null
+  const qty = Math.round(q * 1000) / 1000
+  if (metric) {
+    const grams = Math.round(qty * choice.g * 100) / 100
+    if (grams > GRAMS_MAX) return null
+    const drink = choice.label === 'ml' || choice.label === 'l'
+    return { qty, unit: key === 'g' ? (drink ? 'ml' : 'g') : (drink ? 'l' : 'kg'), grams }
+  }
+  if (key === 'packs') return { qty, unit: 'pack', grams: null }
+  if (key === 'n') return { qty, unit: null, grams: null }
+  // A unit of the food or a shop word: the count in that word; the grams
+  // follow from the food (entryGrams), as for a typed "6 eggs".
+  return { qty, unit: choice.unit?.name.slice(0, UNIT_MAX) ?? null, grams: null }
 }
 
 // ---- matching a typed item to a food ---------------------------------------------

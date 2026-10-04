@@ -1,4 +1,5 @@
 import { POLICY_VERSION, privacySections } from '../legal/policy'
+import { policyDate } from '../legal/notice-rules'
 
 /** The same policy the public page shows, readable inside the app. */
 export function Privacy({ onBack }: { onBack?: () => void }) {
@@ -7,7 +8,7 @@ export function Privacy({ onBack }: { onBack?: () => void }) {
       <div style={{ maxWidth: 640, margin: '0 auto', padding: 'var(--space-6) var(--space-4)' }}>
         {onBack && <button className="btn" onClick={onBack} style={{ marginBottom: 'var(--space-4)' }}>Back</button>}
         <h1 className="page-date">Privacy</h1>
-        <p className="page-sub">Last changed {POLICY_VERSION}</p>
+        <p className="page-sub">Last changed {policyDate(POLICY_VERSION)}</p>
         {privacySections().map((s) => (
           <section key={s.heading} style={{ marginTop: 'var(--space-6)' }}>
             <h2 style={{ fontSize: 17, marginBottom: 'var(--space-2)' }}>{s.heading}</h2>

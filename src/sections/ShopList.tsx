@@ -9,7 +9,7 @@ import {
 import {
   amountText, cleanLabel, currencyFor, forShop, formatMoney, groupList, guessAisle, itemKey, LIST_MAX, NOTE_MAX, NAME_MAX,
   onList, parseAmount, parseItem, priceLabel, reorderWithin, resolveAisle, sameShop, shopAisles,
-  windowText, addSuggestions, type AddChoice, type ListItem,
+  windowText, addSuggestions, listAmountChoices, amountToField, fieldToAmount, type AddChoice, type ListItem,
 } from '../lib/shopping-rules'
 import {
   choosePrice, dayText, detailText, listTotal, openPricesPage, priceShop, PRICE_ATTRIBUTION, readPriceInput, rowPrice,
@@ -20,13 +20,17 @@ import { useOpenPrices, useOpenPricesFor } from '../lib/prices'
 import { search } from '../lib/search-rules'
 import { foodByBarcode, addProduct, productByBarcode, whereFor, ProductProblem } from '../lib/products'
 import { displayName } from '../lib/products-rules'
+import { readUnits } from '../lib/units-rules'
 import { offerUndo } from '../ui/Undo'
 import { Dropdown } from '../ui/Dropdown'
 import { MoreOptions } from '../ui/MoreOptions'
 import { SearchPick, type PickItem } from '../ui/SearchPick'
 import { BarcodeScan } from '../ui/BarcodeScan'
+import { AmountInput } from '../ui/AmountInput'
 import { useExport } from '../ui/ExportLink'
 import { RowMenu, ScanIcon, Sheet, TabMenu, useDeviceChoice } from './shop-ui'
+import { SharePrice, useSharedMarks, useSharing } from './SharePrice'
+import { canShare, sharedPriceUrl } from '../lib/open-prices-rules'
 import type { FieldDef } from '../modules/types'
 import type { Food, Profile, Recipe } from '../lib/types'
 
@@ -421,16 +425,41 @@ function ItemSheet({ profile, view, item, shown, onClose, onPrice }: {
   const e = item.entry
   const manual = item.kind === 'manual'
   const food = item.food_id ? view.foods.get(item.food_id) : undefined
+  const saved = { qty: e?.qty ?? null, unit: e?.unit ?? null, grams: e?.qty ? null : e?.grams ?? null }
   const [name, setName] = useState(item.name)
-  const [amount, setAmount] = useState(manual && e ? amountText({ qty: e.qty, unit: e.unit ?? null, grams: e.qty ? null : e.grams }) : '')
+  // Unlinked, the amount is typed as on paper ("2 kg"); linked to a food it
+  // is a number and one of the food's choices (UNIT-02). `amount` holds the
+  // whole text in the first case and the number in the second.
+  const startChoices = food ? listAmountChoices(food, saved) : []
+  const startField = food ? amountToField(saved, startChoices) : null
+  const [amount, setAmount] = useState(manual && e ? (startField ? startField.text : amountText(saved)) : '')
+  const [unitKey, setUnitKey] = useState(startField?.key ?? 'g')
   const [foodId, setFoodId] = useState<string | null>(item.food_id)
   const [aisle, setAisle] = useState(item.aisle)
   const [itemShop, setItemShop] = useState(item.shop ?? '')
   const [list, setList] = useState(item.list ?? '')
   const [note, setNote] = useState(item.note ?? '')
   const foods = useLiveQuery(() => db.food.toArray(), [], [] as Food[])
-  const read = manual ? parseAmount(amount) : { qty: null, unit: null, grams: null }
   const chosenFood = foodId ? foods.find((f) => f.id === foodId) ?? food : undefined
+  const choices = useMemo(() => (chosenFood ? listAmountChoices(chosenFood, saved) : []),
+    [chosenFood, e?.qty, e?.unit])
+  const read = !manual ? { qty: null, unit: null, grams: null }
+    : chosenFood ? fieldToAmount(amount, unitKey, choices) : parseAmount(amount)
+
+  /** Linking or unlinking a food carries the amount across: "2 kg" typed
+   *  becomes 2 and kg; 6 eggs unlinked becomes "6 eggs". */
+  function pickFood(id: string | null) {
+    const next = id ? foods.find((f) => f.id === id) : undefined
+    const was = read ?? { qty: null, unit: null, grams: null }
+    if (next) {
+      const f = amountToField(was, listAmountChoices(next, was))
+      setAmount(f.text)
+      setUnitKey(f.key)
+    } else if (chosenFood) {
+      setAmount(amountText(was, readUnits(chosenFood.units)))
+    }
+    setFoodId(id)
+  }
   const aisleOptions = [...new Set([...view.module.aisles.aisles, item.aisle])].map((a) => ({ value: a, label: a }))
 
   async function save(ev: FormEvent) {
@@ -465,10 +494,20 @@ function ItemSheet({ profile, view, item, shown, onClose, onPrice }: {
             <label>Item
               <input value={name} onChange={(ev) => setName(ev.target.value)} maxLength={NAME_MAX} data-autofocus className="shop-serif" />
             </label>
-            <label>How much
-              <input value={amount} onChange={(ev) => setAmount(ev.target.value)} placeholder="2 kg, 6, 2 packs, or leave empty" inputMode="text" />
-            </label>
-            {!read && <p className="stock-hint is-warn">That is not an amount. Try "2 kg", "6" or "2 packs".</p>}
+            {chosenFood ? (
+              <div className="shop-field">
+                <span className="shop-label">How much</span>
+                <div className="stock-fields shop-amount-field">
+                  <AmountInput text={amount} choice={unitKey} choices={choices} onText={setAmount} onChoice={setUnitKey}
+                    label={`How much ${chosenFood.name}`} groupClass="stock-units" input={{ placeholder: 'Any' }} />
+                </div>
+              </div>
+            ) : (
+              <label>How much
+                <input value={amount} onChange={(ev) => setAmount(ev.target.value)} placeholder="2 kg, 6, 2 packs, or leave empty" inputMode="text" />
+              </label>
+            )}
+            {!read && <p className="stock-hint is-warn">{chosenFood ? 'That is not an amount.' : 'That is not an amount. Try "2 kg", "6" or "2 packs".'}</p>}
           </>
         ) : (
           <p className="stock-hint">From the meal plan: {[item.amount, item.why].filter(Boolean).join(', ')}. Change the meals to change how much.</p>
@@ -479,7 +518,7 @@ function ItemSheet({ profile, view, item, shown, onClose, onPrice }: {
             <div className="shop-field">
               <span className="shop-label">Which food it is</span>
               <SearchPick items={pick} label="Food" placeholder="Search foods" value={chosenFood?.name ?? null}
-                onPick={(p) => setFoodId(p.id)} onClear={() => setFoodId(null)} />
+                onPick={(p) => pickFood(p.id)} onClear={() => pickFood(null)} />
             </div>
           )}
           <div className="two">
@@ -547,6 +586,15 @@ function PriceBody({ profile, view, item, filter, shown, code, perMl, onSaved }:
   const [text, setText] = useState('')
   const read = readPriceInput(text, per, packG)
   const sharedCopy = useOpenPricesFor(code)
+  // Sharing a price with Open Prices (PRICE-05): only when the person
+  // turned it on, only for a product with a barcode, and only on a tap.
+  const sharing = useSharing()
+  const marks = useSharedMarks()
+  const [sharingId, setSharingId] = useState<string | null>(null)
+  const sharingRow = sharingId ? rows.find((r) => r.id === sharingId) ?? null : null
+  if (sharingRow && code) {
+    return <SharePrice profile={profile} name={item.name} price={sharingRow} code={code} perMl={perMl} onClose={() => setSharingId(null)} />
+  }
 
   async function save(e: FormEvent) {
     e.preventDefault()
@@ -581,14 +629,23 @@ function PriceBody({ profile, view, item, filter, shown, code, perMl, onSaved }:
       {text.trim() !== '' && !read && <p className="stock-hint is-warn">That is not a price.</p>}
       {rows.length > 0 && (
         <ul>
-          {rows.map((r) => (
-            <li key={r.id}>
-              <span className="shop-price-shop">{r.shop}</span>
-              <span className="shop-price">{priceLabel(r, currency, perMl)}{r.noted_on ? ` · ${dayText(r.noted_on)}` : ''}</span>
-              <button type="button" className="shop-x" aria-label={`Remove the price at ${r.shop}`}
-                onClick={async () => offerUndo(`Price at ${r.shop} removed`, await removePrice(r))}>×</button>
-            </li>
-          ))}
+          {rows.map((r) => {
+            const mark = marks[r.id]
+            const can = sharing.on && !mark && canShare(r, code, packG, today()).ok
+            return (
+              <li key={r.id} className={can || mark ? 'has-share' : undefined}>
+                <span className="shop-price-shop">{r.shop}</span>
+                <span className="shop-price">{priceLabel(r, currency, perMl)}{r.noted_on ? ` · ${dayText(r.noted_on)}` : ''}</span>
+                {mark && <a className="op-shared" href={sharedPriceUrl(mark.id)} target="_blank" rel="noopener noreferrer" aria-label={`Shared with Open Prices: see the price at ${r.shop}`}>Shared</a>}
+                {can && (
+                  <button type="button" className="slot-link op-share-btn" onClick={() => setSharingId(r.id)}
+                    aria-label={`Share the price at ${r.shop} with Open Prices`}>Share</button>
+                )}
+                <button type="button" className="shop-x" aria-label={`Remove the price at ${r.shop}`}
+                  onClick={async () => offerUndo(`Price at ${r.shop} removed`, await removePrice(r))}>×</button>
+              </li>
+            )
+          })}
         </ul>
       )}
       {code && (

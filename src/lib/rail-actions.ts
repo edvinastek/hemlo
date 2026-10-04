@@ -5,6 +5,7 @@ import { deleteOccurrence, moveToDays } from './series'
 import { reviewTask } from './review'
 import { pushTask } from './reorder-rules'
 import { deleteRecordRow, restoreRecordRow, togglePaid } from './finance'
+import { offerStockAfterTrip } from './shopping'
 import type { Task } from './types'
 
 /** What the rail's buttons write, each through the same local-first path as
@@ -59,7 +60,10 @@ export async function pushToTime(task: Task, time: string): Promise<{ to: Task; 
 
 /** Tick or untick. */
 export async function tick(task: Task, done: boolean): Promise<Task> {
-  return setTaskDone(task, done)
+  const row = await setTaskDone(task, done)
+  // The shopping trip ticked: offer to put the basket in stock (SHOP-22).
+  if (done) void offerStockAfterTrip(row).catch(() => undefined)
+  return row
 }
 
 /** A planned payment ticked (FIN-04): paid writes its entry in Finance,

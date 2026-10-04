@@ -219,3 +219,24 @@ export async function restoreStock(before: Stock): Promise<void> {
   }
   if (Object.keys(changes).length) await edit('stock', now, changes)
 }
+
+/** The same place or best-before date for several rows (GEN-52). One Undo
+ *  puts each row back as it was. */
+export async function setStockDetailsMany(rows: Stock[], details: Partial<Pick<Stock, 'place' | 'best_before'>>): Promise<() => Promise<void>> {
+  const before = rows.map((r) => ({ ...r }))
+  for (const r of rows) {
+    const now = (await db.stock.get(r.id)) ?? r
+    await setStockDetails(now, details)
+  }
+  return async () => { for (const b of before) await restoreStock(b) }
+}
+
+/** Several rows taken out of stock (GEN-52), softly, with one Undo. */
+export async function removeStockMany(rows: Stock[]): Promise<() => Promise<void>> {
+  const before = rows.map((r) => ({ ...r }))
+  for (const r of rows) {
+    const now = (await db.stock.get(r.id)) ?? r
+    if (!now.deleted_at) await removeStock(now)
+  }
+  return async () => { for (const b of before) await restoreStock(b) }
+}

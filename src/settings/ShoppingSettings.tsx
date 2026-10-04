@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState, type FormEvent } from 'react'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { useNavigate } from 'react-router-dom'
 import { db, setMeta } from '../lib/db'
@@ -8,6 +8,8 @@ import { saveSettings } from '../lib/write'
 import { syncTrip, today } from '../lib/shopping'
 import { describeDays, listWindow, windowText } from '../lib/shopping-rules'
 import { WEEK_ORDER } from '../lib/schedule-rules'
+import { loadOffAccount, setSharing, signInOff, signOutOff, useOffAccount } from '../lib/open-prices-account'
+import { OFF_SIGN_UP, readUserName } from '../lib/open-prices-rules'
 import './shopping-settings.css'
 
 const SHORT = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
@@ -133,6 +135,8 @@ export function ShoppingSettings() {
           onClick={() => void saveSettings(profile!, { stock_auto: !s.stock_auto })} />
       </div>
 
+      <OpenPricesSharing />
+
       <div className="setting-row">
         <div>
           <div className="row-name">Shops, aisles and prices</div>
@@ -142,5 +146,75 @@ export function ShoppingSettings() {
       </div>
 
     </>
+  )
+}
+
+/** "Share prices with Open Prices" (PRICE-05): off until turned on here, on
+ *  this device. On, it asks for the person's Open Food Facts account (the
+ *  password goes once to Open Prices' own sign-in and is not kept); then a
+ *  price the person typed can be shared from its price sheet, one at a
+ *  time, with a photo. Off signs out and forgets the token. */
+function OpenPricesSharing() {
+  const { on, user, ready } = useOffAccount()
+  const [name, setName] = useState('')
+  const [password, setPassword] = useState('')
+  const [said, setSaid] = useState<string | null>(null)
+  const [busy, setBusy] = useState(false)
+  useEffect(() => { if (!ready) void loadOffAccount() }, [ready])
+
+  async function signIn(e: FormEvent) {
+    e.preventDefault()
+    const u = readUserName(name)
+    if ('error' in u) { setSaid(u.error); return }
+    if (!password) { setSaid('Type your password.'); return }
+    setBusy(true)
+    setSaid(null)
+    try {
+      const problem = await signInOff(u.user, password)
+      setSaid(problem)
+      if (!problem) { setName(''); setPassword('') }
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  async function toggle() {
+    await setSharing(!on)
+    setSaid(null)
+  }
+
+  return (
+    <div className="setting-row ss-block">
+      <div>
+        <div className="ss-head">
+          <div>
+            <div className="row-name" id="op-sharing">Share prices with Open Prices</div>
+            <div className="row-meta">Prices you choose to share, with a photo, are public on Open Prices.</div>
+          </div>
+          <button className="switch" role="switch" aria-checked={on} aria-labelledby="op-sharing" onClick={() => void toggle()} />
+        </div>
+        {on && user && (
+          <div className="ss-inline">
+            <span className="ss-note ss-signed">Signed in to Open Food Facts as {user}</span>
+            <button type="button" className="btn" onClick={() => void signOutOff()}>Sign out</button>
+          </div>
+        )}
+        {on && !user && (
+          <form className="ss-signin" onSubmit={signIn}>
+            <label className="ss-field ss-wide"><span>Open Food Facts user name</span>
+              <input value={name} onChange={(e) => setName(e.target.value)} autoComplete="username" autoCapitalize="none" spellCheck={false} maxLength={60} />
+            </label>
+            <label className="ss-field ss-wide"><span>Password</span>
+              <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} autoComplete="current-password" maxLength={200} />
+            </label>
+            <div className="ss-inline">
+              <button type="submit" className="btn btn-primary" disabled={busy || !name.trim() || !password}>{busy ? 'Signing in…' : 'Sign in'}</button>
+              <a className="slot-link" href={OFF_SIGN_UP} target="_blank" rel="noopener noreferrer">Make an account</a>
+            </div>
+          </form>
+        )}
+        {said && <p className="ss-note is-bad" role="alert">{said}</p>}
+      </div>
+    </div>
   )
 }
