@@ -72,6 +72,7 @@ export const SETTINGS_INDEX: SettingEntry[] = [
   { title: 'Who reminds you', page: 'reminders', words: 'name persona reminder notifications' },
   { title: 'Reminders on this device', page: 'reminders', words: 'notifications remind alarm' },
   { title: 'Quiet hours', page: 'reminders', words: 'night silent do not disturb' },
+  { title: 'Telegram', page: 'reminders', words: 'telegram messages chat bot reminders' },
   { title: 'Tips', page: 'reminders', words: 'tips help tutorial show again what moved where' },
   { title: 'Sync', page: 'data', words: 'sync waiting queue offline send' },
   { title: 'Merges the app had to resolve', page: 'data', words: 'conflicts merges refused' },

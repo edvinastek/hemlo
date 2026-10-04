@@ -43,6 +43,7 @@ import { cleanLimit } from '../lib/review-rules'
 import { NoteTemplates } from '../settings/NoteTemplates'
 import { exportBundle, importBundle } from '../lib/bundle'
 import { getReminderSettings, setReminderSettings, requestPermission, type ReminderSettings } from '../lib/notify'
+import { TelegramReminders } from '../settings/TelegramReminders'
 import type { ModuleInstance } from '../lib/types'
 import type { ImportPreview } from '../lib/excel'
 import type { ImportPlan, ImportSummary } from '../lib/import'
@@ -370,6 +371,7 @@ function RemindersPanel() {
       </div>
       {note && <p className="empty" style={{ color: 'var(--e-warn)' }}>{note}</p>}
 
+      <TelegramReminders />
       <TipsSettings />
     </>
   )
