@@ -9,6 +9,8 @@ import {
   attributionFor, figureName, figureText, shownFigures, type LabelKey,
 } from '../lib/eu-label-rules'
 import { useNutritionPrefs } from '../lib/nutrition-prefs'
+import { MICROS, microText, nrvPercent, partsMicros } from '../lib/micros-rules'
+import { rawGrams } from '../lib/calc'
 import { formatCount, gramsLabel, readQty } from '../lib/units-rules'
 import { readSharing, statusOf } from '../lib/sharing-rules'
 import {
@@ -94,6 +96,9 @@ export function RecipeView({ recipe: given, lines, foods, userId, onClose, onEdi
   const keys = shownFigures(shownNutrients(readSettings(profile)).filter((k) => k !== 'kcal'), prefs.label.figures).filter((k) => k !== 'kcal')
   const perPortion = recipeFigures(own, foods, ['kcal', ...keys], 1)
   const forShown = recipeFigures(own, foods, ['kcal', ...keys], portions)
+  // Vitamins and minerals the person shows (FOOD-17), a portion.
+  const microParts = own.map((l) => { const f = l.food_id ? foods.get(l.food_id) : undefined; return { food: f, grams: rawGrams(l, f) } })
+  const microSum = prefs.micros.length ? partsMicros(microParts, prefs.micros) : null
   const attribution = attributionFor(own.flatMap((l) => (l.food_id && foods.get(l.food_id) ? [foods.get(l.food_id)!] : [])))
   const ready = readyProduct(recipe, own, foods)
 
@@ -194,7 +199,27 @@ export function RecipeView({ recipe: given, lines, foods, userId, onClose, onEdi
                 })}
               </tbody>
             </table>
-            {(['kcal', ...keys] as LabelKey[]).some((k) => (perPortion[k]?.missing ?? 0) > 0) && (
+            {microSum && (
+              <table className="rcp-figures rcp-micros">
+                <thead><tr><th scope="col"><span className="visually-hidden">Nutrient</span></th><th scope="col">A portion</th><th scope="col">%NRV</th></tr></thead>
+                <tbody>
+                  {MICROS.filter((m) => prefs.micros.includes(m.code)).map((m) => {
+                    const v = microSum.total[m.code] ?? null
+                    const mark = microSum.missing[m.code] ? ' *' : ''
+                    const pct = nrvPercent(m.code, v)
+                    return (
+                      <tr key={m.code}>
+                        <th scope="row">{m.name}</th>
+                        <td>{microText(m.code, v)}{v !== null ? mark : ''}</td>
+                        <td>{pct === null ? '' : `${pct}%`}</td>
+                      </tr>
+                    )
+                  })}
+                </tbody>
+              </table>
+            )}
+            {((['kcal', ...keys] as LabelKey[]).some((k) => (perPortion[k]?.missing ?? 0) > 0)
+              || (microSum && prefs.micros.some((c) => microSum.missing[c] && microSum.total[c] !== undefined))) && (
               <p className="fe-note">* Some ingredients do not give this figure, so the real amount is higher.</p>
             )}
 

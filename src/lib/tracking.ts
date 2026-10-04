@@ -198,6 +198,8 @@ export const SUPPLEMENT_FIELDS: (keyof Supplement & string)[] = [
   'profile_id', 'name', 'dose_text', 'time_slot', 'rule', 'rule_config', 'start_date', 'end_date', 'active', 'sort_order', 'deleted_at',
   // 033 (SUP-05): the stock count, its day and the refill warning.
   'stock_count', 'stock_from', 'refill_days',
+  // 036 (SUP-07): what a dose gives towards vitamins and minerals.
+  'nutrients',
 ]
 
 export async function saveSupplement(s: Supplement, before?: Supplement | null): Promise<Supplement> {

@@ -82,3 +82,6 @@
    with "Food". */
 .food-menu { display: flex; align-items: center; margin-left: auto; }
 
+
+/* Vitamins and minerals (FOOD-17), under the label when chosen. */
+.fs-table.fs-micros { margin-top: var(--space-3); }

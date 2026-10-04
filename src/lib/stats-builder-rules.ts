@@ -1,6 +1,7 @@
 import type { EntityDef, FieldDef } from '../modules/types.ts'
 import { addDays, fromDayNumber, mondayOf, toDayNumber } from './schedule-rules.ts'
 import { cellValue, dailyValues, spanDays, SUMMARY_LABEL, withWithout, type WithWithout, type Fact, type MeasureInfo, type PivotSpec, type Span } from './pivot-rules.ts'
+import { MICROS, microMeasure } from './micros-rules.ts'
 import { MAX_VIEWS, readStatsView, type StatsMeasure, type StatsRange, type StatsView, type Summary } from './stats-view-rules.ts'
 
 /** The stats builder's rules (STA-02, STA-03, STA-10 to STA-15, GEN-41):
@@ -64,12 +65,19 @@ export const LABEL_FIGURE_NAMES: Record<string, { label: string; unit: string }>
   salt_g: { label: 'Salt', unit: 'g' }, alcohol_g: { label: 'Alcohol', unit: 'g' },
 }
 
+/** Vitamins and minerals (FOOD-17): measured only when the person shows
+ *  them ('m_vd' for vitamin D), in the annex's order. */
+export const MICRO_FIGURE_NAMES: Record<string, { label: string; unit: string }> =
+  Object.fromEntries(MICROS.map((m) => [microMeasure(m.code), { label: m.name, unit: m.unit }]))
+
 /** What else the catalogue needs to know: the extra label figures the
  *  person tracks and the currency money is in. */
 export interface CatalogueExtras { figures?: string[]; currency?: string }
 
-/** The extra label figures to measure, in the label's order. */
-export const extraFigures = (figures: string[] | undefined) => Object.keys(LABEL_FIGURE_NAMES).filter((k) => (figures ?? []).includes(k))
+/** The extra label figures to measure, in the label's order, then the
+ *  vitamins and minerals shown. */
+export const extraFigures = (figures: string[] | undefined) =>
+  [...Object.keys(LABEL_FIGURE_NAMES), ...Object.keys(MICRO_FIGURE_NAMES)].filter((k) => (figures ?? []).includes(k))
 
 const FIN_DIMS = { 'field:category': 'Category', category: 'Main category', 'field:kind': 'Type' }
 const BUDGET_DIMS = { category: 'Main category' }
@@ -103,15 +111,17 @@ function builtIn(key: string, nutrients: string[], extras: CatalogueExtras = {})
       const shown = nutrients.length ? nutrients : ['kcal']
       const all = Object.keys(NUTRIENT_NAMES)
       const extra = extraFigures(extras.figures)
-      const names = { ...NUTRIENT_NAMES, ...LABEL_FIGURE_NAMES }
+      const names = { ...NUTRIENT_NAMES, ...LABEL_FIGURE_NAMES, ...MICRO_FIGURE_NAMES }
       const left = ' Foods whose label does not give it are left out.'
+      // A vitamin or mineral also counts the supplements ticked that give it (SUP-07).
+      const micro = (n: string) => n in MICRO_FIGURE_NAMES
       const eaten = [...all, ...extra].map((n) => named(n, {
-        ...COUNT(`${names[n].label} eaten`, `${names[n].label} in everything logged as eaten. A day with nothing logged is unknown, not a day of eating nothing.${extra.includes(n) ? left : ''}`, FOOD_DIMS, shown.includes(n)),
-        unit: names[n].unit, known: 'logged', summary: 'avg',
+        ...COUNT(`${names[n].label} eaten`, `${names[n].label} in everything logged as eaten${micro(n) ? ' and the supplements ticked' : ''}. A day with nothing logged is unknown, not a day of eating nothing.${extra.includes(n) ? left : ''}`, FOOD_DIMS, shown.includes(n)),
+        unit: names[n].unit, known: 'logged', summary: 'avg', ...(micro(n) ? { decimals: 1 } : {}),
       }))
       const planned = [...all, ...extra].map((n) => named(`planned_${n}`, {
         ...COUNT(`${names[n].label} planned`, `${names[n].label} in the meals planned for the day.${extra.includes(n) ? left : ''}`, FOOD_DIMS),
-        unit: names[n].unit, known: 'logged', summary: 'avg',
+        unit: names[n].unit, known: 'logged', summary: 'avg', ...(micro(n) ? { decimals: 1 } : {}),
       }))
       return [
         ...eaten, ...planned,

@@ -11,6 +11,7 @@ import {
   addUnit, foodWord, pluralOf, readUnitForm, readUnits, removeUnit, unitLine, withOverlay, MAX_UNITS, UNIT_NAME_MAX, type FoodUnit,
 } from '../lib/units-rules'
 import { saveLabelChoice, saveOwnUnits, useNutritionPrefs } from '../lib/nutrition-prefs'
+import { MICROS, microOf, microText, nrvPercent } from '../lib/micros-rules'
 import { format } from 'date-fns'
 import { offerUndo } from './Undo'
 import { FoodEditor } from './FoodEditor'
@@ -129,6 +130,28 @@ export function FoodUnitsSheet({ food: given, onClose }: { food: Food; onClose: 
           </span>
         </div>
         {ri && <p className="fe-note">Reference intake of an average adult (8,400 kJ / 2,000 kcal).</p>}
+
+        {/* Vitamins and minerals the person chose to see (FOOD-17), with
+            their share of the NRV as an EU label gives it. */}
+        {prefs.micros.length > 0 && (
+          <table className="fs-table fs-micros">
+            <caption>Vitamins and minerals per {per}</caption>
+            <thead><tr><th scope="col"><span className="visually-hidden">Nutrient</span></th><th scope="col">Per {per}</th><th scope="col">%NRV</th></tr></thead>
+            <tbody>
+              {MICROS.filter((m) => prefs.micros.includes(m.code)).map((m) => {
+                const v = microOf(food, m.code)
+                const pct = nrvPercent(m.code, v)
+                return (
+                  <tr key={m.code}>
+                    <th scope="row">{m.name}</th>
+                    <td>{microText(m.code, v)}</td>
+                    <td className="fs-ri">{pct === null ? '' : `${pct}%`}</td>
+                  </tr>
+                )
+              })}
+            </tbody>
+          </table>
+        )}
 
         <dl className="fs-facts">
           <div><dt>State</dt> <dd>{food.state}{food.cook_yield ? ` · cooks to ${Number(food.cook_yield)}× its weight` : ''}</dd></div>

@@ -41,3 +41,6 @@
   .fs-meal { grid-template-columns: minmax(0, 1fr) auto auto; }
   .fs-meal-tools { grid-column: auto; }
 }
+
+/* Vitamins and minerals (FOOD-17): the picker opens under its row. */
+.fs-micros-none { margin-top: var(--space-2); min-height: 44px; }

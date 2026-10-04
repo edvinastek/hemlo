@@ -4,6 +4,8 @@ import {
   LABEL, STATES, draftOf, energyFrom, readFoodForm, type FoodDraft, type FoodState, type LabelKey,
 } from '../lib/eu-label-rules'
 import { readUnits } from '../lib/units-rules'
+import { MICROS, microTexts, readMicroForm, sameMicros, storedMicros, type MicroCode } from '../lib/micros-rules'
+import { useNutritionPrefs } from '../lib/nutrition-prefs'
 import { Dropdown } from './Dropdown'
 import { MoreOptions } from './MoreOptions'
 import type { Food } from '../lib/types'
@@ -47,6 +49,12 @@ export function FoodEditor({ food, copyOf, name, barcode, userId, onClose, onSav
     food ? draftOf(food as never) : copyOf ? draftOf(copyOf as never, copyOf.name) : { ...draftOf(null), name: name ?? '' })
   const [error, setError] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
+  // Vitamins and minerals (FOOD-17): the ones the person shows, and any the
+  // food already has, so a copy of a NEVO food keeps NEVO's figures.
+  const prefs = useNutritionPrefs()
+  const [microDraft, setMicroDraft] = useState<Partial<Record<MicroCode, string>>>(() => microTexts((food ?? copyOf)?.micros))
+  const microRows = MICROS.filter((m) => prefs.micros.includes(m.code) || microDraft[m.code] !== undefined)
+  const microsOpen = useMemo(() => Object.values(microDraft).some((v) => v?.trim()), [])
   const moreOpen = useMemo(() => LABEL.some((r) => !MAIN.includes(r.key) && draft.figures[r.key]), [])
   const set = (change: Partial<FoodDraft>) => { setDraft((d) => ({ ...d, ...change })); setError(null) }
   const setFigure = (key: LabelKey, v: string) => set({ figures: { ...draft.figures, [key]: v } })
@@ -70,8 +78,11 @@ export function FoodEditor({ food, copyOf, name, barcode, userId, onClose, onSav
     e.preventDefault()
     if (busy) return
     if ('error' in read) { setError(read.error); return }
+    const microRead = readMicroForm(microDraft)
+    if ('error' in microRead) { setError(microRead.error); return }
     setBusy(true)
     try {
+      const micros = storedMicros(microRead.micros)
       const v = read.values
       let saved: Food
       if (food) {
@@ -81,12 +92,13 @@ export function FoodEditor({ food, copyOf, name, barcode, userId, onClose, onSav
         for (const [k, x] of Object.entries(v)) {
           if (differs(x, (food as unknown as Record<string, unknown>)[k])) (changes as Record<string, unknown>)[k] = x
         }
+        if (!sameMicros(micros, food.micros)) changes.micros = micros
         saved = Object.keys(changes).length ? await edit('food', food, changes) : food
       } else {
         const fresh = { id: crypto.randomUUID() } as Food
         const units = copyOf ? readUnits(copyOf.units).filter((u) => u.source !== 'mine') : []
         saved = await edit('food', fresh, {
-          ...v, owner_id: userId, deleted_at: null, units,
+          ...v, owner_id: userId, deleted_at: null, units, ...(micros ? { micros } : {}),
           // A copy of a NEVO food remembers where it came from; the figures
           // are the person's own from now on.
           source: 'own', source_ref: copyOf?.nevo_code ? `nevo:${copyOf.nevo_code}` : copyOf?.barcode ? copyOf.source_ref ?? null : null,
@@ -148,6 +160,21 @@ export function FoodEditor({ food, copyOf, name, barcode, userId, onClose, onSav
               <summary>More figures: mono- and polyunsaturates, polyols, starch, alcohol</summary>
               {LABEL.filter((r) => !MAIN.includes(r.key)).map((r) => field(r.key))}
             </details>
+            {microRows.length > 0 && (
+              <details open={microsOpen}>
+                <summary>Vitamins and minerals</summary>
+                {microRows.map((m) => (
+                  <label key={m.code} className="fe-figure">
+                    <span>{m.name}</span>
+                    <span className="fe-input">
+                      <input inputMode="decimal" autoComplete="off" value={microDraft[m.code] ?? ''} placeholder="–"
+                        onChange={(e) => { setMicroDraft((d) => ({ ...d, [m.code]: e.target.value })); setError(null) }} />
+                      <span className="fe-unit" aria-hidden="true">{m.unit}</span>
+                    </span>
+                  </label>
+                ))}
+              </details>
+            )}
             <p className="fe-note" aria-live="polite">
               {worked
                 ? `Energy left empty: worked out from the macros with the EU factors, ${worked.kcal} kcal (${worked.kj} kJ).`

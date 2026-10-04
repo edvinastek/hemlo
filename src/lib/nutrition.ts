@@ -1,6 +1,8 @@
 import { db } from './db'
 import { recipeMacros, type Macros } from './calc'
 import { quickMacros } from './quick-food'
+import { readDoseNutrients, type MicroDose } from './micros-rules'
+import { pickLog } from './tracking-rules'
 import type { Food } from './types'
 
 const ZERO: Macros = { kcal: 0, carbs_g: 0, fiber_g: 0, fat_g: 0, protein_g: 0 }
@@ -52,4 +54,16 @@ export async function dayTotals(profileId: string, day: string): Promise<Macros>
     }
   }
   return total
+}
+
+/** The supplements ticked on a day that count towards vitamins and
+ *  minerals (SUP-07): what one dose of each gives. */
+export async function dayDoses(profileId: string, day: string): Promise<MicroDose[]> {
+  const counting = (await db.supplement.where('profile_id').equals(profileId).toArray())
+    .filter((s) => !s.deleted_at && Object.keys(readDoseNutrients(s.nutrients)).length)
+  if (!counting.length) return []
+  const logs = await db.supplement_log.where('[supplement_id+log_date]').anyOf(counting.map((s) => [s.id, day])).toArray()
+  return counting
+    .filter((s) => pickLog(logs.filter((l) => l.supplement_id === s.id))?.done)
+    .map((s) => ({ amounts: readDoseNutrients(s.nutrients) }))
 }
