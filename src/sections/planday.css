@@ -21,9 +21,11 @@
 .pd-meta { font-family: var(--font-sans); font-size: 12px; color: var(--e-ink-soft); }
 .pd-meta:empty { display: none; }
 .pd-choice { display: flex; flex-wrap: wrap; gap: var(--space-1); }
-.pd-chip { min-height: 32px; padding: 4px 12px; border: 1px solid var(--e-rule); color: var(--e-ink); }
+/* A chosen chip is marked by weight, the tint and a firmer edge, as the
+   work days are in Settings: the accent stays for the one primary button. */
+.pd-chip { min-height: 32px; padding: 4px 12px; background: transparent; border: 1px solid var(--e-rule); color: var(--e-ink-soft); }
 .pd-chip[aria-checked="true"], .pd-chip[aria-pressed="true"] {
-  background: var(--e-ink); color: var(--e-paper); border-color: var(--e-ink); font-weight: 600;
+  background: var(--e-tint); color: var(--e-ink); border-color: var(--e-ink-soft); font-weight: 600;
 }
 .pd-chip:disabled { opacity: 0.5; }
 
@@ -37,3 +39,5 @@
 .pd-load.is-over .pd-words { color: var(--e-warn); }
 
 .pd-sheet .sheet-actions { flex-wrap: wrap; }
+/* Close the day: the one-tap move on a line of its own, so its words never wrap. */
+.pd-sheet .sheet-actions .pd-wide { flex: 1 1 100%; margin-left: 0; }

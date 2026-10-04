@@ -18,6 +18,7 @@ import { WorkFields } from './WorkFields'
 import { savePlanPrefs, usePlanPrefs } from '../lib/plan-prefs'
 import { cleanCapacity } from '../lib/plan-view-rules'
 import { cleanClock, dayEdges, wakingMinutes } from '../lib/day-edge-rules'
+import { lengthWords } from '../lib/quick-add-rules'
 import './planning.css'
 import { planToday } from '../lib/day-edge'
 
@@ -134,7 +135,6 @@ function YourDay({ profile }: { profile: Profile }) {
   const waking = wakingMinutes(edges)
   const [hours, setHours] = useState<string | null>(null)
   const shownHours = hours ?? (prefs.capacity_min ? String(Math.round(prefs.capacity_min / 6) / 10) : '')
-  const hoursWord = (m: number) => `${Math.round(m / 6) / 10} h`
 
   function saveEdge(field: 'day_start' | 'day_end', v: string) {
     const t = cleanClock(v)
@@ -166,7 +166,7 @@ function YourDay({ profile }: { profile: Profile }) {
       <div className="setting-row">
         <div>
           <div className="row-name">Planned time a day can hold</div>
-          <div className="row-meta">Left empty: your waking day, {hoursWord(waking)}.</div>
+          <div className="row-meta">Left empty: your waking day, {lengthWords(waking)}.</div>
         </div>
         <span className="pl-hours">
           <input className="btn" inputMode="decimal" value={shownHours} placeholder={String(Math.round(waking / 6) / 10)}

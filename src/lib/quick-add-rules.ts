@@ -442,7 +442,9 @@ export function readQuickAdd(text: string, ctx: QuickAddContext): QuickAddResult
   if (lengthHit?.minutes && timeHit?.minutes === undefined) chips.push({ kind: 'length', label: lengthWords(lengthHit.minutes) })
   if (repeat) {
     const words = describeSchedule({ rule: repeat.rule, rule_config: repeat.rule_config, start_date: start })
-    chips.push({ kind: 'repeat', label: from ? `${words}, from ${dayWords(from, ctx.today)}` : words })
+    // Mid-line, "today" and "tomorrow" are lower case: "…, from tomorrow".
+    const fromWords = from ? dayWords(from, ctx.today).replace(/^(Today|Tomorrow)$/, (w) => w.toLowerCase()) : ''
+    chips.push({ kind: 'repeat', label: from ? `${words}, from ${fromWords}` : words })
   }
   if (sectionHit?.section) chips.push({ kind: 'section', label: sectionHit.section })
 

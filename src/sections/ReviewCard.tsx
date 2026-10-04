@@ -54,8 +54,9 @@ export function ReviewCard({ profileId, day, variant }: { profileId: string; day
           {persona ? `${persona}: ` : ''}{summaryLine(tasks, day, today)}
           <span className="review-toggle">{open ? 'Hide' : 'Review'}</span>
         </button>
-        {open && <ReviewList tasks={tasks} day={day} today={today} />}
+        {/* Close the day first, in sight: the whole day in one go (TOD-23). */}
         {open && day === today && <CloseDayButton profileId={profileId} day={day} />}
+        {open && <ReviewList tasks={tasks} day={day} today={today} />}
       </section>
     )
   }
@@ -65,8 +66,10 @@ export function ReviewCard({ profileId, day, variant }: { profileId: string; day
       <h2 className="section-title">Review</h2>
       {tasks.length === 0
         ? <p className="empty">Nothing left to review.</p>
-        : <ReviewList tasks={tasks} day={day} today={today} />}
-      {tasks.length > 0 && day === today && <CloseDayButton profileId={profileId} day={day} />}
+        : <>
+          {day === today && <CloseDayButton profileId={profileId} day={day} />}
+          <ReviewList tasks={tasks} day={day} today={today} />
+        </>}
       <ReviewTimeControl time={settings.time} />
     </section>
   )

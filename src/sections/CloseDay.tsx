@@ -76,7 +76,7 @@ export function CloseDay({ profileId, day, onClose }: { profileId: string; day: 
               onClick={() => void move(toInbox.move, 'inbox', toInbox.stay.length, true)}>Move all to Inbox</button>
           )}
           {toTomorrow.move.length > 0 && (
-            <button type="button" className="btn btn-primary grow" disabled={busy}
+            <button type="button" className="btn btn-primary pd-wide" disabled={busy}
               onClick={() => void move(toTomorrow.move, 'tomorrow', toTomorrow.stay.length, true)}>Move all to tomorrow</button>
           )}
         </div>
