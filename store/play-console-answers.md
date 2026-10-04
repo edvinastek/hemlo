@@ -71,7 +71,7 @@ Tick:
 - **Sleep management** (the Sleep module logs sleep and works out sleep debt)
 
 Do not tick anything medical: GetIt does not diagnose, treat or monitor any condition, and the listing says it
-gives no medical advice. It does not use Health Connect.
+gives no medical advice. From version 19 it can read sleep from Health Connect (see "Health Connect" below).
 
 ### Data safety
 
@@ -135,6 +135,7 @@ asks the person for:
 | `WAKE_LOCK` | Held briefly by the notification library so a reminder arrives on time. |
 | `USE_BIOMETRIC`, `USE_FINGERPRINT` | Only to confirm switching between accounts kept on the phone. |
 | `app.getit.planner.DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION` | Added by AndroidX; only GetIt holds it. |
+| `android.permission.health.READ_SLEEP` | Version 19: reading sleep sessions from Health Connect, only when the person chooses Import from Health Connect on the Sleep page (see "Health Connect" below). |
 
 Removed on purpose (`tools:node="remove"` in `android/app/src/main/AndroidManifest.xml`): `CAMERA` (barcodes go
 through Google's code scanner; photos through the camera app or Android's photo picker, which need no
@@ -171,3 +172,39 @@ Optional, for a 7-inch tablet listing: Today and Plan side by side in landscape.
 | Signing | Play App Signing. You keep only the upload key (see `docs/android-release.md`) |
 | Version code | The CI run number, so every upload is higher than the last |
 | Version name | `package.json` version |
+
+## Health Connect (version 19, SLP-05)
+
+GetIt reads **one** Health Connect data type, **Sleep** (`android.permission.health.READ_SLEEP`), and writes none.
+The merged manifest declares nothing else from Health Connect (checked with `aapt2 dump permissions` on the version 19
+build). Health Connect access has its own declaration in Play Console, separate from Data safety; without it the
+release is rejected.
+
+### Health Connect permissions declaration
+Play Console → App content → **Health Connect permissions** (or the "Health apps" declaration's Health Connect part).
+Declare exactly this; if a later version needs another type, the declaration must list the old types and the new one
+together.
+
+| Field | Answer |
+| --- | --- |
+| Data type | Sleep (read only) |
+| Write access | None |
+| Use case | Sleep tracking / sleep management: show the person's own nights (bed and wake time, hours asleep) on the Sleep page, against their sleep target, with sleep debt and how regular their nights are. |
+| How the data is used | When the person chooses **Import from Health Connect** on the Sleep page (Android only), GetIt asks for the Sleep permission and reads the sleep sessions that ended in the last 7, 14 or 30 days (they choose). Each night becomes a sleep entry in their GetIt account, the same as a night they type in, so it shows on their other devices. Sessions that overlap are joined, naps are left out, and a day that already has a night keeps it. Nothing is read in the background or on a schedule. |
+| Shared with third parties | No. The nights are stored by Supabase as GetIt's processor, like the rest of the person's data; never sold, never used for advertising, never shared. |
+| Used for advertising or credit | No |
+| Human access | No. Only the person sees it, in their own account; it is not shared with their household. |
+| Data retention | Kept until the person deletes the night or their account. Taking the permission back stops new imports; nights already imported stay until deleted. |
+| Privacy policy | The same URL as above. The policy has a Health Connect section (version 19); the screen Health Connect opens from its permission screen and its settings (`HealthPrivacyActivity`) says the same and leads to it. Put the policy's address in `android/app/src/main/res/values/health.xml` (`health_privacy_url`) once the site is published, so that screen opens the public page rather than the copy in the app. |
+| Limited use | Confirm the Health Connect / Google API **Limited Use** requirements: the data is used only to provide the Sleep feature the person sees, not transferred except as needed for that feature (sync to their own account), not used for ads, and not read by people. |
+
+### Data safety (unchanged categories)
+Sleep from Health Connect is **Health and fitness → Health info**, which is already declared as collected, optional,
+for App functionality ("Weight, waist, food eaten, targets, sleep, supplements"). Nothing new is shared. If the form
+asks whether health data comes from Health Connect, answer Yes.
+
+### Reviewer notes
+To see it: an Android phone with Health Connect (built in on Android 14 and later; the Health Connect app from Google
+Play on Android 9 to 13) holding some sleep (any sleep tracker or Health Connect's own "add data"). In GetIt: switch
+on Sleep (More → Modules), open Sleep, ⋮ → Import from Health Connect → Import, allow Sleep on Health Connect's screen.
+
