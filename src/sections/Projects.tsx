@@ -5,12 +5,12 @@ import { useLookups, type Rec } from '../modules/records'
 import { RecordSheet } from '../modules/RecordSheet'
 import { saveTask, setTaskDone } from '../lib/tasks'
 import {
-  addProjectTask, deleteMilestone, deleteTask, restoreMilestone, saveMilestone, setTaskProject, toggleMilestone,
-  useGoals, useMilestones, useProjectTasks, useProjects,
+  addProjectTask, createFromTemplate, deleteMilestone, deleteProjectTemplate, deleteTask, restoreMilestone, saveMilestone, saveProjectTemplate,
+  setTaskProject, toggleMilestone, undoFromTemplate, useGoals, useMilestones, useProjectTasks, useProjectTemplates, useProjects,
 } from '../lib/projects'
 import {
-  describeProgress, nextMilestone, nextTask, orderMilestones, orderTasks, projectDue, projectGoal, projectName, projectStatus,
-  taskProgress,
+  allTemplates, describeProgress, describeTemplate, fromTemplate, nextMilestone, nextTask, orderMilestones, orderTasks, projectDue, projectGoal,
+  projectName, projectStatus, taskProgress, templateFromProject, type ProjectTemplate,
 } from '../lib/projects-rules'
 import type { ModuleRecord, Task } from '../lib/types'
 import type { Milestone } from '../lib/projects-types'
@@ -29,7 +29,9 @@ const statusLabel = (s: string) => STATUS_LABEL[s] ?? s.charAt(0).toUpperCase() 
 
 /** The Projects page: projects with their tasks, progress and next task
  *  (PRJ-02), milestones (PRJ-03), a board by status (PRJ-04), goals
- *  (PRJ-06), and the module's own views. A project opens in place. */
+ *  (PRJ-06), and the module's own views. A project opens in place. v19:
+ *  "New from template…" in the ⋮ and "Save as template" in a project's ⋮
+ *  (PRJ-05). */
 export function Projects({ profileId }: { profileId: string; day: string }) {
   const def = useModuleDef('projects')
   const [params, setParams] = useSearch()
@@ -42,12 +44,14 @@ export function Projects({ profileId }: { profileId: string; day: string }) {
   // One project or one goal is a page of its own, with its own way back.
   useHideModuleHead(!!(projectId && def) || !!goalId)
 
+  const [templates, setTemplates] = useState(false)
   if (projectId && def) return <ProjectPage profileId={profileId} projectId={projectId} onClose={() => setParams({ project: null })} />
   // A goal opened from elsewhere (the Year view) lands on the Goals tab.
   const active = goalId ? 'goals' : tab
   return (
     <>
-      <ModuleMenu views={views} active={active} onView={setTab} />
+      <ModuleMenu views={views} active={active} onView={setTab} items={[{ label: 'New from template…', onSelect: () => setTemplates(true) }]} />
+      {templates && <TemplateSheet profileId={profileId} onClose={() => setTemplates(false)} onMade={(id) => { setTemplates(false); setParams({ project: id }) }} />}
       {!goalId && <ModuleTabs tabs={tabs} active={active} onTab={setTab} />}
       {active === 'overview' && <Overview profileId={profileId} onOpen={(id) => setParams({ project: id })} />}
       {active === 'goals' && <Goals profileId={profileId} />}
@@ -179,6 +183,12 @@ function ProjectPage({ profileId, projectId, onClose }: { profileId: string; pro
     await deleteTask(t)
     offerUndo(`${t.title} deleted`, () => saveTask({ ...t, deleted_at: null }, ['deleted_at']))
   }
+  // The project's tasks and milestones, days counted from its start (PRJ-05).
+  async function saveAsTemplate() {
+    const tpl = templateFromProject(crypto.randomUUID(), projectName(p!), p!, tasksBy!.get(p!.id) ?? [], ms, today)
+    await saveProjectTemplate(profileId, tpl)
+    offerUndo(`"${tpl.name}" saved as a template`, () => deleteProjectTemplate(profileId, tpl.id))
+  }
   async function takeOut(t: Task) {
     setMenu(null)
     await setTaskProject(t, null)
@@ -193,7 +203,10 @@ function ProjectPage({ profileId, projectId, onClose }: { profileId: string; pro
           <h2>{projectName(p)}</h2>
           <p className="row-meta">{[statusLabel(projectStatus(p)), due ? `due ${short(due)}` : null, goal ? `towards ${goal.title}` : null].filter(Boolean).join(' · ')}</p>
         </div>
-        <MoreMenu className="prj-menu" label={`More for ${projectName(p)}`} items={[{ label: 'Edit project', onSelect: () => setEditing(true) }]} />
+        <MoreMenu className="prj-menu" label={`More for ${projectName(p)}`} items={[
+          { label: 'Edit project', onSelect: () => setEditing(true) },
+          { label: 'Save as template', onSelect: () => void saveAsTemplate() },
+        ]} />
       </header>
       {prog.all > 0 && (
         <div className="prj-progress is-big">
@@ -301,6 +314,68 @@ export function MilestoneSheet({ profileId, milestone, projectId, goalId, onClos
         <label>Milestone<input value={title} maxLength={120} autoFocus={!milestone} placeholder="First draft sent" onChange={(e) => { setTitle(e.target.value); setError(null) }} /></label>
         <label>Day<input type="date" value={due} onChange={(e) => setDue(e.target.value)} /></label>
         <label>Note<textarea value={note} maxLength={1000} onChange={(e) => setNote(e.target.value)} /></label>
+      </div>
+      {error && <p className="kit-error" role="alert">{error}</p>}
+    </Sheet>
+  )
+}
+
+/* ---------- new from template (PRJ-05) --------------------------------------------- */
+
+/** Pick a template, then the start day: every task and milestone moves with
+ *  it. One sheet, two steps (never a sheet on a sheet). */
+function TemplateSheet({ profileId, onClose, onMade }: { profileId: string; onClose: () => void; onMade: (projectId: string) => void }) {
+  const own = useProjectTemplates(profileId)
+  const [pick, setPick] = useState<ProjectTemplate | null>(null)
+  const [name, setName] = useState('')
+  const [start, setStart] = useState(localToday())
+  const [error, setError] = useState<string | null>(null)
+  const [busy, setBusy] = useState(false)
+  if (!own) return null
+  const list = allTemplates(own)
+
+  if (!pick) {
+    return (
+      <Sheet title="New from template" onClose={onClose} actions={<button type="button" className="btn grow" onClick={onClose}>Cancel</button>}>
+        <ul className="kit-list prj-templates" aria-label="Templates">
+          {list.map((tpl) => (
+            <li key={tpl.id} className="kit-row">
+              <button type="button" className="kit-open" onClick={() => { setPick(tpl); setName(tpl.name) }}>
+                <span className="row-name">{tpl.name}</span>
+                <span className="row-meta">{describeTemplate(tpl)}{tpl.builtin ? '' : ' · yours'}</span>
+              </button>
+            </li>
+          ))}
+        </ul>
+      </Sheet>
+    )
+  }
+
+  const made = /^\d{4}-\d{2}-\d{2}$/.test(start) ? fromTemplate(pick, start, name) : null
+  async function make() {
+    if (!made) return setError('Pick the day it starts.')
+    setBusy(true)
+    const done = await createFromTemplate(profileId, made)
+    offerUndo(`"${made.project.name}" made from a template`, () => undoFromTemplate(done))
+    onMade(done.project.id)
+  }
+  async function remove() {
+    const tpl = pick!
+    await deleteProjectTemplate(profileId, tpl.id)
+    offerUndo(`Template "${tpl.name}" deleted`, () => saveProjectTemplate(profileId, tpl))
+    setPick(null)
+  }
+  return (
+    <Sheet title={pick.name} onClose={onClose} onSubmit={() => void make()}
+      actions={<>
+        {!pick.builtin && <DeleteButton label="Delete template" onDelete={() => void remove()} />}
+        <button type="button" className="btn grow" onClick={() => setPick(null)}>Back</button>
+        <button type="submit" className="btn btn-primary" disabled={busy}>Make it</button>
+      </>}>
+      <div className="form-grid">
+        <label>Project<input value={name} maxLength={80} onChange={(e) => { setName(e.target.value); setError(null) }} /></label>
+        <label>Starts<input type="date" value={start} autoFocus onChange={(e) => { setStart(e.target.value); setError(null) }} /></label>
+        {made && <p className="kit-hint">{[describeTemplate(pick).split(' · ').slice(0, 2).join(' · '), made.project.due_date ? `due ${short(made.project.due_date)}` : null].filter(Boolean).join(' · ')}</p>}
       </div>
       {error && <p className="kit-error" role="alert">{error}</p>}
     </Sheet>

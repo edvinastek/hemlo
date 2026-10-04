@@ -256,3 +256,147 @@ export function yearDateWords(date: string | null, year: number): string {
   const MON = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
   return `by ${d} ${MON[m - 1]}${y === year ? '' : ` ${y}`}`
 }
+
+/* ---------- project templates (PRJ-05) --------------------------------------- */
+
+/** A project kept as a pattern: its tasks and milestones with days counted
+ *  from the project's start (null: no day, so the task goes to the Inbox),
+ *  and its due day the same way. "New from template" asks only the start.
+ *  Two come with the app; the person's own are kept in Projects' settings
+ *  (module_instance.settings.templates), saved from any project. */
+export interface TemplateItem { title: string; offset: number | null }
+export interface ProjectTemplate {
+  id: string
+  name: string
+  builtin?: boolean
+  due_offset: number | null
+  tasks: TemplateItem[]
+  milestones: TemplateItem[]
+}
+
+export const TEMPLATE_LIMITS = { templates: 30, items: 100, title: 200, name: 80, offset: 3650 }
+
+const t = (offset: number | null, title: string): TemplateItem => ({ title, offset })
+
+export const BUILTIN_TEMPLATES: ProjectTemplate[] = [
+  {
+    id: 'builtin:move-house', name: 'Move house', builtin: true, due_offset: 56,
+    tasks: [
+      t(0, 'Agree the moving day'),
+      t(3, 'Get quotes from removal firms'),
+      t(7, 'Book the removal firm or a van'),
+      t(14, 'Clear out one room at a time'),
+      t(21, 'Get boxes and packing tape'),
+      t(28, 'Give the new address to the bank, employer, doctor and insurers'),
+      t(35, 'Arrange energy, water and internet at the new place'),
+      t(42, 'Set up post forwarding'),
+      t(49, 'Pack everything but the essentials'),
+      t(55, 'Pack a box of essentials for the first night'),
+      t(56, 'Take meter readings and hand over the keys'),
+      t(60, 'Register the new address with the council'),
+    ],
+    milestones: [t(56, 'Moving day')],
+  },
+  {
+    id: 'builtin:exam-prep', name: 'Exam prep', builtin: true, due_offset: 42,
+    tasks: [
+      t(0, 'List every topic on the syllabus'),
+      t(1, 'Make a revision timetable'),
+      t(2, 'Gather notes, past papers and mark schemes'),
+      t(7, 'Revise the first third of the topics'),
+      t(14, 'Revise the second third of the topics'),
+      t(21, 'Revise the last third of the topics'),
+      t(28, 'Do a timed past paper and mark it'),
+      t(31, 'Go over the weakest topics again'),
+      t(35, 'Do a second timed past paper'),
+      t(41, 'Light review, pack what the exam needs, rest'),
+    ],
+    milestones: [t(42, 'Exam')],
+  },
+]
+
+const DAY_RE = /^\d{4}-\d{2}-\d{2}$/
+const dayNum = (d: string) => { const [y, m, x] = d.split('-').map(Number); return Math.round(Date.UTC(y, m - 1, x) / 86400000) }
+const fromNum = (n: number) => new Date(n * 86400000).toISOString().slice(0, 10)
+/** The day `offset` days after `start`. */
+export const plusDays = (start: string, offset: number) => fromNum(dayNum(start) + offset)
+
+/** Where a project starts, for saving it as a template: its own start day
+ *  if it has one, else its earliest dated task or milestone, else today. */
+export function projectStart(p: ProjectLike, tasks: TaskLike[], milestones: MilestoneLike[], today: string): string {
+  if (typeof p.data.start_date === 'string' && DAY_RE.test(p.data.start_date)) return p.data.start_date
+  const days = [...countable(tasks).map((x) => x.planned_date), ...live(milestones).map((m) => m.due_date)].filter((d): d is string => !!d && DAY_RE.test(d)).sort()
+  return days[0] ?? today
+}
+
+const clean = (s: string, max: number) => s.replace(/\s+/g, ' ').trim().slice(0, max)
+
+/** A project as a template: every task (done or not, dropped ones left out)
+ *  and milestone, with days counted from the start. */
+export function templateFromProject(id: string, name: string, p: ProjectLike, tasks: TaskLike[], milestones: MilestoneLike[], today: string): ProjectTemplate {
+  const start = projectStart(p, tasks, milestones, today)
+  const off = (d: string | null | undefined) => (d && DAY_RE.test(d) ? dayNum(d) - dayNum(start) : null)
+  const due = projectDue(p)
+  return {
+    id,
+    name: clean(name, TEMPLATE_LIMITS.name) || projectName(p),
+    due_offset: off(due),
+    tasks: orderTasks(tasks).slice(0, TEMPLATE_LIMITS.items).map((x) => ({ title: clean(x.title, TEMPLATE_LIMITS.title), offset: off(x.planned_date) })),
+    milestones: orderMilestones(milestones).slice(0, TEMPLATE_LIMITS.items).map((m) => ({ title: clean(m.title, TEMPLATE_LIMITS.title), offset: off(m.due_date) })),
+  }
+}
+
+export interface FromTemplate {
+  project: { name: string; status: 'active'; due_date: string | null; start_date: string }
+  tasks: { title: string; day: string | null }[]
+  milestones: { title: string; day: string | null }[]
+}
+
+/** A new project from a template on a start day: every day moved with it. */
+export function fromTemplate(tpl: ProjectTemplate, start: string, name?: string): FromTemplate {
+  const at = (o: number | null) => (o == null ? null : plusDays(start, o))
+  return {
+    project: { name: clean(name ?? '', TEMPLATE_LIMITS.name) || tpl.name, status: 'active', due_date: at(tpl.due_offset), start_date: start },
+    tasks: tpl.tasks.map((x) => ({ title: x.title, day: at(x.offset) })),
+    milestones: tpl.milestones.map((m) => ({ title: m.title, day: at(m.offset) })),
+  }
+}
+
+/** "12 tasks · a milestone · about 8 weeks". */
+export function describeTemplate(tpl: ProjectTemplate): string {
+  const n = tpl.tasks.length
+  const m = tpl.milestones.length
+  const span = Math.max(tpl.due_offset ?? 0, ...tpl.tasks.map((x) => x.offset ?? 0), ...tpl.milestones.map((x) => x.offset ?? 0))
+  const weeks = Math.round(span / 7)
+  return [`${n} ${n === 1 ? 'task' : 'tasks'}`, m ? `${m} ${m === 1 ? 'milestone' : 'milestones'}` : null,
+    span ? (weeks >= 2 ? `about ${weeks} weeks` : `${span + 1} days`) : null].filter(Boolean).join(' · ')
+}
+
+/** The person's own templates as kept, checked: anything odd is left out. */
+export function readTemplates(settings: unknown): ProjectTemplate[] {
+  const raw = settings && typeof settings === 'object' ? (settings as Record<string, unknown>).templates : null
+  if (!Array.isArray(raw)) return []
+  const item = (v: unknown): TemplateItem | null => {
+    if (!v || typeof v !== 'object') return null
+    const r = v as Record<string, unknown>
+    const title = typeof r.title === 'string' ? clean(r.title, TEMPLATE_LIMITS.title) : ''
+    const o = r.offset == null ? null : Number(r.offset)
+    if (!title || (o != null && (!Number.isInteger(o) || Math.abs(o) > TEMPLATE_LIMITS.offset))) return null
+    return { title, offset: o }
+  }
+  const out: ProjectTemplate[] = []
+  for (const v of raw) {
+    if (!v || typeof v !== 'object' || out.length >= TEMPLATE_LIMITS.templates) continue
+    const r = v as Record<string, unknown>
+    const id = typeof r.id === 'string' && /^[a-z0-9-]{1,40}$/i.test(r.id) ? r.id : null
+    const name = typeof r.name === 'string' ? clean(r.name, TEMPLATE_LIMITS.name) : ''
+    if (!id || !name || out.some((x) => x.id === id)) continue
+    const list = (x: unknown) => (Array.isArray(x) ? x.map(item).filter((i): i is TemplateItem => !!i).slice(0, TEMPLATE_LIMITS.items) : [])
+    const due = r.due_offset == null ? null : Number(r.due_offset)
+    out.push({ id, name, due_offset: Number.isInteger(due) && Math.abs(due!) <= TEMPLATE_LIMITS.offset ? due : null, tasks: list(r.tasks), milestones: list(r.milestones) })
+  }
+  return out
+}
+
+/** Every template to offer: the app's two, then the person's own by name. */
+export const allTemplates = (own: ProjectTemplate[]) => [...BUILTIN_TEMPLATES, ...[...own].sort((a, b) => a.name.localeCompare(b.name))]

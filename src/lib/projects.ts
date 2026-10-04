@@ -4,10 +4,13 @@ import { edit } from './write'
 import { blankTask, deleteTask, saveTask } from './tasks'
 import type { Goal, ModuleRecord, Task } from './types'
 import type { Milestone } from './projects-types'
-import { goalProgress, milestonesBetween, projectGoal, yearGoals, type GoalProgress } from './projects-rules'
+import {
+  goalProgress, milestonesBetween, projectGoal, readTemplates, yearGoals, type FromTemplate, type GoalProgress, type ProjectTemplate,
+} from './projects-rules'
+import { queueChange } from './sync'
 import { trendLine } from './trend-rules'
 import { builtinRuleOn } from '../modules/rule-switch'
-import { instanceFor } from '../modules/defs'
+import { ensureInstance, instanceFor } from '../modules/defs'
 
 /** Projects and goals on the device. A project is a Projects record (kept in
  *  module_record, so its fields can be shaped in Edit module); its tasks
@@ -220,4 +223,55 @@ export async function loadYearGoals(profileId: string, year: number) {
       link: item.kind === 'goal' ? `/m/projects?goal=${item.id}` : `/m/projects?project=${item.id}` })
   }
   return out
+}
+
+/* ---------- project templates (PRJ-05) ------------------------------------------ */
+
+/** The person's own templates (Projects' settings), live; the app's two are
+ *  added by allTemplates in projects-rules.ts. */
+export function useProjectTemplates(profileId: string | null | undefined): ProjectTemplate[] | undefined {
+  return useLiveQuery(async () => (profileId ? readTemplates((await instanceFor(profileId, 'projects'))?.settings) : []), [profileId])
+}
+
+async function keepTemplates(profileId: string, change: (list: ProjectTemplate[]) => ProjectTemplate[]): Promise<void> {
+  const inst = await ensureInstance(profileId, 'projects', true)
+  const row = (await db.module_instance.get(inst.id)) ?? inst
+  await edit('module_instance', row, { settings: { ...(row.settings ?? {}), templates: change(readTemplates(row.settings)) } })
+}
+
+/** Save a project as a template of the person's own (a new one each time). */
+export async function saveProjectTemplate(profileId: string, tpl: ProjectTemplate): Promise<void> {
+  await keepTemplates(profileId, (list) => [...list.filter((x) => x.id !== tpl.id), tpl])
+}
+
+export async function deleteProjectTemplate(profileId: string, id: string): Promise<void> {
+  await keepTemplates(profileId, (list) => list.filter((x) => x.id !== id))
+}
+
+/** A new project from a template: the project, its tasks on their days (or
+ *  in the Inbox), its milestones. Returns what was made, for Undo. */
+export async function createFromTemplate(profileId: string, made: FromTemplate): Promise<{ project: ModuleRecord; tasks: Task[]; milestones: Milestone[] }> {
+  const project: ModuleRecord = {
+    id: crypto.randomUUID(), profile_id: profileId, module_key: 'projects', entity: 'project',
+    data: { ...made.project }, record_date: null, created_at: now(), updated_at: now(), deleted_at: null,
+  }
+  await db.module_record.put(project)
+  await queueChange('module_record', project, ['profile_id', 'module_key', 'entity', 'data', 'record_date', 'deleted_at'])
+  const tasks: Task[] = []
+  for (const [i, x] of made.tasks.entries()) {
+    const t = blankTask(profileId, x.day ?? '', { title: x.title.slice(0, 200), project_id: project.id, module_key: 'projects', sort_order: i })
+    tasks.push(await saveTask({ ...t, planned_date: x.day }, undefined))
+  }
+  const milestones: Milestone[] = []
+  for (const m of made.milestones) {
+    milestones.push(await saveMilestone(profileId, null, { title: m.title, due_date: m.day, project_id: project.id, goal_id: null, note: null }))
+  }
+  return { project, tasks, milestones }
+}
+
+/** Undo a project made from a template: it and everything it made. */
+export async function undoFromTemplate(made: { project: ModuleRecord; tasks: Task[]; milestones: Milestone[] }): Promise<void> {
+  await edit('module_record', (await db.module_record.get(made.project.id)) ?? made.project, { deleted_at: now() })
+  for (const t of made.tasks) { const cur = await db.task.get(t.id); if (cur && !cur.deleted_at) await deleteTask(cur) }
+  for (const m of made.milestones) { const cur = await db.milestone.get(m.id); if (cur && !cur.deleted_at) await deleteMilestone(cur) }
 }

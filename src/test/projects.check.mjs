@@ -5,6 +5,7 @@ import {
   taskProgress, nextTask, orderTasks, orderMilestones, nextMilestone, milestonesBetween, describeProgress, projectName,
   projectStatus, projectDue, goalProgress, daysLeft, goalProblems, orderGoals, yearGoals,
   milestoneLink, milestoneWords, milestonesByDay, yearDateWords,
+  BUILTIN_TEMPLATES, projectStart, templateFromProject, fromTemplate, describeTemplate, readTemplates, allTemplates, plusDays,
 } from '../lib/projects-rules.ts'
 
 let fail = 0
@@ -103,6 +104,44 @@ eq('milestones by day, undated left out', [...milestonesByDay([{ id: 'a', due_da
 eq('a date in the year shown', yearDateWords('2026-12-31', 2026), 'by 31 Dec')
 eq('a date in another year', yearDateWords('2027-03-01', 2026), 'by 1 Mar 2027')
 eq('no date', yearDateWords(null, 2026), 'no end date')
+
+// Project templates (PRJ-05): dates kept relative to a start day.
+const move = BUILTIN_TEMPLATES.find((x) => x.name === 'Move house')
+const exam = BUILTIN_TEMPLATES.find((x) => x.name === 'Exam prep')
+eq('two templates come with the app', BUILTIN_TEMPLATES.map((x) => x.name), ['Move house', 'Exam prep'])
+const moved = fromTemplate(move, '2026-10-05')
+eq('Move house from Monday 5 October: due eight weeks on', moved.project, { name: 'Move house', status: 'active', due_date: '2026-11-30', start_date: '2026-10-05' })
+eq('its first task is on the start day, the removal booked a week on',
+  [moved.tasks[0].day, moved.tasks.find((x) => x.title.startsWith('Book the removal')).day], ['2026-10-05', '2026-10-12'])
+eq('moving day is a milestone on the due day', moved.milestones, [{ title: 'Moving day', day: '2026-11-30' }])
+eq('another start moves every day with it', fromTemplate(exam, '2027-01-04').milestones[0].day, '2027-02-15')
+eq('a name of your own', fromTemplate(exam, '2027-01-04', '  Maths  final ').project.name, 'Maths final')
+eq('described', [describeTemplate(move), describeTemplate(exam)], ['12 tasks · 1 milestone · about 9 weeks', '10 tasks · 1 milestone · about 6 weeks'])
+eq('days across a month end', plusDays('2026-01-30', 3), '2026-02-02')
+
+const proj = { id: 'p1', data: { name: 'Kitchen', status: 'active', due_date: '2026-11-20' } }
+const ptasks = [
+  { id: 'a', title: 'Order units', status: 'done', planned_date: '2026-10-07' },
+  { id: 'b', title: 'Fit units', status: 'todo', planned_date: '2026-11-02' },
+  { id: 'c', title: 'Choose tiles', status: 'todo', planned_date: null },
+  { id: 'd', title: 'Old idea', status: 'dropped', planned_date: '2026-10-01' },
+  { id: 'e', title: 'Deleted', status: 'todo', planned_date: '2026-09-01', deleted_at: 'x' },
+]
+const pms = [{ id: 'm', title: 'Kitchen usable', due_date: '2026-11-15', done: false }]
+eq('a project starts on its earliest dated task or milestone (dropped and deleted left out)', projectStart(proj, ptasks, pms, '2026-12-01'), '2026-10-07')
+eq('its own start day wins', projectStart({ ...proj, data: { ...proj.data, start_date: '2026-10-01' } }, ptasks, pms, '2026-12-01'), '2026-10-01')
+eq('nothing dated: today', projectStart(proj, [], [], '2026-12-01'), '2026-12-01')
+const saved = templateFromProject('own-1', ' My kitchen ', proj, ptasks, pms, '2026-12-01')
+eq('saved as a template: days from the start, undated ones kept without a day',
+  saved, { id: 'own-1', name: 'My kitchen', due_offset: 44, tasks: [{ title: 'Fit units', offset: 26 }, { title: 'Choose tiles', offset: null }, { title: 'Order units', offset: 0 }],
+    milestones: [{ title: 'Kitchen usable', offset: 39 }] })
+eq('and made again from a new start', fromTemplate(saved, '2027-03-01').tasks, [{ title: 'Fit units', day: '2027-03-27' }, { title: 'Choose tiles', day: null }, { title: 'Order units', day: '2027-03-01' }])
+eq('no name: the project name', templateFromProject('own-2', '', proj, ptasks, pms, '2026-12-01').name, 'Kitchen')
+eq('templates kept are read back', readTemplates({ templates: [saved] }), [saved])
+eq('odd ones are left out', readTemplates({ templates: [{ id: 'x' }, { id: 'bad id!', name: 'A' }, { ...saved, tasks: [{ title: '', offset: 1 }, { title: 'Ok', offset: 1.5 }, { title: 'Fine', offset: -2 }] }, saved] }),
+  [{ ...saved, tasks: [{ title: 'Fine', offset: -2 }] }])
+eq('nothing kept: none', readTemplates(undefined), [])
+eq('offered: the app\'s two first, then your own by name', allTemplates([{ ...saved, name: 'Zoo' }, { ...saved, id: 'b', name: 'Attic' }]).map((x) => x.name), ['Move house', 'Exam prep', 'Attic', 'Zoo'])
 
 if (fail) { console.log(`\n${fail} failed`); process.exit(1) }
 console.log('\nall projects checks passed')
