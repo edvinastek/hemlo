@@ -156,7 +156,12 @@ jobs:
           if [ "$EVENT" = "workflow_dispatch" ]; then
             echo "Run by hand: building the iPhone app ($now)."; echo "run=true" >> "$GITHUB_OUTPUT"; exit 0
           fi
-          if [ -z "$BEFORE" ] || [ "$BEFORE" = "0000000000000000000000000000000000000000" ] || ! git fetch --quiet --depth=1 origin "$BEFORE"; then
+          # A first push (a new repository or branch) has no previous commit: no
+          # iPhone build then, so Mac minutes are only spent when asked for.
+          if [ -z "$BEFORE" ] || [ "$BEFORE" = "0000000000000000000000000000000000000000" ]; then
+            echo "First push: no iPhone build (run the workflow by hand for one)."; echo "run=false" >> "$GITHUB_OUTPUT"; exit 0
+          fi
+          if ! git fetch --quiet --depth=1 origin "$BEFORE"; then
             echo "The previous commit cannot be read: building the iPhone app ($now) to be safe."; echo "run=true" >> "$GITHUB_OUTPUT"; exit 0
           fi
           was=$(git show "$BEFORE:package.json" | node -e "let s='';process.stdin.on('data',(d)=>s+=d).on('end',()=>console.log(JSON.parse(s).version))")

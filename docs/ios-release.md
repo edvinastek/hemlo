@@ -24,6 +24,7 @@ job in `.github/workflows/build.yml`.
   - it runs when a push to `main` changes `version` in `package.json` (a
     release: both phones then get the same version), and
   - when you run the workflow by hand (Actions → Build → Run workflow).
+  The very first push to a new repository never builds the iPhone app.
   Every other push builds Android, Windows and the web as before and skips the
   iPhone, which costs nothing.
 
