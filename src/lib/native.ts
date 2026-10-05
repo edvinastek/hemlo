@@ -109,6 +109,8 @@ export async function phoneFontScale(): Promise<number> {
  *  Looks does not feed back into this. */
 function appleBodySize(): number | null {
   try {
+    // Only WebKit knows the system font keywords; elsewhere there is nothing to read.
+    if (!CSS.supports('font', '-apple-system-body')) return null
     const probe = document.createElement('span')
     probe.style.cssText = 'font: -apple-system-body; position: absolute; visibility: hidden'
     probe.textContent = 'x'
