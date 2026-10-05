@@ -2,7 +2,7 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
-	<!-- GetIt's own privacy manifest (docs/ios-release.md). The plugins that
+	<!-- Visuma's own privacy manifest (docs/ios-release.md). The plugins that
 	     ship their own (Capacitor, ML Kit and the Google libraries under it)
 	     are merged by Xcode into the app's privacy report; this file covers
 	     what is not in theirs. Keep it in step with store/app-store-answers.md. -->

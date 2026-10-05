@@ -19,7 +19,7 @@ const is = (label, got, want) => {
 
 // ---- naming the app ----------------------------------------------------------------------
 is('the app is named on every write', appQuery('android'), 'app_name=GetIt&app_version=18&app_platform=android')
-is('the agent names the app and its package', SHARE_AGENT, 'GetIt/18 (app.getit.planner)')
+is('the agent names the app and its package', SHARE_AGENT, 'GetIt/18 (app.visuma.planner)')
 is('Open Prices is reached over https', OPEN_PRICES_API, 'https://prices.openfoodfacts.org/api/v1')
 
 // ---- signing in --------------------------------------------------------------------------

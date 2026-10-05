@@ -17,7 +17,7 @@ import { gramsLabel } from './units-rules.ts'
 export const PRICE_ATTRIBUTION = 'Prices: Open Prices (Open Food Facts), ODbL'
 export const OPEN_PRICES = 'https://prices.openfoodfacts.org'
 /** How GetIt names itself to Open Prices, as Open Food Facts asks. */
-export const OPEN_PRICES_AGENT = 'GetIt/18 (app.getit.planner)'
+export const OPEN_PRICES_AGENT = 'GetIt/18 (app.visuma.planner)'
 /** A product's prices are asked again after a week; until then the copy on
  *  the device is used, also with no connection. */
 export const CACHE_DAYS = 7

@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!--
-  GetIt · Quick add (WID-11): 4 x 1 cells by default, 2 x 1 to 4 x 1 by
+  Visuma · Quick add (WID-11): 4 x 1 cells by default, 2 x 1 to 4 x 1 by
   resizing; two buttons at two cells, three at three, four at four. It only
   changes when the app sends a new + menu order or theme, so it needs no
   periodic update.

@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- HealthPrivacyActivity: what GetIt does with Health Connect (SLP-05). The
+<!-- HealthPrivacyActivity: what Visuma does with Health Connect (SLP-05). The
      words match the privacy policy's Health Connect section (src/legal/policy.ts). -->
 <ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"

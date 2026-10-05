@@ -42,7 +42,7 @@ is('not an answer at all', readOpenPrices(null), [])
 is('pack sizes', [packGrams(500, 'g'), packGrams(1.5, 'l'), packGrams(75, 'cl'), packGrams('250', 'ml'), packGrams(2, 'pieces'), packGrams(0, 'g')], [500, 1500, 750, 250, null, null])
 is('the address asks for the latest 50', openPricesUrl('8718452222386'), 'https://prices.openfoodfacts.org/api/v1/prices?product_code=8718452222386&order_by=-date&size=50')
 is('the credit line', PRICE_ATTRIBUTION, 'Prices: Open Prices (Open Food Facts), ODbL')
-is('GetIt names itself', OPEN_PRICES_AGENT, 'GetIt/18 (app.getit.planner)')
+is('GetIt names itself', OPEN_PRICES_AGENT, 'GetIt/18 (app.visuma.planner)')
 
 // ---- the person's chain ----------------------------------------------------------------------
 is('brand matches', chainMatches('Albert Heijn', { brand: 'Albert Heijn', name: null }), true)

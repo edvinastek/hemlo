@@ -116,7 +116,7 @@ These are settled. Requirements in Part D follow them.
 | Product | Setup templates now; AI-built setups maybe later | R2 |
 | Language | English only | R1 |
 | Platforms | One React/TypeScript codebase: Android (Capacitor) first, Windows (Tauri) and web kept up to date; iPhone later | R1 |
-| Platforms | Android package `app.getit.planner` | R1 |
+| Platforms | Android package `app.visuma.planner` | R1 |
 | Accounts | Log in from anywhere, data synced (Supabase, EU region) | R1 |
 | Accounts | Several accounts on one phone; switching asks for the phone's own unlock | R3 |
 | Accounts | Email confirmation on sign-up is off; accounts stay password-protected | R4 |
@@ -947,7 +947,7 @@ Columns: **ID**, **Requirement** (with "Done when" where a test is needed), **Pr
 
 | ID | Requirement | Pri | Status | Src |
 |------------|---------------------------------------------------------------|---------|------------------|-------|
-| PLAT-01 | Android app `app.getit.planner`, Capacitor, targeting the current API level; INTERNET and USE_BIOMETRIC permissions only. | Must | Done | R1 |
+| PLAT-01 | Android app `app.visuma.planner`, Capacitor, targeting the current API level; INTERNET and USE_BIOMETRIC permissions only. | Must | Done | R1 |
 | PLAT-02 | Windows app (Tauri) and web build kept up to date with every version. | Must | Done | R1 |
 | PLAT-03 | Google Play closed test: 12 testers opted in for 14 continuous days, then production application. | Must | Open | R4 |
 | PLAT-04 | Store listing texts and screenshots (made after version 16, so they show the new design). | Must | Done (v19: listing texts in store/listing.json; seven phone screenshots at 1080 × 1920 in store/screenshots/, made from an invented demo week by scripts/store-shots.mjs; the owner uploads them in Play Console) | R4 |
@@ -956,7 +956,7 @@ Columns: **ID**, **Requirement** (with "Done when" where a test is needed), **Pr
 | PLAT-07 | The privacy policy names Netlify (not Cloudflare) as the host of the public pages. | Must | Done (v18) | R4 |
 | PLAT-08 | Upload key made by the owner on his own computer; signing keys never pass through anyone else. | Must | Open (owner action) | R4 |
 | PLAT-09 | APK size kept in check (the barcode scanner adds about 25 MB per build of all processor types): ship an App Bundle so each phone downloads only its own. | Must | Done (v16: the App Bundle splits by processor type on Play) | SR |
-| PLAT-10 | iPhone app later, from the same code. | Could | Partly (v20: iPhone project ios/ (bundle id app.getit.planner, iOS 15.5, iPhone only) and the iPhone job in the Build workflow ready: a compile check on GitHub's Mac without Apple secrets, TestFlight upload with them; Android-only features hidden on the iPhone, reminders, scanner, text size, safe areas and quick actions made to work there; docs/ios-release.md, store/app-store-answers.md; left: the Apple Developer account, the four GitHub secrets, the first TestFlight build and a test on an iPhone) | R1 |
+| PLAT-10 | iPhone app later, from the same code. | Could | Partly (v20: iPhone project ios/ (bundle id app.visuma.planner, iOS 15.5, iPhone only) and the iPhone job in the Build workflow ready: a compile check on GitHub's Mac without Apple secrets, TestFlight upload with them; Android-only features hidden on the iPhone, reminders, scanner, text size, safe areas and quick actions made to work there; docs/ios-release.md, store/app-store-answers.md; left: the Apple Developer account, the four GitHub secrets, the first TestFlight build and a test on an iPhone) | R1 |
 | PLAT-11 | iPhone home-screen widgets (WidgetKit): Today and stats, as on Android. | Could | Open (needs a widget extension, an App Group and a Mac to test) | R7 |
 | PLAT-12 | Sleep from Apple Health on the iPhone, as Health Connect on Android (SLP-05). | Could | Open (needs a HealthKit plugin, the HealthKit entitlement and Apple's health data review) | R7 |
 
@@ -1065,7 +1065,7 @@ Words used throughout:
   - "That link could not be used. Ask for a new one."
   - "Open the link on the phone or browser where you asked for it, or ask for a new one."
   - "Your address is confirmed."
-  - In a browser, the code is removed from the address bar so it cannot be used twice. On Android the link returns as `app.getit.planner://auth-callback?...`.
+  - In a browser, the code is removed from the address bar so it cannot be used twice. On Android the link returns as `app.visuma.planner://auth-callback?...`.
 - The "New password" screen: "New password" and "The same again", each at least 10 characters. Mismatch: "The two passwords do not match." Button "Save password" ("Saving…").
 - When accounts are kept on this device (see 1.6), an "On this device" list appears above the sign-in form, with "Remove" and "Open" for each account.
 
@@ -1638,7 +1638,7 @@ See 3.6. In short:
   - It redraws every 30 minutes, which is what moves it to the next day after midnight.
   - Signing out, or another account signing in, clears it.
 
-[src/lib/widget.ts, src/lib/widget-rules.ts, android/app/src/main/java/app/getit/planner/widget/*, android/app/src/main/res/xml/widget_today_info.xml]
+[src/lib/widget.ts, src/lib/widget-rules.ts, android/app/src/main/java/app/visuma/planner/widget/*, android/app/src/main/res/xml/widget_today_info.xml]
 
 ### 5.7 Counters and flags on a task (data model)
 - **`push_count`**: Today push buttons. Shown as "pushed N×".
@@ -2282,7 +2282,7 @@ Of the 14 rules, 4 can be switched and are carried out, 1 is always on, and 9 ar
 [supabase/migrations/004_rls.sql, 012_security.sql, 014, 017, 019, 020, 024, 025; supabase/tests/security.sql; android/app/src/main/AndroidManifest.xml]
 
 ### 13.3 Platforms
-- **Android (Capacitor, package `app.getit.planner`):**
+- **Android (Capacitor, package `app.visuma.planner`):**
   - the home-screen widget (5.6);
   - local notifications (5.5);
   - email links returning to the app;

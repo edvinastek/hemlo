@@ -316,7 +316,7 @@ Types, then every check that needs nothing but Node. CI runs the same command.
   deleted night's row taken back, the range by wake day, broken sessions skipped, and the summary line.
 - `quickaddwidget` — the launcher shortcuts and the quick-add widget (NAV-24, WID-11): the + menu's first four in its own
   order (most used, the person's order, hidden ones left out), short names of ten letters or fewer that never read
-  the same, the app.getit.planner://open/?add= link each opens, routed to Today, and only + menu keys accepted back.
+  the same, the app.visuma.planner://open/?add= link each opens, routed to Today, and only + menu keys accepted back.
 - `platform` — the iPhone app (PLAT-10, platform-rules.ts): what Android keeps, what the iPhone leaves out (widgets,
   launcher icons, phone colours, Health Connect, the scanner download, notification channels) and the web unchanged;
   reminders kept within the iPhone's 64 (soonest first, beside a snooze or focus end already held); Dynamic Type as a

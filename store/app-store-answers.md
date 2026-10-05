@@ -15,7 +15,7 @@ the same commit, and update the forms. The steps around them are in
 | --- | --- |
 | Name | GetIt - Day & Meal Planner (30 characters at most, as on Play) |
 | Subtitle | Day, meals, shopping, habits (30 at most) |
-| Bundle ID | `app.getit.planner` (permanent) |
+| Bundle ID | `app.visuma.planner` (permanent) |
 | SKU | `getit-ios` |
 | Primary language | English (U.K.) |
 | Category | Productivity; secondary: Health & Fitness |

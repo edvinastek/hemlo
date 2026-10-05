@@ -3,12 +3,12 @@ import groovy.json.JsonSlurper
 // Version comes from package.json so the web, Android and Windows builds of one
 // commit always carry the same number. The code must rise with every upload to
 // Play; CI passes its run number, a local build falls back to 1.
-def getitVersionName() {
+def visumaVersionName() {
     def pkg = new JsonSlurper().parse(rootProject.file('../package.json'))
     return pkg.version
 }
-def getitVersionCode() {
-    def fromCi = System.getenv('GETIT_VERSION_CODE')
+def visumaVersionCode() {
+    def fromCi = System.getenv('VISUMA_VERSION_CODE')
     return fromCi ? fromCi.toInteger() : 1
 }
 
@@ -16,7 +16,7 @@ apply plugin: 'com.android.application'
 apply plugin: 'kotlin-android'
 
 android {
-    namespace = "app.getit.planner"
+    namespace = "app.visuma.planner"
     testOptions {
         unitTests {
             includeAndroidResources = true
@@ -24,12 +24,12 @@ android {
     }
     compileSdk = rootProject.ext.compileSdkVersion
     defaultConfig {
-        applicationId "app.getit.planner"
+        applicationId "app.visuma.planner"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
         // One version for every platform, from package.json; CI sets the code.
-        versionCode getitVersionCode()
-        versionName getitVersionName()
+        versionCode visumaVersionCode()
+        versionName visumaVersionName()
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
         aaptOptions {
              // Files and dirs to omit from the packaged assets dir, modified to accommodate modern web apps.
@@ -45,12 +45,12 @@ android {
             def props = new Properties()
             def local = rootProject.file('keystore.properties')
             if (local.exists()) local.withInputStream { props.load(it) }
-            def path = System.getenv('GETIT_KEYSTORE_PATH') ?: props['storeFile']
+            def path = System.getenv('VISUMA_KEYSTORE_PATH') ?: props['storeFile']
             if (path) {
                 storeFile file(path)
-                storePassword System.getenv('GETIT_KEYSTORE_PASSWORD') ?: props['storePassword']
-                keyAlias System.getenv('GETIT_KEY_ALIAS') ?: props['keyAlias']
-                keyPassword System.getenv('GETIT_KEY_PASSWORD') ?: props['keyPassword']
+                storePassword System.getenv('VISUMA_KEYSTORE_PASSWORD') ?: props['storePassword']
+                keyAlias System.getenv('VISUMA_KEY_ALIAS') ?: props['keyAlias']
+                keyPassword System.getenv('VISUMA_KEY_PASSWORD') ?: props['keyPassword']
             }
         }
     }

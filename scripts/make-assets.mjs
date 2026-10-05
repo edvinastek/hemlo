@@ -100,7 +100,7 @@ for (const [d, px] of Object.entries(densities)) {
   const dir = `android/app/src/main/res/drawable-${d}`
   mkdirSync(dir, { recursive: true })
   const s = px / 700
-  await png(svg(px, px, `<g transform="translate(${px/2} ${px/2})">${glyph(s, '#fff', '#fff', '#fff')}</g>`), `${dir}/ic_stat_getit.png`)
+  await png(svg(px, px, `<g transform="translate(${px/2} ${px/2})">${glyph(s, '#fff', '#fff', '#fff')}</g>`), `${dir}/ic_stat_visuma.png`)
 }
 
 // Play Store: a 512 x 512 icon, and the 1024 x 500 feature graphic.

@@ -49,8 +49,8 @@ eq('every short name is ten letters or fewer', quickAddItems(entries, 10).every(
 eq('a blank label still says something', quickAddItems([{ key: 'm:x', label: '  ' }])[0].label, 'Add')
 
 // Links and the ?add= parameter.
-eq('a shortcut\'s link', addLink('task'), 'app.getit.planner://open/?add=task')
-eq('a module entry\'s link is encoded', addLink('m:health'), 'app.getit.planner://open/?add=m%3Ahealth')
+eq('a shortcut\'s link', addLink('task'), 'app.visuma.planner://open/?add=task')
+eq('a module entry\'s link is encoded', addLink('m:health'), 'app.visuma.planner://open/?add=m%3Ahealth')
 eq('the app routes it to Today with ?add=', widgetPath(addLink('m:health')), '/?add=m%3Ahealth')
 eq('?add= read back', addKeyFrom(new URLSearchParams('add=m%3Ahealth').get('add')), 'm:health')
 eq('?add= with anything else is ignored', [addKeyFrom('<script>'), addKeyFrom(''), addKeyFrom(null), addKeyFrom('x'.repeat(61))], [null, null, null, null])

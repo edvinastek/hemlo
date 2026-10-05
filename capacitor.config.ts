@@ -4,8 +4,10 @@ import type { CapacitorConfig } from '@capacitor/cli'
  *  on Google Play the package name, on the App Store the bundle id; neither
  *  can ever be changed, only abandoned for a new listing. */
 const config: CapacitorConfig = {
-  appId: 'app.getit.planner',
-  appName: 'GetIt',
+  // app.getit.planner until version 20; nothing had been published yet, so
+  // the id changed with the name (Visuma).
+  appId: 'app.visuma.planner',
+  appName: 'Visuma',
   webDir: 'dist',
   android: {
     allowMixedContent: false,
@@ -31,10 +33,10 @@ const config: CapacitorConfig = {
       style: 'DEFAULT',
     },
     LocalNotifications: {
-      smallIcon: 'ic_stat_getit',
+      smallIcon: 'ic_stat_visuma',
       iconColor: '#b4442a',
-      // iPhone: a reminder that comes due while GetIt is open still shows as a
-      // banner, with the sound; no badge on the icon (GetIt never sets one).
+      // iPhone: a reminder that comes due while Visuma is open still shows as a
+      // banner, with the sound; no badge on the icon (Visuma never sets one).
       presentationOptions: ['banner', 'list', 'sound'],
     },
   },

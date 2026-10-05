@@ -22,7 +22,7 @@ import { features } from './native'
  *  on the phone and are applied here, through the same code as a tick in
  *  the app. */
 
-interface GetItWidget {
+interface VisumaWidget {
   update(options: { snapshot: string }): Promise<void>
   takeTicks(): Promise<{ ticks: WidgetTick[] }>
   clear(): Promise<void>
@@ -36,7 +36,7 @@ interface GetItWidget {
   addListener(event: 'tick', listener: () => void): Promise<PluginListenerHandle>
 }
 
-const Widget = registerPlugin<GetItWidget>('GetItWidget')
+const Widget = registerPlugin<VisumaWidget>('VisumaWidget')
 const available = () => features().widgets
 
 /** Today and tomorrow, from the same day items Today draws, for the modules

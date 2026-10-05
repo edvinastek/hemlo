@@ -50,7 +50,7 @@ the ML Kit scanner compile with the current Xcode. Nothing is uploaded.
 3. **Register the app's id.** developer.apple.com/account → Certificates,
    Identifiers & Profiles → **Identifiers** → + → App IDs → App →
    - Description: `GetIt`
-   - Bundle ID: **Explicit**, `app.getit.planner`
+   - Bundle ID: **Explicit**, `app.visuma.planner`
    - Capabilities: leave everything as it is (GetIt needs none).
    Continue → Register. The id is permanent, like the Android package name.
 
@@ -66,7 +66,7 @@ the ML Kit scanner compile with the current Xcode. Nothing is uploaded.
    - Platforms: iOS
    - Name: `GetIt - Day & Meal Planner` (the store name; 30 characters at most)
    - Primary language: English (U.K.)
-   - Bundle ID: `app.getit.planner` (from step 3)
+   - Bundle ID: `app.visuma.planner` (from step 3)
    - SKU: `getit-ios`
    - User access: Full access
 
@@ -152,7 +152,7 @@ checked by `src/test/platform.check.mjs`).
 | Feature | iPhone | Notes |
 | --- | --- | --- |
 | Planner, food, shopping, habits, every module, sync, offline | Works | The same web code. |
-| Sign-in, confirmation and password-reset links | Works | The app.getit.planner:// link is registered in Info.plist; Supabase already allows it for Android. |
+| Sign-in, confirmation and password-reset links | Works | The app.visuma.planner:// link is registered in Info.plist; Supabase already allows it for Android. |
 | Reminders (local notifications), Done and In 15 min | Works, changed | No notification channels on iOS (the call is skipped); the iPhone keeps 64 scheduled notifications at most, so the soonest 64 are set and the rest on a later run; Done and In 15 min open GetIt so the tick is surely written. Lock-screen text follows the iPhone's Show Previews setting. |
 | Focus timer's end notification | Works | Counts towards the 64. |
 | Barcode scanner | Works, changed | ML Kit is built into the iPhone app (no download from Google Play); the iPhone asks for the camera on the first scan. Refused: a note says where to allow it. |
@@ -201,7 +201,7 @@ The job's log says which step; when Xcode fails, the full log is the
 | Compile | `error:` lines naming a `.swift` file | A Swift error, most likely in `ios/App/App/SceneDelegate.swift` or `AppDelegate.swift`, which were checked only against stand-ins on Linux. |
 | Archive | `Your team has no devices from which to generate a provisioning profile` | Register an iPhone (step 4). |
 | Archive | `Cloud signing permission error` / `No signing certificate "iOS Distribution" found` | The key's role must be Admin (step 6). |
-| Archive | `No profiles for 'app.getit.planner' were found` | The bundle id is not registered under that team (step 3), or `APPLE_TEAM_ID` is another team's. |
+| Archive | `No profiles for 'app.visuma.planner' were found` | The bundle id is not registered under that team (step 3), or `APPLE_TEAM_ID` is another team's. |
 | Archive | `maximum number of certificates` | Delete old "Created via API" development certificates (see Tidying). |
 | Upload | `No suitable application records were found` | Create the app in App Store Connect (step 5). |
 | Upload | `You must accept the latest agreement` | Step 2. |

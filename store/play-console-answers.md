@@ -11,7 +11,7 @@ commit, and update the form in Play Console.
 | Field | Answer |
 | --- | --- |
 | App name | GetIt - Day & Meal Planner |
-| Package name | `app.getit.planner` (permanent) |
+| Package name | `app.visuma.planner` (permanent) |
 | Default language | English (United Kingdom) |
 | App or game | App |
 | Free or paid | Free. A free app can never become paid; in-app subscriptions stay possible |
@@ -139,7 +139,7 @@ asks the person for:
 | `RECEIVE_BOOT_COMPLETED` | Setting reminders again after a restart. |
 | `WAKE_LOCK` | Held briefly by the notification library so a reminder arrives on time. |
 | `USE_BIOMETRIC`, `USE_FINGERPRINT` | Only to confirm switching between accounts kept on the phone. |
-| `app.getit.planner.DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION` | Added by AndroidX; only GetIt holds it. |
+| `app.visuma.planner.DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION` | Added by AndroidX; only GetIt holds it. |
 | `android.permission.health.READ_SLEEP` | Version 19: reading sleep sessions from Health Connect, only when the person chooses Import from Health Connect on the Sleep page (see "Health Connect" below). |
 
 Removed on purpose (`tools:node="remove"` in `android/app/src/main/AndroidManifest.xml`): `CAMERA` (barcodes go
