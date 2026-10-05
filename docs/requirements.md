@@ -61,6 +61,7 @@ The competitor comparison and the usability plan are in the second document ("Ge
 | R5 | Feedback of 1 Oct 2026 | 1 Oct 2026 |
 | R6 | Feedback after testing version 16: clutter, prices | 3 Oct 2026 |
 | R7 | Owner request: iPhone app | 5 Oct 2026 |
+| R9 | Owner request: links to the shops' catalogues | 6 Oct 2026 |
 | SR | Found by the specification and research work (not asked for, but needed for the asked-for result) | 1 Oct 2026 |
 
 Parts E and F describe the app **as it is**. Where they say something is missing, Part D says what it should become.
@@ -1004,6 +1005,9 @@ The owner: "shopping prices do not seem to appear, yet catalogues online are ava
 | PRICE-04 | Adding a price takes one step from a row: the amount per pack or per kg/l; the shop is the list's shop filter or the last used; Undo. | Must | Done (v17) | R6 |
 | PRICE-05 | Opt-in sharing of a price to Open Prices: an Open Food Facts account (token in secure storage), a photo of the price tag or receipt, the shop's OpenStreetMap location, date and currency; privacy policy updated first. | Should | Partly (v18: built and checked with mocked answers; left: one real share from the Android app with an Open Food Facts account, to confirm the camera app hands the photo over without the camera permission) | R6 |
 | PRICE-06 | Each kept shop links to the chain's own official weekly offers page, opened in the browser; nothing is copied into the app. No scraping of supermarket sites or use of unofficial APIs or scraped datasets (their terms forbid it; EU database right). | Should | Done (v17) | R6 |
+| PRICE-07 | "Offers this week" in the Shop page's ⋮: a sheet with the offers page of each of the person's shops, then the other chains of their country under "More shops", each opening the chain's official page in the browser; Back and Escape close it. With the list filtered to one shop, one quiet line "Offers at <shop> ›". Every chain the app offers has an offers page where the chain publishes one. | Should | Done (v21) | R9 |
+| PRICE-08 | "Search at <shop>" in a shopping item's ⋮ for up to three of the person's shops (the rest, and the country's other chains, under "Other shops…"), opening the chain's own site search with the item's name, without amount or units, URL-encoded; shop names on a product's and a food's page search that shop. A chain whose search cannot be opened by a link gets none. Only the search words leave the app. | Should | Done (v21) | R9 |
+| PRICE-09 | A monthly check of every offers and search link (scripts/check-shop-links.mjs, GitHub workflow "Shop links", also run by hand): 404, 410 or a vanished site fails the run, so GitHub emails the owner; bot protection (403, 429) and pages a site's robots.txt keeps robots from are warnings. | Should | Done (v21) | R9 |
 
 
 
