@@ -152,7 +152,7 @@ checked by `src/test/platform.check.mjs`).
 | Feature | iPhone | Notes |
 | --- | --- | --- |
 | Planner, food, shopping, habits, every module, sync, offline | Works | The same web code. |
-| Sign-in, confirmation and password-reset links | Works | The app.visuma.planner:// link is registered in Info.plist; Supabase already allows it for Android. |
+| Sign-in, confirmation and password-reset links | Works | The app.visuma.planner:// link is registered in Info.plist; Supabase allows it once it is in the Redirect URLs (docs/release.md, "Once, for the name Visuma"), the same entry as for Android. |
 | Reminders (local notifications), Done and In 15 min | Works, changed | No notification channels on iOS (the call is skipped); the iPhone keeps 64 scheduled notifications at most, so the soonest 64 are set and the rest on a later run; Done and In 15 min open Visuma so the tick is surely written. Lock-screen text follows the iPhone's Show Previews setting. |
 | Focus timer's end notification | Works | Counts towards the 64. |
 | Barcode scanner | Works, changed | ML Kit is built into the iPhone app (no download from Google Play); the iPhone asks for the camera on the first scan. Refused: a note says where to allow it. |

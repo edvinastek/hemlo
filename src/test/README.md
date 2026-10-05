@@ -150,6 +150,9 @@ Types, then every check that needs nothing but Node. CI runs the same command.
   semicolon CSV, JSON; columns matched by name, label or Google Calendar's headers; dates, times and
   numbers as spreadsheets write them; each row's problems, required columns, server limits, duplicates by
   natural key; the dataset catalogue, ranges, file names, figures for charts.
+  Version 21 (the name Visuma): files are written as visuma.bundle, visuma.dataset, visuma.module and visuma-recipes
+  (src/lib/file-format-rules.ts), and backups, dataset files, module designs and recipe files made as getit.* still read
+  (transfer, moduledefs, recipeio); a calendar file's X-GETIT-… lines read as X-VISUMA-… (ics).
 - `views` — a module's board, grid and chart: columns by option (and one for none), where a card can move;
   the grid's last 7/14/30 days, its rows, cells ticked or counted, what a tap does, runs of days; the chart's
   sums per day, week (from Monday) and month (leap years), the future left out, calculated fields, the axis.
