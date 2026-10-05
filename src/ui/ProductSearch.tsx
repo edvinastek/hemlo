@@ -19,6 +19,7 @@ import { ReadyMealForm } from './ReadyMeal'
 import type { Food, Recipe } from '../lib/types'
 import './products.css'
 import { useBackClose } from './useBackClose'
+import { ShopNameLinks } from './ShopNameLinks'
 
 /** What the finder is for: the Foods tab (keep it), Stock (put it in the
  *  cupboard), or picking a food for something else (a meal, a recipe line,
@@ -323,7 +324,7 @@ function ProductPage({ chosen, purpose, busy, problem, onBack, onAdd, onShow, on
           <p className="pf-line"><b>Counted as</b> {units.map(unitLine).join(', ')}</p>
         )
       })()}
-      <p className="pf-line"><b>Sold at</b> {p.stores.length ? p.stores.join(', ') : 'no shops listed yet'}</p>
+      <p className="pf-line"><b>Sold at</b> {p.stores.length ? <ShopNameLinks names={p.stores} query={p.name} /> : 'no shops listed yet'}</p>
 
       <Prices product={p} />
 

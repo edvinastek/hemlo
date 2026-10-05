@@ -1,0 +1,21 @@
+/* Links to the shops' own pages (PRICE-07, PRICE-08): the sheet's lines and
+   the one quiet line under the filters. Each opens the chain's site. */
+.shop-link-list { list-style: none; margin: 0; padding: 0; }
+.shop-link-list li { border-bottom: 1px solid var(--e-rule); }
+.shop-link-row {
+  display: flex; align-items: center; justify-content: space-between; gap: var(--space-3);
+  min-height: 48px; padding: 0 var(--space-1); color: var(--e-ink); text-decoration: none;
+}
+.shop-link-row .shop-name { min-width: 0; }
+.shop-link-out { color: var(--e-ink-soft); font-family: var(--font-sans); }
+.shop-link-row:hover .shop-name, .shop-link-row:focus-visible .shop-name { text-decoration: underline; }
+.shop-link-more {
+  display: flex; align-items: center; gap: var(--space-2); min-height: 44px; margin-top: var(--space-2);
+  font-family: var(--font-sans); font-size: 13px; color: var(--e-ink-soft);
+}
+.shop-offers-line { margin: 0; padding: var(--space-1) var(--space-4) 0; font-family: var(--font-sans); font-size: 13px; }
+.shop-offers-line a {
+  display: inline-flex; align-items: center; min-height: 36px; color: var(--e-accent); text-decoration: none;
+}
+.shop-offers-line a:hover, .shop-offers-line a:focus-visible { text-decoration: underline; }
+.shop-link-more .shop-caret { margin-left: 0; }

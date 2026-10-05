@@ -330,6 +330,11 @@ Types, then every check that needs nothing but Node. CI runs the same command.
   a valid ES256 token for Apple's audience lasting 15 minutes; only development certificates that appeared during the
   run are revoked (never a distribution certificate, never an older one); every page of the list is read; a failed
   revoke is a warning and the rest still go; nothing printed carries the token.
+- `shoplinks` — links to the shops' own pages (v21, PRICE-07, PRICE-08, shops-rules.ts): every offers and search link
+  is an https page on the chain's own site, each search has one place for the words, every chain offered has an
+  offers page; a chain keeps its own country's pages (Jumbo in Belgium gets no Dutch search); the words searched are
+  the item's name without amount, pack size or brackets, URL-encoded; the person's shops first in a sheet, then the
+  rest of their country. The sites themselves are asked by `scripts/check-shop-links.mjs` (monthly, on GitHub).
 - `mealrules` — meals with no fixed slots: the person's meal names (and the old four), a typed name finding its meal,
   keys for new meals, default and own times, what each item is (a food, a recipe or ready meal, numbers) and comes to
   (unknown never 0), a day grouped into meals (cards for the person's meals, by time, "Any time" last, skipped and

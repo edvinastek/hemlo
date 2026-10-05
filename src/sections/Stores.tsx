@@ -12,6 +12,7 @@ import { cleanShopName, offersUrl, suggestShops } from '../lib/shops-rules'
 import { countryName } from '../lib/countries'
 import { offerUndo } from '../ui/Undo'
 import { RowMenu, Sheet, TabMenu } from './shop-ui'
+import { useOffersSheet } from './ShopLinks'
 import type { Profile } from '../lib/types'
 
 /** How many chains show before "More shops": the most common of the
@@ -39,6 +40,7 @@ export function Stores({ profile, menuSlot }: { profile: Profile; menuSlot: HTML
   const [open, setOpen] = useState<string | null>(null)
   const [renaming, setRenaming] = useState<Shop | null>(null)
   const currency = currencyFor(profile.country)
+  const offersSheet = useOffersSheet(profile)
   const suggestions = suggestShops(profile.country, shops.map((s) => s.name), query)
   const name = profile.country ? countryName(profile.country) : null
   // "the Netherlands", "the United Kingdom", but "Germany".
@@ -79,8 +81,10 @@ export function Stores({ profile, menuSlot }: { profile: Profile; menuSlot: HTML
   return (
     <>
       <TabMenu slot={menuSlot} items={[
+        offersSheet.item,
         shops.length > 0 && { label: aislesOpen ? 'Hide your aisles' : 'Your aisles…', onSelect: () => setAislesOpen((o) => !o) },
       ]} />
+      {offersSheet.sheet}
       <form className="shop-add" onSubmit={(e: FormEvent) => { e.preventDefault(); void add(query) }}>
         <div className="shop-add-row">
           <input type="search" value={query} onChange={(e) => setQuery(e.target.value)} maxLength={60}

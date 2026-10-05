@@ -24,6 +24,7 @@ import { useExport } from '../ui/ExportLink'
 import { useSelection } from '../ui/useSelection'
 import { SelectAction, SelectBar, SelectDelete } from '../ui/SelectBar'
 import { RowMenu, ScanIcon, Sheet, TabMenu, useDeviceChoice } from './shop-ui'
+import { useOffersSheet } from './ShopLinks'
 import type { Food, Profile, Recipe, RecipeLine, Stock } from '../lib/types'
 import type { FieldDef } from '../modules/types'
 import './stock.css'
@@ -75,6 +76,7 @@ export function StockPanel({ profile, menuSlot }: { profile: Profile; menuSlot: 
   const [editing, setEditing] = useState<string | null>(null)
   const [groupBy, setGroupBy] = useDeviceChoice<'place' | 'aisle' | null>('stock:group', null)
   const auto = readSettings(profile).stock_auto
+  const offers = useOffersSheet(profile)
 
   const foodById = useMemo(() => new Map(foods.map((f) => [f.id, f])), [foods])
   const items: Item[] = useMemo(() => (rows ?? []).map((r) => {
@@ -143,9 +145,11 @@ export function StockPanel({ profile, menuSlot }: { profile: Profile; menuSlot: 
         items.length > 0 && { label: by === 'place' ? 'Group by aisle' : 'Group by place', onSelect: () => setGroupBy(by === 'place' ? 'aisle' : 'place') },
         items.length > 0 && sel.menuItem(),
         { label: auto ? 'Stop taking from stock when meals are eaten' : 'Take from stock when meals are eaten', onSelect: () => void toggleAuto() },
+        offers.item,
         exporter.item,
       ]} />
       {exporter.sheet}
+      {offers.sheet}
       {pickedExport.sheet}
       {!sel.selecting && <StockAdd householdId={householdId} foods={foods} items={items} places={places} />}
 

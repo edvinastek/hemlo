@@ -30,6 +30,7 @@ import { AmountInput } from '../ui/AmountInput'
 import { useExport } from '../ui/ExportLink'
 import { RowMenu, ScanIcon, Sheet, TabMenu, useDeviceChoice } from './shop-ui'
 import { SharePrice, useSharedMarks, useSharing } from './SharePrice'
+import { LinksSheet, OffersLine, searchMenuItems, useOffersSheet } from './ShopLinks'
 import { canShare, sharedPriceUrl } from '../lib/open-prices-rules'
 import type { FieldDef } from '../modules/types'
 import type { Food, Profile, Recipe } from '../lib/types'
@@ -69,7 +70,10 @@ export function ShopList({ profile, menuSlot }: { profile: Profile; menuSlot: HT
   const [sheet, setSheet] = useState<null | 'scan' | 'recipes' | 'list'>(null)
   const [said, setSaid] = useState<string | null>(null)
   const [more, setMore] = useState(false)
+  // The item whose "Other shops…" search sheet is open.
+  const [searching, setSearching] = useState<string | null>(null)
   const addRef = useRef<HTMLInputElement>(null)
+  const offers = useOffersSheet(profile)
 
   // A shopping trip ticked off today, with things still in the basket: the
   // list offers to put them away (SHOP-22).
@@ -87,6 +91,7 @@ export function ShopList({ profile, menuSlot }: { profile: Profile; menuSlot: HT
     <TabMenu slot={menuSlot} items={[
       { label: 'Add from recipes…', onSelect: () => setSheet('recipes') },
       { label: 'New list…', onSelect: () => setSheet('list') },
+      offers.item,
       exporter.item,
     ]} />
   )
@@ -104,6 +109,7 @@ export function ShopList({ profile, menuSlot }: { profile: Profile; menuSlot: HT
   const open = shown.filter((i) => !i.checked)
   const editingItem = editing ? view.items.find((i) => i.key === editing) ?? null : null
   const pricingItem = pricing ? view.items.find((i) => i.key === pricing) ?? null : null
+  const searchingItem = searching ? view.items.find((i) => i.key === searching) ?? null : null
 
   const codeOf = (i: ListItem) => (i.food_id ? view.foods.get(i.food_id)?.barcode ?? null : null)
   const perMlOf = (i: ListItem) => !!(i.food_id && view.foods.get(i.food_id)?.per_ml)
@@ -164,6 +170,8 @@ export function ShopList({ profile, menuSlot }: { profile: Profile; menuSlot: HT
       { label: item.checked ? 'Take out of the basket' : 'In the basket', onSelect: () => void doTick(item, !item.checked) },
       { label: 'Change…', onSelect: () => setEditing(item.key) },
       { label: priced.get(item.key) ? 'Price…' : 'Add price…', onSelect: () => setPricing(item.key) },
+      // Look it up on the shop's own site (PRICE-08): the name only, in the browser.
+      ...searchMenuItems(shops.map((s) => s.name), profile.country, item.name, shopOn ?? item.shop, () => setSearching(item.key)),
       ...(group ? [
         { label: 'Move up', disabled: at <= 0, onSelect: () => void move(item, -1) },
         { label: 'Move down', disabled: at < 0 || at >= group.length - 1, onSelect: () => void move(item, 1) },
@@ -208,6 +216,7 @@ export function ShopList({ profile, menuSlot }: { profile: Profile; menuSlot: HT
     <>
       {menu}
       {exporter.sheet}
+      {offers.sheet}
       <AddBox profile={profile} view={view} list={listOn} addRef={addRef} onScan={() => setSheet('scan')} />
 
       {(view.lists.length > 0 || shops.length > 0) && (
@@ -227,6 +236,7 @@ export function ShopList({ profile, menuSlot }: { profile: Profile; menuSlot: HT
           )}
         </div>
       )}
+      {shopOn && <OffersLine shop={shopOn} country={profile.country} />}
 
       {tripDone && basket.length > 0 && (
         <div className="shop-trip-done" role="status">
@@ -300,6 +310,10 @@ export function ShopList({ profile, menuSlot }: { profile: Profile; menuSlot: HT
           <PriceBody profile={profile} view={view} item={pricingItem} filter={shopOn} shown={shownPrice(pricingItem)}
             code={codeOf(pricingItem)} perMl={perMlOf(pricingItem)} onSaved={() => setPricing(null)} />
         </Sheet>
+      )}
+      {searchingItem && (
+        <LinksSheet kind="search" kept={shops.map((s) => s.name)} country={profile.country} query={searchingItem.name}
+          onClose={() => setSearching(null)} />
       )}
       {sheet === 'scan' && <ScanSheet profile={profile} list={listOn} onClose={() => setSheet(null)} />}
       {sheet === 'recipes' && <RecipesSheet profile={profile} list={listOn} onClose={() => setSheet(null)} />}

@@ -137,7 +137,7 @@ is(`never more than ${ASK_AT_ONCE} at once`, codesToAsk(Array.from({ length: 20 
 // ---- weekly offers: the chains' own pages ----------------------------------------------------------
 is('Albert Heijn in the Netherlands', offersUrl('Albert Heijn', 'NL'), 'https://www.ah.nl/bonus')
 is('Lidl in Germany is the German site', offersUrl('lidl', 'DE'), 'https://www.lidl.de/c/online-prospekte/s10005610')
-is('a chain from next door still finds its page', offersUrl('Jumbo', 'DE'), 'https://www.jumbo.com/aanbiedingen')
+is('a chain from next door still finds its page', offersUrl('Jumbo', 'DE'), 'https://www.jumbo.com/aanbiedingen/nu')
 is('a shop Visuma does not know has none', offersUrl('Bakker Bart', 'NL'), null)
 is('only official https pages', offersUrl('Plus', 'NL').startsWith('https://www.plus.nl/'), true)
 

@@ -1,0 +1,2 @@
+/* A shop's name on a product's or food's page that searches that shop (PRICE-08). */
+.shop-name-link { color: var(--e-accent); text-decoration: underline; text-underline-offset: 2px; }
