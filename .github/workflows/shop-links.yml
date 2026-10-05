@@ -1,0 +1,32 @@
+name: Shop links
+
+# Once a month (and by hand: Actions → Shop links → Run workflow), asks each
+# shop's offers page and site search that Visuma links to whether it is still
+# there (scripts/check-shop-links.mjs, PRICE-09). A broken link (404, 410, or a
+# site name that no longer exists) fails the run, so GitHub sends its usual
+# failure email; the run's summary lists the links to fix in
+# src/lib/shops-rules.ts. Pages a shop's bot protection or robots.txt keeps
+# robots away from are listed as warnings, not failures.
+#
+# On Linux, which costs the least of GitHub's machines; it takes a few minutes.
+on:
+  schedule:
+    # 06:17 UTC on the 1st of each month: off the hour, when GitHub is busiest.
+    - cron: '17 6 1 * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  links:
+    name: Check the shop links
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 22 }
+      # No npm install: the script needs only Node and the rules file.
+      - name: Ask each shop page once
+        run: node --experimental-strip-types --max-http-header-size=65536 scripts/check-shop-links.mjs

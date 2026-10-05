@@ -4,6 +4,7 @@
 // its own country's pages, and the order a sheet lists the shops in. No
 // network: scripts/check-shop-links.mjs is the one that asks the sites.
 import { LINKS, LINKS_CHECKED, CHAINS, shopLinks, offersUrl, searchUrl, searchWords, linkShops } from '../lib/shops-rules.ts'
+import { judge, robotsAllows, linksToCheck } from '../../scripts/check-shop-links.mjs'
 
 let fail = 0
 const is = (label, got, want) => {
@@ -70,6 +71,37 @@ is('the person\'s own first, in their order; then the rest of the country',
 is('a chain without a search is left out of a search list', linkShops(['Penny', 'Rewe'], 'DE', 'search').mine, ['Rewe'])
 is('kept names in any case are not offered twice', linkShops(['albert heijn'], 'NL', 'offers').more.includes('Albert Heijn'), false)
 is('no country: the three countries\' chains, each once', new Set(linkShops([], null, 'offers').more).size, linkShops([], null, 'offers').more.length)
+
+// ---- the monthly link check (scripts/check-shop-links.mjs) ---------------------------------------
+const checks = linksToCheck()
+is('every page once (Coop shares Plus\'s)', new Set(checks.map((c) => c.url)).size, checks.length)
+is('a search asks for one harmless word in the country\'s language',
+  [checks.find((c) => c.chain === 'jumbo' && c.kind === 'search').url, checks.find((c) => c.country === 'DE' && c.chain === 'rewe' && c.kind === 'search').url],
+  ['https://www.jumbo.com/producten/?searchType=keyword&searchTerms=melk', 'https://www.rewe.de/shop/productList?search=milch'])
+is('fine', judge({ status: 200 }).verdict, 'ok')
+is('gone is broken', [judge({ status: 404 }).verdict, judge({ status: 410 }).verdict, judge({ error: 'ENOTFOUND' }).verdict], ['broken', 'broken', 'broken'])
+is('bot protection is a warning, not broken', [judge({ status: 403 }).verdict, judge({ status: 429 }).verdict], ['unchecked', 'unchecked'])
+is('a server error or a time-out is a warning', [judge({ status: 500 }).verdict, judge({ error: 'time-out' }).verdict], ['unchecked', 'unchecked'])
+is('a deep link that lands on the home page may have moved',
+  judge({ status: 200, from: 'https://www.example.nl/aanbiedingen', to: 'https://www.example.nl/' }).verdict, 'moved')
+is('a home page that stays the home page is fine', judge({ status: 200, from: 'https://www.example.nl/', to: 'https://www.example.nl/' }).verdict, 'ok')
+const robots = `# shop
+User-agent: *
+Disallow: /zoeken
+Disallow: /*?search=
+Allow: /zoeken/hulp$
+Disallow: /cart
+
+User-agent: Googlebot
+User-agent: Visuma-link-check
+Disallow: /folders`
+is('robots: no file allows all', robotsAllows(null, '/zoeken?query=melk'), true)
+is('robots: our own group is used, not "*"', [robotsAllows(robots, '/zoeken?query=melk'), robotsAllows(robots, '/folders')], [true, false])
+const star = robots.split('\n\nUser-agent: Googlebot')[0]
+is('robots: a disallowed path', robotsAllows(star, '/zoeken?query=melk'), false)
+is('robots: a wildcard in the middle', [robotsAllows(star, '/shop/productList?search=milch'), robotsAllows(star, '/shop/productList')], [false, true])
+is('robots: the longest rule wins, and $ ends it', [robotsAllows(star, '/zoeken/hulp'), robotsAllows(star, '/zoeken/hulp/meer')], [true, false])
+is('robots: other paths are fine', robotsAllows(star, '/aanbiedingen'), true)
 
 if (fail) { console.log(`\n${fail} failed`); process.exit(1) }
 console.log('\nall shop link checks passed')
