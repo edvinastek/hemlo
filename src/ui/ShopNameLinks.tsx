@@ -1,6 +1,7 @@
 import { Fragment } from 'react'
 import { useApp } from '../lib/store'
 import { searchUrl, searchWords } from '../lib/shops-rules'
+import './shop-name-links.css'
 
 /** The shops a product or food is sold at, as on its page ("Albert Heijn,
  *  Jumbo"), each name a link to that chain's own site search for it where
@@ -16,7 +17,7 @@ export function ShopNameLinks({ names, query }: { names: string[]; query: string
           <Fragment key={`${name}-${i}`}>
             {i > 0 && ', '}
             {url
-              ? <a href={url} target="_blank" rel="noopener noreferrer" aria-label={`${name}: search for ${words} on the ${name} website`}>{name}</a>
+              ? <a className="shop-name-link" href={url} target="_blank" rel="noopener noreferrer" aria-label={`${name}: search for ${words} on the ${name} website`}>{name}</a>
               : name}
           </Fragment>
         )

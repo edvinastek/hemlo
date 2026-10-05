@@ -178,18 +178,22 @@ export function searchUrl(shop: string, country: string | null | undefined, quer
 /** The shops to offer links for, in the order a sheet lists them: the
  *  person's own first (the order they keep them in), then the other chains
  *  of their country (or, with none, of the three countries) that have such
- *  a page, each once. `kind` says which page. */
+ *  a page, each chain and each page once. `kind` says which page. */
 export function linkShops(kept: string[], country: string | null | undefined, kind: keyof ShopLinks): { mine: string[]; more: string[] } {
-  const has = (name: string) => !!shopLinks(name, country)[kind]
-  const mine = kept.filter(has)
+  const link = (name: string) => shopLinks(name, country)[kind]
+  const mine = kept.filter((k) => link(k))
   const seen = new Set(kept.map(keyOf))
+  // A chain whose page is one already listed (Coop's is Plus's) is not offered again.
+  const pages = new Set(mine.map(link))
   const home = (country ?? '').toUpperCase()
   const pool = CHAINS[home] ? CHAINS[home] : Object.values(CHAINS).flat()
   const more: string[] = []
   for (const c of pool) {
     const key = keyOf(c.name)
-    if (seen.has(key) || !has(c.name)) continue
+    const page = link(c.name)
+    if (seen.has(key) || !page || pages.has(page)) continue
     seen.add(key)
+    pages.add(page)
     more.push(c.name)
   }
   return { mine, more }

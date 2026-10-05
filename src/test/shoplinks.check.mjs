@@ -67,7 +67,9 @@ is('Edeka has offers but no search', [!!offersUrl('Edeka', 'DE'), searchUrl('Ede
 // ---- the order in a sheet -------------------------------------------------------------------------
 is('the person\'s own first, in their order; then the rest of the country',
   linkShops(['Lidl', 'Bakker Bart', 'Jumbo'], 'NL', 'offers'),
-  { mine: ['Lidl', 'Jumbo'], more: ['Albert Heijn', 'Aldi', 'Plus', 'Dirk', 'Dekamarkt', 'Hoogvliet', 'Coop', 'Spar', 'Vomar', 'Poiesz'] })
+  { mine: ['Lidl', 'Jumbo'], more: ['Albert Heijn', 'Aldi', 'Plus', 'Dirk', 'Dekamarkt', 'Hoogvliet', 'Spar', 'Vomar', 'Poiesz'] })
+is('Coop, whose shops are Plus now, is not offered beside Plus', linkShops([], 'NL', 'search').more.includes('Coop'), false)
+is('…but a kept Coop still has its line', linkShops(['Coop'], 'NL', 'offers').mine, ['Coop'])
 is('a chain without a search is left out of a search list', linkShops(['Penny', 'Rewe'], 'DE', 'search').mine, ['Rewe'])
 is('kept names in any case are not offered twice', linkShops(['albert heijn'], 'NL', 'offers').more.includes('Albert Heijn'), false)
 is('no country: the three countries\' chains, each once', new Set(linkShops([], null, 'offers').more).size, linkShops([], null, 'offers').more.length)
