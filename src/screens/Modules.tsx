@@ -10,6 +10,7 @@ import { usePages, useUses, type PageInfo } from '../lib/pages'
 import { orderByUse, pinPage, unpinPage } from '../lib/pages-rules'
 import { foodRoute, hubSearch, recordName, recordRoute, recordWords, type HubModule, type HubRecord } from '../lib/hub-rules'
 import { describeView, moduleView } from '../lib/module-view-rules'
+import { isIos } from '../lib/native'
 import { setModuleEnabled, useModuleDefs, type ModuleEntry } from '../modules/defs'
 import { ModuleBuilder } from '../modules/ModuleBuilder'
 import { ModuleEditor } from '../ui/ModuleEditor'
@@ -236,7 +237,7 @@ function TileMenu({ page, summary, onClose, onSettings }: {
         <h2><span className="hub-glyph is-small" aria-hidden="true">{page.glyph}</span> {page.label}</h2>
         {/* What the module is, and where it shows: here rather than on the tile. */}
         {summary && <p className="mp-note hub-menu-note">{summary}</p>}
-        <p className="mp-note hub-menu-note">{describeView(view)}.</p>
+        <p className="mp-note hub-menu-note">{describeView(view, !isIos())}.</p>
         {!confirmHide ? (
           <div className="hub-actions">
             <button type="button" className="hub-action" onClick={() => void togglePin()}>

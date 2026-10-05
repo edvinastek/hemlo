@@ -4,7 +4,7 @@ import { readSettings, type LookSettings } from '../lib/settings'
 import { saveSettings } from '../lib/write'
 import { parseHex } from '../lib/colours-rules'
 import { useLooks, previewTheme } from '../lib/looks'
-import { appIcon, isNative, setAppIcon } from '../lib/native'
+import { appIcon, features, isIos, setAppIcon } from '../lib/native'
 import {
   DENSITIES, FONT_PAIRINGS, ICONS, OWN, SEEDS, SYSTEM, TEXT_SIZES, THEMES, adjustedNote, checkTokens, cssVars, iconShapes, pairingIn, pairingsFor,
   type AppIcon, type ResolvedTheme, type Shade, type TextSize, type ThemeMode,
@@ -107,8 +107,8 @@ function Looks({ profile }: { profile: Profile }) {
           ))}
         </div>
         <p className="row-meta">
-          {isNative()
-            ? `On top of the phone’s own font size${live.phoneScale !== 1 ? ` (set to ${Math.round(live.phoneScale * 100)}% there)` : ''}.`
+          {features().phoneTextSize
+            ? `On top of the ${isIos() ? 'iPhone’s own text size' : 'phone’s own font size'}${live.phoneScale !== 1 ? ` (set to ${Math.round(live.phoneScale * 100)}% there)` : ''}.`
             : 'The whole page grows or shrinks with it.'}
         </p>
       </div>
@@ -138,7 +138,8 @@ function Looks({ profile }: { profile: Profile }) {
         </div>
       )}
 
-      <IconPicker chosen={looks.icon} onSaved={(key) => save({ icon: key })} />
+      {/* The iPhone app keeps its one icon (alternate icons there are later work). */}
+      {!isIos() && <IconPicker chosen={looks.icon} onSaved={(key) => save({ icon: key })} />}
 
       <Readability theme={live.theme} />
     </div>
@@ -207,9 +208,9 @@ function OwnColour({ seed, onPick }: { seed: string; onPick: (hex: string) => vo
 }
 
 /** The launcher icons (LOOK-10). Only the Android app can change its icon;
- *  elsewhere the choice is shown but explained. */
+ *  a browser shows the choice but explains it; the iPhone app hides it. */
 function IconPicker({ chosen, onSaved }: { chosen: string; onSaved: (key: string) => void }) {
-  const native = isNative()
+  const native = features().appIcons
   const [device, setDevice] = useState<{ key: string; pending: string | null } | null>(null)
   useEffect(() => { void appIcon().then(setDevice) }, [])
   const shown = device?.pending ?? device?.key ?? chosen

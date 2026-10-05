@@ -1,5 +1,5 @@
 import { CapacitorHttp } from '@capacitor/core'
-import { isNative } from './native'
+import { features, isNative } from './native'
 import { forgetOffToken, offToken } from './open-prices-account'
 import {
   OPEN_PRICES_API, PHOTO_MAX_PX, PHOTO_QUALITY, SHARE_AGENT, appQuery, fitPhoto, nominatimUrl, placesUrl,
@@ -12,7 +12,7 @@ import {
  *  from a check: the checks and the screenshot harness answer for Open
  *  Prices and OpenStreetMap themselves. */
 
-const platform = () => (isNative() ? 'android' : 'web') as 'android' | 'web'
+const platform = () => features().openPrices
 const online = () => typeof navigator === 'undefined' || navigator.onLine !== false
 
 export type Result<T> = { ok: true; value: T } | { ok: false; problem: Problem }

@@ -90,6 +90,14 @@ export const VIEW_SWITCHES: { key: ViewSwitch; label: string; hint: string }[] =
   { key: 'reminders', label: 'Send reminders', hint: 'Its timed items remind you, when reminders are on for this device.' },
 ]
 
+/** The switches this app shows: "Show on the widget" only where there are
+ *  home-screen widgets (the Android app; a browser too, as the switch is the
+ *  account's and works on the person's Android phone). The iPhone app has no
+ *  widget yet, so it leaves the switch out and its value untouched. */
+export function switchesHere(widgets: boolean) {
+  return widgets ? VIEW_SWITCHES : VIEW_SWITCHES.filter((s) => s.key !== 'widget')
+}
+
 /** Modules whose switches mean nothing: the planner itself, and Stats, which
  *  shows the others rather than items of its own. */
 export const hasSwitches = (moduleKey: string) => moduleKey !== 'core' && moduleKey !== 'stats' && moduleKey !== 'custom'
@@ -111,8 +119,8 @@ export function templateViews(keys: string[], overrides: Record<string, Partial<
 
 /** One line for a module's row: where it shows, or that it shows nowhere
  *  but its own page. */
-export function describeView(v: ModuleView): string {
-  const places = [v.today && 'Today', v.plan && 'Plan', v.widget && 'widget'].filter(Boolean) as string[]
+export function describeView(v: ModuleView, widgets = true): string {
+  const places = [v.today && 'Today', v.plan && 'Plan', widgets && v.widget && 'widget'].filter(Boolean) as string[]
   const where = places.length ? `On ${places.join(', ').replace(/, ([^,]*)$/, ' and $1')}` : 'Only on its own page'
   const extra = [v.stats ? 'in Stats' : '', v.reminders ? 'reminders' : ''].filter(Boolean)
   return extra.length ? `${where} · ${extra.join(', ')}` : where

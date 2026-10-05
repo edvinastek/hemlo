@@ -1,6 +1,6 @@
 import { create } from 'zustand'
 import { getMeta, onResetLocal, setMeta } from './db'
-import { isNative } from './native'
+import { features, isNative } from './native'
 import { useApp } from './store'
 import { OPEN_PRICES_API, SHARE_AGENT, appQuery, authBody, authProblem, readAuth } from './open-prices-rules'
 
@@ -77,7 +77,7 @@ export async function setSharing(on: boolean): Promise<void> {
   useOffAccount.setState({ on })
 }
 
-const platform = () => (isNative() ? 'android' : 'web') as 'android' | 'web'
+const platform = () => features().openPrices
 
 /** Signs in with an Open Food Facts user name and password. Null on
  *  success, else what went wrong in words. */

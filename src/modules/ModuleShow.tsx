@@ -2,7 +2,8 @@ import { useApp } from '../lib/store'
 import { db } from '../lib/db'
 import { saveSettings } from '../lib/write'
 import { readSettings } from '../lib/settings'
-import { VIEW_SWITCHES, describeView, hasSwitches, moduleView, switchChange, type ViewSwitch } from '../lib/module-view-rules'
+import { describeView, hasSwitches, moduleView, switchChange, switchesHere, type ViewSwitch } from '../lib/module-view-rules'
+import { isIos } from '../lib/native'
 import './modules.css'
 
 /** Where a module shows itself (GEN-03): Today, Plan, the widget, Stats and
@@ -24,6 +25,8 @@ export function ModuleShow({ moduleKey, name }: { moduleKey: string; name: strin
   }
   const views = readSettings(profile).module_views
   const v = moduleView(views, moduleKey)
+  // Everywhere but the iPhone app, which has no home-screen widget.
+  const widgets = !isIos()
 
   // Read from the local copy, not the screen's profile, so two quick taps on
   // different switches each start from what the other saved.
@@ -36,8 +39,8 @@ export function ModuleShow({ moduleKey, name }: { moduleKey: string; name: strin
 
   return (
     <section aria-label={`Where ${name} shows`}>
-      <p className="mp-note">{describeView(v)}. Switching one off hides its items there and keeps them; its page stays.</p>
-      {VIEW_SWITCHES.map((s) => (
+      <p className="mp-note">{describeView(v, widgets)}. Switching one off hides its items there and keeps them; its page stays.</p>
+      {switchesHere(widgets).map((s) => (
         <div key={s.key} className="me-row ms-row">
           <div>
             <div className="row-name" id={`ms-${moduleKey}-${s.key}`}>{s.label}</div>

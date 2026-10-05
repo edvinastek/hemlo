@@ -12,6 +12,7 @@ import {
 } from '../lib/stats-builder-rules'
 import { CHARTS, MAX_FILTERS, MAX_MEASURES, type ChartType, type StatsFilter, type StatsMeasure, type StatsView as View, type Summary } from '../lib/stats-view-rules'
 import { Dropdown } from '../ui/Dropdown'
+import { isIos } from '../lib/native'
 import { ViewBody, groupName, usePaper, useSeriesColour } from './StatsView'
 import './stats.css'
 
@@ -373,7 +374,7 @@ export function StatsBuilder({ profileId, today, start, onClose }: {
               onChange={(e) => setOnToday(e.target.checked)} />
             <span>As a card on Today{!onToday && settings.today_cards.length >= MAX_CARDS ? ' (Today already has 6 cards; take one off first)' : ''}</span>
           </label>
-          <p className="sb-hint">It can also go on the home screen as a GetIt stats widget.</p>
+          {!isIos() && <p className="sb-hint">It can also go on the home screen as a GetIt stats widget.</p>}
         </fieldset>
         <div className="sheet-actions sb-foot">
           <button type="button" className="btn" onClick={() => onClose()}>Cancel</button>

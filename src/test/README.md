@@ -317,6 +317,12 @@ Types, then every check that needs nothing but Node. CI runs the same command.
 - `quickaddwidget` — the launcher shortcuts and the quick-add widget (NAV-24, WID-11): the + menu's first four in its own
   order (most used, the person's order, hidden ones left out), short names of ten letters or fewer that never read
   the same, the app.getit.planner://open/?add= link each opens, routed to Today, and only + menu keys accepted back.
+- `platform` — the iPhone app (PLAT-10, platform-rules.ts): what Android keeps, what the iPhone leaves out (widgets,
+  launcher icons, phone colours, Health Connect, the scanner download, notification channels) and the web unchanged;
+  reminders kept within the iPhone's 64 (soonest first, beside a snooze or focus end already held); Dynamic Type as a
+  scale; text size by the web view (Android) or page zoom; the status bar for a light or dark page; the widget switch
+  left out on the iPhone; and the Info.plist quick actions matching the + menu's defaults and the link
+  SceneDelegate.swift builds.
 - `mealrules` — meals with no fixed slots: the person's meal names (and the old four), a typed name finding its meal,
   keys for new meals, default and own times, what each item is (a food, a recipe or ready meal, numbers) and comes to
   (unknown never 0), a day grouped into meals (cards for the person's meals, by time, "Any time" last, skipped and

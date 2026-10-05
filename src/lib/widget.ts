@@ -1,4 +1,4 @@
-import { Capacitor, registerPlugin, type PluginListenerHandle } from '@capacitor/core'
+import { registerPlugin, type PluginListenerHandle } from '@capacitor/core'
 import { App as NativeApp } from '@capacitor/app'
 import { liveQuery, type Subscription } from 'dexie'
 import { db, onResetLocal } from './db'
@@ -13,6 +13,7 @@ import { latestTicks, slotIds, snapshotFromItems, widgetPath, type WidgetSnapsho
 import type { QuickAddItem } from './widget-quickadd-rules'
 import { useApp } from './store'
 import { planToday } from './day-edge'
+import { features } from './native'
 
 /** The Android home-screen widgets (android/…/widget): "GetIt · Today" and
  *  the stats widgets. The app keeps them current by writing snapshots
@@ -36,7 +37,7 @@ interface GetItWidget {
 }
 
 const Widget = registerPlugin<GetItWidget>('GetItWidget')
-const available = () => Capacitor.getPlatform() === 'android'
+const available = () => features().widgets
 
 /** Today and tomorrow, from the same day items Today draws, for the modules
  *  set to "Show on the widget" (WID-02). Tomorrow is there so the widget
@@ -165,10 +166,11 @@ export async function applyWidgetTicks(): Promise<number> {
 }
 
 /** Ticks made while the app is open are applied at once, and a tap on a
- *  stats widget opens the view it shows. */
+ *  stats widget, a launcher shortcut or (on the iPhone) a home-screen quick
+ *  action opens what it names. */
 export function listenForWidgetTicks() {
-  if (!available()) return
-  void Widget.addListener('tick', () => { void applyWidgetTicks() })
+  if (available()) void Widget.addListener('tick', () => { void applyWidgetTicks() })
+  if (!features().openLinks) return
   void NativeApp.addListener('appUrlOpen', ({ url }) => openWidgetLink(url))
   void NativeApp.getLaunchUrl().then((r) => { if (r?.url) openWidgetLink(r.url) }).catch(() => undefined)
 }
@@ -189,7 +191,7 @@ let quickTimer: number | undefined
  *  shortcuts. Sent a moment after they settle (the menu's modules and the
  *  person's order load one after the other), and only when they changed. */
 export function sendQuickAdd(items: QuickAddItem[]) {
-  if (!available() || items.length === 0) return
+  if (!features().quickAddSync || items.length === 0) return
   const json = JSON.stringify(items)
   window.clearTimeout(quickTimer)
   quickTimer = window.setTimeout(() => {

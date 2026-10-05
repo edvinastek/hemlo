@@ -1,7 +1,8 @@
 import type { CapacitorConfig } from '@capacitor/cli'
 
-/** The Android app. The package name below is permanent once published on
- *  Google Play — it can never be changed, only abandoned for a new listing. */
+/** The Android and iPhone apps. The id below is permanent once published:
+ *  on Google Play the package name, on the App Store the bundle id; neither
+ *  can ever be changed, only abandoned for a new listing. */
 const config: CapacitorConfig = {
   appId: 'app.getit.planner',
   appName: 'GetIt',
@@ -9,6 +10,15 @@ const config: CapacitorConfig = {
   android: {
     allowMixedContent: false,
     // Debugging the web view is for development builds only.
+    webContentsDebuggingEnabled: false,
+  },
+  ios: {
+    // The page runs edge to edge under the notch and the home indicator; the
+    // layout keeps clear with env(safe-area-inset-*) (index.html has
+    // viewport-fit=cover), the fallback of the --safe-area-inset-* variables
+    // Capacitor sets only on Android.
+    contentInset: 'never',
+    // Inspecting the web view from Safari is for development builds only.
     webContentsDebuggingEnabled: false,
   },
   plugins: {
@@ -23,6 +33,9 @@ const config: CapacitorConfig = {
     LocalNotifications: {
       smallIcon: 'ic_stat_getit',
       iconColor: '#b4442a',
+      // iPhone: a reminder that comes due while GetIt is open still shows as a
+      // banner, with the sound; no badge on the icon (GetIt never sets one).
+      presentationOptions: ['banner', 'list', 'sound'],
     },
   },
 }

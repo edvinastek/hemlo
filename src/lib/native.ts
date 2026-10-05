@@ -1,16 +1,24 @@
-import { Capacitor, registerPlugin } from '@capacitor/core'
+import { Capacitor, SystemBars, SystemBarsStyle, registerPlugin } from '@capacitor/core'
 import type { HcSession } from './sleep-import-rules'
+import { dynamicTypeScale, platformFeatures, platformFrom, statusBarStyle, type Platform } from './platform-rules'
 
-/** True inside the Android app, false in a browser and on Windows. */
+/** True inside the Android or iPhone app, false in a browser and on Windows. */
 export const isNative = () => Capacitor.isNativePlatform()
 
-/** Hands a file to the person. In the Android app, and in a phone's browser
+/** Which app this is: 'android', 'ios' or 'web' (a browser, Windows). */
+export const platform = (): Platform => platformFrom(Capacitor.getPlatform())
+export const isAndroid = () => platform() === 'android'
+export const isIos = () => platform() === 'ios'
+/** What this app can do here (platform-rules.ts). */
+export const features = () => platformFeatures(platform())
+
+/** Hands a file to the person. In the phone apps, and in a phone's browser
  *  that can share files, the share sheet opens, so it can go to Files,
  *  Drive, email or a calendar app; otherwise the browser downloads it. Says which one happened, or
  *  'cancelled' when the person closed the share sheet. */
 export async function saveFile(name: string, blob: Blob): Promise<'shared' | 'downloaded' | 'cancelled'> {
-  // In the Android app the web page cannot download or share files itself:
-  // the file is written to the app's own cache, then Android's share sheet
+  // In the phone apps the web page cannot download or share files itself:
+  // the file is written to the app's own cache, then the phone's share sheet
   // offers it to Files, Drive, email or a calendar app.
   if (isNative()) {
     const [{ Filesystem, Directory }, { Share }] = await Promise.all([import('@capacitor/filesystem'), import('@capacitor/share')])
@@ -61,7 +69,7 @@ function toBase64(blob: Blob): Promise<string> {
 }
 
 /** Where a confirmation or password-reset email should send the person back to.
- *  On a phone that is the app itself, through the link Android hands to it;
+ *  On a phone that is the app itself, through the link the phone hands to it;
  *  in a browser it is the page they signed up from. */
 export function authRedirect(kind: 'confirm' | 'recovery'): string {
   if (isNative()) return `app.getit.planner://auth-callback?kind=${kind}`
@@ -79,7 +87,7 @@ interface GetItLooks {
   haptic(options: { kind: 'tick' | 'hold' }): Promise<void>
 }
 const Looks = registerPlugin<GetItLooks>('GetItLooks')
-const android = () => Capacitor.getPlatform() === 'android'
+const android = isAndroid
 
 /** Text drawn at this percent of normal (LOOK-07); Android app only. */
 export async function setTextZoom(percent: number): Promise<boolean> {
@@ -87,10 +95,38 @@ export async function setTextZoom(percent: number): Promise<boolean> {
   try { await Looks.setTextZoom({ percent }); return true } catch { return false }
 }
 
-/** The phone's own font size setting, 1 being its default. */
+/** The phone's own font size setting, 1 being its default: Android's font
+ *  scale, or the iPhone's Dynamic Type (Settings → Display & Brightness →
+ *  Text Size), which the web view gives as the size of `-apple-system-body`. */
 export async function phoneFontScale(): Promise<number> {
+  if (isIos()) return dynamicTypeScale(appleBodySize())
   if (!android()) return 1
   try { return (await Looks.fontScale()).scale || 1 } catch { return 1 }
+}
+
+/** The iPhone's body text size in pixels, measured off the page. WebKit
+ *  gives computed sizes without the page's own zoom, so the text size set in
+ *  Looks does not feed back into this. */
+function appleBodySize(): number | null {
+  try {
+    const probe = document.createElement('span')
+    probe.style.cssText = 'font: -apple-system-body; position: absolute; visibility: hidden'
+    probe.textContent = 'x'
+    document.body.appendChild(probe)
+    const px = parseFloat(getComputedStyle(probe).fontSize)
+    probe.remove()
+    return Number.isFinite(px) ? px : null
+  } catch {
+    return null
+  }
+}
+
+/** The status bar's text light or dark to suit the page (iPhone): the app's
+ *  own dark mode may differ from the phone's. */
+export function setStatusBar(darkPage: boolean) {
+  if (!features().themedStatusBar) return
+  const style = statusBarStyle(darkPage) === 'DARK' ? SystemBarsStyle.Dark : SystemBarsStyle.Light
+  void SystemBars.setStyle({ style }).catch(() => undefined)
 }
 
 /** The main colour of the phone's wallpaper palette (Android 12 and later),

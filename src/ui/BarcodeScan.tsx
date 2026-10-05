@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, type FormEvent } from 'react'
-import { isNative } from '../lib/native'
+import { features, isNative } from '../lib/native'
 import { normaliseBarcode } from '../lib/products-rules'
 
 type Mode = 'native' | 'camera' | 'type'
@@ -9,8 +9,8 @@ type DetectorClass = new (options: { formats: string[] }) => Detector
 
 const WEB_FORMATS = ['ean_13', 'ean_8', 'upc_a', 'upc_e']
 
-/** Which way this device can read a barcode: Google's scanner in the Android
- *  app, the camera in a browser that can read barcodes itself, otherwise
+/** Which way this device can read a barcode: ML Kit's scanner in the phone
+ *  apps, the camera in a browser that can read barcodes itself, otherwise
  *  typing the digits under the stripes. */
 function modeHere(): Mode {
   if (isNative()) return 'native'
@@ -25,7 +25,8 @@ function modeHere(): Mode {
  *  In the Android app this is Google's code scanner from Play services: it
  *  opens its own camera screen and hands back only the code, so GetIt needs
  *  no camera permission. On a phone without it, it is fetched once from
- *  Google Play, with progress shown. */
+ *  Google Play, with progress shown. In the iPhone app ML Kit is built in and
+ *  shows its own camera screen; the iPhone asks once for the camera. */
 export function BarcodeScan({ onCode, onCancel }: { onCode: (code: string) => void; onCancel: () => void }) {
   const [mode, setMode] = useState<Mode>(modeHere)
   const [note, setNote] = useState<string | null>(null)
@@ -67,7 +68,7 @@ function TypeCode({ onCode, first }: { onCode: (code: string) => void; first: bo
   )
 }
 
-/** Google's scanner, through the ML Kit plugin. Loaded only in the app. */
+/** ML Kit's scanner, through its plugin. Loaded only in the phone apps. */
 function NativeScan({ onCode, onFail, onCancel }: { onCode: (code: string) => void; onFail: (why: string) => void; onCancel: () => void }) {
   const [status, setStatus] = useState('Opening the scanner…')
   const started = useRef(false)
@@ -80,7 +81,8 @@ function NativeScan({ onCode, onFail, onCancel }: { onCode: (code: string) => vo
     void (async () => {
       try {
         const { BarcodeScanner, BarcodeFormat, GoogleBarcodeScannerModuleInstallState: State } = await import('@capacitor-mlkit/barcode-scanning')
-        const { available } = await BarcodeScanner.isGoogleBarcodeScannerModuleAvailable()
+        // Only Android fetches the scanner separately; the iPhone has it built in.
+        const { available } = features().scannerModule ? await BarcodeScanner.isGoogleBarcodeScannerModuleAvailable() : { available: true }
         if (!available) {
           setStatus('Getting Google’s barcode scanner from Google Play. This happens once.')
           await new Promise<void>((resolve, reject) => {
@@ -105,6 +107,8 @@ function NativeScan({ onCode, onFail, onCancel }: { onCode: (code: string) => vo
         // Closing the scanner is not a problem: back to where the person was.
         if (/cancel/i.test(text)) { on.current.onCancel(); return }
         if (text === 'install') on.current.onFail('Google’s barcode scanner could not be installed. Type the numbers instead.')
+        // The iPhone's answer when the camera was refused (now or before).
+        else if (/denied access to camera/i.test(text)) on.current.onFail('GetIt may not use the camera. Allow it in the iPhone’s Settings → GetIt, or type the numbers.')
         else on.current.onFail('The scanner is not available on this phone. Type the numbers instead.')
       }
     })()

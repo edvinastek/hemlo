@@ -40,7 +40,7 @@ export const PROOF_REUSE_HOURS = 12
 // ---- the query string that names the app ---------------------------------------------------
 
 /** Open Prices reads the app's name from the query string of a write. */
-export function appQuery(platform: 'android' | 'web'): string {
+export function appQuery(platform: 'android' | 'ios' | 'web'): string {
   return `app_name=${APP_NAME}&app_version=${APP_VERSION}&app_platform=${platform}`
 }
 

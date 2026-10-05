@@ -4,7 +4,8 @@ import { useApp } from './store'
 import { DEFAULT_SETTINGS, readSettings, type LookSettings } from './settings'
 import { setPagePapers } from './colours-rules'
 import { onResetLocal } from './db'
-import { isNative, phoneFontScale, setTextZoom, systemAccent } from './native'
+import { features, isNative, phoneFontScale, setStatusBar, setTextZoom, systemAccent } from './native'
+import { textZoomRoute } from './platform-rules'
 import { sendWidgetLooks } from './widget'
 import { WIDGET_DARK, WIDGET_LIGHT, widgetPalette, type WidgetLooks } from './widget-rules'
 import {
@@ -14,8 +15,9 @@ import {
 /** Puts the chosen looks on the screen (LOOK-01 to LOOK-09): the theme's
  *  colours as custom properties on the page's root, the mode, the text size
  *  and the widgets' colours. It follows the open profile's settings, the
- *  phone's light or dark setting and, in the Android app, the phone's font
- *  size and wallpaper colours, re-read whenever the app comes back.
+ *  phone's light or dark setting and, in the phone apps, the phone's font
+ *  size (and on Android its wallpaper colours), re-read whenever the app
+ *  comes back.
  *
  *  The colours are also kept in this device's storage, where a few lines in
  *  index.html read them before the first paint, so the app never flashes
@@ -69,6 +71,7 @@ const currentLooks = (): LookSettings => {
 
 let lastWidget = ''
 let lastZoom = 0
+let lastDark: boolean | null = null
 
 function apply() {
   state = compute(currentLooks())
@@ -95,18 +98,22 @@ function apply() {
   setPagePapers(light.paper, dark.paper)
 
   // Text size: Android draws text larger through the web view itself, so the
-  // layout keeps its width; elsewhere the whole page is zoomed.
+  // layout keeps its width; elsewhere (the iPhone included, where the size
+  // also follows Dynamic Type) the whole page is zoomed.
   if (state.zoom !== lastZoom) {
     lastZoom = state.zoom
-    if (isNative()) {
+    const route = textZoomRoute(features(), state.zoom)
+    if (route.native !== null) {
       root.style.removeProperty('zoom')
-      void setTextZoom(state.zoom)
-    } else if (looks.text_size === 'default') {
+      void setTextZoom(route.native)
+    } else if (route.css === null) {
       root.style.removeProperty('zoom')
     } else {
-      root.style.setProperty('zoom', String(state.zoom / 100))
+      root.style.setProperty('zoom', String(route.css))
     }
   }
+  const darkPage = isDarkShade(theme.shade)
+  if (darkPage !== lastDark) { lastDark = darkPage; setStatusBar(darkPage) }
 
   remember(light, dark, looks)
 
@@ -126,13 +133,14 @@ function apply() {
 /** What index.html needs to paint the right colours at once. */
 function remember(light: ResolvedTheme['tokens'], dark: ResolvedTheme['tokens'], looks: LookSettings) {
   try {
-    const plain = looks.theme === 'notebook' && looks.mode === 'system' && looks.text_size === 'default'
+    const zoom = textZoomRoute(features(), state.zoom).css
+    const plain = looks.theme === 'notebook' && looks.mode === 'system' && zoom === null
     if (plain) { localStorage.removeItem(LOOKS_CACHE); return }
     localStorage.setItem(LOOKS_CACHE, JSON.stringify({
       mode: looks.mode,
       light: cssVars(light, 'light'),
       dark: cssVars(dark, looks.mode === 'black' ? 'black' : 'dark'),
-      zoom: !isNative() && looks.text_size !== 'default' ? state.zoom / 100 : null,
+      zoom,
     }))
   } catch {
     // Private windows and full storage: the app still applies the theme a

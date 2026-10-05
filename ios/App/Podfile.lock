@@ -1,0 +1,144 @@
+PODS:
+  - AparajitaCapacitorBiometricAuth (10.0.0):
+    - Capacitor
+  - AparajitaCapacitorSecureStorage (8.0.1):
+    - Capacitor
+    - KeychainSwift (~> 21.0)
+  - Capacitor (8.5.2):
+    - CapacitorCordova
+  - CapacitorApp (8.1.1):
+    - Capacitor
+  - CapacitorCordova (8.5.2)
+  - CapacitorFilesystem (8.1.3):
+    - Capacitor
+    - IONFilesystemLib (~> 1.1.1)
+  - CapacitorLocalNotifications (8.3.1):
+    - Capacitor
+  - CapacitorMlkitBarcodeScanning (8.2.1):
+    - Capacitor
+    - GoogleMLKit/BarcodeScanning (~> 8.0.0)
+  - CapacitorShare (8.0.2):
+    - Capacitor
+  - GoogleDataTransport (10.1.1):
+    - nanopb (~> 3.30910.0)
+    - PromisesObjC (~> 2.4)
+  - GoogleMLKit/BarcodeScanning (8.0.0):
+    - GoogleMLKit/MLKitCore
+    - MLKitBarcodeScanning (~> 7.0.0)
+  - GoogleMLKit/MLKitCore (8.0.0):
+    - MLKitCommon (~> 13.0.0)
+  - GoogleToolboxForMac/Defines (4.2.1)
+  - GoogleToolboxForMac/Logger (4.2.1):
+    - GoogleToolboxForMac/Defines (= 4.2.1)
+  - "GoogleToolboxForMac/NSData+zlib (4.2.1)":
+    - GoogleToolboxForMac/Defines (= 4.2.1)
+  - GoogleUtilities/Environment (8.1.4):
+    - GoogleUtilities/Privacy
+  - GoogleUtilities/Logger (8.1.4):
+    - GoogleUtilities/Environment
+    - GoogleUtilities/Privacy
+  - GoogleUtilities/Privacy (8.1.4)
+  - GoogleUtilities/UserDefaults (8.1.4):
+    - GoogleUtilities/Logger
+    - GoogleUtilities/Privacy
+  - GTMSessionFetcher/Core (3.5.0)
+  - IONFilesystemLib (1.1.4)
+  - KeychainSwift (21.0.0)
+  - MLImage (1.0.0-beta7)
+  - MLKitBarcodeScanning (7.0.0):
+    - MLKitCommon (~> 13.0)
+    - MLKitVision (~> 9.0)
+  - MLKitCommon (13.0.0):
+    - GoogleDataTransport (~> 10.0)
+    - GoogleToolboxForMac/Logger (< 5.0, >= 4.2.1)
+    - "GoogleToolboxForMac/NSData+zlib (< 5.0, >= 4.2.1)"
+    - GoogleUtilities/Logger (~> 8.0)
+    - GoogleUtilities/UserDefaults (~> 8.0)
+    - GTMSessionFetcher/Core (< 4.0, >= 3.3.2)
+  - MLKitVision (9.0.0):
+    - GoogleToolboxForMac/Logger (< 5.0, >= 4.2.1)
+    - "GoogleToolboxForMac/NSData+zlib (< 5.0, >= 4.2.1)"
+    - GTMSessionFetcher/Core (< 4.0, >= 3.3.2)
+    - MLImage (= 1.0.0-beta7)
+    - MLKitCommon (~> 13.0)
+  - nanopb (3.30910.0):
+    - nanopb/decode (= 3.30910.0)
+    - nanopb/encode (= 3.30910.0)
+  - nanopb/decode (3.30910.0)
+  - nanopb/encode (3.30910.0)
+  - PromisesObjC (2.4.1)
+
+DEPENDENCIES:
+  - "AparajitaCapacitorBiometricAuth (from `../../node_modules/@aparajita/capacitor-biometric-auth`)"
+  - "AparajitaCapacitorSecureStorage (from `../../node_modules/@aparajita/capacitor-secure-storage`)"
+  - "Capacitor (from `../../node_modules/@capacitor/ios`)"
+  - "CapacitorApp (from `../../node_modules/@capacitor/app`)"
+  - "CapacitorCordova (from `../../node_modules/@capacitor/ios`)"
+  - "CapacitorFilesystem (from `../../node_modules/@capacitor/filesystem`)"
+  - "CapacitorLocalNotifications (from `../../node_modules/@capacitor/local-notifications`)"
+  - "CapacitorMlkitBarcodeScanning (from `../../node_modules/@capacitor-mlkit/barcode-scanning`)"
+  - "CapacitorShare (from `../../node_modules/@capacitor/share`)"
+
+SPEC REPOS:
+  trunk:
+    - GoogleDataTransport
+    - GoogleMLKit
+    - GoogleToolboxForMac
+    - GoogleUtilities
+    - GTMSessionFetcher
+    - IONFilesystemLib
+    - KeychainSwift
+    - MLImage
+    - MLKitBarcodeScanning
+    - MLKitCommon
+    - MLKitVision
+    - nanopb
+    - PromisesObjC
+
+EXTERNAL SOURCES:
+  AparajitaCapacitorBiometricAuth:
+    :path: "../../node_modules/@aparajita/capacitor-biometric-auth"
+  AparajitaCapacitorSecureStorage:
+    :path: "../../node_modules/@aparajita/capacitor-secure-storage"
+  Capacitor:
+    :path: "../../node_modules/@capacitor/ios"
+  CapacitorApp:
+    :path: "../../node_modules/@capacitor/app"
+  CapacitorCordova:
+    :path: "../../node_modules/@capacitor/ios"
+  CapacitorFilesystem:
+    :path: "../../node_modules/@capacitor/filesystem"
+  CapacitorLocalNotifications:
+    :path: "../../node_modules/@capacitor/local-notifications"
+  CapacitorMlkitBarcodeScanning:
+    :path: "../../node_modules/@capacitor-mlkit/barcode-scanning"
+  CapacitorShare:
+    :path: "../../node_modules/@capacitor/share"
+
+SPEC CHECKSUMS:
+  AparajitaCapacitorBiometricAuth: 4932b9d9cbcd7ffeacefdfdfd9f9fd5ef06cd253
+  AparajitaCapacitorSecureStorage: 3a26b600a79edc3833a14afb7cc3ee1b1b13c6d1
+  Capacitor: 59aea4e8bd98b24b798919b4c55ae90c6ded1b0d
+  CapacitorApp: 9fd99482b6536ddf1a54721ce678145fc7fa3418
+  CapacitorCordova: 5bec5648cbd09a176ce34ce5e7b6cdabb2c8a327
+  CapacitorFilesystem: 8ad396fd0d680c15d018577f3d92dc1397f477de
+  CapacitorLocalNotifications: ab98bfae3fa8646b1fadd79485ce1be010dea21f
+  CapacitorMlkitBarcodeScanning: dbe010ab505bcc8579849fd7aeb2a9cec58f880a
+  CapacitorShare: fdeee71ebc13dca43967805adf2dea57871c216a
+  GoogleDataTransport: a24e58982ab3ba2f64d79613e027fe7f57e88539
+  GoogleMLKit: ddd51d7dff36ff28defa69afedd9cdce684fd857
+  GoogleToolboxForMac: d1a2cbf009c453f4d6ded37c105e2f67a32206d8
+  GoogleUtilities: db34c1c11c6f2eccb6fab2340cb8ceb1451299dc
+  GTMSessionFetcher: 5aea5ba6bd522a239e236100971f10cb71b96ab6
+  IONFilesystemLib: e6610c2b260d15e4b9cb9d5e37a87095479b669e
+  KeychainSwift: 4a71a45c802fd9e73906457c2dcbdbdc06c9419d
+  MLImage: 2ab9c968e75f57911c16f4c9d9e8a8e9604a86a1
+  MLKitBarcodeScanning: 72c6437f13a900833b400136be53a8a5d86f42fa
+  MLKitCommon: 26b779f072a182c1603d4c88a101c350cac837b1
+  MLKitVision: fa8dea9012ac59497c79ddbe9ebf32051047ac4c
+  nanopb: fad817b59e0457d11a5dfbde799381cd727c1275
+  PromisesObjC: 752c3227f599e3467650e47ea36f433eeb10c273
+
+PODFILE CHECKSUM: 2d635832f958944b3ce8b58eff7eb0fe1a1537fc
+
+COCOAPODS: 1.17.0

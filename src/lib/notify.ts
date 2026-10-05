@@ -2,7 +2,8 @@ import { LocalNotifications } from '@capacitor/local-notifications'
 import { create } from 'zustand'
 import { addDays, format } from 'date-fns'
 import { db, getMeta, setMeta } from './db'
-import { isNative } from './native'
+import { features, isNative } from './native'
+import { remindersThatFit } from './platform-rules'
 import { useApp } from './store'
 import { enabledModules } from './day'
 import { readSettings } from './settings'
@@ -56,19 +57,28 @@ export async function requestPermission(): Promise<boolean> {
 let channelReady = false
 async function ensureChannel() {
   if (channelReady) return
+  const here = features()
   // A private channel: on a locked phone Android shows "Contents hidden", so a
   // reminder naming a meal or a weigh-in is not readable by whoever picks it up.
-  await LocalNotifications.createChannel({
-    id: 'reminders', name: 'Reminders', description: 'Tasks, habits, chores and events at their time',
-    importance: 4, visibility: 0,
-  })
-  // "Done" and "In 15 min" on the notification itself (REM-03).
+  // The iPhone has no channels (the plugin refuses the call there); its lock
+  // screen hides previews by the person's own setting.
+  if (here.notificationChannels) {
+    await LocalNotifications.createChannel({
+      id: 'reminders', name: 'Reminders', description: 'Tasks, habits, chores and events at their time',
+      importance: 4, visibility: 0,
+    })
+  }
+  // "Done" and "In 15 min" on the notification itself (REM-03). On the iPhone
+  // they open GetIt, so the page is running when the tick is written.
+  const opens = here.actionsOpenApp ? { foreground: true } : {}
+  const done = (title: string) => ({ id: 'done', title, ...opens })
+  const snooze = { id: 'snooze', title: `In ${SNOOZE_MIN} min`, ...opens }
   await LocalNotifications.registerActionTypes({
     types: [
-      { id: 'tick', actions: [{ id: 'done', title: 'Done' }, { id: 'snooze', title: `In ${SNOOZE_MIN} min` }] },
+      { id: 'tick', actions: [done('Done'), snooze] },
       // A planned payment's day (FIN-04): Paid writes its entry, as a tick on Today does.
-      { id: 'pay', actions: [{ id: 'done', title: 'Paid' }, { id: 'snooze', title: `In ${SNOOZE_MIN} min` }] },
-      { id: 'later', actions: [{ id: 'snooze', title: `In ${SNOOZE_MIN} min` }] },
+      { id: 'pay', actions: [done('Paid'), snooze] },
+      { id: 'later', actions: [snooze] },
     ],
   })
   channelReady = true
@@ -228,7 +238,8 @@ export async function rescheduleReminders(profileId: string, persona: string | n
     if (drop.length) await LocalNotifications.cancel({ notifications: drop.map((n) => ({ id: n.id })) })
     if (!settings.on) return 0
     await ensureChannel()
-    const coming = await due()
+    // The iPhone keeps 64 at most: the soonest go now, the rest on a later run.
+    const coming = remindersThatFit(await due(), features().pendingLimit, pending.notifications.length - drop.length)
     if (coming.length === 0) return 0
     await LocalNotifications.schedule({
       notifications: coming.map((d) => ({
