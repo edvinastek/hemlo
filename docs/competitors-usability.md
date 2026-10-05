@@ -1,6 +1,6 @@
 ---
-title: "GetIt — Competitors and Usability"
-subtitle: "Each module against the best and easiest app for that job, the whole app against its closest match, and how to make GetIt calm without losing a function"
+title: "Visuma — Competitors and Usability"
+subtitle: "Each module against the best and easiest app for that job, the whole app against its closest match, and how to make Visuma calm without losing a function"
 author: "Prepared for Edvinas Straigis"
 date: "1 October 2026"
 ---
@@ -11,7 +11,7 @@ date: "1 October 2026"
 
 One different app per module, chosen for being both the best at the job and the easiest to use on Android. Ratings and downloads were read from the Google Play listings on 1 October 2026.
 
-| GetIt module | Primary competitor | Why this one | Runner-up |
+| Visuma module | Primary competitor | Why this one | Runner-up |
 |--------------------|-------------------------|-------------------------------------------|----------------------|
 | Today | **Structured** (4.6★, 1M+) | One visual timeline of tasks and events, an inbox to drag from | Tiimo |
 | Plan | **Business Calendar 2** (4.6★, 10M+) | Real Year view, a week of 1–14 days, drag to move or copy, best widgets | Google Calendar |
@@ -37,9 +37,9 @@ One different app per module, chosen for being both the best at the job and the 
 
 ## 1.2 The whole app
 
-**Closest single product: Notion, set up as a "Life OS".** People already build GetIt's exact module set in it (tasks, projects, habits, journal, goals, finance, dashboards), with user-defined databases and views. Its weaknesses are GetIt's openings: it is slow to set up ("customisation paralysis"), heavy on a phone, only partly offline, and has no live database or chart widgets on Android.
+**Closest single product: Notion, set up as a "Life OS".** People already build Visuma's exact module set in it (tasks, projects, habits, journal, goals, finance, dashboards), with user-defined databases and views. Its weaknesses are Visuma's openings: it is slow to set up ("customisation paralysis"), heavy on a phone, only partly offline, and has no live database or chart widgets on Android.
 
-**The freedom benchmark is Excel / Google Sheets**, as the owner expected: any column, any formula, any pivot. But a spreadsheet has no planner: no dates as an agenda, no repeats, no reminders, no widget, and Google Sheets cannot even make or edit pivot tables on Android. GetIt's aim is **the spreadsheet's freedom with the planner built in**. Part 4 maps every spreadsheet freedom to its GetIt equivalent.
+**The freedom benchmark is Excel / Google Sheets**, as the owner expected: any column, any formula, any pivot. But a spreadsheet has no planner: no dates as an agenda, no repeats, no reminders, no widget, and Google Sheets cannot even make or edit pivot tables on Android. Visuma's aim is **the spreadsheet's freedom with the planner built in**. Part 4 maps every spreadsheet freedom to its Visuma equivalent.
 
 **Closest Android-native app: Memento Database.** It has the closest feature set (custom databases, views, aggregation and chart widgets) but no Today, no planning and a steep learning curve.
 
@@ -62,10 +62,10 @@ Positioning: **Notion-level freedom and spreadsheet-level stats, with the speed 
 
 - Each module's competitor was chosen for two things at once: **best at the job** (features, ratings, reviews, expert lists) and **easiest** (how few steps the main action takes, what reviewers say about clutter). A different app was required for each module.
 - Every fact comes from a page opened on 1 October 2026 (official sites, help centres, Google Play listings, the EU regulation text, RIVM, FAO, EFSA, Nielsen Norman Group, Android and Apple design guidance). Anything that could not be confirmed on a primary page is marked **[unverified]** in the appendices; comparison pages written by a rival app are marked **[competitor-authored]**.
-- GetIt's side of each comparison comes from the specification of version 15 in the first document (Parts E and F).
+- Visuma's side of each comparison comes from the specification of version 15 in the first document (Parts E and F).
 - The full research notes, with every source, are reproduced in Appendices A, B and C.
 
-Legend in the comparison tables: **Yes** = GetIt v15 has it; **Part** = partly; **No** = missing. "Next" names the requirement in the first document that closes the gap.
+Legend in the comparison tables: **Yes** = Visuma v15 has it; **Part** = partly; **No** = missing. "Next" names the requirement in the first document that closes the gap.
 
 
 
@@ -75,7 +75,7 @@ Legend in the comparison tables: **Yes** = GetIt v15 has it; **Part** = partly; 
 
 **Why Structured:** one vertical timeline that merges tasks, calendar events and focus sessions, each with an icon, a colour and a block as long as its duration; an Inbox to capture undated tasks and drag them onto the day; widgets. Weak points: recurring tasks are paid, the Android version lags (no copy-day, no AI), and reviewers ask for bulk moves.
 
-| Capability | Structured | GetIt v15 | Next |
+| Capability | Structured | Visuma v15 | Next |
 |--------------------------------------|---------------------|----------------------------------|-----------------|
 | One timeline of the day's tasks and events | Yes | Part: tasks and followed calendars; own events, habits, chores missing | TOD-02, GEN-04, AGN-02 |
 | Inbox of undated tasks, drag onto the day | Yes | No (a task with no day disappears) | PLN-07 |
@@ -88,14 +88,14 @@ Legend in the comparison tables: **Yes** = GetIt v15 has it; **Part** = partly; 
 | Home-screen widget with ticks | Yes | Yes | — |
 | Works offline, synced | Yes | Yes | — |
 
-**GetIt already wins on:** the review and flagging of moved tasks, locked hours and clash warnings, public holidays, module colours, free repeats.
+**Visuma already wins on:** the review and flagging of moved tasks, locked hours and clash warnings, public holidays, module colours, free repeats.
 **Take from Structured:** the single merged timeline, the Inbox, duplicate-to-editor, copy a day.
 
 ## 3.2 Plan vs Business Calendar 2
 
 **Why Business Calendar 2:** six views including a real **Year** view (Google Calendar has none on Android), a week view that shows **1 to 14 days** with a pinch, drag and drop to move or copy, multi-select of events, templates suggested from what you create, 7 widgets and 22 themes. Weak points: dense, ads in the free version, moved to a subscription.
 
-| Capability | Business Calendar 2 | GetIt v15 | Next |
+| Capability | Business Calendar 2 | Visuma v15 | Next |
 |---------------------------------------|-----------------------|---------------------------------|----------------|
 | Day / week / month / year views | Yes, plus agenda and tasks | Part: no Day view in Plan | PLN-01, PLN-02 |
 | Week of any length 1–14 days | Yes | No (7) | PLN-03 |
@@ -109,14 +109,14 @@ Legend in the comparison tables: **Yes** = GetIt v15 has it; **Part** = partly; 
 | Hide a calendar with one tap | Yes | No | AGN-06 |
 | Holidays per country in their own colours | Partial | Yes | — |
 
-**GetIt already wins on:** day swapping with warnings, planned repeats shown 5 years ahead, holidays in colours, module colour legends.
+**Visuma already wins on:** day swapping with warnings, planned repeats shown 5 years ahead, holidays in colours, module colour legends.
 **Take from BC2:** a Day view you can edit, 1–14 day weeks, copy by drag or menu, templates, calendar visibility chips.
 
 ## 3.3 Tasks and repeats vs Todoist
 
 **Why Todoist:** one-line quick add that reads dates, times, lengths and repeats as you type ("Gym every Mon, Fri at 18:00 for 90 min #Training"), the richest repeat language (every other week, every 2nd Tuesday, every last workday, "every!" = after completion, until a date, for 3 weeks), duplicate tasks, project templates, configurable swipes. Weak point: when copying, comments and completed subtasks are silently dropped.
 
-| Capability | Todoist | GetIt v15 | Next |
+| Capability | Todoist | Visuma v15 | Next |
 |-----------------------------------------------|--------------------------|--------------------------|-----------|
 | Natural-language quick add | Yes | No | TSK-07 |
 | Every day / weekdays / chosen days / every N | Yes | Yes | — |
@@ -131,14 +131,14 @@ Legend in the comparison tables: **Yes** = GetIt v15 has it; **Part** = partly; 
 | Task templates | Project templates | No | TSK-26 |
 | Locked tasks, review, flags after 3 moves | No | Yes | — |
 
-**GetIt already wins on:** locked tasks, review and flagging, picked-dates repeats, planned repeats years ahead, calendar export with repeats kept.
+**Visuma already wins on:** locked tasks, review and flagging, picked-dates repeats, planned repeats years ahead, calendar export with repeats kept.
 **Take from Todoist:** quick add, the full repeat language, "after completion", rule editing, duplicate and templates — and do copying better by asking what happens to the notes.
 
 ## 3.4 Notes vs Google Keep
 
 **Why Google Keep:** the fastest way to write something down (a widget opens a blank note instantly), checklists with drag-to-reorder and indent, ticked items drop to the bottom, colours and labels instead of folders. Weak point: no templates at all (people copy a pinned "template" note).
 
-| Capability | Google Keep | GetIt v15 | Next |
+| Capability | Google Keep | Visuma v15 | Next |
 |-------------------------------------------------|---------------------|-----------------------|------------------|
 | Checklists, bullets, headings, bold | Checklist and text | Yes | — |
 | Drag to reorder and indent checklist items | Yes | No (typed indent only) | NOT-04 |
@@ -150,14 +150,14 @@ Legend in the comparison tables: **Yes** = GetIt v15 has it; **Part** = partly; 
 | A note attached to a task with progress on the row | No | Yes ("2/5") | — |
 | Export a note | Docs export | Yes (.md) | — |
 
-**GetIt already wins on:** notes living on the task they belong to, with progress shown on Today.
+**Visuma already wins on:** notes living on the task they belong to, with progress shown on Today.
 **Take from Keep and Obsidian:** instant ticking, drag to reorder, and real templates (which Keep lacks), plus recipe insertion that no note app has.
 
 ## 3.5 Habits vs HabitNow
 
 **Why HabitNow:** quick to set up, any schedule (daily, chosen days, N times a week or month, custom), **habits and to-dos in the same daily list**, timers, charts, streaks, widgets, themes, and a one-time price. Weak points: no cloud sync, widgets that go stale. Runner-up Loop adds a forgiving "habit strength" score.
 
-| Capability | HabitNow | GetIt v15 | Next |
+| Capability | HabitNow | Visuma v15 | Next |
 |-------------------------------------------------------|----------------|----------------------------|------------|
 | Daily, chosen days, weekends, N times a week, custom dates | Yes | No (daily, weekdays, weekly) | HAB-01 |
 | Change the schedule later | Yes | No | HAB-02 |
@@ -171,14 +171,14 @@ Legend in the comparison tables: **Yes** = GetIt v15 has it; **Part** = partly; 
 | Widget with ticks, refreshed at once | Often stale | Yes | — |
 | Cloud sync across devices | No | Yes | — |
 
-**GetIt already wins on:** sync, a reliable widget, habits next to the rest of life (food, training, stats).
+**Visuma already wins on:** sync, a reliable widget, habits next to the rest of life (food, training, stats).
 **Take from HabitNow:** every schedule, habits in the main list, notes, times and counts.
 
 ## 3.6 Stats vs Exist.io (and the spreadsheet pivot)
 
 **Why Exist.io:** it gathers every source into one place, lets you pin four figures to the top of Home, keeps a full history per figure, and finds correlations ("my mood is higher on days I go out"). Weak points: no charts of your own choosing and no pivots. No stats app offers pivot-style templates; only spreadsheets do, and Google Sheets cannot make pivots on Android.
 
-| Capability | Exist.io | Spreadsheet | GetIt v15 | Next |
+| Capability | Exist.io | Spreadsheet | Visuma v15 | Next |
 |----------------------------------|----------------------|--------------------|-------------------|--------------|
 | All modules' figures in one place | Yes (via integrations) | Manual | Yes (cards per module) | — |
 | Many figures per module, chosen by the person | Some | Yes | No (2–4 fixed) | STA-02, STA-03 |
@@ -191,14 +191,14 @@ Legend in the comparison tables: **Yes** = GetIt v15 has it; **Part** = partly; 
 | Year-in-pixels grid (Daylio) | Daylio | Conditional formatting | No | STA-17 |
 | Export | PDF | Yes | Yes (CSV, Excel, JSON) | — |
 
-**GetIt already wins on:** it owns the data (no integrations needed), it never counts unknown days as zero, it exports.
+**Visuma already wins on:** it owns the data (no integrations needed), it never counts unknown days as zero, it exports.
 **Take:** Exist's pinned figures and history, and the spreadsheet's pivot, as a four-choice builder that a phone can handle.
 
 ## 3.7 Modules you build vs Memento Database
 
 **Why Memento:** 20–30+ field types, list, card, table, map, calendar and gallery views, grouping and aggregation with charts, dashboards of aggregation and chart widgets, home-screen entry widgets, thousands of templates, offline. Weak points: a steep learning curve, it looks like a database rather than a planner, and dashboards do not sync.
 
-| Capability | Memento | GetIt v15 | Next |
+| Capability | Memento | Visuma v15 | Next |
 |------------------------------------------------|----------------------|------------------------|---------------|
 | Typed fields (text, number, date, time, yes/no, choice, link, formula) | Yes | Yes | — |
 | Multi-choice (tags), rating, money, photo, checklist fields | Yes | No | MOD-11, MOD-12 |
@@ -211,14 +211,14 @@ Legend in the comparison tables: **Yes** = GetIt v15 has it; **Part** = partly; 
 | Template gallery | Thousands | 8 presets | MOD-13 |
 | Keywords suggest the module at setup | No | No (stored, not used) | MOD-07 |
 
-**GetIt already wins on:** modules that live inside a planner (tasks, Today, Stats), offline sync with no library limits, ease (no scripts).
+**Visuma already wins on:** modules that live inside a planner (tasks, Today, Stats), offline sync with no library limits, ease (no scripts).
 **Take:** more field kinds, combinable presets, widgets per module, a bigger template gallery.
 
 ## 3.8 Nutrition logging vs MacroFactor
 
 **Why MacroFactor:** the fastest logger. Search shows your usual foods for this hour before you type; one tap adds a food to a staging **plate**; you log the plate once. **No fixed meals**: food sits on a timeline by time, so a protein bar is never forced to be "breakfast" or "snack". Copy or move a food, an hour or a whole day to today or tomorrow, paste into several days. Saved meals can be "exploded" to edit one part. Barcode, label scan and quick add. Weak point: no free tier.
 
-| Capability | MacroFactor | GetIt v15 | Next |
+| Capability | MacroFactor | Visuma v15 | Next |
 |----------------------------------------------|----------------|-----------------------------|------------------|
 | No fixed meal slots; time-based entries with optional labels | Yes | No (four fixed slots) | MEAL-01, MEAL-02 |
 | + to add food, choosing meal and time | Yes | No | MEAL-10, MEAL-11 |
@@ -234,14 +234,14 @@ Legend in the comparison tables: **Yes** = GetIt v15 has it; **Part** = partly; 
 | Meal plan for future days, feeding a shopping list | No | Yes | — |
 | Meals become tasks on Today | No | Yes | — |
 
-**GetIt already wins on:** planning meals ahead, the shopping list and stock that follow, meal tasks on the day, free.
+**Visuma already wins on:** planning meals ahead, the shopping list and stock that follow, meal tasks on the day, free.
 **Take:** the timeline instead of slots, the + with sources, the plate, scan in meals, copying, saved meals.
 
 ## 3.9 Recipes vs Paprika 3
 
 **Why Paprika:** save a recipe from any website in one tap, scale it and convert units, cook mode with timers, a grocery list that merges the same ingredient across recipes and sorts it by aisle, a pantry that is skipped when building the list, reusable menus. One-time purchase.
 
-| Capability | Paprika 3 | GetIt v15 | Next |
+| Capability | Paprika 3 | Visuma v15 | Next |
 |--------------------------------------------|------------------|------------------------------|------------------|
 | Search recipes | Yes | No | REC-01 |
 | Open and read any recipe | Yes | Own only | REC-02 |
@@ -256,14 +256,14 @@ Legend in the comparison tables: **Yes** = GetIt v15 has it; **Part** = partly; 
 | Books (collections) and multi-select | Categories | Yes | — |
 | Share a recipe with everyone, reviewed | No | Yes | — |
 
-**GetIt already wins on:** nutrition from food data, units, books, stock deduction, community sharing.
+**Visuma already wins on:** nutrition from food data, units, books, stock deduction, community sharing.
 **Take:** search, full reading view, web import, free-text and noted lines, scaling, and the "add ingredient" path.
 
 ## 3.10 Shopping list vs Bring!
 
 **Why Bring!:** add items as icon tiles in one tap, type "2 kg apples" and the amount is understood, a **recently used** strip to re-add things, custom items, categories in your own store order (hide and reorder them), shared lists that sync live, recipes to the list in one click.
 
-| Capability | Bring! | GetIt v15 | Next |
+| Capability | Bring! | Visuma v15 | Next |
 |----------------------------------------------|--------------------|-------------------------|--------------------|
 | Add items by hand | Yes | No | SHOP-10 |
 | "2 kg apples" parsing | Yes | No | SHOP-10 |
@@ -277,14 +277,14 @@ Legend in the comparison tables: **Yes** = GetIt v15 has it; **Part** = partly; 
 | Shopping trip on the agenda | No | No | SHOP-20 |
 | Store offers | Partner offers | No | SHOP-40 (later) |
 
-**GetIt already wins on:** a list that comes from the meal plan, minus stock, in packs.
+**Visuma already wins on:** a list that comes from the meal plan, minus stock, in packs.
 **Take:** manual items with amount parsing, the recent strip, sections and shop order, shared ticks — and add what Bring! lacks: the trip on the agenda.
 
 ## 3.11 Stock vs KitchenPal
 
 **Why KitchenPal:** barcode lookup against millions of products, fridge, freezer and cupboard zones, expiry dates and alerts, recipe suggestions from what you have. Weak point: key features behind a subscription; it does not take ingredients out when you cook (per a rival's review).
 
-| Capability | KitchenPal | GetIt v15 | Next |
+| Capability | KitchenPal | Visuma v15 | Next |
 |--------------------------------------------------------|----------------|---------------------------|------------|
 | Add by search or barcode, in units or packs | Yes | Yes | — |
 | Fridge / freezer / cupboard | Yes | No (aisle only) | STK-03 |
@@ -294,14 +294,14 @@ Legend in the comparison tables: **Yes** = GetIt v15 has it; **Part** = partly; 
 | Shared with the household | Yes | Yes (no invite screen) | STK-05 |
 | Recipe ideas from what is in stock | Yes | No | STK-06 |
 
-**GetIt already wins on:** automatic deduction when meals are eaten, the link to the meal plan and the list.
+**Visuma already wins on:** automatic deduction when meals are eaten, the link to the meal plan and the list.
 **Take:** places and expiry, minimum stock, in-app household invites.
 
 ## 3.12 Products and barcodes vs Open Food Facts (and Yuka)
 
-Open Food Facts is both GetIt's data source and the best open product app in Europe; Yuka is the reference for a fast scan-and-verdict screen.
+Open Food Facts is both Visuma's data source and the best open product app in Europe; Yuka is the reference for a fast scan-and-verdict screen.
 
-| Capability | Open Food Facts / Yuka | GetIt v15 | Next |
+| Capability | Open Food Facts / Yuka | Visuma v15 | Next |
 |-----------------------------------------|-----------------------|---------------------------|-------------------|
 | Scan any EU barcode | Yes | Yes (no camera permission) | — |
 | All label fields (salt, sugars, saturates) | Yes | No (five figures) | PROD-03 |
@@ -316,7 +316,7 @@ Open Food Facts is both GetIt's data source and the best open product app in Eur
 
 **Why Hevy:** start a workout in two taps; adding an exercise pre-fills last time's sets, reps and weight, with a "Previous" column; ticking a set starts the rest timer; set types, supersets, routines; generous free tier.
 
-| Capability | Hevy | GetIt v15 | Next |
+| Capability | Hevy | Visuma v15 | Next |
 |--------------------------------------------------------|---------|---------------------------------|------------|
 | Log sets, reps, load | Yes | Yes | — |
 | Own exercises | Yes | No | TRN-02 |
@@ -331,7 +331,7 @@ Open Food Facts is both GetIt's data source and the best open product app in Eur
 
 **Why MyTherapy:** free and EU-made; doses on a schedule, pill stock that counts down with each dose and a refill reminder. Weak point: a recent redesign added too many checkboxes and notifications, so "take all" per time slot matters.
 
-| Capability | MyTherapy | GetIt v15 | Next |
+| Capability | MyTherapy | Visuma v15 | Next |
 |------------------------------------------------|---------------|----------------------------------|-------------|
 | Edit name, dose and time after adding | Yes | No | SUP-01 |
 | Own time slots and times | Yes | No (Morning, Midday, Evening) | SUP-02 |
@@ -344,7 +344,7 @@ Open Food Facts is both GetIt's data source and the best open product app in Eur
 
 **Why Libra:** a trend weight (a time-aware moving average) as the headline, raw weights as dots, a forecast of the goal date from the trend, for about €1 a month.
 
-| Capability | Libra | GetIt v15 | Next |
+| Capability | Libra | Visuma v15 | Next |
 |----------------------------------------------------|----------|-----------------------------------|-------------|
 | Weigh-ins with change against last | Yes | Yes | — |
 | Trend weight as headline | Yes | Part (7-day average line) | HLT-03 |
@@ -357,7 +357,7 @@ Open Food Facts is both GetIt's data source and the best open product app in Eur
 
 **Why Sleep as Android:** a sleep target with a running deficit and a regularity score, a bedtime notification worked out from the alarm, wearables, a one-time unlock.
 
-| Capability | Sleep as Android | GetIt v15 | Next |
+| Capability | Sleep as Android | Visuma v15 | Next |
 |------------------------------------------------------|-----------------------|--------------------|-------------|
 | Log a night: bed, wake, quality | Automatic | Yes (by hand) | — |
 | Target hours and bedtime | Yes | No | SLP-02 |
@@ -370,7 +370,7 @@ Open Food Facts is both GetIt's data source and the best open product app in Eur
 
 **Why AnkiDroid:** the strongest review scheduler on Android, daily caps so a backlog never floods a day, "easy days" with less load, free. Runner-up Forest: a focus timer with tags and study stats.
 
-| Capability | AnkiDroid / Forest | GetIt v15 | Next |
+| Capability | AnkiDroid / Forest | Visuma v15 | Next |
 |-------------------------------------------------|------------------------|-----------------|--------------------|
 | Study blocks with subject and minutes | Forest (timer) | Yes | — |
 | Blocks on Today and Plan | n/a | No (tab only) | LRN-02 |
@@ -383,20 +383,20 @@ Open Food Facts is both GetIt's data source and the best open product app in Eur
 
 **Why Google Calendar:** the calendar everyone already has; repeats follow the standard calendar format with one-off exceptions; tasks now sit in the calendar grid.
 
-| Capability | Google Calendar | GetIt v15 | Next |
+| Capability | Google Calendar | Visuma v15 | Next |
 |--------------------------------------|-------------------|------------------------------------|-----------------|
 | Own events | Yes | Yes | — |
 | Own events on the day and week | Yes | No (Agenda page only) | AGN-02 |
 | Repeating events and reminders | Yes | No | AGN-03 |
 | Show other calendars read-only | Yes | Yes (followed calendars) | — |
-| Put GetIt into Google Calendar | — | Yes (private feed, health kept out) | — |
+| Put Visuma into Google Calendar | — | Yes (private feed, health kept out) | — |
 | Tasks and events in one grid | Yes (2025+) | Part | TOD-02, PLN-11 |
 
 ## 3.19 Projects vs Trello
 
 **Why Trello:** the clearest board: a project is a board of lists, cards carry checklists with progress, and moving a card is a drag. Weak point: other views are paid, and it is team-oriented.
 
-| Capability | Trello | GetIt v15 | Next |
+| Capability | Trello | Visuma v15 | Next |
 |------------------------------------------|------------------------|--------------------------|------------------|
 | Projects with a status | Yes | Yes | — |
 | Board by status | Yes | Can be added in Edit module | PRJ-04 |
@@ -409,7 +409,7 @@ Open Food Facts is both GetIt's data source and the best open product app in Eur
 
 **Why Wallet:** made in Prague, bank sync across the EU (Netherlands included), budgets, planned payments and bill reminders, shared family accounts, a lifetime option. Runner-up Monefy: the fastest manual entry (amount, then a category button). Weak point of Wallet: top-level categories cannot be renamed.
 
-| Capability | Wallet / Monefy | GetIt v15 | Next |
+| Capability | Wallet / Monefy | Visuma v15 | Next |
 |-------------------------------------------------|-------------------|------------------------------|------------|
 | Entries with category and amount | Yes | Yes (category is free text) | FIN-02 |
 | Income and expense | Yes | No | FIN-02 |
@@ -423,7 +423,7 @@ Open Food Facts is both GetIt's data source and the best open product app in Eur
 
 **Why Sweepy:** rooms, chores with frequencies, a daily list per household member, fair share. Tody adds the best-loved flexible model: each chore has a "due-ness" bar that grows from green to red and never "fails"; "just did it" resets it; holiday mode. Homsy is the only one with true rotation between people.
 
-| Capability | Sweepy / Tody | GetIt v15 | Next |
+| Capability | Sweepy / Tody | Visuma v15 | Next |
 |-----------------------------------------------|--------------------------------|------------------|------------|
 | Chosen days, every N days, monthly on a date | Yes | No (label only) | HSE-01 |
 | After completion and flexible chores | Tody | No | HSE-02 |
@@ -437,7 +437,7 @@ Open Food Facts is both GetIt's data source and the best open product app in Eur
 
 ## 3.22 Looks (colours and icon)
 
-Not a module, but asked for. The leaders: **TickTick** (40+ themes and list backgrounds, free), **Business Calendar 2** (22 app themes, 14 widget themes), **HabitNow** (themes and icons). Android itself offers system colours from the wallpaper (Material You) and themed monochrome icons. GetIt v15 follows the phone's light or dark mode and lets each module have a colour; it has no themes, no dark choice of its own and one icon. The design page "GetIt — Looks" shows a starting set of themes and icons (LOOK-01 to LOOK-12).
+Not a module, but asked for. The leaders: **TickTick** (40+ themes and list backgrounds, free), **Business Calendar 2** (22 app themes, 14 widget themes), **HabitNow** (themes and icons). Android itself offers system colours from the wallpaper (Material You) and themed monochrome icons. Visuma v15 follows the phone's light or dark mode and lets each module have a colour; it has no themes, no dark choice of its own and one icon. The design page "Visuma — Looks" shows a starting set of themes and icons (LOOK-01 to LOOK-12).
 
 
 
@@ -445,7 +445,7 @@ Not a module, but asked for. The leaders: **TickTick** (40+ themes and list back
 
 ## 4.1 Side by side
 
-| What a life planner needs | Excel / Google Sheets | Notion (Life OS) | Memento Database | GetIt v15 | GetIt after v16–17 |
+| What a life planner needs | Excel / Google Sheets | Notion (Life OS) | Memento Database | Visuma v15 | Visuma after v16–17 |
 |--------------------|----------------|------------------|--------------------|------------------|-------------------|
 | A view of today to act on | No (by hand) | Part (filtered views) | Part (calendar) | Yes (tasks only) | Yes, every module |
 | Week, month and year planning | No | Part (calendar, timeline) | Part (calendar) | Yes | Yes, plus Day and Inbox |
@@ -465,11 +465,11 @@ Not a module, but asked for. The leaders: **TickTick** (40+ themes and list back
 | Easy on a phone | No | Part (learning curve) | No (steep) | Part (overloaded) | Goal: yes |
 | Home-screen task widget | No | No (page shortcuts only) | Yes | Yes | Yes |
 
-## 4.2 Excel's freedom, translated into GetIt
+## 4.2 Excel's freedom, translated into Visuma
 
-The owner's instinct is that GetIt should feel as free as a spreadsheet. This table is the translation: every spreadsheet freedom and the GetIt feature that gives the same freedom without needing spreadsheet skills.
+The owner's instinct is that Visuma should feel as free as a spreadsheet. This table is the translation: every spreadsheet freedom and the Visuma feature that gives the same freedom without needing spreadsheet skills.
 
-| In a spreadsheet | In GetIt | Status |
+| In a spreadsheet | In Visuma | Status |
 |--------------------------------|-------------------------------------------|-----------------------------------|
 | A sheet | A module (built-in or your own), with its own page | Done |
 | Columns with a type (date, number, dropdown, checkbox) | Fields of a kind (date, number with unit, choice, yes/no…) | Done; multi-choice, rating, money, photo to add (MOD-11, MOD-12) |
@@ -487,13 +487,13 @@ The owner's instinct is that GetIt should feel as free as a spreadsheet. This ta
 | Save as CSV or Excel, import a file | Export link on every page, import and export centre | Done |
 | Share a file | Calendar feed, recipe sharing; household sharing | Partly |
 
-What a spreadsheet cannot do and GetIt does: dates become a day plan, repeats lay themselves out, reminders arrive, a widget shows today, meals become a shopping list, the cupboard empties itself, and it all works on a phone with no formulas to write.
+What a spreadsheet cannot do and Visuma does: dates become a day plan, repeats lay themselves out, reminders arrive, a widget shows today, meals become a shopping list, the cupboard empties itself, and it all works on a phone with no formulas to write.
 
 ## 4.3 Verdict
 
-- **Closest product: Notion Life OS.** Same scope, same freedom. GetIt beats it on speed, offline use, Android widgets, real food data and planner behaviour; it must match it on templates and views.
-- **Freedom benchmark: Excel.** GetIt reaches it with the stats builder, copy and templates; it already matches it on fields, views, formulas and import/export.
-- **Android-native analogue: Memento Database.** GetIt beats it by being a planner first; it should borrow its widgets and field kinds.
+- **Closest product: Notion Life OS.** Same scope, same freedom. Visuma beats it on speed, offline use, Android widgets, real food data and planner behaviour; it must match it on templates and views.
+- **Freedom benchmark: Excel.** Visuma reaches it with the stats builder, copy and templates; it already matches it on fields, views, formulas and import/export.
+- **Android-native analogue: Memento Database.** Visuma beats it by being a planner first; it should borrow its widgets and field kinds.
 
 # Part 5. Usability: the person's point of view
 
@@ -618,7 +618,7 @@ Method: every fact below comes from a page that was actually opened (listed unde
 
 ### Picks at a glance
 
-| # | GetIt module | Primary (best + easiest) | Runner-up |
+| # | Visuma module | Primary (best + easiest) | Runner-up |
 |-----|------------------------------|------------------------------------|---------------------------------------|
 | 1 | Today / daily view | **Structured** (Android, 1M+, 4.6) | Tiimo (iPhone App of the Year 2025; Android relaunched May 2026, missing some features) |
 | 2 | Plan (week/month/year) | **Business Calendar 2** (Android, 10M+, 4.6, real Year view) | Google Calendar (default; **no Year view on Android**) |
@@ -653,9 +653,9 @@ Method: every fact below comes from a page that was actually opened (listed unde
   - Any.do's June 2026 test says it "lacks project organization, limited recurring task flexibility, weak … long-term planning".
   - Play reviewers ask for bulk paste/import of tasks.
   - The Android version lags iOS (no copy-day, no AI).
-- **Ideas for GetIt:**
+- **Ideas for Visuma:**
   1. A **single timeline that merges tasks, events and habit slots**, using icon + colour + duration blocks, with an **Inbox drawer** that you drag from onto the timeline.
-  2. **Long-press a date → "Copy day" → choose what to copy (tasks / recurring / events / notes) → paste into one or more days.** Structured has no copy-day on Android, so this is an easy win for GetIt.
+  2. **Long-press a date → "Copy day" → choose what to copy (tasks / recurring / events / notes) → paste into one or more days.** Structured has no copy-day on Android, so this is an easy win for Visuma.
   3. **Duplicate opens the editor pre-filled** with day/time unlocked. Add a toggle such as "include notes & checklist", because Structured doesn't make this explicit.
   4. Keep **widgets and theming free** and charge for power features, which is the same split Structured uses.
 
@@ -671,7 +671,7 @@ Method: every fact below comes from a page that was actually opened (listed unde
   - Heavy use of colour and icons; ADHD/autism-friendly.
 - **Complaints on Android:** no month view in the calendar, deleting items is hard, the timer has no end sound, and AI placement is inconsistent.
 - **Price:** free core; Pro is an annual subscription after a 7-day trial (amount not shown).
-- **Ideas for GetIt:**
+- **Ideas for Visuma:**
   - **Morning / Afternoon / Evening buckets** as an alternative Today layout for untimed items.
   - **Timers on checklist sub-items.**
 
@@ -716,7 +716,7 @@ Method: every fact below comes from a page that was actually opened (listed unde
   - Dense and power-user oriented (TechRadar: "may overwhelm those seeking simplicity").
   - Android only.
 - **Pricing [conflict]:** TechRadar (2021) says a one-time premium under $10, and a separate "Business Calendar 2 Pro" Play listing exists. A recent Play reviewer complains about a "$10 yearly subscription". The current model is likely a subscription with a legacy one-time Pro key **[unverified]**.
-- **Ideas for GetIt:**
+- **Ideas for Visuma:**
   1. **Pinch or swipe the week view to any length from 1 to 14 days.**
   2. A true **Year view** with heat-shaded days. Google Calendar has none on Android, so this is a gap.
   3. **Learned templates** that suggest a template after you create similar items repeatedly.
@@ -726,7 +726,7 @@ Method: every fact below comes from a page that was actually opened (listed unde
 - **Status:** the default for most people. Zapier and 2sync both rank it best overall (pre-installed, Gmail event detection, sharing).
 - **Android views:** Google's Android help lists Schedule and Month (plus Day, 3-day and Week **[unverified — help page only named Schedule/Month]**). The **Year view is web-only**; the Android help page does not offer it.
 - **2026 changes:** Reminders were folded into Google Tasks, so tasks now show inside the Calendar grid. Gemini scheduling help depends on plan.
-- **Idea for GetIt:** **show tasks and events in the same grid** with the same visual language, as Google did after merging Reminders into Tasks.
+- **Idea for Visuma:** **show tasks and events in the same grid** with the same visual language, as Google did after merging Reminders into Tasks.
 
 #### Also considered
 - **Fantastical:** iPhone, iPad, Mac, Apple Watch, **Windows** and Vision Pro, but **no Android**. Famous for natural-language event entry (Flexibits Premium subscription).
@@ -776,9 +776,9 @@ Method: every fact below comes from a page that was actually opened (listed unde
   - No built-in habit tracker or pomodoro (Toolfinder).
   - Reminders are on Pro.
   - Play reviews mention recurring-task reliability issues.
-- **Ideas for GetIt:**
+- **Ideas for Visuma:**
   1. **One-line Quick Add with progressive chips:** parse date, time-range, repeat, #module and !priority as you type, and only show chips after the user starts typing.
-  2. **Explicit duplicate rules.** Todoist silently drops comments and completed sub-items; GetIt should ask, or remember, "Copy notes? Copy checklist (reset ticks)? Copy reminders?".
+  2. **Explicit duplicate rules.** Todoist silently drops comments and completed sub-items; Visuma should ask, or remember, "Copy notes? Copy checklist (reset ticks)? Copy reminders?".
   3. **Keep completed recurring occurrences visible** in Today so streak and stat history are obvious.
   4. A **voice brain-dump button on the widget** that turns speech into several tasks.
 
@@ -791,7 +791,7 @@ Method: every fact below comes from a page that was actually opened (listed unde
   - The interface is "more complex … potentially overwhelming" (Any.do).
 - **Pricing [conflict]:** Premium is listed as $36/yr (Toolfinder), $49.99/yr (2sync) and $3.99/mo billed annually (Any.do).
 - **Unverified features:** TickTick's help centre is JS-rendered and I couldn't read it. Task duplication, task templates and "convert task ↔ note" exist in TickTick but are **[unverified]** here.
-- **Ideas for GetIt:**
+- **Ideas for Visuma:**
   - **Themes and list backgrounds as a free delight feature.**
   - **Matrix and timeline as alternative views** of the same task list.
 
@@ -832,7 +832,7 @@ Method: every fact below comes from a page that was actually opened (listed unde
   - Takeout export is HTML/JSON that "most rival apps have no direct importer for" (ClickUp).
   - Some users complain about a recent UI redesign changing note width and font size (Play reviews).
 - **Pricing:** free.
-- **Ideas for GetIt:**
+- **Ideas for Visuma:**
   1. A **widget button that opens a blank note or checklist instantly**.
   2. **Drag-to-indent checklist items**, with ticked items auto-collapsing to the bottom.
   3. **Colour + label as the only required organisation**, so nothing has to be filed before writing.
@@ -845,7 +845,7 @@ Method: every fact below comes from a page that was actually opened (listed unde
 - **Weaknesses:**
   - You have to assemble the system yourself.
   - Phone-to-laptop sync is a paid add-on (ClickUp).
-- **Ideas for GetIt:**
+- **Ideas for Visuma:**
   - **Template variables** such as {date}, {weekday} and {title}.
   - **"Daily note from template" auto-created on first open of the day**, and attached to Today.
 
@@ -887,7 +887,7 @@ Method: every fact below comes from a page that was actually opened (listed unde
   - Widgets sometimes don't refresh after completing items.
   - Notification and alarm timing issues.
   - Paywall placement is the top complaint in reviews.
-- **Ideas for GetIt:**
+- **Ideas for Visuma:**
   1. **Habits and tasks share one Today list** but keep separate streak and stat logic, which is HabitNow's core appeal.
   2. A **one-time "Pro" unlock** is a competitive pricing story against subscription apps.
   3. **Widget reliability is a differentiator.** Competitors' widgets go stale, so refresh widgets immediately on check-in, including from the widget itself.
@@ -905,7 +905,7 @@ Method: every fact below comes from a page that was actually opened (listed unde
 - **Weaknesses:**
   - Widget stability issues.
   - No sync.
-- **Idea for GetIt:** a **"strength %" alongside streaks**, so missing one day doesn't feel like losing everything.
+- **Idea for Visuma:** a **"strength %" alongside streaks**, so missing one day doesn't feel like losing everything.
 
 #### Also considered
 - **Habitify:** iOS, Android, macOS, web and Wear OS. 4.3★, 500K+ downloads. Groups habits by time of day, supports habit stacking, Google Fit/Strava integrations. Free tier is 3 habits; $49.99/yr or $119.99 lifetime. Reviewers complain about aggressive paywall prompts and a removed paid feature.
@@ -940,8 +940,8 @@ Method: every fact below comes from a page that was actually opened (listed unde
   - Coverage depends on integrations; for example, the user write-up notes no YouTube Music integration.
   - Power users script the API to fill gaps.
   - Native home-screen widgets are not confirmed **[unverified]**.
-- **Ideas for GetIt:**
-  1. A **correlation card** ("On days you trained, mood +0.8"). GetIt already owns tasks, habits and custom fields, so it can compute this with no integrations.
+- **Ideas for Visuma:**
+  1. A **correlation card** ("On days you trained, mood +0.8"). Visuma already owns tasks, habits and custom fields, so it can compute this with no integrations.
   2. **Typed attributes with sensible defaults**: count/duration default to 0, while scales stay empty when not logged so averages aren't distorted.
   3. A **"Review" tab** that collects everything that needs a daily manual log in one place.
   4. An **open API / import** so power users can push their own data in.
@@ -955,13 +955,13 @@ Method: every fact below comes from a page that was actually opened (listed unde
   - Goals and habits, writing templates, themes, PIN lock.
   - Local-first data with Google Drive backup; PDF/CSV export.
 - **Price:** free with Premium IAP (amount not shown).
-- **Ideas for GetIt:**
+- **Ideas for Visuma:**
   - A **Year-in-Pixels heatmap for any metric** (habit done, mood, a custom field).
   - **Icon-grid logging** instead of forms.
 
 #### Gap no competitor fills well
 - None of the stats apps offers **pivot-table-style, user-configurable stats templates**.
-- The closest are spreadsheet pivots (**not available in the Google Sheets Android app**; see section 8), Notion's Chart view, and Memento's aggregation and chart widgets (section 7). This is a real differentiator for GetIt: "pick a module → group by field/period → aggregate (sum/avg/count/streak) → chart type → pin as widget".
+- The closest are spreadsheet pivots (**not available in the Google Sheets Android app**; see section 8), Notion's Chart view, and Memento's aggregation and chart widgets (section 7). This is a real differentiator for Visuma: "pick a module → group by field/period → aggregate (sum/avg/count/streak) → chart type → pin as widget".
 
 #### Also considered
 - **Bearable:** iOS and Android (4.6★ on Play). Health, symptom and mood tracking with 30+ report types and experiments. Premium is $34.99/yr. It is health-centric, so a weaker fit for a general planner.
@@ -984,7 +984,7 @@ Method: every fact below comes from a page that was actually opened (listed unde
 #### Primary: Memento Database
 - **Platforms:** Android, iOS, Windows, macOS and Linux. The mobile apps work fully offline and sync through Memento Cloud.
 - **Play Store:** 4.6★ from 29.3K reviews, 1M+ downloads, updated 2026-07-04.
-- **Why it fits GetIt best:**
+- **Why it fits Visuma best:**
   - **Fields:** 20–30+ field types, including text, number, date, files, location, barcode, NFC, calculations and relations between libraries.
   - **Views:** List, Cards, **Table**, Map, **Calendar** and Gallery.
   - **Analysis:** grouping, filters and **aggregation** with **charts**.
@@ -1002,11 +1002,11 @@ Method: every fact below comes from a page that was actually opened (listed unde
   - Team: $6/mo.
   - Pro: $8/mo.
   - Pro Plus: $12/mo.
-- **Ideas for GetIt:**
+- **Ideas for Visuma:**
   1. A **module builder with typed fields** (number, duration, rating, select, checkbox, date, relation) plus **view switching** (table / board / calendar / chart) on the same data.
   2. **Aggregation and chart widgets bound to a module**, usable both in-app on a dashboard and as **Android home-screen widgets**. Fix Memento's weakness by syncing the dashboard layouts too.
   3. **Start-from-template gallery** for modules (e.g. Workouts, Reading log, Expenses, Meals).
-  4. Hide the power features (scripts, SQL) entirely. GetIt wins on *easy*, so offer "smart defaults" instead of formulas.
+  4. Hide the power features (scripts, SQL) entirely. Visuma wins on *easy*, so offer "smart defaults" instead of formulas.
 
 #### Runner-up: Notion (databases)
 - **Views:** Table, Board, Timeline, Calendar, List, Gallery, **Chart** (bar/line/donut) and Form, with grouping and sub-grouping.
@@ -1016,7 +1016,7 @@ Method: every fact below comes from a page that was actually opened (listed unde
 - **Pricing:** Free / Plus $10 / Business $20 per member per month. Full AI is now on Business.
 - **Offline:** offline editing exists on desktop and mobile, but only the first 50 database rows download automatically, and buttons, forms and embeds don't work offline.
 - **Weaknesses:** slows down with large databases, real learning curve (smartremotegigs, Aug 2026).
-- **Idea for GetIt:** **repeating templates** (e.g. auto-create "Weekly review" every Sunday) as a first-class repeat type.
+- **Idea for Visuma:** **repeating templates** (e.g. auto-create "Weekly review" every Sunday) as a first-class repeat type.
 
 #### Also considered
 - **Airtable:** Free / Team $20 / Business $45 per user per month (yearly). Team-oriented and overpriced for personal use.
@@ -1041,7 +1041,7 @@ Method: every fact below comes from a page that was actually opened (listed unde
 
 #### Verdict: Notion (configured as a "Life OS") is the closest match; Google Sheets/Excel is the "freedom" benchmark; Memento Database is the closest Android-native analogue
 
-| Criterion (GetIt) | Google Sheets / Excel | Notion (Life OS) | Memento DB | Exist.io | Bearable |
+| Criterion (Visuma) | Google Sheets / Excel | Notion (Life OS) | Memento DB | Exist.io | Bearable |
 |------------------|-----------------|-------------------------|------------------|-------------------|-------------|
 | Today / daily view | ✗ (manual) | ◐ (via templates, filtered views) | ◐ (calendar view) | ✗ | ✗ |
 | Week / month / year plan | ✗ | ◐ (Calendar, Timeline) | ◐ (Calendar) | ✗ | ✗ |
@@ -1055,10 +1055,10 @@ Method: every fact below comes from a page that was actually opened (listed unde
 ✓ = covered, ◐ = partial/workaround, ✗ = missing, ? = not verified.
 
 #### Why Notion is the closest
-- People already build exactly GetIt's module set in Notion Life OS templates: **tasks/projects, habits, journal, goals, finance and dashboards** in one workspace.
+- People already build exactly Visuma's module set in Notion Life OS templates: **tasks/projects, habits, journal, goals, finance and dashboards** in one workspace.
 - It offers the same kind of freedom: user-defined databases with table, board, calendar, timeline and chart views, plus repeating templates.
 - The market proves the demand: there are many free and paid Life OS templates, with bundles around $99 (pathpages, May 2026).
-- Its weaknesses are exactly GetIt's opportunity:
+- Its weaknesses are exactly Visuma's opportunity:
   - "customization paralysis" and "a cluttered Notion Life OS defeats its purpose" (pathpages);
   - a learning curve and slowness with large databases (smartremotegigs);
   - no real Android database or stat widgets;
@@ -1068,14 +1068,14 @@ Method: every fact below comes from a page that was actually opened (listed unde
 - They are the purest example of *freedom*: any field, formula and pivot.
 - But they have no planner semantics: no dates-as-agenda, no reminders, no repeats, no widgets.
 - Crucially, **pivot tables cannot be created or edited in the Google Sheets Android app**. Google's help says to use a computer.
-- Sheets "Tables" (typed columns such as dropdown, checkbox, date and rating, plus "Group by" views with Sum/Count/Average) are the closest spreadsheet idea to GetIt's module builder and are worth copying.
-- Treat Sheets as GetIt's **stats-engine reference** (group by, aggregate, pivot), not as the product it resembles.
+- Sheets "Tables" (typed columns such as dropdown, checkbox, date and rating, plus "Group by" views with Sum/Count/Average) are the closest spreadsheet idea to Visuma's module builder and are worth copying.
+- Treat Sheets as Visuma's **stats-engine reference** (group by, aggregate, pivot), not as the product it resembles.
 
 #### Why not Memento, Exist or Bearable
 - **Memento** has the closest feature set on Android (custom databases, views, aggregation and chart widgets) but is a database tool with no planner or Today semantics, and it is hard to learn.
 - **Exist** and **Bearable** match only the Stats/insights module.
 
-#### Positioning line for GetIt
+#### Positioning line for Visuma
 "Notion-level freedom and spreadsheet-level stats, with the speed of Keep and Structured on an Android home screen."
 
 #### Other apps from the brief (not chosen)
@@ -1098,7 +1098,7 @@ Method: every fact below comes from a page that was actually opened (listed unde
 - Toolfinder: Best Daily Planner Apps 2026 — https://toolfinder.com/best/daily-planner-apps
 
 
-### Cross-cutting patterns GetIt should adopt (summary)
+### Cross-cutting patterns Visuma should adopt (summary)
 
 1. **Duplicate / copy:**
    - Long-press on a day lets you copy the day, choose what kinds of items to include, and paste into many days. Structured has this on iOS only.
@@ -1112,7 +1112,7 @@ Method: every fact below comes from a page that was actually opened (listed unde
 3. **Long-press as the power menu:** long-press a date to copy or paste; long-press an item to multi-select, duplicate or move. Swipe right to complete and swipe left to delete or reschedule, made configurable as in Todoist's settings.
 4. **Widgets as a selling point:**
    - Competitors' widgets are weak or stale: Notion has no database widgets, Tiimo Android has none yet, and HabitNow and Loop widgets fail to refresh.
-   - GetIt should ship quick-add, Today list, habit check-in and **stat/chart widgets** that update instantly.
+   - Visuma should ship quick-add, Today list, habit check-in and **stat/chart widgets** that update instantly.
 5. **Customisation as delight:** TickTick has 40+ themes, Business Calendar 2 has 22 app themes and 14 widget themes, and HabitNow has themes and icons. Alternate app icons were not verified for any of these apps **[unverified]**.
 6. **Pricing:** the market rewards a **one-time unlock** (HabitNow, Streaks, Structured lifetime) or low annual pricing. Subscription-only plans with tight free caps (Habitify's 3 habits, Memento's 3 cloud libraries) are the top source of complaints.
 
@@ -1131,20 +1131,20 @@ Researched 2026-10-01. Every source listed under "Sources" was opened during thi
 1. **Today = do, Plan = arrange.** Today is a *filter* (Things: "a filter across the entire app") showing only what is due, scheduled or pinned for today, and you act on it by ticking, logging or starting a timer. Plan is the only place where you drag, reschedule, set recurrences, use the backlog or apply templates. Today never shows future days, and Plan never asks you to tick things off (it shows status only).
 2. **Keep 4 bottom tabs plus 1 "Modules" hub.** Use Today · Plan · [user-pinned module] · Stats, plus a Modules hub (grid) that holds every other module as a spoke. Android docs say a nav bar is for "three to five destinations of equal importance". NN/g calls a hub good for task-based apps, with the cost of "an extra step back to the hub".
 3. **Use a pinned-cards home (Apple Health "Pinned", Exist's "pin four attributes", Google Health "focus tiles").** Today shows at most 4–6 pinned module cards, which the user picks in an Edit mode with **drag-to-reorder** (Google Health users complain they can't reorder). Never inject promo or "insight" cards that come back after the user removes them. That is the main Samsung Health complaint.
-4. **Use one shared scheduling engine for tasks, chores, habits, supplements, training and study.** Model it as RFC 5545 RRULE plus GetIt extras: completion-based repeats ("every! 3 days" as in Todoist), flexible or condition-based chores (Tody), assignee rotation (Homsy), and "easy days" (Anki). Show it as one shared "Repeat" sheet with chips: Daily · Weekdays · Weekends · Specific days · Every N days/weeks · Monthly (date / nth weekday) · Specific dates · After completion.
+4. **Use one shared scheduling engine for tasks, chores, habits, supplements, training and study.** Model it as RFC 5545 RRULE plus Visuma extras: completion-based repeats ("every! 3 days" as in Todoist), flexible or condition-based chores (Tody), assignee rotation (Homsy), and "easy days" (Anki). Show it as one shared "Repeat" sheet with chips: Daily · Weekdays · Weekends · Specific days · Every N days/weeks · Monthly (date / nth weekday) · Specific dates · After completion.
 5. **The FAB opens a context-aware chooser.** On Today, it opens a Material 3 FAB menu (2–6 items: Task, Meal, Log, Note, Expense, …) ordered by the user's own frequency. Each item opens a short bottom sheet with **Recent · Frequent · Saved (meals/templates) · Search · Scan** tabs, plus "Copy from yesterday / another day".
 6. **Long-press is a shortcut only.** Long-press enters multi-select (contextual action bar: Move, Copy to day, Duplicate, Delete, Select all, Undo) or opens a short context menu. Every long-press action must **also** be in a visible ⋮ menu (NN/g, Apple HIG) and exposed via `onLongClickLabel` / accessibility custom actions.
 7. **Stats work like a "pivot-lite" builder.** Pick a Metric (sum/avg/count/streak) × Group by (day/week/month/module/tag/member) × Filter × Compare-with (Bearable-style overlay), then Save as a stats template card. Ship 6–8 ready-made templates and require nobody to build their own (NN/g: users rarely customise).
 8. **Offer colours in 3 tiers.** Follow system (Material You, Android 12+) / pick a seed colour / curated palettes. Generate schemes with `@material/material-color-utilities` (TypeScript, works in a WebView), and auto-check WCAG 2.2 AA: 4.5:1 for text and 3:1 for UI and graph strokes.
 9. **App icon: a monochrome layer is required, and 3–6 bundled alternates are optional.** Add the `<monochrome>` layer to the adaptive icon (Android 13+ themed icons). Alternate icons use `activity-alias` via `@capacitor-community/app-icon` (Android support is in that repo's docs), with up-front warnings that the launcher may take a few seconds to update and may drop pinned shortcuts.
-10. **Onboarding: pick a template, then optionally tweak modules.** Start with a 1-screen "What do you want GetIt for?" (Student / Fitness / Household / Money / Everything-lite), which switches on 3–5 modules and seeds their cards. Everything else stays off but is discoverable in the Modules hub. Every empty module gets an empty state with a one-tap "Create / Import template" button.
+10. **Onboarding: pick a template, then optionally tweak modules.** Start with a 1-screen "What do you want Visuma for?" (Student / Fitness / Household / Money / Everything-lite), which switches on 3–5 modules and seeds their cards. Everything else stays off but is discoverable in the Modules hub. Every empty module gets an empty state with a one-tap "Create / Import template" button.
 
 
 ## Part A: Competitors per module
 
 ### A1. Learning / study → **Primary: AnkiDroid (Anki)** · Runner-up: **Forest** (study-time tracking)
 
-**Why chosen:** for "plan/track study time + spaced repetition", AnkiDroid is the strongest SRS engine on Android and is completely free. Forest is the best-loved *time-tracking* companion. GetIt needs ideas from both: Anki's scheduling and Forest's low-friction focus timer.
+**Why chosen:** for "plan/track study time + spaced repetition", AnkiDroid is the strongest SRS engine on Android and is completely free. Forest is the best-loved *time-tracking* companion. Visuma needs ideas from both: Anki's scheduling and Forest's low-friction focus timer.
 
 | | AnkiDroid | Forest |
 |------------------|-------------------------------------------|--------------------------------------------------|
@@ -1158,7 +1158,7 @@ Researched 2026-10-01. Every source listed under "Sources" was opened during thi
 - **Daily limits:** new cards/day and max reviews/day. These are caps so a backlog never floods a day.
 - **Easy Days:** "If you want to spend less time on Anki on some days of the week, such as Sundays…". Reduces the load on chosen weekdays.
 
-**Ideas to borrow for GetIt Learning:**
+**Ideas to borrow for Visuma Learning:**
 1. **Study items with a review schedule.** Any learning item (topic, chapter, flashcard set) gets a "Review" toggle that uses expanding intervals (1-3-7-14-30 days, or FSRS-lite later) and shows up in Today as "3 reviews due". Don't build a full flashcard app. Link out to or import from Anki (`.apkg` → [UNVERIFIED feasibility], CSV for sure).
 2. **Daily caps + Easy Days** at module level: "max 30 min new material/day", "lighter on Sat/Sun". The same "Easy Days" concept can be reused by Training and Household (see A5).
 3. **Forest-style focus timer with tags** that logs study time directly into Learning stats (minutes per subject per week), with a one-tap start from the Today card.
@@ -1169,7 +1169,7 @@ Sources: [AnkiDroid – Google Play](https://play.google.com/store/apps/details?
 
 ### A2. Agenda / calendar sync → **Primary: Google Calendar (Android)** · Runner-up: **Business Calendar 2**
 
-**Why chosen:** Google Calendar is the easiest option and the system of record for Google sync (4.6★, 4.8M reviews, 10B+ installs, free). Business Calendar 2 (4.6★, 273k reviews, 10M+) is the best power-user layer on top of the same sync. Users of GetIt's Agenda module will compare it against both.
+**Why chosen:** Google Calendar is the easiest option and the system of record for Google sync (4.6★, 4.8M reviews, 10B+ installs, free). Business Calendar 2 (4.6★, 273k reviews, 10M+) is the best power-user layer on top of the same sync. Users of Visuma's Agenda module will compare it against both.
 
 **Google Calendar: loved for / relevant**
 - Month/week/day views, Gmail auto-events, Wear OS tiles, widgets, colour-coding.
@@ -1185,7 +1185,7 @@ Sources: [AnkiDroid – Google Play](https://play.google.com/store/apps/details?
 **Pricing:** Google Calendar is free. BC2 is freemium with a Pro subscription (themes, weather, PDF print, recurring tasks with subtasks).
 
 **Ideas to borrow:**
-1. **Treat the agenda as a read/write overlay on Google, not a separate calendar.** Show Google events read-only in Today (Things also shows "today's events at the top"). Plan time-blocks GetIt tasks *into* the calendar as events or tasks, the same model Google now uses.
+1. **Treat the agenda as a read/write overlay on Google, not a separate calendar.** Show Google events read-only in Today (Things also shows "today's events at the top"). Plan time-blocks Visuma tasks *into* the calendar as events or tasks, the same model Google now uses.
 2. **Store all recurrence as RRULE + exceptions** (the same as Google) so sync round-trips losslessly. Edit "this occurrence / this and following / all".
 3. **Variable-width week (1–14 days) and a free-time heat map** in Plan. Show a "busy-ness" bar per day so the user can see where a chore or study block fits.
 4. **Calendar visibility chips** (Work / Family / Personal) that hide calendars with one tap, without unsubscribing.
@@ -1196,12 +1196,12 @@ Sources: [Google Calendar – Google Play](https://play.google.com/store/apps/de
 
 ### A3. Projects → **Primary: Todoist** · Runner-up: **Trello**
 
-**Why chosen:** Todoist (4.7★, 290k reviews, 10M+) is the easiest projects tool on Android that *also* solves Today vs Upcoming, which is GetIt's exact problem. Trello is the best pure board (kanban).
+**Why chosen:** Todoist (4.7★, 290k reviews, 10M+) is the easiest projects tool on Android that *also* solves Today vs Upcoming, which is Visuma's exact problem. Trello is the best pure board (kanban).
 
 **Todoist: loved for / relevant**
 - Projects → sections → tasks → sub-tasks, with **list / board / calendar layouts** of the same project (calendar layout is Pro).
 - **Natural-language Quick Add** ("every mon, fri at 20:00") and voice "Ramble".
-- **Recurring grammar** (the best reference for GetIt's repeat sheet):
+- **Recurring grammar** (the best reference for Visuma's repeat sheet):
   - `every day`, `every weekday` (Mon–Fri), `every other week`, `every 3 workdays`, `every 2 weeks`
   - `every mon, fri`, `every 2, 15, 27` (dates of the month), `every 1st wed jan`, `every last workday at 3pm`
   - **`every!`**: completion-based ("next date … after the day you completed the task")
@@ -1212,10 +1212,10 @@ Sources: [Google Calendar – Google Play](https://play.google.com/store/apps/de
 
 **Trello: loved for / relevant**
 - Pure kanban boards, checklists inside cards, Power-Ups. Free: 10 boards/workspace, 250 automation runs/mo. Standard $5/user/mo (unlimited boards, **collapsible lists, advanced checklists**). Premium $10 (Calendar, Timeline, Table, Dashboard views).
-- Weakness for GetIt-style use: the paywall gates non-board views, and it's team-oriented.
+- Weakness for Visuma-style use: the paywall gates non-board views, and it's team-oriented.
 
 **Ideas to borrow:**
-1. **One project, three layouts** (List · Board · Timeline) as a toggle, not three modules. A project's tasks are ordinary GetIt tasks, so they appear in Today when dated, which avoids a separate "project tasks" silo.
+1. **One project, three layouts** (List · Board · Timeline) as a toggle, not three modules. A project's tasks are ordinary Visuma tasks, so they appear in Today when dated, which avoids a separate "project tasks" silo.
 2. **Natural-language date and repeat parsing** in the quick-add field (start with English patterns from the Todoist list above), with chips shown under the input as live preview.
 3. **Checklists inside items with a progress chip** ("3/7") and collapsible sections (Trello Standard). Expand inline on tap, no new screen.
 4. **Project templates** (Move house, Exam prep, Product launch) whose dates are *relative* to a start date. **[UNVERIFIED: Todoist's template help page didn't render, so relative-date behaviour wasn't confirmed]**.
@@ -1260,7 +1260,7 @@ Sources: [Wallet – Google Play](https://play.google.com/store/apps/details?id=
 | Pricing | Free (1 user); Premium $12.99–19.99/yr (sources disagree) | Free (1 device); Solo ~$9.99/yr; Duo/Family ~$18–25+/yr |
 | Weaknesses | Setup questionnaire "somewhat overwhelming"; daily lists can overload if not calibrated; **rotation is "limited"**; no shopping/calendar | "Days overdue" label feels too harsh; no AM/PM split; sync and sharing now paid; condition-based doesn't suit people who want fixed days |
 
-**Scheduling patterns GetIt should support (combine all three schools):**
+**Scheduling patterns Visuma should support (combine all three schools):**
 - **Fixed** (calendar-style, RRULE): specific weekdays (Mon/Thu), weekends only (Sat+Sun), weekdays only, every N days/weeks, monthly on date / nth weekday, specific one-off dates.
 - **Flexible / condition-based** (Tody): "every ~7 days" with a due-ness bar that *never shows as failed*, just more urgent. Completing it resets the timer (= Todoist `every!`).
 - **Rotation** (Homsy): assignee list [E, Partner] with modes *alternate each occurrence* / *alternate each week* / *least-recently-done* / *fixed*. Skipping passes the chore to the next person.
@@ -1291,7 +1291,7 @@ Sources: [Sweepy – Google Play](https://play.google.com/store/apps/details?id=
   - Notion Home: sections can be reordered (Move up/down), hidden, and given an item count.
 - **Anti-patterns:** Samsung Health users hate home cards they can't remove permanently ("Insights" cards "will return… whether you want them or not"). The Fitbit → Google Health redesign drew backlash for *removing* features, wasting white space, and forcing migration without a choice.
 
-**Recommendations for GetIt**
+**Recommendations for Visuma**
 1. **Information architecture:** bottom bar = **Today · Plan · ⟨Pinned module⟩ · Stats · Modules**. The Modules tab is a hub grid of all enabled modules, ordered by usage, with long-press → "Pin to bar / Pin to Today / Hide". Each module is a spoke with its own top-level screen (≤2 disclosure levels: module list → item detail).
 2. **Today home = pinned cards only.** Default is 4 cards, max ~6, with an "Edit Today" mode for add/remove/**drag-reorder**, a size toggle (compact/large), and a "Show on: weekdays / weekends / always" setting per card. A card only ever disappears or appears because the user said so.
 3. **Every module card shows one glanceable number + one primary action** ("Protein 82/140 g · +Add meal", "3 chores due · Start"). Detail lives inside the module.
@@ -1314,7 +1314,7 @@ Sources: [NN/g – Progressive Disclosure](https://www.nngroup.com/articles/prog
 | **Microsoft To Do** | **My Day**: "resets every night, so you have a blank slate". **Suggestions** list pulls candidates in. | Lists / Planned | Today is *curated*, not automatic. |
 | **TickTick** | Today: tasks + events "sorted by time", habits section below open tasks | Calendar (month/3-day/week), lists | Habits live inside Today. |
 
-**Proposed GetIt definitions (no overlap)**
+**Proposed Visuma definitions (no overlap)**
 - **Today = "What do I do now?"** A *read-and-act* filter for the current day only. It shows: (a) Google/agenda events (timeline strip at top), (b) items due/scheduled today across all modules (tasks, chores, habits, supplements, training, study reviews, bills), (c) overdue items in a collapsible "Carry-over" row, and (d) pinned module cards. Actions here: ✓ complete, log, start timer, snooze to tomorrow, skip. **No** recurrence editing, no drag across days, no backlog.
 - **Plan = "When will I do it?"** The *arranging* workspace: Inbox/backlog (undated) · week strip (1–14 days, with a busy-ness heat bar) · month. Actions: drag to day/time, set or edit repeat, assign/rotate, apply templates, copy day/week, bulk select. Completion state is shown but not the focus.
 - **Bridge between the two:**
@@ -1337,7 +1337,7 @@ Sources: [Things – An In-Depth Look at Today, Upcoming, Anytime, and Someday](
 - **NN/g mobile accordions:** good for previewing structure. Risks: users mistake an expanded accordion for a new page and press Back, and long content makes the collapse control hard to reach. Fix with **sticky headers** and **Back collapses the accordion**.
 - WCAG 2.2 SC 2.5.8 target size min **24×24 CSS px**. The Android widget quality guide uses **48×48 dp** touch targets.
 
-**Recommendations for GetIt**
+**Recommendations for Visuma**
 1. **Tap = expand inline** (accordion row: notes, checklist, quick fields). **Tap title again or Back = collapse.** **Chevron or ⋮ = full actions.** **Long-press = enter multi-select** with haptic feedback. Use one consistent rule across every module list.
 2. **Selection mode** shows a top contextual action bar: Select all · Copy to day… · Move to day… · Duplicate · Change repeat · Delete (last, red) · Undo snackbar.
 3. **Single-item context menu** (via ⋮, and long-press while *already* in normal mode if you choose that instead) with ≤7 items: Edit · Copy to another day · Duplicate · Save as template · Pin to Today · Skip this time · Delete.
@@ -1358,7 +1358,7 @@ Sources: [Android Developers – Tap and press (Compose)](https://developer.andr
 - **Cronometer user complaints**: typing names every time is a "UX nightmare". Recent is global rather than per meal slot. Users lean on "copy to today" and copy whole meals or days.
 - **Android app shortcuts**: launchers show "up to four shortcuts" (static + dynamic). Pinned shortcuts are unlimited. Good for "Add meal", "Log water", "Start focus".
 
-**Recommendations for GetIt**
+**Recommendations for Visuma**
 1. **Context-aware FAB:** inside a module, the FAB = that module's primary add (one action). On **Today**, the FAB opens an **M3 FAB menu (≤6)** of the user's most-used add-types, ordered automatically and editable.
 2. **The add flow is one bottom sheet, two steps max.** Example, *Add meal:* step 1 = slot (auto-selected by time of day: Breakfast/Lunch/Dinner/Snack) + time. Step 2 = source tabs **Recent (per slot) · Frequent · Saved meals · Recipes · Search · Scan barcode**. Multi-select foods → Add. Never a stacked second sheet: a full-screen page instead if deep editing is needed.
 3. **Copy everywhere:** "Copy to…" on items, meals, whole days and whole weeks, with a dialog: target day(s) (multi-select dates, or "every weekday this week") + toggles **Include notes · Include checklist state · Include time**. Plus "Copy from yesterday" / "Repeat last <slot>" at the top of the Recent tab.
@@ -1379,7 +1379,7 @@ Sources: [Android Developers – FAB (Compose)](https://developer.android.com/de
 - **Android widget quality:** pick **one primary use case**. Resizable to at least one of 2×2, 4×1, 4×2. Support **dynamic colour + light/dark**, the system corner radius, intentional empty states, manual refresh when data is expected to change often, 48 dp targets, and **"Widget uses system configuration instead of a custom widget settings entry point"** (reconfigurable, with a default config so setup is optional).
 - **Glance** = Jetpack Compose-based widget framework (Kotlin, native). **Capacitor:** widgets must be written natively (`AppWidgetProvider`). Data can be shared through SharedPreferences, which is what Capacitor `Preferences` uses on Android (default group `CapacitorStorage`). `capacitor-widget-bridge` provides `reloadAllTimelines()` to refresh.
 
-**Recommendations for GetIt**
+**Recommendations for Visuma**
 1. **Stats builder = 4 dropdowns on one screen:** **Measure** (any numeric field from any enabled module: kcal, protein, minutes studied, € spent, chores done, sleep h) · **Aggregate** (sum/avg/count/min/max/streak/% days hit goal) · **Group by** (day/week/month/weekday/module/category/tag/member) · **Range** (7d/30d/90d/YTD/custom). An optional **Compare** overlays a second measure, or a factor shaded as background (Bearable). Chart type is chosen automatically (line for time, bar for categories), with a table toggle (= the pivot view, rows expandable).
 2. **"Save as stats template"** → becomes a card that can be pinned to Stats, to Today, or to a widget. Ship presets: Protein vs goal (week), Training volume by muscle group, Study minutes by subject, Spending by category (month), Chores per member (fair-share), Sleep vs caffeine/training.
 3. **Keep mobile pivots shallow:** 1 row dimension + optional 1 column dimension on phone (Looker allows 2 column dims. Two levels is the NN/g disclosure ceiling), with tap-to-drill into the underlying entries.
@@ -1398,9 +1398,9 @@ Sources: [NN/g – Dashboards: Making Charts and Graphs Easier to Understand](ht
 - **WCAG 2.2 AA:** text ≥ **4.5:1** (large text ≥ 3:1 = 18 pt, or 14 pt bold). **Non-text UI components and meaningful graphics ≥ 3:1** against adjacent colours. Inactive components are exempt. Values are not rounded (2.999 fails). Apple HIG goes further: "strive for a contrast ratio of 7:1, especially in small text", and supply increased-contrast variants. Don't rely on colour alone (HIG).
 - **Themed icons (Android 13+):** add `<monochrome>` to the adaptive icon. Layers are 108×108 dp with a 66×66 dp safe zone. Shown only if the user enables themed icons. **From Android 16 QPR2 the system auto-themes icons for apps that don't provide one.**
 - **Alternate launcher icons:** `activity-alias` per icon, toggled via `PackageManager.setComponentEnabledSetting(..., DONT_KILL_APP)`. Caveats: the change isn't always instant (launcher cache), **pinned shortcuts may be removed**, and OEM launchers vary. **`@capacitor-community/app-icon`** documents Android setup (each alternate = an `<activity-alias>` in the manifest). The older `aeharding/app-icon` says its Android support is beta/experimental, so prefer the community plugin. All icons must be **bundled in the APK** (no downloading new icons).
-- **Play policy:** no specific rule against user-chosen alternate icons was found. Play Protect's Mobile Unwanted Software policy requires apps to "explicitly and clearly explain to the user what system changes will be made" and not "interfere with… the usability of the device". *Hiding* the icon is the pattern associated with adware. **[UNVERIFIED: no explicit Play policy text on alternate icons was located. Keep alternates clearly GetIt-branded, user-initiated, and never hide the launcher entry.]**
+- **Play policy:** no specific rule against user-chosen alternate icons was found. Play Protect's Mobile Unwanted Software policy requires apps to "explicitly and clearly explain to the user what system changes will be made" and not "interfere with… the usability of the device". *Hiding* the icon is the pattern associated with adware. **[UNVERIFIED: no explicit Play policy text on alternate icons was located. Keep alternates clearly Visuma-branded, user-initiated, and never hide the launcher entry.]**
 
-**Recommendations for GetIt**
+**Recommendations for Visuma**
 1. **Theme picker (Settings → Appearance), three tiers:**
    1. **System colours** (default on Android 12+, via a tiny native plugin that reads the system palette and re-reads it on resume).
    2. **Seed colour:** a colour wheel plus ~12 curated swatches. Generate a full M3 light/dark scheme with `material-color-utilities` and set CSS custom properties (`--md-sys-color-primary`, …).
@@ -1424,15 +1424,15 @@ Sources: [Android Developers – Dynamic colors](https://developer.android.com/d
 - **Bearable** advises users to "focus on tracking as few things as possible".
 - **Sweepy's** detailed setup questionnaire is reviewed as "somewhat overwhelming" (Common Sense Media).
 
-**Recommendations for GetIt**
-1. **One-screen start:** "What do you want GetIt for?" offers multi-select **goal templates**, each switching on 3–5 modules and pinning their Today cards:
+**Recommendations for Visuma**
+1. **One-screen start:** "What do you want Visuma for?" offers multi-select **goal templates**, each switching on 3–5 modules and pinning their Today cards:
    - *Get organised* (Today, Plan, Tasks, Notes, Agenda)
    - *Eat & train* (Nutrition, Recipes, Shopping, Training, Supplements)
    - *Study* (Learning, Agenda, Habits, Focus/Stats)
    - *Run the home* (Household, Shopping, Stock, Finance)
    - *Everything (advanced)*
    Then a **Skip** that lands on a working default (Today + Plan + Tasks). The question is about content, not visuals, per NN/g.
-2. **No visual customisation during onboarding.** Theme, icon and card layout come *after* a few days, via a single "Make GetIt yours" tip card that can be dismissed for good.
+2. **No visual customisation during onboarding.** Theme, icon and card layout come *after* a few days, via a single "Make Visuma yours" tip card that can be dismissed for good.
 3. **Modules hub = app-store-like list** with toggles, a one-line description and a preview screenshot per module. "Recommended for you" is based on the selected goals. Turning a module off **hides it without deleting data** (say so explicitly).
 4. **Every module has a designed empty state:** an illustration, one sentence of value, a primary button ("Add first meal" / "Import from CSV" / "Use 'Studio flat' chore pack"), and a secondary "Learn more" link that opens a 3-step interactive mini-tour.
 5. **Just-in-time tips** instead of a tour: the first long-press triggers a tip about multi-select, the first item with a checklist shows "Tap to expand", the third manual meal entry shows "Save as meal?", and so on. Show each tip once. A "Tips & tutorials" page in Settings replays them (HIG: tutorials should be "easy… to find… later").
@@ -1450,11 +1450,11 @@ Sources: [NN/g – Mobile-App Onboarding: Components and Techniques](https://www
 | Weekdays / Weekends / Specific days | `FREQ=WEEKLY;BYDAY=MO,TU,WE,TH,FR` / `SA,SU` / custom | Training, chores |
 | Every N weeks on days | `FREQ=WEEKLY;INTERVAL=2;BYDAY=MO,WE,FR` | Chores, training splits |
 | Monthly on date / nth weekday / last workday | `BYMONTHDAY=15` / `BYDAY=2TU` / `BYDAY=MO,TU,WE,TH,FR;BYSETPOS=-1` | Bills, household |
-| After completion ("every! 7 days") | GetIt flag `mode=after_completion` | Chores (Tody), haircut, plants |
+| After completion ("every! 7 days") | Visuma flag `mode=after_completion` | Chores (Tody), haircut, plants |
 | Flexible window ("about every 7 days") | `mode=flexible` + due-ness bar | Chores, cleaning |
 | Ends: never / on date / after N | `UNTIL` / `COUNT` | All |
-| Assign: me / person / **rotate** (each time, each week, least-recent) | GetIt `assignees[] + rotation` | Household, shared shopping |
-| Skip on "light days" / cap per day | GetIt load-balancer setting | Household, study, training |
+| Assign: me / person / **rotate** (each time, each week, least-recent) | Visuma `assignees[] + rotation` | Household, shared shopping |
+| Skip on "light days" / cap per day | Visuma load-balancer setting | Household, study, training |
 
 Sources: [RFC 5545 §3.3.10](https://www.rfc-editor.org/rfc/rfc5545#section-3.3.10) · [Todoist – Recurring dates](https://www.todoist.com/help/articles/introduction-to-recurring-dates-YUYVJJAV) · [Anki – Deck Options (Easy Days)](https://docs.ankiweb.net/deck-options.html) · [Tidied – Tody review](https://www.tidied.app/blog/tody-app-review) · [Homsy – chore apps 2026](https://gethomsy.com/blog/comparisons/best-chore-chart-apps-2026)
 
@@ -1465,7 +1465,7 @@ Sources: [RFC 5545 §3.3.10](https://www.rfc-editor.org/rfc/rfc5545#section-3.3.
 Reproduced in full from the research of 1 October 2026, with its sources.
 
 
-Research date: 2026-10-01. Context: GetIt is a modular phone planner and life tracker, Android first, for an EU (Netherlands) user.
+Research date: 2026-10-01. Context: Visuma is a modular phone planner and life tracker, Android first, for an EU (Netherlands) user.
 
 **How to read this file**
 - Every fact comes from a page opened during this session. Sources are listed per section.
@@ -1482,13 +1482,13 @@ Research date: 2026-10-01. Context: GetIt is a modular phone planner and life tr
 | 2 | Recipes & meal plan | **Paprika 3** | Samsung Food | One-time purchase; web import; grocery list combines ingredients and sorts them by aisle; pantry; scaling and unit conversion |
 | 3 | Shopping list | **Bring!** | OurGroceries / Listonic | Swiss/EU; icon tiles for catalogue items; custom items; "2 kg apples" style details; reorderable sections; shared lists |
 | 4 | Pantry / stock | **KitchenPal** | Grocy (self-hosted, as a data-model reference) | Barcode lookup against 5M+ products; fridge/freezer/pantry zones; expiry alerts; shared list |
-| 5 | Product DB / barcode | **Open Food Facts** (app and open data) | Yuka (scan-and-score UX) | ODbL open data, about 4M products, strong in Europe, usable inside GetIt |
+| 5 | Product DB / barcode | **Open Food Facts** (app and open data) | Yuka (scan-and-score UX) | ODbL open data, about 4M products, strong in Europe, usable inside Visuma |
 | 6 | Training | **Hevy** | Strong | Shows previous values inline, starts the rest timer when you tick a set, set types, supersets, Wear OS, generous free tier |
 | 7 | Supplements / meds | **MyTherapy** (smartpatient, Munich) | Medisafe | Free, EU-made, 4.6★ from 241K ratings; covers supplements, stock and refill alerts, and a measurements diary |
 | 8 | Weight / body | **Libra** (Android) | Happy Scale (iOS only, UX reference); MacroFactor's trend weight | Documented exponential-moving-average trend and regression forecast; €1/month premium |
 | 9 | Sleep | **Sleep as Android** | Sleep Cycle; SleepTown (habit/gamified) | 4.6★, 10M+ installs, smart-wake window, wearables, one-time unlock |
 
-Major market event: **Mealime shuts down on 21 Oct 2026** with no export option (Albertsons is folding it into its grocery apps). Do not model GetIt on Mealime. Its users are looking for a new app right now.
+Major market event: **Mealime shuts down on 21 Oct 2026** with no export option (Albertsons is folding it into its grocery apps). Do not model Visuma on Mealime. Its users are looking for a new app right now.
 
 
 ### 1. Nutrition / food logging
@@ -1507,7 +1507,7 @@ Major market event: **Mealime shuts down on 21 Oct 2026** with no export option 
 - **Copying:** Timeline 2.0 has tap-to-select for a food, an hour or a whole day. You can then copy, move or delete. Shortcuts "To Today" and "To Tomorrow" exist, and Multi-Paste works across several days without clearing the clipboard.
 - **Saved meals and recipes:** select foods on the timeline and choose "Create recipe". When logging a saved meal, **"Explode"** logs it as separate items so each portion can be edited.
 - **Weaknesses:** no free tier; limited micronutrients for packaged foods; no social features. Some very lean users report the targets run 100–200 kcal low. Some Play reviewers wanted exercise-calorie tracking built in.
-- **Ideas for GetIt:**
+- **Ideas for Visuma:**
   1. **A staging plate plus a single "log" action**, with multi-add from search and remembered last serving per food.
   2. **Time-based logging with optional labels**, so meal names become tags and are not required. Offer "copy hour/day to Today/Tomorrow" and multi-paste.
   3. **An "Explode" option for saved meals**, so you can tweak one ingredient without editing the template.
@@ -1528,7 +1528,7 @@ Major market event: **Mealime shuts down on 21 Oct 2026** with no export option 
   | Very Active | +0.9 × BMR | 1.9 | manual labour or competitive athletic training |
 
   Users can also set a custom fixed number.
-- **Idea for GetIt:** let users **turn meal groups on or off**, rename them, and use "copy yesterday's group".
+- **Idea for Visuma:** let users **turn meal groups on or off**, rename them, and use "copy yesterday's group".
 
 #### Others assessed
 - **MyFitnessPal:**
@@ -1546,14 +1546,14 @@ Major market event: **Mealime shuts down on 21 Oct 2026** with no export option 
   - Premium costs $39.99/year ($19.99/month); family plan $59.99/year.
   - Tracks 25 nutrients; database accuracy varies because entries come from users.
 
-#### Units versus grams (synthesis for GetIt)
+#### Units versus grams (synthesis for Visuma)
 - MacroFactor and Cronometer both offer **named household units next to grams**, such as "1 large egg", cup or slice. Defaults come from the reference database's portion table, and MacroFactor auto-converts once weight is known.
 - For NL, the legal source of named-unit weights is **RIVM Portie-online**, which gives S/M/L per piece with and without waste (see Section 11).
 
 #### Ready-meals by barcode
 - MacroFactor, MFP (free), Lose It!, and Yazio/Cronometer (paid) all scan barcodes and fall back to manual or label entry.
 - MacroFactor also scans the **nutrition label**, so an unknown product can be created from a photo of its table.
-- GetIt should use OFF lookup, then label OCR, then a create-food form that follows the EU 1169/2011 fields (Section 10).
+- Visuma should use OFF lookup, then label OCR, then a create-food form that follows the EU 1169/2011 fields (Section 10).
 
 #### Sources
 - MacroFactor, Timeline-based food log — https://macrofactor.com/timeline-based-food-logger/
@@ -1605,7 +1605,7 @@ Major market event: **Mealime shuts down on 21 Oct 2026** with no export option 
   - The ingredient parser expects the format "quantity unit ingredient".
   - Each platform is bought separately.
   - **[UNVERIFIED]** The interface looks dated, and there is no built-in nutrition database (nutrition comes from what a recipe page provides).
-- **Ideas for GetIt:**
+- **Ideas for Visuma:**
   1. Recipe to list with **merging of quantities** and the same unit normalisation used by food logging.
   2. **Auto-assign an aisle while typing**, with a user-reorderable aisle order.
   3. **Skip items already in the pantry** when generating the list.
@@ -1655,7 +1655,7 @@ Major market event: **Mealime shuts down on 21 Oct 2026** with no export option 
   - Drag to reorder lists.
 - **Sharing and extras:** shared lists sync in real time. Invite people when creating a list. Lists can be sent or printed (PDF). Recipes add their ingredients in one click. Loyalty cards and store offers.
 - **Weaknesses:** users ask for **custom categories**; the catalogue has gaps for non-Western foods (for example Asian ingredients); catalogue items cannot be moved between lists.
-- **Ideas for GetIt:**
+- **Ideas for Visuma:**
   1. A **tile grid with a "recently used" strip**, so recurring groceries take one tap.
   2. **Free-text amount parsing** ("2 kg apples", "6 eggs") into quantity, unit and item.
   3. **Per-list or per-store section order**, plus **collapsible sections** and hiding empty ones.
@@ -1696,7 +1696,7 @@ Major market event: **Mealime shuts down on 21 Oct 2026** with no export option 
   - Shared real-time grocery list; recipe suggestions from what you have; meal-plan calendar; brand nutrition comparison.
   - No receipt scanning.
 - **Weaknesses:** some barcode mismatches reported. Key features are paywalled. **[COMPETITOR-AUTHORED]** pantrypersona says auto-deduct after cooking is not offered.
-- **Ideas for GetIt:**
+- **Ideas for Visuma:**
   1. **Storage zones** (fridge, freezer, cupboard) as a field on each stock item, with an "expiring soon" summary.
   2. Barcode add that **reuses the same OFF lookup** as food logging.
   3. Recipe suggestions ranked by how much of the recipe you already have in stock.
@@ -1707,7 +1707,7 @@ Major market event: **Mealime shuts down on 21 Oct 2026** with no export option 
 - **Consume:** remove stock or mark it opened, which changes the expiry. Moving an item to the freezer recalculates its thaw date.
 - **Recipes check stock and deduct consumed quantities automatically.**
 - **A minimum-stock threshold auto-adds the product to the shopping list.**
-- **Idea:** borrow the Grocy model for GetIt:
+- **Idea:** borrow the Grocy model for Visuma:
   - product, stock lot (quantity, unit, location, best-before, opened);
   - unit conversions per product (1 piece = X g);
   - minimum stock that feeds the shopping list;
@@ -1745,7 +1745,7 @@ Major market event: **Mealime shuts down on 21 Oct 2026** with no export option 
   - Rate limits: **15 req/min/IP for product reads, 10 req/min/IP for search**. These apply per user when requests come from mobile apps.
   - Staging server: world.openfoodfacts.net (basic auth off/off).
 - **EU data quality:** best coverage of any open source for EU and French products. Data is entered by users, so values can be wrong or missing. **[UNVERIFIED]** I did not find a quantitative audit.
-- **Ideas for GetIt:**
+- **Ideas for Visuma:**
   1. Scan a barcode, look it up in OFF (v3), and show kcal and macros per 100 g and per pack/portion.
   2. If the product is not found, **scan the nutrition table**, prefill the EU 1169 fields, and optionally contribute it back to OFF.
   3. Cache looked-up products locally to stay within the 15 req/min limit.
@@ -1756,7 +1756,7 @@ Major market event: **Mealime shuts down on 21 Oct 2026** with no export option 
 - **Scoring:** "Nutritional quality is 60% … additives 30% … organic dimension 10%". Additives are rated green, yellow, orange or red using EFSA, IARC and other studies. A high-risk additive caps the score at 49/100.
 - **Premium:** offline mode, search without scanning, and diet flags (palm oil, gluten, lactose). **[UNVERIFIED]** The price was not shown; it is about €15/year.
 - **Criticism:** it penalises additives regardless of dose.
-- **Idea:** one big colour verdict plus "better alternative" suggestions. Yuka's database is proprietary, so GetIt cannot reuse its data.
+- **Idea:** one big colour verdict plus "better alternative" suggestions. Yuka's database is proprietary, so Visuma cannot reuse its data.
 
 #### Sources
 - OFF data and licences — https://world.openfoodfacts.org/data
@@ -1784,10 +1784,10 @@ Major market event: **Mealime shuts down on 21 Oct 2026** with no export option 
   - Finish summary shows duration, volume and sets; date and time are editable.
   - Social feed; 1RM, muscle-group charts and calendar.
 - **Weaknesses:** smaller exercise library (about 400) than Fitbod or JEFIT; does not use recovery data such as HRV or sleep.
-- **Ideas for GetIt:**
+- **Ideas for Visuma:**
   1. **Prefill from last time, show a PREVIOUS column, and start rest on tick.** This is the core of a fast logger.
-  2. Make **routines into plan blocks** on the GetIt calendar, and log them when done.
-  3. Feed sleep and recovery data into training (GetIt has the Sleep module, which Hevy lacks).
+  2. Make **routines into plan blocks** on the Visuma calendar, and log them when done.
+  3. Feed sleep and recovery data into training (Visuma has the Sleep module, which Hevy lacks).
 
 #### Runner-up: Strong
 - **[COMPETITOR-AUTHORED]** $4.99/month, $29.99/year, $99.99 lifetime. Free: 3 routines and unlimited logging.
@@ -1816,7 +1816,7 @@ Major market event: **Mealime shuts down on 21 Oct 2026** with no export option 
   - **Pill inventory with refill alerts.**
   - Measurements (blood pressure, weight, glucose); symptom and pain diary; mood tracking; family profiles.
 - **Weaknesses:** a recent redesign is called "unnecessarily complicated", with too many checkboxes and notifications.
-- **Ideas for GetIt:**
+- **Ideas for Visuma:**
   1. A supplement item carries **dose schedule plus stock count**, so stock decrements when you tick a dose and a **refill reminder** fires at N days left.
   2. **One "take all" tick per time slot** (morning stack), with per-item undo, to avoid the checkbox fatigue MyTherapy users report.
   3. Supplement ticks can optionally log nutrients (for example vitamin D µg) into nutrition totals.
@@ -1850,7 +1850,7 @@ Major market event: **Mealime shuts down on 21 Oct 2026** with no export option 
   ```
   The docs show the exponent without the minus sign. As printed, `power` would be negative, so the minus is assumed to be a typo in the docs.
 - **Forecast:** simple linear regression over the **trend** values (not raw weights) inside a forecast window (default 7 days, configurable). It projects up to 6 months ahead.
-- **Ideas for GetIt:**
+- **Ideas for Visuma:**
   1. Show **trend weight as the headline number** and the raw weight as small dots.
   2. Weekly rate from regression on the trend, with an estimated goal date.
   3. Handle irregular weigh-ins properly by using the time-weighted alpha, as Libra does.
@@ -1863,7 +1863,7 @@ Major market event: **Mealime shuts down on 21 Oct 2026** with no export option 
 - **Expenditure formula:** "Calories out = Calories in − Change in stored energy". Stored energy is taken from **trend weight**, not daily weights.
 - **Initial estimate:** BMR (Cunningham) × custom activity multipliers. Expected error is "400–500 kcal (or more)". About 2–3 weeks of logging gives a solid estimate.
 - **Data needed:** nutrition logged at least 6 of 7 days, and at least one weigh-in per week.
-- **Idea:** GetIt can combine its nutrition log and weight trend to show an **adaptive TDEE**. This is GetIt's cross-module advantage.
+- **Idea:** Visuma can combine its nutrition log and weight trend to show an **adaptive TDEE**. This is Visuma's cross-module advantage.
 
 #### Sources
 - Libra Play Store — https://play.google.com/store/apps/details?id=net.cachapa.libra&hl=en_US
@@ -1885,7 +1885,7 @@ Major market event: **Mealime shuts down on 21 Oct 2026** with no export option 
 - **Weaknesses:**
   - The Play data-safety section says data may be shared with third parties and cannot be deleted.
   - **[UNVERIFIED]** The settings are dense and intimidating.
-- **Ideas for GetIt:**
+- **Ideas for Visuma:**
   1. **Sleep target plus a running sleep deficit**, and regularity (consistent bed and wake times) as a first-class metric.
   2. A **bedtime reminder** derived from the alarm time minus the target duration.
   3. Import from Health Connect instead of building tracking from scratch.
@@ -1974,7 +1974,7 @@ Fat is 37 kJ/g, not 38. One tool summary got this wrong, and it was corrected fr
 
 These figures come from the "as adopted" version. **[UNVERIFIED]** Whether later amendments changed the vitamin D NRV was not checked.
 
-#### GetIt implementation notes
+#### Visuma implementation notes
 - Store every food **per 100 g or per 100 ml** using exactly the fields above. kcal and kJ are both stored or derived.
 - Salt is stored; sodium = salt / 2.5.
 - Optional fields: fibre, polyols, starch, MUFA, PUFA.
@@ -1990,9 +1990,9 @@ These figures come from the "as adopted" version. **[UNVERIFIED]** Whether later
 - EUR-Lex consolidated text (opened; Annex I quotes taken from here) — https://eur-lex.europa.eu/legal-content/EN/TXT/HTML/?uri=CELEX:02011R1169-20180101
 
 
-### 11. Open food composition databases and licences (for expanding GetIt's catalogue)
+### 11. Open food composition databases and licences (for expanding Visuma's catalogue)
 
-| Database | Country | Size | Licence and terms | Fit for GetIt |
+| Database | Country | Size | Licence and terms | Fit for Visuma |
 |-------------------------|----------------|-----------------|-------------------------------|---------------------|
 | **NEVO-online 2025/9.0** (RIVM) | NL | **2,328 foods** | **Free; may be built into commercial software.** Data must be used **unchanged**. Additions must be clearly marked as yours. Attribution required: *"Based on data from NEVO online version 2025/9.0, RIVM, Bilthoven"* (or "… and other data sources"). **You may not charge end users for the NEVO data itself.** | Best generic NL ingredient base. Keep NEVO values unedited and serve them without a paywall. |
 | **Portie-online 2026/2.0** (RIVM + Wageningen University) | NL | Measures and weights per NEVO code | All IP belongs to RIVM / the State. Use is allowed **"only in unchanged form and with source and version"**, cited as *"Portie-online versie 2026/2.0, RIVM, Bilthoven"*. Excel download is available. The page's `DCTERMS.rights: CC0` meta tag appears to be template boilerplate, so **do not rely on it**. | **Primary source for "1 medium onion" units in NL.** |
@@ -2003,7 +2003,7 @@ These figures come from the "as adopted" version. **[UNVERIFIED]** Whether later
 | **Fineli** (Finland) | FI | — | Licence page blocked by robots.txt. **[UNVERIFIED]** Believed to be CC BY 4.0. | Possible. |
 | **Open Food Facts** | Global, strong in EU | about 4M branded products | ODbL / DbCL / CC BY-SA (see Section 5) | Branded barcodes. Share-alike applies to derived databases. |
 
-Recommended layering for GetIt:
+Recommended layering for Visuma:
 1. **NEVO** for generic NL foods (unchanged, attributed, free to the user).
 2. **Portie-online** for unit weights.
 3. **OFF** for barcodes.
@@ -2087,7 +2087,7 @@ These are **whole-egg weights in the shell**. RIVM's 40/50/60 g are lower, which
   - onion 115 g, apple 140 g, avocado 160 g, banana 130 g, egg 50 g, lemon 70 g, tomato 150 g, carrot 100 g, bell pepper 185 g, orange 140 g, pear 160 g, kiwi 75 g, mandarin 60 g
   - The "abrikoos 150 g" entry looks like a typo.
 
-#### GetIt implementation
+#### Visuma implementation
 - Each ingredient stores a list of units, e.g. `{label:"medium", grams_edible:95, grams_as_bought:100, source:"Portie-online 2026/2.0"}`.
 - Default to "medium" when the user types "1 onion".
 
@@ -2151,8 +2151,8 @@ PAL = TEE / BMR over 24 hours. App "activity multipliers" are the same ratio: TD
    - MacroFactor itself warns the initial estimate can be off by 400–500 kcal, and recommends correcting it from intake plus trend weight.
 5. **Caveat.** 1.2 is only defensible when **exercise and steps are added separately**, as in MFP. Even then it ignores routine daily movement: home life, shopping and the commute.
 
-#### Proposed GetIt lifestyle presets
-- **This table is GetIt's own proposal**, built on the FAO factorial method and PAR values, the EFSA/FAO/NASEM bands, and Tudor-Locke step zones.
+#### Proposed Visuma lifestyle presets
+- **This table is Visuma's own proposal**, built on the FAO factorial method and PAR values, the EFSA/FAO/NASEM bands, and Tudor-Locke step zones.
 - **Step ranges are approximate guides, not equivalences.** NASEM notes steps are only weakly associated with PAL.
 - The "Derived PAL" column is my factorial calculation. Only the rows marked FAO are quoted directly.
 
@@ -2179,11 +2179,11 @@ PAL = TEE / BMR over 24 hours. App "activity multipliers" are the same ratio: TD
 
 The < 5,000 sedentary index was reaffirmed by Tudor-Locke et al. in 2013.
 
-#### UX recommendations for GetIt
+#### UX recommendations for Visuma
 1. **Ask two separate questions:** work type (sitting, standing, physical) and planned training per week. Map the answers to the presets above instead of showing one vague "activity level" list.
 2. **Show the preset's example day and step range** next to each option (for example "Desk job + 2–3 gym sessions, about 6–9k steps → 1.6").
 3. **Never default to 1.2.** Default to 1.4–1.5, and show a note that 1.2 means "resting most of the day".
-4. If GetIt logs workouts and steps separately, **do not double count**. Either use a NEAT-only preset plus logged exercise, as MFP does, or use a total-PAL preset without adding exercise calories. Make this a single explicit choice.
+4. If Visuma logs workouts and steps separately, **do not double count**. Either use a NEAT-only preset plus logged exercise, as MFP does, or use a total-PAL preset without adding exercise calories. Make this a single explicit choice.
 5. After 2–3 weeks of nutrition logs and weigh-ins, **replace the preset with an adaptive estimate**: TDEE ≈ intake − Δ(trend weight) × energy density. This is MacroFactor's approach, with ≥ 6 of 7 days logged and at least one weigh-in per week.
 
 #### Sources
@@ -2199,7 +2199,7 @@ The < 5,000 sedentary index was reaffirmed by Tudor-Locke et al. in 2013.
 - MacroFactor Help, expenditure — https://help.macrofactorapp.com/en/articles/26-how-should-i-interpret-changes-to-my-energy-expenditure
 
 
-### 14. Cross-module ideas ranked for GetIt (synthesis)
+### 14. Cross-module ideas ranked for Visuma (synthesis)
 
 1. **One shared food and unit model** across logging, recipes, shopping list and pantry:
    - NEVO + Portie-online + OFF + USDA;

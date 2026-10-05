@@ -17,7 +17,7 @@
     android:updatePeriodMillis="1800000"
     android:initialLayout="@layout/widget_stats_figure"
     android:previewLayout="@layout/widget_stats_preview"
-    android:configure="app.getit.planner.widget.StatsWidgetConfigure"
+    android:configure="app.visuma.planner.widget.StatsWidgetConfigure"
     android:widgetFeatures="reconfigurable|configuration_optional"
     android:description="@string/widget_stats_description"
     android:widgetCategory="home_screen" />

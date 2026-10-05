@@ -1,4 +1,4 @@
-// GetIt → Google Calendar: the private feed link.
+// Visuma → Google Calendar: the private feed link.
 //
 // Google Calendar ("Other calendars → From URL") fetches this address every
 // few hours, without signing in, so the token in the address is the only key.
@@ -124,7 +124,7 @@ Deno.serve(async (req) => {
     return new Response(req.method === 'HEAD' ? null : body, {
       headers: {
         'Content-Type': 'text/calendar; charset=utf-8',
-        'Content-Disposition': 'inline; filename="getit.ics"',
+        'Content-Disposition': 'inline; filename="visuma.ics"',
         'Cache-Control': 'private, max-age=900',
         'X-Content-Type-Options': 'nosniff',
         'Referrer-Policy': 'no-referrer',

@@ -1,4 +1,4 @@
-# App Store Connect answers for GetIt (iPhone)
+# App Store Connect answers for Visuma (iPhone)
 
 Every form App Store Connect asks for before TestFlight and the App Store, with
 the answer that matches what the iPhone app does as of **version 20** (checked
@@ -13,10 +13,10 @@ the same commit, and update the forms. The steps around them are in
 
 | Field | Answer |
 | --- | --- |
-| Name | GetIt - Day & Meal Planner (30 characters at most, as on Play) |
+| Name | Visuma - Day & Meal Planner (30 characters at most, as on Play) |
 | Subtitle | Day, meals, shopping, habits (30 at most) |
-| Bundle ID | `app.getit.planner` (permanent) |
-| SKU | `getit-ios` |
+| Bundle ID | `app.visuma.planner` (permanent) |
+| SKU | `visuma-ios` |
 | Primary language | English (U.K.) |
 | Category | Productivity; secondary: Health & Fitness |
 | Content rights | **Yes, it contains third-party content, and I have the rights**: product data and pictures from Open Food Facts (Open Database Licence), the Dutch NEVO food table (RIVM) and USDA FoodData Central, all published for reuse. |
@@ -42,13 +42,13 @@ the same commit, and update the forms. The steps around them are in
 App Store Connect → your app → App Privacy → Get Started. **Do you or your
 third-party partners collect data from this app?** Yes.
 
-For every type: **Used for tracking: No.** GetIt has no advertising, no
+For every type: **Used for tracking: No.** Visuma has no advertising, no
 analytics of its own and no tracking (`NSPrivacyTracking` is false); nothing is
 combined with data from other companies' apps or websites.
 
 ### Data linked to the user (stored with the account, for the app itself)
 
-| Apple's category | Data type | Purposes | What it is in GetIt |
+| Apple's category | Data type | Purposes | What it is in Visuma |
 | --- | --- | --- | --- |
 | Contact Info | Email Address | App Functionality | The sign-in address. |
 | Contact Info | Name | App Functionality | The profile name; the name a member shows in a household. |
@@ -56,7 +56,7 @@ combined with data from other companies' apps or websites.
 | Health & Fitness | Fitness | App Functionality | Training sessions, sets and exercises. |
 | Financial Info | Purchase History | App Functionality | What the person types in Finance as spent; the prices typed for shopping items. |
 | Financial Info | Other Financial Info | App Functionality | Income, budgets and planned payments typed in Finance. |
-| Location | Coarse Location | App Functionality | The country and town typed in the profile, and a shop's place when a price is shared. Never the device's location: GetIt has no location permission. |
+| Location | Coarse Location | App Functionality | The country and town typed in the profile, and a shop's place when a price is shared. Never the device's location: Visuma has no location permission. |
 | User Content | Photos or Videos | App Functionality | Photos added to records and recipes (private storage); a price tag or receipt photo sent to Open Prices only when the person shares a price. |
 | User Content | Other User Content | App Functionality; Analytics (see ML Kit below) | Tasks, notes, recipes, shopping lists, stock, chores, module records, calendar events. |
 | Other Data | Other Data Types | App Functionality; Analytics (see ML Kit below) | Date of birth and sex, for the calorie and protein targets. |
@@ -80,7 +80,7 @@ already declared above as linked, so App Store Connect takes them once, with
 Analytics added to their purposes.)
 
 Not collected: precise location, contacts, browsing or search history (product
-searches go from the phone straight to Open Food Facts, which is not GetIt's
+searches go from the phone straight to Open Food Facts, which is not Visuma's
 partner), sensitive info, audio, emails or messages, gameplay, customer
 support, advertising data, payment info, credit info, crash data.
 
@@ -106,12 +106,12 @@ App Store Connect → your app → App Information → Age Rating → Edit.
 
 Take the rating App Store Connect works out. The app is made for adults (on
 Play its target audience is 18 and over); Apple's rating describes the content,
-and nothing in GetIt needs a higher one.
+and nothing in Visuma needs a higher one.
 
 ## Export compliance
 
 Answered in the build itself: `ITSAppUsesNonExemptEncryption` is false in
-Info.plist. GetIt uses only encryption built into iOS (HTTPS to Supabase, Open
+Info.plist. Visuma uses only encryption built into iOS (HTTPS to Supabase, Open
 Food Facts, Open Prices, OpenStreetMap and Telegram; the keychain) and no
 encryption of its own, so App Store Connect asks nothing per build. If it ever
 does, the answer is: uses encryption, exempt (standard encryption in the
@@ -121,8 +121,8 @@ operating system only).
 
 | Key | Text the iPhone shows | When |
 | --- | --- | --- |
-| `NSCameraUsageDescription` | GetIt uses the camera only when you scan a barcode or take a photo, for example of a food label. | The first barcode scan or photo. |
-| `NSFaceIDUsageDescription` | GetIt uses Face ID only to confirm switching to another account kept on this iPhone. | The first switch to a kept account. |
+| `NSCameraUsageDescription` | Visuma uses the camera only when you scan a barcode or take a photo, for example of a food label. | The first barcode scan or photo. |
+| `NSFaceIDUsageDescription` | Visuma uses Face ID only to confirm switching to another account kept on this iPhone. | The first switch to a kept account. |
 | Notifications (no key) | The iPhone's own question | When reminders are turned on. |
 
 No location, contacts, microphone, photo library (the photo picker needs none),
@@ -132,21 +132,21 @@ tracking, Bluetooth or health permission.
 
 ### Test information (App Store Connect → TestFlight → Test Information)
 
-- **Beta app description**: `GetIt is a calm planner for your day, meals, shopping and habits. It works offline and syncs across your devices.`
-- **Feedback email**: the GetIt contact address.
+- **Beta app description**: `Visuma is a calm planner for your day, meals, shopping and habits. It works offline and syncs across your devices.`
+- **Feedback email**: the Visuma contact address.
 - **Marketing URL**: leave empty. **Privacy policy URL**: as above.
 - **Sign-in required**: yes, with the reviewer account below.
 
 ### What to test (each build)
 
 ```
-Thank you for testing GetIt on iPhone. Please try:
+Thank you for testing Visuma on iPhone. Please try:
 - Sign in, then add a few tasks for today and tomorrow with the round +.
 - Plan a meal on Food, and see it on the shopping list.
 - Scan a food's barcode (Food → search field → the stripes icon). The iPhone asks for the camera once.
 - Turn on reminders (Settings → Reminders and tips) and wait for one; try Done on the notification.
 - Settings → Looks: dark mode and text size. Change the iPhone's own text size and come back.
-- Long-press the GetIt icon on the home screen: Task, Inbox, Food and Event.
+- Long-press the Visuma icon on the home screen: Task, Inbox, Food and Event.
 - Turn the phone sideways on Today and Plan.
 Tell us about anything hidden behind the notch, the home bar or the keyboard, and anything that says "Android".
 Not in the iPhone app yet: home-screen widgets and Apple Health.
@@ -155,7 +155,7 @@ Not in the iPhone app yet: home-screen widgets and Apple Health.
 ### Beta App Review notes (external testing) and App Review notes
 
 ```
-GetIt is a personal planner (tasks, meals, shopping, habits) that works offline and syncs to the user's account.
+Visuma is a personal planner (tasks, meals, shopping, habits) that works offline and syncs to the user's account.
 Sign-in is required: use the account below. No second factor or one-time code is used.
 Sign-ups are invite-only during testing; this account is already invited and confirmed.
 The camera is used only for barcode scanning (ML Kit, on the device) and photos the user takes.
@@ -181,7 +181,7 @@ specifications"): 1 to 10 screenshots, PNG or JPEG, no transparency.
 | iPhone 6.9" | **Yes**, for an iPhone app (unless 6.5" ones are given) | 1320 × 2868, 1290 × 2796, 1260 × 2736 |
 | iPhone 6.5" | Only if there are no 6.9" ones | 1284 × 2778, 1242 × 2688 |
 | iPhone 6.3" and smaller | No: scaled from the larger ones | 1206 × 2622, 1179 × 2556 |
-| iPad | No: GetIt is an iPhone-only app (`TARGETED_DEVICE_FAMILY = 1`) | |
+| iPad | No: Visuma is an iPhone-only app (`TARGETED_DEVICE_FAMILY = 1`) | |
 
 `node scripts/store-shots.mjs --iphone` makes the 6.9" set (1320 × 2868) in
 `store/screenshots/iphone/` from the same invented demo week as the Play

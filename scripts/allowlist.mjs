@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /** Turns a file of tester addresses into the one SQL statement that lets them
- *  sign up while GetIt is invite-only (see supabase/migrations/012_security.sql).
+ *  sign up while Visuma is invite-only (see supabase/migrations/012_security.sql).
  *
  *    node scripts/allowlist.mjs store/testers/testers.csv
  *

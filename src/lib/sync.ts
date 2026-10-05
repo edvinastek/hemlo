@@ -595,7 +595,7 @@ export function watchConnection(profileIds: () => string[]) {
     useApp.getState().setOnline(navigator.onLine)
     if (navigator.onLine) void sync(profileIds())
   }
-  // A light pull every two minutes while GetIt is open and in view, and when
+  // A light pull every two minutes while Visuma is open and in view, and when
   // it comes back into view, so a change made on another device appears
   // without a reload (SYNC-02). Skipped offline, hidden, before sign-in, or
   // while a sync is already running.

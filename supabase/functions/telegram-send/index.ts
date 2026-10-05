@@ -1,4 +1,4 @@
-// GetIt → Telegram: sends the reminders that fell due (REM-05).
+// Visuma → Telegram: sends the reminders that fell due (REM-05).
 //
 // Called every minute by pg_cron through pg_net (038), with the header
 // x-getit-cron set to TELEGRAM_CRON_SECRET from Supabase Vault. The reminders

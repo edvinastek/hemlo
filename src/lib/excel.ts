@@ -1,4 +1,4 @@
-/** Reads the workbooks GetIt grew out of: D_Food, D_Exercises and D_Meals.
+/** Reads the workbooks Visuma grew out of: D_Food, D_Exercises and D_Meals.
  *  Loaded only when someone actually imports a file, so the app's first paint
  *  never carries a spreadsheet parser it may not need. */
 

@@ -16,7 +16,7 @@ export function AboutSettings() {
       <div className="setting-row">
         <div>
           <div className="row-name">Version</div>
-          <div className="row-meta">GetIt {version}</div>
+          <div className="row-meta">Visuma {version}</div>
         </div>
       </div>
 
@@ -64,7 +64,7 @@ export function AboutSettings() {
       <div className="setting-row">
         <div>
           <div className="row-name">Privacy policy</div>
-          <div className="row-meta">What GetIt stores, why, and how to get it back.</div>
+          <div className="row-meta">What Visuma stores, why, and how to get it back.</div>
         </div>
         <button type="button" className="btn" onClick={() => setPolicy(true)}>Read</button>
       </div>

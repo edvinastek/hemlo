@@ -1,4 +1,4 @@
-// Google Calendar (or any calendar) → GetIt: fetch one followed calendar.
+// Google Calendar (or any calendar) → Visuma: fetch one followed calendar.
 //
 // A browser may not read another site's calendar file (no CORS), so the app
 // asks this function to fetch it. The caller must be signed in, and the

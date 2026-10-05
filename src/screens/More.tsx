@@ -318,7 +318,7 @@ function RemindersPanel() {
   async function update(next: ReminderSettings) {
     setNote(null)
     if (next.on && !settings!.on && !(await requestPermission())) {
-      setNote('Notifications are blocked for GetIt. Allow them in the phone\u2019s settings, then turn this on again.')
+      setNote('Notifications are blocked for Visuma. Allow them in the phone\u2019s settings, then turn this on again.')
       return
     }
     await setReminderSettings(next, profile!.id, profile!.ai_persona_name)
@@ -328,14 +328,14 @@ function RemindersPanel() {
     <>
       <p className="section-title">Who reminds you</p>
       <Field label="Name" value={profile.ai_persona_name ?? ''}
-        hint="Left empty, reminders come from GetIt."
+        hint="Left empty, reminders come from Visuma."
         onSave={(v) => edit('profile', profile, { ai_persona_name: v || null })} />
 
       <p className="section-title">Reminders on this device</p>
       <div className="setting-row">
         <div>
           <div className="row-name">Remind me at each item’s time</div>
-          <div className="row-meta">Even with GetIt closed; the text is hidden on a locked phone.</div>
+          <div className="row-meta">Even with Visuma closed; the text is hidden on a locked phone.</div>
         </div>
         <button className="switch" role="switch" aria-checked={settings.on}
           aria-label="Reminders" onClick={() => void update({ ...settings, on: !settings.on })} />
@@ -459,7 +459,7 @@ function DataPanel() {
     if (!profile) return
     const blob = await exportBundle(profile.id)
     // On the phone this opens the share sheet; in a browser it downloads.
-    await saveFile(`getit-${new Date().toISOString().slice(0, 10)}.getit.json`, blob)
+    await saveFile(`visuma-${new Date().toISOString().slice(0, 10)}.visuma.json`, blob)
   }
 
   async function doImport(file: File) {
@@ -538,7 +538,7 @@ function DataPanel() {
       <div className="setting-row">
         <div>
           <div className="row-name">Import</div>
-          <div className="row-meta">A GetIt export, or your Excel workbook.</div>
+          <div className="row-meta">A Visuma export, or your Excel workbook.</div>
         </div>
         <label className="btn" style={{ cursor: 'pointer' }}>
           Choose file

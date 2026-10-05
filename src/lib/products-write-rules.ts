@@ -101,7 +101,7 @@ export function productFields(p: OffProduct, app: OffApp): [string, string][] {
     if (v !== undefined) out.push([`nutriment_${MICRO_IDS[m.code]}`, String(v)], [`nutriment_${MICRO_IDS[m.code]}_unit`, m.unit])
   }
   out.push(['app_name', APP_NAME], ['app_version', APP_VERSION_WRITE], ['app_uuid', app.uuid],
-    ['comment', 'Added from the label with GetIt'])
+    ['comment', 'Added from the label with Visuma'])
   return out
 }
 

@@ -73,7 +73,7 @@ enum LocalCopy {
             try folder.setResourceValues(values)
         } catch {
             // Nothing to stop the app for: the copy is then backed up as any app's data is.
-            NSLog("GetIt: could not keep the local copy out of backups: \(error.localizedDescription)")
+            NSLog("Visuma: could not keep the local copy out of backups: \(error.localizedDescription)")
         }
     }
 }

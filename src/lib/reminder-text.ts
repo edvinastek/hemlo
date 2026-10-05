@@ -33,7 +33,7 @@ export function placeReminder(at: Date, s: { quietFrom: string; quietTo: string;
  *  worth asking about (the extension limit, SET-08). */
 export function reminderText(task: Pick<Task, 'title' | 'planned_time' | 'push_count'>, persona: string | null, limit = 3): { title: string; body: string } {
   const at = task.planned_time?.slice(0, 5)
-  const who = persona ? `${persona}` : 'GetIt'
+  const who = persona ? `${persona}` : 'Visuma'
   if (task.push_count >= limit) {
     return { title: who, body: `${task.title} has moved ${task.push_count} times. Want a new time for it?` }
   }
@@ -43,7 +43,7 @@ export function reminderText(task: Pick<Task, 'title' | 'planned_time' | 'push_c
 /** The same for anything else on the day (REM-02): a habit, a chore, an
  *  event, a record of a module. */
 export function itemReminderText(item: Pick<DayItem, 'kind' | 'title' | 'time' | 'meta'> & { parts?: { name: string; done: boolean }[] }, persona: string | null): { title: string; body: string } {
-  const who = persona || 'GetIt'
+  const who = persona || 'Visuma'
   const at = item.time ? ` at ${item.time}` : ''
   switch (item.kind) {
     case 'habit': return { title: who, body: `Time for ${item.title}.` }
@@ -71,7 +71,7 @@ export const REFILL_TIME = '09:00'
 /** "Vitamin D: 7 left, enough for 7 days. Time to get more." (SUP-05) */
 export function refillText(name: string, left: number, daysLeft: number, persona: string | null): { title: string; body: string } {
   const lasts = daysLeft <= 1 ? 'enough for today' : `enough for ${daysLeft} days`
-  return { title: persona || 'GetIt', body: `${name}: ${left} left, ${lasts}. Time to get more.` }
+  return { title: persona || 'Visuma', body: `${name}: ${left} left, ${lasts}. Time to get more.` }
 }
 
 /** Where a reminder opens (REM-03): the item's own page. */
@@ -107,7 +107,7 @@ export function reminderViews(enabled: string[], views: Record<string, Partial<M
 }
 
 /** A stable number per item and day, because Android identifies a scheduled
- *  notification by an integer and GetIt's rows have text ids. */
+ *  notification by an integer and Visuma's rows have text ids. */
 export function notificationId(key: string): number {
   let h = 0
   for (let i = 0; i < key.length; i++) h = (Math.imul(31, h) + key.charCodeAt(i)) | 0

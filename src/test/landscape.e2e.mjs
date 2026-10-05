@@ -146,7 +146,7 @@ for (const screen of SCREENS) {
     }
     await toModules()
     const was = (await p.locator('.nv-style[aria-checked="true"] span').last().textContent())?.trim()
-    const picked = (await p.locator('button:has-text("Let GetIt pick")').count()) === 0
+    const picked = (await p.locator('button:has-text("Let Visuma pick")').count()) === 0
     await p.click('.nv-style:has-text("Drawer")')
     await p.waitForTimeout(800)
     await p.click('.nav-rail .nav-handle')
@@ -168,7 +168,7 @@ for (const screen of SCREENS) {
     await p.waitForTimeout(200)
     // Put the style back.
     await toModules()
-    if (picked) await p.click('button:has-text("Let GetIt pick")')
+    if (picked) await p.click('button:has-text("Let Visuma pick")')
     else if (was) await p.click(`.nv-style:has-text("${was}")`)
     await p.waitForTimeout(800)
   }

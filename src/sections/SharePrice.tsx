@@ -246,7 +246,7 @@ export function SharePrice({ profile, name, price, code, perMl, onClose }: {
             <button type="button" className="btn" disabled={busy} onClick={() => gallery.current?.click()}>Pick a photo</button>
           </div>
         )}
-        {/* The camera through Android's own photo screen: GetIt asks for no camera permission. */}
+        {/* The camera through Android's own photo screen: Visuma asks for no camera permission. */}
         <input ref={camera} type="file" accept="image/*" capture="environment" hidden onChange={(e) => { void takePhoto(e.target.files?.[0]); e.target.value = '' }} />
         <input ref={gallery} type="file" accept="image/*" hidden onChange={(e) => { void takePhoto(e.target.files?.[0]); e.target.value = '' }} />
         {photoSaid && <p className="stock-hint" role="status">{photoSaid}</p>}

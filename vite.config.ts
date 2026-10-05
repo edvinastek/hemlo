@@ -8,7 +8,7 @@ import { flattenLinks } from './src/lib/tz-links-rules'
  *  the cache after the first load rather than after the second. */
 function precacheServiceWorker(): Plugin {
   return {
-    name: 'getit-precache-sw',
+    name: 'visuma-precache-sw',
     apply: 'build',
     generateBundle(_options, bundle) {
       const assets = [base, base + 'index.html', base + 'manifest.webmanifest', base + 'favicon.svg']
@@ -17,7 +17,7 @@ function precacheServiceWorker(): Plugin {
         assets.push(base + file)
       }
       const source = readFileSync('public/sw.js', 'utf8')
-        .replace('self.__GETIT_ASSETS__ ||', `${JSON.stringify(assets)} ||`)
+        .replace('self.__VISUMA_ASSETS__ ||', `${JSON.stringify(assets)} ||`)
         .replace(/'\/index\.html'/g, JSON.stringify(base + 'index.html'))
       // Emitted last so it replaces the copy taken from public/.
       this.emitFile({ type: 'asset', fileName: 'sw.js', source })
@@ -32,9 +32,9 @@ function precacheServiceWorker(): Plugin {
  *  Only the build: in development the full data is used, with the same
  *  results. */
 function trimTimeZones(): Plugin {
-  const id = '\0getit-moment-timezone'
+  const id = '\0visuma-moment-timezone'
   return {
-    name: 'getit-trim-time-zones',
+    name: 'visuma-trim-time-zones',
     apply: 'build',
     enforce: 'pre',
     resolveId(source) {
@@ -59,7 +59,7 @@ function trimTimeZones(): Plugin {
   }
 }
 
-/* A GitHub Pages project site is served from /GetIt/, not /. Everything that
+/* A GitHub Pages project site is served from /<repository>/, not /. Everything that
  * hard-codes a path — the service worker's precache list, its scope, the
  * router — reads this instead of assuming the root. */
 const base = process.env.VITE_BASE ?? '/'

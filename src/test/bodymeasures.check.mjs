@@ -76,7 +76,7 @@ eq('no time: no reminder', weighInReminderDays({ day: 1, time: null }, days, new
 eq('any day with a time: every day not weighed', weighInReminderDays({ day: null, time: '07:30' }, days, new Set(['2026-10-04'])), ['2026-10-05', '2026-10-06'])
 eq('described', [describeWeighInPlan({ day: 1, time: '07:30' }), describeWeighInPlan({ day: null, time: null }), describeWeighInPlan({ day: 0, time: null }), describeWeighInPlan({ day: null, time: '07:00' })],
   ['Mondays at 07:30', 'Any day', 'Sundays', 'Every day at 07:00'])
-eq('the reminder says it plainly', weighInReminderText(null), { title: 'GetIt', body: 'Time to weigh in.' })
+eq('the reminder says it plainly', weighInReminderText(null), { title: 'Visuma', body: 'Time to weigh in.' })
 
 if (fail) { console.log(`\n${fail} failed`); process.exit(1) }
 console.log('\nbody measures: all ok')

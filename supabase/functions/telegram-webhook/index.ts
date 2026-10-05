@@ -1,4 +1,4 @@
-// Telegram → GetIt: the bot's webhook (REM-05).
+// Telegram → Visuma: the bot's webhook (REM-05).
 //
 // Telegram posts every update for the bot here. Only "/start <code>" (from
 // the link Settings → Reminders → Telegram shows) and "/stop" are answered;

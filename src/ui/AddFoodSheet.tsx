@@ -51,6 +51,7 @@ import { planToday } from '../lib/day-edge'
 type Tab = 'recent' | 'search'
 /** What takes the lists' place for a moment, with a way back. */
 type Mode = 'scan' | 'numbers' | 'copy' | 'find'
+// The name from before Visuma, kept: renaming it would lose what is stored under it.
 const TAB_KEY = 'getit:addfood:tab'
 const SHOW = 30
 /** In Search with nothing typed: a few of each, the latest first. */

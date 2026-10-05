@@ -67,7 +67,7 @@ is('the label’s lines under Open Food Facts’ names', [get('nutriment_fat'), 
   ['12', '4.1', '55', '22', '3.5', '8', '0.9'])
 is('an unknown figure is not sent', fields.some(([k]) => k === 'nutriment_starch' || k === 'nutriment_polyols'), false)
 is('a vitamin in its unit', [get('nutriment_vitamin-d'), get('nutriment_vitamin-d_unit')], ['2.5', 'µg'])
-is('the app named, with a random id for this account', [get('app_name'), get('app_version'), get('app_uuid')], ['GetIt', '19', 'a1b2c3'])
+is('the app named, with a random id for this account', [get('app_name'), get('app_version'), get('app_uuid')], ['Visuma', '19', 'a1b2c3'])
 is('no password among the product’s fields', fields.some(([k]) => k === 'password' || k === 'user_id'), false)
 is('the photo is the nutrition table, in the label’s language', imageFields('8712345678906', 'nl', app).fileField, 'imgupload_nutrition_nl')
 is('a barcode is 8 to 14 digits', [isOffBarcode('8712345678906'), isOffBarcode('123'), isOffBarcode('abc12345')], [true, false, false])

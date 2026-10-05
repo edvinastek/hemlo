@@ -350,7 +350,7 @@ export function DayRail({ day, where, filter, emptyText, selecting = false, onSe
   return (
     <div className="day-rail">
       {/* Tips, one at a time (ONB-12, ONB-13): holding, the first time
-          there is a task to hold; on Today, a few days in, Make GetIt yours. */}
+          there is a task to hold; on Today, a few days in, Make Visuma yours. */}
       {!sel.selecting && <FirstTip ids={[...(entries.some((e) => e.type === 'item' && e.task && !e.static) ? ['first-hold'] : []), ...(where === 'today' ? ['make-yours'] : [])]} />}
       {sel.selecting && (
         <ul className="rail-select" aria-label="Tasks to select">

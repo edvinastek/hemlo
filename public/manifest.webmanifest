@@ -1,6 +1,6 @@
 {
-  "name": "GetIt",
-  "short_name": "GetIt",
+  "name": "Visuma",
+  "short_name": "Visuma",
   "description": "A modular planner that plans at every horizon.",
   "start_url": "/",
   "display": "standalone",

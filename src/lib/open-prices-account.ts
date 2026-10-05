@@ -12,10 +12,11 @@ import { OPEN_PRICES_API, SHARE_AGENT, appQuery, authBody, authProblem, readAuth
  *  The password goes once, to Open Prices' own sign-in (run by Open Food
  *  Facts), and is never kept. What comes back is a token: in the phone's
  *  secure storage in the Android app, in this tab's session storage in a
- *  browser (gone when the tab closes). It belongs to the GetIt account that
- *  signed it in; another GetIt account on the same phone does not see it.
- *  Signing out, turning sharing off, or signing out of GetIt forgets it. */
+ *  browser (gone when the tab closes). It belongs to the Visuma account that
+ *  signed it in; another Visuma account on the same phone does not see it.
+ *  Signing out, turning sharing off, or signing out of Visuma forgets it. */
 
+// The name from before Visuma, kept: renaming it would lose what is stored under it.
 const KEY = 'getit.openprices'
 const ON = 'openprices:on'
 
@@ -42,7 +43,7 @@ async function readSaved(): Promise<Saved | null> {
       : window.sessionStorage.getItem(KEY)
     const s = raw ? (typeof raw === 'string' ? JSON.parse(raw) : raw) as Saved : null
     if (!s || typeof s.token !== 'string' || typeof s.user !== 'string') return null
-    // Signed in by another GetIt account on this phone: not this person's.
+    // Signed in by another Visuma account on this phone: not this person's.
     return s.owner && s.owner === owner() ? s : null
   } catch {
     return null
@@ -84,7 +85,7 @@ const platform = () => features().openPrices
  *  success, else what went wrong in words. */
 export async function signInOff(user: string, password: string): Promise<string | null> {
   const me = owner()
-  if (!me) return 'Sign in to GetIt first.'
+  if (!me) return 'Sign in to Visuma first.'
   if (typeof navigator !== 'undefined' && navigator.onLine === false) return authProblem(0)
   let res: Response
   try {
@@ -127,7 +128,7 @@ export async function forgetOffToken(): Promise<void> {
   useOffAccount.setState({ user: null })
 }
 
-// Signing out of GetIt (or another account signing in) forgets the token too.
+// Signing out of Visuma (or another account signing in) forgets the token too.
 onResetLocal(async () => {
   await writeSaved(null)
   useOffAccount.setState({ on: false, user: null })

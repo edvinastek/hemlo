@@ -23,7 +23,7 @@ function modeHere(): Mode {
  *  digit), or lets the person type it. Shown inside a sheet.
  *
  *  In the Android app this is Google's code scanner from Play services: it
- *  opens its own camera screen and hands back only the code, so GetIt needs
+ *  opens its own camera screen and hands back only the code, so Visuma needs
  *  no camera permission. On a phone without it, it is fetched once from
  *  Google Play, with progress shown. In the iPhone app ML Kit is built in and
  *  shows its own camera screen; the iPhone asks once for the camera. */
@@ -108,7 +108,7 @@ function NativeScan({ onCode, onFail, onCancel }: { onCode: (code: string) => vo
         if (/cancel/i.test(text)) { on.current.onCancel(); return }
         if (text === 'install') on.current.onFail('Google’s barcode scanner could not be installed. Type the numbers instead.')
         // The iPhone's answer when the camera was refused (now or before).
-        else if (/denied access to camera/i.test(text)) on.current.onFail('GetIt may not use the camera. Allow it in the iPhone’s Settings → GetIt, or type the numbers.')
+        else if (/denied access to camera/i.test(text)) on.current.onFail('Visuma may not use the camera. Allow it in the iPhone’s Settings → Visuma, or type the numbers.')
         else on.current.onFail('The scanner is not available on this phone. Type the numbers instead.')
       }
     })()

@@ -172,7 +172,7 @@ export function figureText(value: number | null, unit: 'kJ' | 'kcal' | 'g', key?
 export const NEVO_ATTRIBUTION = 'Based on data from NEVO online version 2025/9.0, RIVM, Bilthoven'
 export const NEVO_AND_OTHERS = 'Based on data from NEVO online version 2025/9.0, RIVM, Bilthoven and other data sources'
 export const PORTIE_ATTRIBUTION = 'Unit weights from Portie-online versie 2026/2.0, RIVM, Bilthoven'
-/** USDA's data is in the public domain; GetIt still says where it came from. */
+/** USDA's data is in the public domain; Visuma still says where it came from. */
 export const USDA_ATTRIBUTION = 'USDA FoodData Central, SR Legacy (April 2018), public domain'
 export const USDA_UNITS_ATTRIBUTION = `Unit weights from ${USDA_ATTRIBUTION}`
 
@@ -204,11 +204,11 @@ export function sourceText(f: Sourced): string {
     case 'nevo': return `${f.source_version || 'NEVO-online 2025/9.0'} (RIVM)${f.nevo_code ? `, code ${f.nevo_code}` : ''}`
     case 'usda': return /^USDA FoodData Central/.test(f.source_version ?? '')
       ? `USDA FoodData Central (SR Legacy)${f.source_ref?.startsWith('fdc:') ? `, food ${f.source_ref.slice(4)}` : ''}`
-      : 'USDA (US list from GetIt’s first catalogue)'
+      : 'USDA (US list from Visuma’s first catalogue)'
     case 'off': return `Open Food Facts${f.source_ref ? `, product ${f.source_ref}` : ''}`
     case 'import': return 'Imported from your workbook'
     case 'own': return copiedFromNevo(f) ? 'Your own copy of a NEVO food' : 'Your own food'
-    default: return 'GetIt’s shared list'
+    default: return 'Visuma’s shared list'
   }
 }
 

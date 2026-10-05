@@ -1,7 +1,7 @@
 /** Pure rules for supermarket products from Open Food Facts: checking a
  *  barcode, reading a product (from a barcode lookup or either search) into
- *  the figures GetIt keeps for a food, tidying shop names, showing shared
- *  prices, and the small limiter and cache that keep GetIt within what Open
+ *  the figures Visuma keeps for a food, tidying shop names, showing shared
+ *  prices, and the small limiter and cache that keep Visuma within what Open
  *  Food Facts allows. No network, no database and no React, so every rule is
  *  checked by hand in src/test/products.check.mjs. The network side is
  *  products.ts. */
@@ -44,7 +44,7 @@ export function expandUpcE(code: string): string | null {
   return checks(full) ? full : null
 }
 
-/** A barcode as GetIt stores it, or null when it is not a real one. Spaces
+/** A barcode as Visuma stores it, or null when it is not a real one. Spaces
  *  and dashes typed with it are dropped. The check digit must match, so a
  *  misread or mistyped digit is caught here rather than looked up.
  *
@@ -77,7 +77,7 @@ export const maybeShopLabel = (code: string) => code.length === 13 && code[0] ==
 
 // ---- countries and languages -----------------------------------------------
 
-/** Open Food Facts names a few countries differently from the list GetIt keeps. */
+/** Open Food Facts names a few countries differently from the list Visuma keeps. */
 const OFF_COUNTRY: Record<string, string> = {
   CZ: 'czech-republic', TR: 'turkey', RU: 'russia', KR: 'south-korea', VN: 'vietnam', IR: 'iran',
   SY: 'syria', LA: 'laos', MD: 'moldova', BO: 'bolivia', VE: 'venezuela', TZ: 'tanzania', MK: 'north-macedonia',
@@ -134,10 +134,10 @@ export const PAGE_SIZE = 20
 /** How the Android app names itself to Open Food Facts (PROD-04), as they
  *  ask: the app and its version, and how to reach whoever runs it. A browser
  *  may not set this header; there the app_name in the address says it. */
-export const USER_AGENT = 'GetIt/16 (contact via app)'
+export const USER_AGENT = 'Visuma/16 (contact via app)'
 
 /** Every request says which app is asking, as Open Food Facts asks. */
-const who = (version: string) => `app_name=GetIt&app_version=${encodeURIComponent(version)}`
+const who = (version: string) => `app_name=Visuma&app_version=${encodeURIComponent(version)}`
 
 /** A search, on one of the two search services Open Food Facts runs.
  *  'search' is the newer one (search.openfoodfacts.org): quick and reliable,
@@ -175,7 +175,7 @@ export const pricesPage = (code: string) => `${PRICES}/products/${code}`
 
 // ---- reading a product -------------------------------------------------------
 
-/** Figures per 100 g (or 100 ml), as GetIt keeps a food's. */
+/** Figures per 100 g (or 100 ml), as Visuma keeps a food's. */
 export interface Per100 { kcal: number | null; protein_g: number | null; carbs_g: number | null; fat_g: number | null; fiber_g: number | null }
 
 /** One product, read the same way whichever service it came from. */
@@ -234,7 +234,7 @@ export function kcalOf(n: Raw): number | null {
   return kj === null ? null : fig(kj / 4.184, 950, 0)
 }
 
-/** The five figures GetIt counts with. The rest of the label is in euOf. */
+/** The five figures Visuma counts with. The rest of the label is in euOf. */
 export function per100Of(nutriments: unknown): Per100 {
   const n = (nutriments && typeof nutriments === 'object' ? nutriments : {}) as Raw
   return {
@@ -500,7 +500,7 @@ export function stateOf(categories: string[]): Food['state'] {
 }
 
 /** The row a product becomes in the person's own foods. Figures are per 100 g
- *  as everywhere else in GetIt; the pack size makes the shopping list count
+ *  as everywhere else in Visuma; the pack size makes the shopping list count
  *  packs; the barcode stops the same product being added twice. */
 export function foodFields(p: Product, ownerId: string): Partial<Food> {
   return {
@@ -530,7 +530,7 @@ export function foodFields(p: Product, ownerId: string): Partial<Food> {
   }
 }
 
-/** GetIt's own namespace for product ids. Fixed for good: changing it would
+/** Visuma's own namespace for product ids. Fixed for good: changing it would
  *  give every product a new id. */
 export const PRODUCT_NAMESPACE = '8fc021ee-4147-4dc5-8664-850cbabd250d'
 
@@ -684,7 +684,7 @@ function hostOf(url: string): string | null {
 // ---- staying within the limits -------------------------------------------------------
 
 /** At most `limit` requests in any `windowMs`. Open Food Facts allows 10
- *  searches and 15 product reads a minute from one address; GetIt keeps a
+ *  searches and 15 product reads a minute from one address; Visuma keeps a
  *  little under that, so a person tapping quickly never gets it blocked. */
 export class RateLimiter {
   private stamps: number[] = []

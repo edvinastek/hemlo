@@ -1,4 +1,4 @@
-/** Recipes in and out of GetIt (DATA-05, REC-07): GetIt's own JSON, a CSV
+/** Recipes in and out of Visuma (DATA-05, REC-07): Visuma's own JSON, a CSV
  *  with one ingredient a row, and schema.org Recipe (the JSON-LD most recipe
  *  sites carry), read from a file, from a page's source pasted in, or from
  *  plain text ("200 g oats, 2 eggs"). Pure: the caller matches ingredient
@@ -6,6 +6,7 @@
 
 import { plainFractions, pluralOf, readQty, findUnit, defaultUnit, readUnits, gramsOf, type FoodUnit } from './units-rules.ts'
 import { roleLabel, ROLES } from './recipe-rules.ts'
+import { RECIPES_FORMAT, isFormat } from './file-format-rules.ts'
 
 // ---- what an import reads into ----------------------------------------------------------
 
@@ -20,7 +21,7 @@ export interface ImportedLine {
   unit: string | null
   note: string | null
   state: 'raw' | 'cooked' | null
-  /** From a GetIt file: the amount a portion, in grams, and the food's NEVO
+  /** From a Visuma file: the amount a portion, in grams, and the food's NEVO
    *  code, so the same food is found again. */
   grams_per_portion?: number | null
   nevo_code?: number | null
@@ -35,7 +36,7 @@ export interface ImportedRecipe {
   minutes: number | null
   steps: string | null
   lines: ImportedLine[]
-  /** Where it came from, when known ("schema.org", "GetIt file"). */
+  /** Where it came from, when known ("schema.org", "Visuma file"). */
   from: string
 }
 
@@ -202,19 +203,19 @@ export function jsonLdBlocks(html: string): unknown[] {
   return out
 }
 
-// ---- GetIt's own file, CSV and plain text ----------------------------------------------------
+// ---- Visuma's own file, CSV and plain text ----------------------------------------------------
 
-export const FORMAT = 'getit-recipes'
+export const FORMAT = RECIPES_FORMAT
 
 export interface ExportLine { text: string; food: string | null; nevo_code: number | null; grams_per_portion: number | null; unit: string | null; unit_qty: number | null; state: string | null; note: string | null }
 export interface ExportRecipe { name: string; role: string | null; portions: number; minutes: number | null; steps: string | null; lines: ExportLine[]; per_portion?: Record<string, number> }
 
-/** GetIt's own recipe file: everything a recipe holds, amounts a portion. */
-export function toGetItJson(recipes: ExportRecipe[], attribution: string | null): string {
+/** Visuma's own recipe file: everything a recipe holds, amounts a portion. */
+export function toVisumaJson(recipes: ExportRecipe[], attribution: string | null): string {
   return JSON.stringify({ format: FORMAT, version: 1, ...(attribution ? { attribution } : {}), recipes }, null, 2)
 }
 
-function fromGetIt(o: Record<string, unknown>): ImportedRecipe[] {
+function fromVisuma(o: Record<string, unknown>): ImportedRecipe[] {
   const list = Array.isArray(o.recipes) ? o.recipes : []
   return list.filter((r): r is Record<string, unknown> => !!r && typeof r === 'object').map((r) => ({
     name: String(r.name ?? 'Imported recipe').slice(0, 120),
@@ -232,7 +233,7 @@ function fromGetIt(o: Record<string, unknown>): ImportedRecipe[] {
       state: l.state === 'cooked' ? 'cooked' : l.state === 'raw' ? 'raw' : null,
       note: typeof l.note === 'string' ? l.note : null,
     })),
-    from: 'GetIt file',
+    from: 'Visuma file',
   }))
 }
 
@@ -335,7 +336,7 @@ export function readRecipes(input: string): { recipes: ImportedRecipe[]; kind: s
   if (/^[[{]/.test(t)) {
     try {
       const json = JSON.parse(t)
-      if (json && typeof json === 'object' && (json as Record<string, unknown>).format === FORMAT) return { recipes: fromGetIt(json as Record<string, unknown>), kind: 'GetIt file' }
+      if (json && typeof json === 'object' && isFormat((json as Record<string, unknown>).format, FORMAT)) return { recipes: fromVisuma(json as Record<string, unknown>), kind: 'Visuma file' }
       const ld = recipesInJsonLd(json)
       if (ld.length) return { recipes: ld, kind: 'schema.org' }
     } catch { /* not JSON after all: read as text */ }
@@ -408,7 +409,7 @@ export interface PlannedRecipe {
 type Matchable = { id: string; name: string; nevo_code?: number | null; units?: unknown; per_ml?: boolean; density?: number | string | null }
 
 /** Recipes read from a file or a page, as rows to save: each line matched to
- *  a food (`match` finds one by name; a GetIt file's NEVO code finds it
+ *  a food (`match` finds one by name; a Visuma file's NEVO code finds it
  *  first), its amount for the whole batch turned into grams a portion, in the
  *  food's unit where it was counted. A line that finds no food, or whose
  *  amount the food cannot weigh, is kept as a line of text. */
@@ -426,7 +427,7 @@ export function planRecipes<T extends Matchable>(recipes: ImportedRecipe[], food
     for (const l of r.lines) {
       const food = (l.nevo_code ? byCode.get(l.nevo_code) : undefined) ?? match(l.name)
       const said = l.text.slice(0, 200)
-      // A GetIt file says the grams a portion itself.
+      // A Visuma file says the grams a portion itself.
       if (food && l.grams_per_portion != null && l.grams_per_portion > 0) {
         out.lines.push({ food_id: food.id, raw_text: said, grams_per_portion: round(l.grams_per_portion), unit: l.unit_name && l.unit_qty ? l.unit_name : null,
           unit_qty: l.unit_name && l.unit_qty ? l.unit_qty : null, state: l.state, note: clip(l.note) })

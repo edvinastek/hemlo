@@ -29,6 +29,7 @@ export interface Tab { key: string; name: string }
 
 /** The tab a module page was last left on, kept on this device only. */
 export function useTab(moduleKey: string, tabs: Tab[]): [string, (k: string) => void] {
+  // The name from before Visuma, kept: renaming it would lose what is stored under it.
   const storeKey = `getit:tab:${moduleKey}`
   const [tab, setTab] = useState<string>(() => {
     try { return localStorage.getItem(storeKey) ?? '' } catch { return '' }

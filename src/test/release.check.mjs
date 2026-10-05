@@ -24,7 +24,7 @@ const eq = (label, got, want) => {
 
 // The real list of migrations, with stand-in contents.
 const real = listMigrations(MIGRATIONS).map((f) => f.name)
-const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'getit-release-'))
+const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'visuma-release-'))
 for (const n of real) fs.writeFileSync(path.join(dir, n), `-- ${n}\ncreate table x_${n.slice(0, 3)} ();`)
 const ids = real.map((n) => n.slice(0, 3))
 const upTo = (id) => ids.filter((i) => i <= id)
@@ -128,7 +128,7 @@ eq('a line that is not NAME=value is refused', refused.startsWith('release.secre
 eq('Vault SQL quotes the value', vaultSql("it's").includes("'it''s'"), true)
 
 const secretsFile = path.join(dir, 'release.secrets.env')
-fs.writeFileSync(secretsFile, 'TELEGRAM_BOT_TOKEN=999:VALUE-one\nTELEGRAM_CRON_SECRET=VALUE-two\nTELEGRAM_BOT_NAME=GetItPlannerBot\n')
+fs.writeFileSync(secretsFile, 'TELEGRAM_BOT_TOKEN=999:VALUE-one\nTELEGRAM_CRON_SECRET=VALUE-two\nTELEGRAM_BOT_NAME=VisumaPlannerBot\n')
 const sent = []
 const logged = []
 const ok = await setSecrets('sbp_test', { dryRun: false, log: (s) => logged.push(s), file: secretsFile, fetchFn: async (url, init) => {

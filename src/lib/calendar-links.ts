@@ -136,7 +136,7 @@ async function doRefresh(sub: CalendarSubscription): Promise<RefreshResult> {
   const answer = (data ?? {}) as { ok?: boolean; ics?: string; error?: string; fetched_at?: string; at?: string }
   const at = answer.fetched_at ?? answer.at ?? new Date().toISOString()
   if (error || !answer.ok || typeof answer.ics !== 'string') {
-    const message = withoutAddresses(answer.error ?? (error ? 'GetIt’s server could not be reached. It will try again later.' : 'The calendar could not be read.'))
+    const message = withoutAddresses(answer.error ?? (error ? 'Visuma’s server could not be reached. It will try again later.' : 'The calendar could not be read.'))
     // Not asked for again for an hour, unless the person asks.
     failedAt.set(sub.id, Date.now())
     // The server wrote this down too; the copy here shows it at once.
@@ -168,7 +168,7 @@ async function doRefresh(sub: CalendarSubscription): Promise<RefreshResult> {
     await db.calendar_subscription.update(sub.id, { last_synced_at: at, last_error: null })
   })
   const notes = [...read.problems]
-  if (truncated) notes.push('The calendar has more events than GetIt keeps; the first 5000 in the window are shown.')
+  if (truncated) notes.push('The calendar has more events than Visuma keeps; the first 5000 in the window are shown.')
   return { ok: true, added: plan.add.length, changed: plan.update.length, removed: plan.remove.length, total: events.length, notes }
 }
 

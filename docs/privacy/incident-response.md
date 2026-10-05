@@ -1,8 +1,8 @@
-Not legal advice: drafted from public sources, and to be checked by someone qualified before GetIt launches publicly.
+Not legal advice: drafted from public sources, and to be checked by someone qualified before Visuma launches publicly.
 
 # Breach plan
 
-For one person running GetIt. A personal data breach is any security incident
+For one person running Visuma. A personal data breach is any security incident
 that leads to personal data being lost, destroyed, changed, disclosed or
 accessed without authorisation, including by accident. Losing the database with
 no backup counts, as does a policy mistake that lets one account read another's
@@ -41,7 +41,7 @@ Stop it getting worse. Pick what fits; most incidents need one or two of these.
 **A secret key leaked** (anything starting `sb_secret_`, or a legacy `service_role` key). The secret key bypasses row-level security, so treat this as full database access.
 
 1. Supabase → Project Settings → API Keys → create a new secret key.
-2. Put it wherever it is used (GetIt's app never uses one; check scripts and CI secrets).
+2. Put it wherever it is used (Visuma's app never uses one; check scripts and CI secrets).
 3. Delete the leaked key. For a legacy `service_role` key, deactivate the legacy keys in the same section ([Supabase API keys](https://supabase.com/docs/guides/api/api-keys)).
 
 **The publishable key was abused** (for example sign-up spam). It ships in every build and is public by design; row-level security protects the data. Do not rotate it unless you must, because the installed app stops working until a new build is out. Instead close sign-ups (below).
@@ -116,7 +116,7 @@ send a follow-up with the same number.
 By email, from the contact address, to the affected people only, in plain
 language ([art. 34(2)](https://gdpr-info.eu/art-34-gdpr/)):
 
-> Subject: A security problem with your GetIt account
+> Subject: A security problem with your Visuma account
 >
 > On [date], [what happened, in one or two sentences]. It affected [which data, for example your weigh-ins and food log from 1 to 14 March].
 >
@@ -128,7 +128,7 @@ language ([art. 34(2)](https://gdpr-info.eu/art-34-gdpr/)):
 >
 > I have reported this to the Autoriteit Persoonsgegevens. If you have questions, reply to this email. You can also complain to the Autoriteit Persoonsgegevens.
 >
-> [Name], GetIt
+> [Name], Visuma
 
 ## 6. Record
 

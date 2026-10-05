@@ -1,9 +1,9 @@
 // Checks recipes in and out (DATA-05, REC-07): an ingredient line read
 // ("2 tbsp olive oil, warmed"), its grams from the food it was matched to,
-// schema.org Recipe from JSON-LD and from a page's source, GetIt's own file,
+// schema.org Recipe from JSON-LD and from a page's source, Visuma's own file,
 // CSV both ways, plain text, and schema.org written out.
 import {
-  readLine, lineGrams, isoMinutes, isoDuration, yieldPortions, recipesInJsonLd, jsonLdBlocks, readRecipes, toGetItJson,
+  readLine, lineGrams, isoMinutes, isoDuration, yieldPortions, recipesInJsonLd, jsonLdBlocks, readRecipes, toVisumaJson,
   toCsv, csvRows, toSchemaOrg, CSV_HEAD, planRecipes,
 } from '../lib/recipe-io-rules.ts'
 
@@ -67,7 +67,7 @@ is('JSON-LD in a page’s source, a broken block skipped', jsonLdBlocks(page).le
 is('a page read as schema.org', [readRecipes(page).kind, readRecipes(page).recipes[0].name], ['schema.org', 'Shakshuka'])
 is('a page with no recipe data says so', readRecipes('<script type="application/ld+json">{"@type":"WebPage"}</script>').kind, 'a page without recipe data')
 
-// GetIt's own file, out and back.
+// Visuma's own file, out and back.
 const mine = [{
   name: 'Oat bowl', role: 'breakfast', portions: 2, minutes: 10, steps: 'Stir.',
   lines: [
@@ -77,13 +77,16 @@ const mine = [{
   ],
   per_portion: { kcal: 278, protein_g: 18, fat_g: 11.8, carbs_g: 24, salt_g: 0.35 },
 }]
-const file = toGetItJson(mine, 'Based on data from NEVO online version 2025/9.0, RIVM, Bilthoven')
+const file = toVisumaJson(mine, 'Based on data from NEVO online version 2025/9.0, RIVM, Bilthoven')
 const back = readRecipes(file)
-is('a GetIt file is known', back.kind, 'GetIt file')
+is('a Visuma file is known', back.kind, 'Visuma file')
 is('the recipe comes back whole', [back.recipes[0].name, back.recipes[0].role, back.recipes[0].portions, back.recipes[0].minutes, back.recipes[0].steps], ['Oat bowl', 'breakfast', 2, 10, 'Stir.'])
 is('lines keep grams a portion, NEVO code, unit and note', back.recipes[0].lines.map((l) => [l.name, l.grams_per_portion, l.nevo_code, l.unit_name, l.unit_qty, l.note]),
   [['Oat flakes', 40, 213, null, null, null], ['Egg average, raw', 100, 83, 'egg', 2, 'beaten'], ['Salt to taste', null, null, null, null, null]])
 is('the file carries the attribution', JSON.parse(file).attribution, 'Based on data from NEVO online version 2025/9.0, RIVM, Bilthoven')
+is('the file says visuma-recipes', JSON.parse(file).format, 'visuma-recipes')
+const oldFile = readRecipes(file.replace('"visuma-recipes"', '"getit-recipes"'))
+is('a file made when the app was GetIt still reads', [oldFile.kind, oldFile.recipes[0]?.name], ['Visuma file', 'Oat bowl'])
 
 // CSV, out and back.
 const csv = toCsv(mine)
@@ -126,7 +129,7 @@ is('400 g tinned tomatoes: 200 g a portion', [pl.lines[1].food_id, pl.lines[1].g
 is('a note travels with the line', pl.lines[2].note, 'chopped')
 is('counted matches', [pl.matched, pl.unmatched], [3, []])
 const [gp] = planRecipes(readRecipes(file).recipes, cat, () => null)
-is('a GetIt file finds foods by their NEVO code', gp.lines.map((l) => l.food_id), ['oats', 'egg', null])
+is('a Visuma file finds foods by their NEVO code', gp.lines.map((l) => l.food_id), ['oats', 'egg', null])
 is('… keeps its grams a portion and its unit', [gp.lines[1].grams_per_portion, gp.lines[1].unit, gp.lines[1].unit_qty], [100, 'egg', 2])
 is('… and keeps unknown lines as text', gp.unmatched, ['Salt to taste'])
 const [nf] = planRecipes(readRecipes('Toast\n1 tbsp mystery paste\n2 slices bread').recipes, cat, () => null)

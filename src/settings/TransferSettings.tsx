@@ -191,7 +191,7 @@ export function TransferSettings() {
           <>
             <p className="tx-note">
               {d.store === 'backup'
-                ? 'A backup file from GetIt, read into the profile that is open. Nothing is saved until you confirm.'
+                ? 'A backup file from Visuma, read into the profile that is open. Nothing is saved until you confirm.'
                 : `From ${d.imports.map((f) => FORMATS[f].label).join(', ')}. Columns are matched by name; nothing is saved until you confirm, and rows already here are skipped.`}
             </p>
             <div className="tx-actions">

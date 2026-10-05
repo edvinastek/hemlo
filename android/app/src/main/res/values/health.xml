@@ -2,10 +2,10 @@
 <!-- Sleep from Health Connect (SLP-05): the screen Health Connect opens from
      its permission screen and its settings (health/HealthPrivacyActivity). -->
 <resources>
-    <string name="health_privacy_title">GetIt and Health Connect</string>
-    <string name="health_privacy_what">GetIt reads one thing from Health Connect: your sleep sessions, with the sleep stages when there are any. It reads them only when you choose Import from Health Connect on the Sleep page, and only for the days you pick.</string>
-    <string name="health_privacy_kept">Each night it imports becomes a night on the Sleep page, kept with the rest of your GetIt data in your account so it is on your other devices too. GetIt never writes to Health Connect, never reads anything else from it, and never shares, sells or advertises with what it reads.</string>
-    <string name="health_privacy_stop">You can take the permission back at any time in Health Connect. Nights already imported stay in GetIt until you delete them.</string>
+    <string name="health_privacy_title">Visuma and Health Connect</string>
+    <string name="health_privacy_what">Visuma reads one thing from Health Connect: your sleep sessions, with the sleep stages when there are any. It reads them only when you choose Import from Health Connect on the Sleep page, and only for the days you pick.</string>
+    <string name="health_privacy_kept">Each night it imports becomes a night on the Sleep page, kept with the rest of your Visuma data in your account so it is on your other devices too. Visuma never writes to Health Connect, never reads anything else from it, and never shares, sells or advertises with what it reads.</string>
+    <string name="health_privacy_stop">You can take the permission back at any time in Health Connect. Nights already imported stay in Visuma until you delete them.</string>
     <string name="health_privacy_policy">Privacy policy</string>
     <!-- The public privacy policy, the same one given in Play Console
          (https://<site-name>.netlify.app/privacy.html). Health Connect asks

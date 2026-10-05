@@ -138,10 +138,10 @@ is('chore and slot ticks', latestTicks([
 ]).length, 2)
 
 // A stats widget's tap opens the view in the app.
-is('widget link to a path', widgetPath('app.getit.planner://open/stats?view=abc'), '/stats?view=abc')
-is('the bare link opens the app', widgetPath('app.getit.planner://open'), '/')
-is('an auth link is not ours', widgetPath('app.getit.planner://auth-callback?code=1'), null)
-is('no leaving the app', widgetPath('app.getit.planner://open//evil.example'), null)
+is('widget link to a path', widgetPath('app.visuma.planner://open/stats?view=abc'), '/stats?view=abc')
+is('the bare link opens the app', widgetPath('app.visuma.planner://open'), '/')
+is('an auth link is not ours', widgetPath('app.visuma.planner://auth-callback?code=1'), null)
+is('no leaving the app', widgetPath('app.visuma.planner://open//evil.example'), null)
 
 // The widgets' colours (LOOK-09): plain colours only, else the default's.
 is('palette takes hex colours', widgetPalette({ paper: '#000000', ink: 'red' }, WIDGET_LIGHT).paper, '#000000')

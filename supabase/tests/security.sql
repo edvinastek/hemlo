@@ -1,4 +1,4 @@
--- GetIt security checks. Every attack from the 012 review, tried for real.
+-- Visuma security checks. Every attack from the 012 review, tried for real.
 -- Runs inside a transaction and rolls back, so it leaves nothing behind and can
 -- run against the live project. Each row: what was tried, what must happen,
 -- what did happen. Any row where the last two differ is a hole.

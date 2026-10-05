@@ -78,10 +78,10 @@ const thu = calendarEvent({ id: 'e5', title: 'Swim', starts_at: '2026-10-06T17:0
 eq('it starts on the first day the rule gives, an hour long', [thu.start, thu.end], [{ kind: 'local', date: '2026-10-08', time: '19:00' }, { kind: 'local', date: '2026-10-08', time: '20:00' }])
 
 // ---- the file ----------------------------------------------------------------
-const file = buildCalendar([taskEvent(task()), taskEvent(task({ id: 't2', planned_time: null })), ev], { stamp: STAMP, name: 'GetIt, week 40', timezone: AMS })
+const file = buildCalendar([taskEvent(task()), taskEvent(task({ id: 't2', planned_time: null })), ev], { stamp: STAMP, name: 'Visuma, week 40', timezone: AMS })
 eq('lines end in CRLF', file.split('\r\n').length > 5 && !/[^\r]\n/.test(file), true)
 eq('file ends with CRLF', file.endsWith('END:VCALENDAR\r\n'), true)
-eq('header', file.split('\r\n').slice(0, 7), ['BEGIN:VCALENDAR', 'VERSION:2.0', `PRODID:${PRODID}`, 'CALSCALE:GREGORIAN', 'METHOD:PUBLISH', 'X-WR-CALNAME:GetIt\\, week 40', 'X-WR-TIMEZONE:Europe/Amsterdam'])
+eq('header', file.split('\r\n').slice(0, 7), ['BEGIN:VCALENDAR', 'VERSION:2.0', `PRODID:${PRODID}`, 'CALSCALE:GREGORIAN', 'METHOD:PUBLISH', 'X-WR-CALNAME:Visuma\\, week 40', 'X-WR-TIMEZONE:Europe/Amsterdam'])
 eq('every line is at most 75 bytes', file.split('\r\n').every((l) => bytes(l) <= 75), true)
 eq('timed task is floating local time', file.includes('DTSTART:20260928T093000\r\nDTEND:20260928T101500'), true)
 eq('untimed task is VALUE=DATE', file.includes('DTSTART;VALUE=DATE:20260928\r\nDTEND;VALUE=DATE:20260929'), true)
@@ -344,7 +344,7 @@ const pickedFile = buildCalendar(seriesEvents(s('dates', { rule_config: { dates:
 eq('days picked by hand come back as picked days', parseIcs(pickedFile, { zone: AMS, today: '2026-09-27' }).events[0].series,
   { rule: 'dates', rule_config: { dates: ['2026-10-02', '2026-10-09', '2026-11-20'] }, start_date: '2026-10-02', end_date: '2026-11-20', occurrence_count: null })
 
-// Repeats an RRULE cannot say: GetIt's own line.
+// Repeats an RRULE cannot say: Visuma's own line.
 eq('after: no RRULE', seriesRule(s('daily', { rule_config: { n: 7, mode: 'after' } }), false), null)
 eq('after: its own line', looseRepeat({ rule: 'daily', rule_config: { n: 7, mode: 'after' } }), 'MODE=AFTER;DAYS=7')
 eq('flexible: its own line', looseRepeat({ rule: 'daily', rule_config: { n: 10, mode: 'flexible' } }), 'MODE=FLEXIBLE;DAYS=10')
@@ -358,21 +358,25 @@ eq('a loose series goes as its tasks, not as a repeat', seriesEvents(s('daily', 
 // Habits, chores, supplements and payments (scheduleEvent).
 const habitX = { id: 'h1', kind: 'habit', title: 'Stretch', rule: 'weekly', rule_config: { weekdays: [1, 3] }, start_date: '2026-09-28', end_date: null, time: '07:30', minutes: 15 }
 const he = scheduleEvent(habitX)
-eq('a habit repeats with its RRULE', [he.rrule, he.start, he.getit], ['FREQ=WEEKLY;BYDAY=MO,WE;WKST=MO', { kind: 'local', date: '2026-09-28', time: '07:30' }, { kind: 'habit', repeat: null }])
+eq('a habit repeats with its RRULE', [he.rrule, he.start, he.visuma], ['FREQ=WEEKLY;BYDAY=MO,WE;WKST=MO', { kind: 'local', date: '2026-09-28', time: '07:30' }, { kind: 'habit', repeat: null }])
 const tpw = scheduleEvent({ ...habitX, rule: 'times_per_week', rule_config: { times: 3 }, start_date: '2026-10-01', time: null })
-eq('3 times a week: weekly from its first Monday, all day, with its line', [tpw.rrule, tpw.start, tpw.getit.repeat], ['FREQ=WEEKLY;BYDAY=MO;WKST=MO', { kind: 'date', date: '2026-09-28' }, 'TIMES=3'])
+eq('3 times a week: weekly from its first Monday, all day, with its line', [tpw.rrule, tpw.start, tpw.visuma.repeat], ['FREQ=WEEKLY;BYDAY=MO;WKST=MO', { kind: 'date', date: '2026-09-28' }, 'TIMES=3'])
 const choreX = scheduleEvent({ id: 'c1', kind: 'chore', title: 'Descale the kettle', rule: 'daily', rule_config: { n: 30, mode: 'after' }, start_date: '2026-01-01', end_date: null, time: null, next: '2026-10-20' })
-eq('an "after" chore: one event on its next day, with its line', [choreX.rrule ?? null, choreX.start, choreX.getit], [null, { kind: 'date', date: '2026-10-20' }, { kind: 'chore', repeat: 'MODE=AFTER;DAYS=30' }])
+eq('an "after" chore: one event on its next day, with its line', [choreX.rrule ?? null, choreX.start, choreX.visuma], [null, { kind: 'date', date: '2026-10-20' }, { kind: 'chore', repeat: 'MODE=AFTER;DAYS=30' }])
 eq('…none once it has ended', scheduleEvent({ id: 'c1', kind: 'chore', title: 'x', rule: 'daily', rule_config: { n: 30, mode: 'after' }, start_date: '2026-01-01', end_date: '2026-10-01', time: null, next: '2026-10-20' }), null)
 const payX = scheduleEvent({ id: 'p1', kind: 'payment', title: 'Rent due', rule: 'monthly', rule_config: { day_of_month: 1 }, start_date: '2026-10-01', end_date: null, time: null })
 eq('a planned payment: monthly', payX.rrule, 'FREQ=MONTHLY;BYMONTHDAY=1')
 eq('a payment once: one day', scheduleEvent({ id: 'p2', kind: 'payment', title: 'Car tax', rule: null, rule_config: null, start_date: '2026-11-15', end_date: null, time: null }).start, { kind: 'date', date: '2026-11-15' })
 const xfile = buildCalendar([he, tpw, choreX], { stamp: STAMP })
-eq('the file carries GetIt\'s lines', [xfile.includes('X-GETIT-KIND:habit'), xfile.includes('X-GETIT-REPEAT:TIMES=3'), xfile.includes('X-GETIT-REPEAT:MODE=AFTER;DAYS=30')], [true, true, true])
+eq('the file carries Visuma\'s lines', [xfile.includes('X-VISUMA-KIND:habit'), xfile.includes('X-VISUMA-REPEAT:TIMES=3'), xfile.includes('X-VISUMA-REPEAT:MODE=AFTER;DAYS=30'), xfile.includes('X-GETIT')], [true, true, true, false])
 const readBack = parseIcs(xfile, { zone: AMS, today: '2026-09-27' }).events
 eq('read back: the habit with its rule', [readBack[0].kind, readBack[0].series?.rule, readBack[0].series?.rule_config], ['habit', 'weekly', { weekdays: [1, 3] }])
 eq('read back: 3 times a week', [readBack[1].kind, readBack[1].repeat], ['habit', { rule: 'times_per_week', rule_config: { times: 3 } }])
 eq('read back: the "after" chore', [readBack[2].kind, readBack[2].date, readBack[2].repeat], ['chore', '2026-10-20', { rule: 'daily', rule_config: { n: 30, mode: 'after' } }])
+// A file written before version 21, when the app was called GetIt, has X-GETIT-… lines: they read the same.
+const oldBack = parseIcs(xfile.replaceAll('X-VISUMA-', 'X-GETIT-'), { zone: AMS, today: '2026-09-27' }).events
+eq('an old GetIt file reads the same', oldBack.map((e) => [e.kind, e.repeat]), readBack.map((e) => [e.kind, e.repeat]))
+eq('an old GetIt file: kinds and repeats are there', oldBack.map((e) => e.kind), ['habit', 'habit', 'chore'])
 
 console.log(fail ? `\n${fail} failed` : '\nall passed')
 process.exit(fail ? 1 : 0)
