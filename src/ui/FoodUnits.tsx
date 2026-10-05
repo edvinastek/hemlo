@@ -2,6 +2,7 @@ import { useId, useState, type FormEvent } from 'react'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { db } from '../lib/db'
 import { useApp } from '../lib/store'
+import { ShopNameLinks } from './ShopNameLinks'
 import { edit } from '../lib/write'
 import {
   LABEL, PORTIE_ATTRIBUTION, NEVO_ATTRIBUTION, USDA_UNITS_ATTRIBUTION, energyCheck, figureOf, figureText, riPercent, sodiumOf, sourceKind,
@@ -157,7 +158,7 @@ export function FoodUnitsSheet({ food: given, onClose }: { food: Food; onClose: 
           <div><dt>State</dt> <dd>{food.state}{food.cook_yield ? ` · cooks to ${Number(food.cook_yield)}× its weight` : ''}</dd></div>
           {food.pack_size_g ? <div><dt>Pack</dt> <dd>{Number(food.pack_size_g)} g</dd></div> : null}
           {food.store_section ? <div><dt>Aisle</dt> <dd>{food.store_section}</dd></div> : null}
-          {food.stores?.length ? <div><dt>Shops</dt> <dd>{food.stores.join(', ')}</dd></div> : null}
+          {food.stores?.length ? <div><dt>Shops</dt> <dd><ShopNameLinks names={food.stores} query={food.name} /></dd></div> : null}
           {food.density ? <div><dt>Weighs</dt> <dd>{Number(food.density)} g per ml</dd></div> : null}
           {food.source_note ? (kind === 'nevo'
             ? <div><dt>NEVO’s note</dt> <dd lang="nl">{food.source_note}</dd></div>
