@@ -1,8 +1,9 @@
 /** The shops a person can pick from in Stores (SHOP-32, SHOP-36): the
  *  supermarket chains of the Netherlands, Germany and Belgium, those of the
  *  person's own country first. Anything else is typed. No shop's catalogue,
- *  prices or offers are fetched; only the chain's name is offered. Pure:
- *  checked in src/test/shopping.check.mjs. */
+ *  prices or offers are fetched; only the chain's name is offered, and links
+ *  to its own offers page and site search. Pure: checked in
+ *  src/test/shopping.check.mjs and src/test/shoplinks.check.mjs. */
 
 import { fold, search } from './search-rules.ts'
 
@@ -21,7 +22,7 @@ export const CHAINS: Record<string, Chain[]> = {
   ],
   DE: [
     { name: 'Edeka' }, { name: 'Rewe' }, { name: 'Lidl' }, { name: 'Aldi' }, { name: 'Kaufland' }, { name: 'Penny' },
-    { name: 'Netto' }, { name: 'Norma' }, { name: 'Globus' },
+    { name: 'Netto' }, { name: 'Norma' }, { name: 'Globus' }, { name: 'Aldi Süd' },
   ],
   BE: [
     { name: 'Colruyt' }, { name: 'Delhaize' }, { name: 'Carrefour' }, { name: 'Lidl' }, { name: 'Aldi' }, { name: 'Albert Heijn' },
@@ -60,43 +61,138 @@ export function suggestShops(country: string | null | undefined, kept: string[],
   return search(out.map((s) => ({ ...s, recent: out.length - (rank.get(s.name) ?? 0) })), query)
 }
 
-/** Each chain's own weekly offers page (PRICE-06), by country. Only the
- *  retailer's official site: GetIt opens it in the browser and copies
- *  nothing from it. A chain with no page here gets no link. Checked by hand
- *  on 3 October 2026. */
-export const OFFERS: Record<string, Record<string, string>> = {
+/** Each chain's own pages, by country (PRICE-06, PRICE-07, PRICE-08): its
+ *  weekly offers page and its site search, where `{q}` stands for the words
+ *  searched. Only the retailer's official site: Visuma opens it in the
+ *  browser and copies nothing from it. A chain with no search here has none
+ *  that opens from a link (or none that could be confirmed); its offers page
+ *  still shows. Checked by hand on the date below, and every month by
+ *  scripts/check-shop-links.mjs. */
+export interface ShopLinks { offers?: string; search?: string }
+
+export const LINKS_CHECKED = '2026-10-05'
+
+export const LINKS: Record<string, Record<string, ShopLinks>> = {
   NL: {
-    albertheijn: 'https://www.ah.nl/bonus', jumbo: 'https://www.jumbo.com/aanbiedingen', lidl: 'https://www.lidl.nl/c/aanbiedingen/a10008785',
-    aldi: 'https://www.aldi.nl/aanbiedingen.html', plus: 'https://www.plus.nl/aanbiedingen', dirk: 'https://www.dirk.nl/aanbiedingen',
-    dekamarkt: 'https://www.dekamarkt.nl/aanbiedingen', hoogvliet: 'https://www.hoogvliet.com/aanbiedingen',
-    // Coop's shops became Plus shops; its old offers page leads there.
-    coop: 'https://www.plus.nl/aanbiedingen', spar: 'https://www.spar.nl/aanbiedingen/', vomar: 'https://www.vomar.nl/folders',
-    poiesz: 'https://webwinkel.poiesz-supermarkten.nl/aanbiedingen',
+    albertheijn: { offers: 'https://www.ah.nl/bonus', search: 'https://www.ah.nl/zoeken?query={q}' },
+    jumbo: { offers: 'https://www.jumbo.com/aanbiedingen/nu', search: 'https://www.jumbo.com/producten/?searchType=keyword&searchTerms={q}' },
+    lidl: { offers: 'https://www.lidl.nl/c/aanbiedingen/a10008785', search: 'https://www.lidl.nl/q/search?q={q}' },
+    aldi: { offers: 'https://www.aldi.nl/aanbiedingen.html', search: 'https://www.aldi.nl/zoeken.html?query={q}' },
+    plus: { offers: 'https://www.plus.nl/aanbiedingen', search: 'https://www.plus.nl/zoekresultaten?SearchTerm={q}' },
+    dirk: { offers: 'https://www.dirk.nl/aanbiedingen', search: 'https://www.dirk.nl/zoeken/producten/{q}' },
+    dekamarkt: { offers: 'https://www.dekamarkt.nl/aanbiedingen', search: 'https://www.dekamarkt.nl/zoeken/{q}' },
+    // Hoogvliet moved from hoogvliet.com to hoogvliet.nl.
+    hoogvliet: { offers: 'https://hoogvliet.nl/aanbiedingen', search: 'https://hoogvliet.nl/search/{q}' },
+    // Coop's shops became Plus shops; coop.nl leads to plus.nl.
+    coop: { offers: 'https://www.plus.nl/aanbiedingen', search: 'https://www.plus.nl/zoekresultaten?SearchTerm={q}' },
+    spar: { offers: 'https://www.spar.nl/aanbiedingen/', search: 'https://www.spar.nl/zoek/?fq={q}' },
+    vomar: { offers: 'https://www.vomar.nl/folders', search: 'https://www.vomar.nl/zoeken?search={q}' },
+    poiesz: { offers: 'https://webwinkel.poiesz-supermarkten.nl/aanbiedingen', search: 'https://webwinkel.poiesz-supermarkten.nl/boodschappen/zoeken?query={q}' },
+    // Picnic lives in its app: no offers page or search on the web.
+    picnic: {},
   },
   DE: {
-    edeka: 'https://www.edeka.de/eh/angebote.jsp', rewe: 'https://www.rewe.de/angebote/', lidl: 'https://www.lidl.de/c/online-prospekte/s10005610',
-    aldi: 'https://www.aldi-nord.de/angebote.html', kaufland: 'https://filiale.kaufland.de/angebote/uebersicht.html',
-    penny: 'https://www.penny.de/angebote', netto: 'https://www.netto-online.de/angebote', norma: 'https://www.norma-online.de/de/angebote/',
-    globus: 'https://www.globus.de/angebote',
+    // Edeka's product search could not be confirmed (its site turns robots away).
+    edeka: { offers: 'https://www.edeka.de/angebote/' },
+    rewe: { offers: 'https://www.rewe.de/angebote/', search: 'https://www.rewe.de/shop/productList?search={q}' },
+    lidl: { offers: 'https://www.lidl.de/c/online-prospekte/s10005610', search: 'https://www.lidl.de/q/search?q={q}' },
+    // "Aldi" in Germany is Aldi Nord, the Aldi of the Dutch and Belgian border.
+    aldi: { offers: 'https://www.aldi-nord.de/angebote.html', search: 'https://www.aldi-nord.de/suchergebnisse.html?query={q}' },
+    // Aldi Süd's search could not be confirmed (its site turns robots away).
+    aldisud: { offers: 'https://www.aldi-sued.de/angebote' },
+    kaufland: { offers: 'https://filiale.kaufland.de/angebote/uebersicht.html', search: 'https://filiale.kaufland.de/suche.html?q={q}' },
+    // Penny's site has offers and a shop finder, no product search.
+    penny: { offers: 'https://www.penny.de/angebote' },
+    netto: {
+      offers: 'https://www.netto-online.de/filialangebote',
+      search: 'https://www.netto-online.de/INTERSHOP/web/WFS/Plus-NettoDE-Site/de_DE/-/EUR/ViewMMPParametricSearch-SimpleOfferSearch?SearchTerm={q}',
+    },
+    norma: { offers: 'https://www.norma-online.de/de/angebote/', search: 'https://www.norma-online.de/de/suchergebnis?q={q}' },
+    // Globus asks which of its halls first, then shows that hall's offers.
+    globus: { offers: 'https://www.globus.de/angebote', search: 'https://www.globus.de/searchdetail.php?query={q}' },
   },
   BE: {
-    colruyt: 'https://www.colruyt.be/nl/acties', aldi: 'https://www.aldi.be/onze-aanbiedingen.html', albertheijn: 'https://www.ah.be/bonus',
-    okay: 'https://www.okay.be/nl/promos/promoties', jumbo: 'https://www.jumbo.com/aanbiedingen',
+    colruyt: { offers: 'https://www.colruyt.be/nl/acties', search: 'https://www.colruyt.be/nl/producten?searchTerm={q}' },
+    delhaize: { offers: 'https://www.delhaize.be/nl/Promolandingpage', search: 'https://www.delhaize.be/nl/shop/search?q={q}' },
+    carrefour: { offers: 'https://www.carrefour.be/nl/al-onze-promoties', search: 'https://www.carrefour.be/nl/search?q={q}' },
+    lidl: { offers: 'https://www.lidl.be/c/nl-BE/acties-deze-week/a10082242', search: 'https://www.lidl.be/q/nl-BE/search?q={q}' },
+    aldi: { offers: 'https://www.aldi.be/aanbiedingen.html', search: 'https://www.aldi.be/zoekresultaten.html?query={q}' },
+    albertheijn: { offers: 'https://www.ah.be/bonus', search: 'https://www.ah.be/zoeken?query={q}' },
+    // Intermarché sells nothing online: its search finds its offers and folders.
+    intermarche: { offers: 'https://www.intermarche.be/nl/folders/', search: 'https://www.intermarche.be/nl/?s={q}' },
+    spar: { offers: 'https://www.spar.be/promoties' },
+    // Okay's site turns robots away, so its search could not be confirmed.
+    okay: { offers: 'https://www.okay.be/nl/promos/promoties' },
+    // Jumbo Belgium has offers but no product search of its own.
+    jumbo: { offers: 'https://www.jumbo.com/nl-be/aanbiedingen' },
   },
 }
 
-/** The offers page for a shop: the chain's page in the person's country,
- *  else in a country next door (a Dutch chain kept by someone over the
- *  border), else none. */
-export function offersUrl(shop: string, country: string | null | undefined): string | null {
-  const key = fold(shop).replace(/\s+/g, '')
+const keyOf = (shop: string) => fold(shop).replace(/\s+/g, '')
+
+/** A shop's pages: the chain's in the person's country; a chain that country
+ *  does not have, in a country next door (a Dutch chain kept by someone
+ *  over the border), else anywhere. A chain the person's country has keeps
+ *  its own pages even where one is missing: Jumbo in Belgium has no search,
+ *  and the Dutch one sells a different range. */
+export function shopLinks(shop: string, country: string | null | undefined): ShopLinks {
+  const key = keyOf(shop)
   const home = (country ?? '').toUpperCase()
-  const order = [home, ...(NEAR[home] ?? []), ...Object.keys(OFFERS)]
+  const order = [home, ...(NEAR[home] ?? []), ...Object.keys(LINKS)]
   for (const c of order) {
-    const url = OFFERS[c]?.[key]
-    if (url) return url
+    const links = LINKS[c]?.[key]
+    if (links) return links
   }
-  return null
+  return {}
+}
+
+/** The chain's weekly offers page, or none. */
+export function offersUrl(shop: string, country: string | null | undefined): string | null {
+  return shopLinks(shop, country).offers ?? null
+}
+
+/** The words to search a shop's site for: the item's name without the
+ *  amount, pack size or anything in brackets ("Halfvolle melk 1,5 l (AH)"
+ *  is "Halfvolle melk"). At most 60 characters, cut at a word. */
+export function searchWords(name: string): string {
+  let t = String(name ?? '').replace(/\([^)]*\)|\[[^\]]*\]/g, ' ')
+  // "6 x 330 ml", "2x", "1,5 l", "500g", "½ kg", "3 stuks": amounts, not words to search.
+  const amount = /(^|[\s,;/])(\d+([.,]\d+)?|[½¼¾])\s*(kg|kilo|g|gr|gram|grams|mg|l|ltr|liter|litre|litres|liters|ml|cl|dl|st|stuk|stuks|stk|stück|pcs|pieces?|packs?|pak|pakken|%)?(?=$|\s|[,;/](?!\d))/gi
+  const times = /(^|[\s,;/])(\d+|[½¼¾])\s*[x×](?=$|[\s\d])/gi
+  t = t.replace(times, ' ').replace(amount, ' ')
+  t = t.replace(/[,;/]+/g, ' ').replace(/\s+/g, ' ').trim()
+  if (t.length > 60) t = /\s/.test(t.slice(0, 61)) ? t.slice(0, 61).replace(/\s+\S*$/, '') : t.slice(0, 60)
+  return t
+}
+
+/** The chain's own site search for an item, or none: the item's name
+ *  (searchWords) in the link, URL-encoded. Nothing else of the person's
+ *  goes with it. */
+export function searchUrl(shop: string, country: string | null | undefined, query: string): string | null {
+  const template = shopLinks(shop, country).search
+  const words = searchWords(query)
+  if (!template || !words) return null
+  return template.replace('{q}', encodeURIComponent(words))
+}
+
+/** The shops to offer links for, in the order a sheet lists them: the
+ *  person's own first (the order they keep them in), then the other chains
+ *  of their country (or, with none, of the three countries) that have such
+ *  a page, each once. `kind` says which page. */
+export function linkShops(kept: string[], country: string | null | undefined, kind: keyof ShopLinks): { mine: string[]; more: string[] } {
+  const has = (name: string) => !!shopLinks(name, country)[kind]
+  const mine = kept.filter(has)
+  const seen = new Set(kept.map(keyOf))
+  const home = (country ?? '').toUpperCase()
+  const pool = CHAINS[home] ? CHAINS[home] : Object.values(CHAINS).flat()
+  const more: string[] = []
+  for (const c of pool) {
+    const key = keyOf(c.name)
+    if (seen.has(key) || !has(c.name)) continue
+    seen.add(key)
+    more.push(c.name)
+  }
+  return { mine, more }
 }
 
 /** A shop's name as kept: spaces tidied, at most 60 characters. A chain's
