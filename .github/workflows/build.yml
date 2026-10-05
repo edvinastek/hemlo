@@ -201,7 +201,21 @@ jobs:
       - run: npm ci
       - run: npm run build
       - name: Copy the web build into the iPhone project and install its pods
-        run: npx cap sync ios
+        run: |
+          # pod install keeps the versions in ios/App/Podfile.lock. If a plugin
+          # was updated and needs others, resolve again rather than stop, and
+          # say so: the new lock file is kept as an artifact to commit.
+          if ! npx cap sync ios; then
+            echo "::warning::pod install refused ios/App/Podfile.lock (a plugin changed). Resolving again with pod update."
+            (cd ios/App && pod update)
+          fi
+          if ! git diff --quiet -- ios/App/Podfile.lock; then
+            echo "::warning::ios/App/Podfile.lock changed in this run: commit the one in the ios-podfile-lock artifact."
+            echo "LOCK_CHANGED=true" >> "$GITHUB_ENV"
+          fi
+      - uses: actions/upload-artifact@v4
+        if: env.LOCK_CHANGED == 'true'
+        with: { name: ios-podfile-lock, path: ios/App/Podfile.lock }
       - name: The version, from package.json
         run: echo "APP_VERSION=$(node -p "require('./package.json').version")" >> "$GITHUB_ENV"
       - name: Apple secrets set?

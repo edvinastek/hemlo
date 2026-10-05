@@ -3,8 +3,11 @@
 // person) and every server request answers with nothing; an invented demo
 // week is put in the browser's local copy before the app starts. Then each
 // screen is shot at 1080 × 1920 (360 × 640 at 3×) into store/screenshots/.
+// With --iphone, the App Store's 6.9" set instead (PLAT-10): 1320 × 2868
+// (440 × 956 at 3×) into store/screenshots/iphone/, with the iPhone's
+// insets (62 at the top, 34 at the bottom) and its status bar drawn in.
 //
-//   node scripts/store-shots.mjs
+//   node scripts/store-shots.mjs [--iphone]
 //
 // Needs Playwright's Chromium (npx playwright install chromium) or
 // CHROMIUM=<path to chrome>. Nothing is sent anywhere: requests to any other
@@ -20,7 +23,8 @@ import { chromium } from 'playwright'
 
 const ROOT = path.join(path.dirname(fileURLToPath(import.meta.url)), '..')
 const HERE = path.join(ROOT, 'scripts', 'store-shots')
-const OUT = path.join(ROOT, 'store', 'screenshots')
+const IPHONE = process.argv.includes('--iphone')
+const OUT = path.join(ROOT, 'store', 'screenshots', ...(IPHONE ? ['iphone'] : []))
 const PORT = Number(process.env.STORE_SHOTS_PORT ?? 5504)
 // The demo week's Monday, mid-morning: the same pictures on every run.
 const DEMO_NOW = new Date(process.env.STORE_SHOTS_NOW ?? '2026-10-05T10:40:00+02:00')
@@ -72,7 +76,7 @@ const problems = []
 
 async function shoot(scheme, shots) {
   const ctx = await browser.newContext({
-    viewport: { width: 360, height: 640 }, deviceScaleFactor: 3, isMobile: true, hasTouch: true,
+    viewport: IPHONE ? { width: 440, height: 956 } : { width: 360, height: 640 }, deviceScaleFactor: 3, isMobile: true, hasTouch: true,
     colorScheme: scheme, serviceWorkers: 'block', locale: 'en-GB', timezoneId: 'Europe/Amsterdam',
   })
   // Nothing leaves the machine.
@@ -84,13 +88,28 @@ async function shoot(scheme, shots) {
   await page.goto(`${BASE}/`)
   await page.waitForSelector('.bottom-nav', { timeout: 120_000 })
   await page.waitForTimeout(1500)
+  // The iPhone's insets go where Capacitor's own variables would be; the
+  // layout falls back to env(), which a desktop browser leaves at 0.
+  if (IPHONE) await page.addStyleTag({ content: ':root { --safe-area-inset-top: 62px; --safe-area-inset-bottom: 34px; --safe-area-inset-left: 0px; --safe-area-inset-right: 0px }' })
   for (const [file, go] of shots) {
     await go(page)
     await page.waitForTimeout(1200)
+    if (IPHONE) await page.evaluate(statusBar)
     await page.screenshot({ path: path.join(OUT, `${file}.png`) })
-    console.log('wrote', `store/screenshots/${file}.png`)
+    if (IPHONE) await page.evaluate(() => document.getElementById('shots-status-bar')?.remove())
+    console.log('wrote', path.relative(ROOT, path.join(OUT, `${file}.png`)))
   }
   await ctx.close()
+}
+/** The iPhone's status bar and home indicator, drawn in the page's own ink. */
+function statusBar() {
+  const d = document.createElement('div')
+  d.id = 'shots-status-bar'
+  d.style.cssText = 'position:fixed;inset:0;pointer-events:none;z-index:2147483647'
+  d.innerHTML = '<div style="position:absolute;top:14px;left:50%;transform:translateX(-50%);width:126px;height:37px;border-radius:19px;background:#000"></div>' +
+    '<div style="position:absolute;top:22px;left:52px;font:600 17px system-ui,sans-serif;color:var(--e-ink)">9:41</div>' +
+    '<div style="position:absolute;bottom:8px;left:50%;transform:translateX(-50%);width:146px;height:5px;border-radius:3px;background:var(--e-ink)"></div>'
+  document.body.appendChild(d)
 }
 const open = (route) => async (p) => {
   await p.evaluate((r) => { history.pushState(null, '', r); dispatchEvent(new PopStateEvent('popstate')) }, route)

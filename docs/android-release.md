@@ -3,6 +3,8 @@
 Every push to `main` builds a signed Android App Bundle for Google Play and a
 signed APK for installing directly. This page covers the one-time setup and
 what to do for each release.
+The iPhone app is built from the same commit and version: see
+`docs/ios-release.md`.
 
 ## One time: the upload key
 

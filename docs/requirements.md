@@ -60,6 +60,7 @@ The competitor comparison and the usability plan are in the second document ("Ge
 | R4 | Release decisions: calendar links, products, units, email, AI | 28 Sep 2026 |
 | R5 | Feedback of 1 Oct 2026 | 1 Oct 2026 |
 | R6 | Feedback after testing version 16: clutter, prices | 3 Oct 2026 |
+| R7 | Owner request: iPhone app | 5 Oct 2026 |
 | SR | Found by the specification and research work (not asked for, but needed for the asked-for result) | 1 Oct 2026 |
 
 Parts E and F describe the app **as it is**. Where they say something is missing, Part D says what it should become.
@@ -955,7 +956,9 @@ Columns: **ID**, **Requirement** (with "Done when" where a test is needed), **Pr
 | PLAT-07 | The privacy policy names Netlify (not Cloudflare) as the host of the public pages. | Must | Done (v18) | R4 |
 | PLAT-08 | Upload key made by the owner on his own computer; signing keys never pass through anyone else. | Must | Open (owner action) | R4 |
 | PLAT-09 | APK size kept in check (the barcode scanner adds about 25 MB per build of all processor types): ship an App Bundle so each phone downloads only its own. | Must | Done (v16: the App Bundle splits by processor type on Play) | SR |
-| PLAT-10 | iPhone app later, from the same code. | Could | Open (needs a Mac with Xcode to build and sign; the code is shared, so nothing in the app blocks it) | R1 |
+| PLAT-10 | iPhone app later, from the same code. | Could | Partly (v20: iPhone project ios/ (bundle id app.getit.planner, iOS 15.5, iPhone only) and the iPhone job in the Build workflow ready: a compile check on GitHub's Mac without Apple secrets, TestFlight upload with them; Android-only features hidden on the iPhone, reminders, scanner, text size, safe areas and quick actions made to work there; docs/ios-release.md, store/app-store-answers.md; left: the Apple Developer account, the four GitHub secrets, the first TestFlight build and a test on an iPhone) | R1 |
+| PLAT-11 | iPhone home-screen widgets (WidgetKit): Today and stats, as on Android. | Could | Open (needs a widget extension, an App Group and a Mac to test) | R7 |
+| PLAT-12 | Sleep from Apple Health on the iPhone, as Health Connect on Android (SLP-05). | Could | Open (needs a HealthKit plugin, the HealthKit entitlement and Apple's health data review) | R7 |
 
 ## D35. Assistant (AI)
 

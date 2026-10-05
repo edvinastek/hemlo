@@ -41,6 +41,9 @@ Phones come first. `docs/android-release.md` covers the one-time upload key and
 the public privacy and deletion pages, then each release. Everything Google
 Play asks, answered to match the app, is in `store/play-console-answers.md`;
 the listing text, icon, feature graphic and screenshots are in `store/`.
+The iPhone app (built by GitHub's Macs and sent to TestFlight) is in
+`docs/ios-release.md`, with App Store Connect's questions answered in
+`store/app-store-answers.md`.
 
 ## Where each client comes from
 
@@ -50,11 +53,12 @@ three on GitHub's runners:
 | Client | Downloaded from | Notes |
 | --- | --- | --- |
 | Android | The run's `getit-android-release` artifact | Signed App Bundle for Google Play, and an APK |
+| iPhone | TestFlight, and the run's `getit-ios-release` artifact | Only when the version changed or the run was started by hand; signed and uploaded once the Apple secrets are set (`docs/ios-release.md`) |
 | Windows | The run's `getit-windows` artifact | NSIS installer and MSI |
 | Web | The run's `getit-web` artifact | Static files; host anywhere |
 | Public site | The run's `getit-site` artifact | Privacy policy and account deletion pages |
 
-All four carry the version in `package.json`.
+All of them carry the version in `package.json`.
 
 Two repository secrets are needed first, under Settings → Secrets and variables
 → Actions: `VITE_SUPABASE_URL` and `VITE_SUPABASE_PUBLISHABLE_KEY`. Both are
