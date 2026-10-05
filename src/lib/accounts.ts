@@ -3,6 +3,7 @@ import { createClient, type Session } from '@supabase/supabase-js'
 import { supabase } from './supabase'
 import { db, resetLocal } from './db'
 import { isNative } from './native'
+import { secureStorage } from './secure-storage'
 import { push } from './sync'
 import { useApp } from './store'
 import { applyWidgetTicks } from './widget'
@@ -40,7 +41,7 @@ export const useAccounts = create<AccountsState>(() => ({ list: [], switching: n
 // The module is handed back, never the plugin itself: awaiting a Capacitor
 // plugin (returning it from an async function does) calls its "then", which
 // native plugins do not have, and fails on the phone.
-const secure = () => import('@aparajita/capacitor-secure-storage')
+const secure = secureStorage
 
 async function load(): Promise<SavedAccount[]> {
   try {

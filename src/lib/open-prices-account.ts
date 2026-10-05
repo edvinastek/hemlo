@@ -1,6 +1,7 @@
 import { create } from 'zustand'
 import { getMeta, onResetLocal, setMeta } from './db'
 import { features, isNative } from './native'
+import { secureStorage } from './secure-storage'
 import { useApp } from './store'
 import { OPEN_PRICES_API, SHARE_AGENT, appQuery, authBody, authProblem, readAuth } from './open-prices-rules'
 
@@ -31,7 +32,7 @@ export interface OffAccount {
 
 export const useOffAccount = create<OffAccount>(() => ({ on: false, user: null, ready: false }))
 
-const secure = () => import('@aparajita/capacitor-secure-storage')
+const secure = secureStorage
 const owner = () => useApp.getState().session?.user.id ?? null
 
 async function readSaved(): Promise<Saved | null> {
