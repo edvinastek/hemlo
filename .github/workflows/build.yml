@@ -3,6 +3,14 @@ name: Build
 # Every push to main builds all three clients from the same commit and the same
 # version number (package.json). Phones first: the Android job produces the
 # signed App Bundle Google Play takes, plus an APK for installing directly.
+#
+# The iPhone job runs on GitHub's Mac, whose minutes cost about ten times a
+# Linux minute, so it runs only when it is worth it: when the version in
+# package.json changed in the push (a release: Android and iPhone get the same
+# version, and the same run number as their build number), or when the
+# workflow is run by hand (Actions → Build → Run workflow). Without the Apple
+# secrets it only proves the app compiles for iPhone; with them it sends the
+# build to TestFlight. docs/ios-release.md has the steps and the costs.
 on:
   push:
     branches: [main]
@@ -130,3 +138,173 @@ jobs:
       - run: npm run build:site
       - uses: actions/upload-artifact@v4
         with: { name: getit-site, path: dist-site }
+
+  ios-when:
+    name: iPhone build needed?
+    runs-on: ubuntu-24.04
+    outputs:
+      run: ${{ steps.decide.outputs.run }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Run by hand, or the version in package.json changed
+        id: decide
+        env:
+          EVENT: ${{ github.event_name }}
+          BEFORE: ${{ github.event.before }}
+        run: |
+          now=$(node -p "require('./package.json').version")
+          if [ "$EVENT" = "workflow_dispatch" ]; then
+            echo "Run by hand: building the iPhone app ($now)."; echo "run=true" >> "$GITHUB_OUTPUT"; exit 0
+          fi
+          if [ -z "$BEFORE" ] || [ "$BEFORE" = "0000000000000000000000000000000000000000" ] || ! git fetch --quiet --depth=1 origin "$BEFORE"; then
+            echo "The previous commit cannot be read: building the iPhone app ($now) to be safe."; echo "run=true" >> "$GITHUB_OUTPUT"; exit 0
+          fi
+          was=$(git show "$BEFORE:package.json" | node -e "let s='';process.stdin.on('data',(d)=>s+=d).on('end',()=>console.log(JSON.parse(s).version))")
+          if [ "$was" != "$now" ]; then
+            echo "Version $was → $now: building the iPhone app."; echo "run=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "Version still $now: no iPhone build (run the workflow by hand for one)."; echo "run=false" >> "$GITHUB_OUTPUT"
+          fi
+
+  ios:
+    name: iPhone (compile check, or TestFlight with the Apple secrets)
+    # A pinned image and Xcode: App Store Connect takes only builds made with
+    # Xcode 26 or later and the iOS 26 SDK (since 28 April 2026). Xcode 26.6
+    # (iOS 26.5 SDK) is the image's default and has its iOS platform installed.
+    runs-on: macos-26
+    needs: [checks, ios-when]
+    if: needs.ios-when.outputs.run == 'true'
+    timeout-minutes: 60
+    env:
+      XCODE_APP: /Applications/Xcode_26.6.app
+      BUILD_NUMBER: ${{ github.run_number }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Xcode
+        run: |
+          if [ ! -d "$XCODE_APP" ]; then
+            echo "::error::$XCODE_APP is not on this runner image any more. Installed:"; ls -d /Applications/Xcode*.app
+            echo "Pick one of 26.x or later in XCODE_APP in .github/workflows/build.yml."; exit 1
+          fi
+          sudo xcode-select -s "$XCODE_APP/Contents/Developer"
+          xcodebuild -version
+          sdk=$(xcrun --sdk iphoneos --show-sdk-version)
+          echo "iOS SDK $sdk"
+          # A device build needs the iOS platform; GitHub installs it for this
+          # Xcode, but if not, Xcode downloads it (several minutes).
+          if ! xcrun simctl list runtimes | grep -q "iOS $sdk"; then
+            echo "::notice::Downloading the iOS $sdk platform for Xcode"; xcodebuild -downloadPlatform iOS
+          fi
+          pod --version
+      - uses: actions/setup-node@v4
+        with: { node-version: 22, cache: npm }
+      - run: npm ci
+      - run: npm run build
+      - name: Copy the web build into the iPhone project and install its pods
+        run: npx cap sync ios
+      - name: The version, from package.json
+        run: echo "APP_VERSION=$(node -p "require('./package.json').version")" >> "$GITHUB_ENV"
+      - name: Apple secrets set?
+        id: mode
+        env:
+          ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
+          ASC_ISSUER_ID: ${{ secrets.ASC_ISSUER_ID }}
+          ASC_KEY_P8: ${{ secrets.ASC_KEY_P8 }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+        run: |
+          missing=""
+          for n in ASC_KEY_ID ASC_ISSUER_ID ASC_KEY_P8 APPLE_TEAM_ID; do [ -n "${!n}" ] || missing="$missing $n"; done
+          if [ -z "$missing" ]; then
+            echo "sign=true" >> "$GITHUB_OUTPUT"; echo "Signing GetIt $APP_VERSION ($BUILD_NUMBER) for TestFlight."
+          else
+            echo "sign=false" >> "$GITHUB_OUTPUT"
+            echo "::notice::No TestFlight upload: secrets not set:$missing. Compiling for iPhone without signing. See docs/ios-release.md."
+          fi
+
+      - name: Compile for iPhone, unsigned (no Apple account needed)
+        if: steps.mode.outputs.sign != 'true'
+        working-directory: ios/App
+        run: |
+          set -o pipefail
+          xcodebuild -workspace App.xcworkspace -scheme App -configuration Release \
+            -destination 'generic/platform=iOS' -derivedDataPath "$RUNNER_TEMP/derived" \
+            MARKETING_VERSION="$APP_VERSION" CURRENT_PROJECT_VERSION="$BUILD_NUMBER" \
+            CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO \
+            build 2>&1 | tee "$RUNNER_TEMP/xcodebuild.log" | grep -E "error:|warning: .*(deprecated|Info.plist)|BUILD (SUCCEEDED|FAILED)|\*\* " || true
+          grep -q "BUILD SUCCEEDED" "$RUNNER_TEMP/xcodebuild.log" || { echo "::error::The iPhone build failed; the full log is the ios-build-log artifact."; exit 1; }
+
+      - name: App Store Connect key, for this run only
+        if: steps.mode.outputs.sign == 'true'
+        env:
+          ASC_KEY_P8: ${{ secrets.ASC_KEY_P8 }}
+        run: |
+          umask 077
+          printf '%s\n' "$ASC_KEY_P8" > "$RUNNER_TEMP/AuthKey.p8"
+          echo "ASC_KEY_PATH=$RUNNER_TEMP/AuthKey.p8" >> "$GITHUB_ENV"
+      - name: Note the certificates there before archiving
+        if: steps.mode.outputs.sign == 'true'
+        env:
+          ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
+          ASC_ISSUER_ID: ${{ secrets.ASC_ISSUER_ID }}
+        run: node scripts/ios-certificates.mjs snapshot "$RUNNER_TEMP/certificates-before.json"
+      - name: Archive (automatic signing through the API key)
+        if: steps.mode.outputs.sign == 'true'
+        working-directory: ios/App
+        env:
+          ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
+          ASC_ISSUER_ID: ${{ secrets.ASC_ISSUER_ID }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+        run: |
+          set -o pipefail
+          xcodebuild -workspace App.xcworkspace -scheme App -configuration Release \
+            -destination 'generic/platform=iOS' -derivedDataPath "$RUNNER_TEMP/derived" \
+            -archivePath "$RUNNER_TEMP/GetIt.xcarchive" \
+            -allowProvisioningUpdates \
+            -authenticationKeyPath "$ASC_KEY_PATH" -authenticationKeyID "$ASC_KEY_ID" -authenticationKeyIssuerID "$ASC_ISSUER_ID" \
+            DEVELOPMENT_TEAM="$APPLE_TEAM_ID" CODE_SIGN_STYLE=Automatic \
+            MARKETING_VERSION="$APP_VERSION" CURRENT_PROJECT_VERSION="$BUILD_NUMBER" \
+            archive 2>&1 | tee "$RUNNER_TEMP/xcodebuild.log" | grep -E "error:|Signing Identity|Provisioning Profile|ARCHIVE (SUCCEEDED|FAILED)|\*\* " || true
+          grep -q "ARCHIVE SUCCEEDED" "$RUNNER_TEMP/xcodebuild.log" || { echo "::error::Archiving failed; the full log is the ios-build-log artifact."; exit 1; }
+      - name: Export the .ipa, then upload it to App Store Connect (TestFlight)
+        if: steps.mode.outputs.sign == 'true'
+        env:
+          ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
+          ASC_ISSUER_ID: ${{ secrets.ASC_ISSUER_ID }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+        run: |
+          set -o pipefail
+          auth=(-allowProvisioningUpdates -authenticationKeyPath "$ASC_KEY_PATH" -authenticationKeyID "$ASC_KEY_ID" -authenticationKeyIssuerID "$ASC_ISSUER_ID")
+          cp ios/App/ExportOptions.plist "$RUNNER_TEMP/export.plist"
+          plutil -replace teamID -string "$APPLE_TEAM_ID" "$RUNNER_TEMP/export.plist"
+          cp "$RUNNER_TEMP/export.plist" "$RUNNER_TEMP/upload.plist"
+          plutil -replace destination -string upload "$RUNNER_TEMP/upload.plist"
+          # The same archive twice: once to keep the .ipa as an artifact, once
+          # straight to App Store Connect (Apple's own route, no altool).
+          xcodebuild -exportArchive -archivePath "$RUNNER_TEMP/GetIt.xcarchive" -exportOptionsPlist "$RUNNER_TEMP/export.plist" \
+            -exportPath "$RUNNER_TEMP/ipa" "${auth[@]}" 2>&1 | tee "$RUNNER_TEMP/export.log" | grep -E "error|EXPORT (SUCCEEDED|FAILED)|\*\* " || true
+          grep -q "EXPORT SUCCEEDED" "$RUNNER_TEMP/export.log" || { echo "::error::Export failed; see the ios-build-log artifact."; exit 1; }
+          xcodebuild -exportArchive -archivePath "$RUNNER_TEMP/GetIt.xcarchive" -exportOptionsPlist "$RUNNER_TEMP/upload.plist" \
+            -exportPath "$RUNNER_TEMP/upload" "${auth[@]}" 2>&1 | tee "$RUNNER_TEMP/upload.log" | grep -E "error|Upload|EXPORT (SUCCEEDED|FAILED)|\*\* " || true
+          grep -q "EXPORT SUCCEEDED" "$RUNNER_TEMP/upload.log" || { echo "::error::Upload to App Store Connect failed; see the ios-build-log artifact."; exit 1; }
+          echo "::notice::GetIt $APP_VERSION ($BUILD_NUMBER) is uploaded. App Store Connect processes it for a few minutes, then it appears in TestFlight."
+      - name: Revoke the development certificate this run made
+        if: always() && steps.mode.outputs.sign == 'true'
+        env:
+          ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
+          ASC_ISSUER_ID: ${{ secrets.ASC_ISSUER_ID }}
+        run: node scripts/ios-certificates.mjs revoke-new "$RUNNER_TEMP/certificates-before.json"
+      - name: Remove the key from the runner
+        if: always()
+        run: rm -f "$RUNNER_TEMP/AuthKey.p8"
+      - uses: actions/upload-artifact@v4
+        if: steps.mode.outputs.sign == 'true' && success()
+        with:
+          name: getit-ios-release
+          path: ${{ runner.temp }}/ipa/*.ipa
+          retention-days: 30
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: ios-build-log
+          path: ${{ runner.temp }}/*.log
+          retention-days: 14

@@ -323,6 +323,10 @@ Types, then every check that needs nothing but Node. CI runs the same command.
   scale; text size by the web view (Android) or page zoom; the status bar for a light or dark page; the widget switch
   left out on the iPhone; and the Info.plist quick actions matching the + menu's defaults and the link
   SceneDelegate.swift builds.
+- `ioscerts` — the iPhone build's certificate tidying (scripts/ios-certificates.mjs): the App Store Connect token is
+  a valid ES256 token for Apple's audience lasting 15 minutes; only development certificates that appeared during the
+  run are revoked (never a distribution certificate, never an older one); every page of the list is read; a failed
+  revoke is a warning and the rest still go; nothing printed carries the token.
 - `mealrules` — meals with no fixed slots: the person's meal names (and the old four), a typed name finding its meal,
   keys for new meals, default and own times, what each item is (a food, a recipe or ready meal, numbers) and comes to
   (unknown never 0), a day grouped into meals (cards for the person's meals, by time, "Any time" last, skipped and
