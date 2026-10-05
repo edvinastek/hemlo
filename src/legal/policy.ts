@@ -13,8 +13,10 @@
  *  app (legal/PolicyNotice.tsx, G2 #16). Version 18: Netlify, household
  *  sharing, Finance, stats widgets, Open Prices sharing, photos, NEVO and
  *  USDA, notifications and the Android permissions. Version 19: reminders
- *  through Telegram, and sleep read from Health Connect. */
-export const POLICY_VERSION = '2026-10-06'
+ *  through Telegram, and sleep read from Health Connect. Version 20: the
+ *  iPhone app (its permissions, ML Kit, TestFlight, backups). Later than
+ *  version 19's date, so people who agreed then see the notice. */
+export const POLICY_VERSION = '2026-10-07'
 
 export const controller = {
   name: (import.meta.env.VITE_CONTROLLER_NAME as string | undefined) ?? '',
@@ -22,6 +24,15 @@ export const controller = {
 }
 
 export interface Section { heading: string; body: string[] }
+
+/** The iPhone app's permissions (ios/App/App/Info.plist, version 20), in
+ *  plain words and written as they read inside a sentence;
+ *  store/app-store-answers.md lists the same. */
+export const IPHONE_PERMISSIONS: { name: string; why: string }[] = [
+  { name: 'notifications', why: 'for reminders, if you turn them on (the iPhone asks you first)' },
+  { name: 'the camera', why: 'only when you scan a barcode or take a photo in GetIt (the iPhone asks you first)' },
+  { name: 'Face ID', why: 'only to confirm switching between accounts kept on the phone' },
+]
 
 /** The Android permissions in the app's merged manifest (version 18), in
  *  plain words. Kept here so the policy and the store answers say the same
@@ -80,15 +91,15 @@ export function privacySections(): Section[] {
         'Photos you add to a record in a module are made smaller on your device and stored privately with Supabase, in the same place: only your account can open them, and a copy is kept on your device so you can see them offline. Deleting the record or your account deletes them.',
         'A photo you add to a recipe is kept the same way: only you can open it, unless the recipe is approved for everyone (below), when it is shown with the recipe. Replacing it, taking it off or deleting the recipe deletes it a day later (so Undo can bring it back); deleting your account deletes it at once.',
         'Emails to confirm your address or reset your password are sent through an email delivery service that acts for GetIt in the same way and receives only your email address and the link.',
-        'On your device, a copy that lets GetIt work without a connection. Signing out removes it. On Android it is left out of phone backups and device-to-device transfers.',
-        'Reminders on the phone, if you turn them on, are set on the phone itself as local notifications: no server sends them, and on a locked phone they show no text. Reminders through Telegram are different; see below.',
+        'On your device, a copy that lets GetIt work without a connection. Signing out removes it. On Android it is left out of phone backups and device-to-device transfers; on an iPhone it is left out of iCloud and computer backups.',
+        'Reminders on the phone, if you turn them on, are set on the phone itself as local notifications: no server sends them, and on a locked phone they show no text (on an iPhone, as long as its Show Previews setting is left at When Unlocked, the iPhone’s default). Reminders through Telegram are different; see below.',
         'Sleep from Health Connect, only if you turn it on in the Android app: GetIt reads, on the phone, only the sleep sessions you allow in Android’s Health Connect, and keeps them as your own sleep records, stored and synced like the ones you type. It reads nothing else there, writes nothing there, and sends what it read nowhere else. You can take the permission back in Health Connect at any time; the sleep records already kept stay until you delete them. GetIt never shares or sells what it reads there and never uses it for advertising, and its use of data from Health Connect follows the Health Connect Permissions policy, including its Limited Use requirements.',
-        'Home-screen widgets, if you add them, show what you choose from the same copy, and signing out clears them. The GetIt widget shows today’s tasks and habits. A stats widget shows the figures of one saved stats view, which can be health figures such as your weight or sleep, to anyone who sees your home screen. To keep health figures off it, place stats widgets only for views without them, or take the widget off your home screen.',
+        'Home-screen widgets (Android app), if you add them, show what you choose from the same copy, and signing out clears them. The GetIt widget shows today’s tasks and habits. A stats widget shows the figures of one saved stats view, which can be health figures such as your weight or sleep, to anyone who sees your home screen. To keep health figures off it, place stats widgets only for views without them, or take the widget off your home screen.',
         'The privacy and account deletion pages are hosted by Netlify, which sees your IP address when you visit them and acts as GetIt’s processor for that. They set no cookies. On the deletion page, your email and password go straight from your browser to Supabase.',
         'Supermarket products: when you search for a product, scan or type a barcode, or open a product’s page, the words you searched or the barcode go straight from your device to Open Food Facts (openfoodfacts.org), and to its price list Open Prices for the prices people have shared. Both are run by Open Food Facts, a French non-profit, as their own public services. Nothing else is sent: no account, name, email address or health details, and GetIt’s server is not involved. Like any website they see your IP address and the type of device; product pictures are loaded from them too. Their privacy policy is at world.openfoodfacts.org/privacy. A product you add becomes one of your own foods, stored like the others.',
         'Food figures come from the Dutch food composition table NEVO (RIVM) and, for a few foods and units, USDA FoodData Central. They are built into GetIt: looking a food up sends nothing anywhere.',
         'A recipe read from a web address: your device fetches that page itself, so the website sees your IP address, as when you open it in a browser. Nothing else is sent.',
-        'In the Android app a barcode is read by Google’s code scanner, part of Google Play services on the phone: it hands GetIt only the number, so GetIt never has the camera picture and needs no camera permission. Google’s scanner sends Google figures about how it works (the phone’s model, the app’s name and version, and an identifier for this installation that does not name you), for Google’s own diagnostics, under Google’s own terms. In a browser that can read barcodes itself, the camera picture stays on the device and stops when you close the scanner.',
+        'In the Android app a barcode is read by Google’s code scanner, part of Google Play services on the phone: it hands GetIt only the number, so GetIt never has the camera picture and needs no camera permission. Google’s scanner sends Google figures about how it works (the phone’s model, the app’s name and version, and an identifier for this installation that does not name you), for Google’s own diagnostics, under Google’s own terms. In the iPhone app a barcode is read by Google’s ML Kit, built into the app: the camera picture is read on the phone and never leaves it, and only the number reaches GetIt. ML Kit sends Google the same kind of figures about how it works, under Google’s own terms. In a browser that can read barcodes itself, the camera picture stays on the device and stops when you close the scanner.',
       ],
     },
     {
@@ -104,7 +115,7 @@ export function privacySections(): Section[] {
       heading: 'Sharing prices with Open Prices',
       body: [
         'Off unless you turn it on (Settings → Shopping and household → Share prices with Open Prices), and then only a price you choose, when you tap Share. Nothing is ever shared by itself.',
-        'Turning it on asks for your Open Food Facts user name and password. They go once, from your device, to Open Prices’ own sign-in, run by Open Food Facts; GetIt never keeps the password. What comes back is a key that lets GetIt send prices for you: on the phone it is kept in Android’s secure storage, in a browser only until the tab is closed. Signing out, turning sharing off or signing out of GetIt forgets it.',
+        'Turning it on asks for your Open Food Facts user name and password. They go once, from your device, to Open Prices’ own sign-in, run by Open Food Facts; GetIt never keeps the password. What comes back is a key that lets GetIt send prices for you: on the phone it is kept in the phone’s secure storage (Android’s keystore, the iPhone’s keychain), in a browser only until the tab is closed. Signing out, turning sharing off or signing out of GetIt forgets it.',
         'When you share a price, GetIt sends to Open Prices: the photo of the price tag or receipt you take or pick, the product’s barcode, the price, the currency, the day, whether it was an offer (and its normal price, if you give it), which shop it was (its OpenStreetMap place), and that it came from GetIt. The photo is made smaller and drawn again on your device first, which leaves out where it was taken and the camera’s details. Nothing else is sent: not your GetIt account, email address or health details.',
         'Shared prices are public. Open Prices publishes the price, the shop and the photo for anyone to see and reuse under the Open Database Licence (ODbL), together with your Open Food Facts user name. Before photographing a receipt, cover anything personal on it, such as a loyalty card or bank card number. Open Food Facts is responsible for what it publishes; you can remove your prices and photos on prices.openfoodfacts.org with your account. Deleting your GetIt account does not remove them there.',
         'To find the shop, the shop name and town you type go to Open Prices’ list of shops, and, only if you ask, to OpenStreetMap’s search (nominatim.openstreetmap.org, run by the OpenStreetMap Foundation), one request each time. Like any website they see your IP address.',
@@ -127,6 +138,7 @@ export function privacySections(): Section[] {
         'Prices you choose to share with Open Prices, and products you choose to add to Open Food Facts, are public, as described above.',
         'Telegram receives the reminder lines you chose to get there, if you link it, as described above.',
         'Google, which distributes the app through Google Play, receives nothing you enter in GetIt, unless you choose to link a calendar, as below.',
+        'Apple, which distributes the iPhone app through the App Store and TestFlight, receives nothing you enter in GetIt. While you test the iPhone app through TestFlight, Apple shows the developer the name and email address you were invited with, and the crash reports and feedback you choose to send.',
         'Calendar links, only if you make one. A link to show GetIt in Google Calendar lets whoever has it read the titles, times, sections and places of your tasks and of the events you put in your own agenda, from three months back to a year ahead, and your task notes only if you turn that on. Nothing else. Nothing about your health: planned meals, training, weigh-ins, sleep, habits and supplements are left out, whatever their title, and so is everything from modules you built yourself. Not your name: the calendar is called just GetIt. Not the events of calendars you follow. You give it to Google Calendar yourself; Google then fetches it every few hours and keeps what it reads under its own terms. Anyone you pass the link to can read it too, so keep it private; making a new link or turning it off stops the old one at once.',
         'A calendar you follow is fetched by GetIt’s server function at Supabase from the address you pasted, because a phone’s browser may not fetch it directly. The address is stored with your account, readable only by you (encrypted at rest by Supabase, like everything else), so your other devices can follow it too. The events themselves are kept only on your device(s), never on GetIt’s server, and only from three months back to a year ahead. Removing the calendar removes its events from GetIt and erases its address from GetIt’s server.',
       ],
@@ -135,7 +147,8 @@ export function privacySections(): Section[] {
       heading: 'On your phone: what GetIt may use',
       body: [
         `The Android app asks for: ${ANDROID_PERMISSIONS.map((p) => `${p.name.toLowerCase()} (${p.why})`).join('; ')}. Android libraries also add one internal permission that only GetIt holds, so the app’s own parts can talk to each other.`,
-        'GetIt has no camera, location, contacts, microphone or storage permission. Barcodes are read by Google’s code scanner, as above. A photo (of a price tag, a receipt or for a record) is taken with your phone’s own camera app or picked with Android’s photo picker, which hands GetIt only that one picture.',
+        'The Android app has no camera, location, contacts, microphone or storage permission. Barcodes are read by Google’s code scanner, as above. A photo (of a price tag, a receipt or for a record) is taken with your phone’s own camera app or picked with Android’s photo picker, which hands GetIt only that one picture.',
+        `The iPhone app asks for: ${IPHONE_PERMISSIONS.map((p) => `${p.name} (${p.why})`).join('; ')}. A photo is taken with the iPhone’s own camera screen or picked with its photo picker, which hands GetIt only that one picture. It has no location, contacts, microphone or photo library permission, no home-screen widgets and no Health Connect, and it reads nothing from Apple Health.`,
       ],
     },
     {

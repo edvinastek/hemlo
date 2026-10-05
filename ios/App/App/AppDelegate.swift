@@ -7,7 +7,7 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
     var window: UIWindow?
 
     func application(_ application: UIApplication, didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]?) -> Bool {
-        // Override point for customization after application launch.
+        LocalCopy.keepOutOfBackups()
         return true
     }
 
@@ -55,4 +55,25 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
         return config
     }
 
+}
+
+/// The page's local copy (IndexedDB and the rest of the web view's storage,
+/// under Library/WebKit) holds the person's plan and health records. As on
+/// Android (android:allowBackup="false"), it stays out of iCloud and computer
+/// backups: the account's server copy is what a new phone syncs from. Marking
+/// the folder excludes everything in it, including what WebKit writes later.
+enum LocalCopy {
+    static func keepOutOfBackups() {
+        guard var folder = FileManager.default.urls(for: .libraryDirectory, in: .userDomainMask).first?
+            .appendingPathComponent("WebKit", isDirectory: true) else { return }
+        do {
+            try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
+            var values = URLResourceValues()
+            values.isExcludedFromBackup = true
+            try folder.setResourceValues(values)
+        } catch {
+            // Nothing to stop the app for: the copy is then backed up as any app's data is.
+            NSLog("GetIt: could not keep the local copy out of backups: \(error.localizedDescription)")
+        }
+    }
 }
