@@ -142,7 +142,7 @@ Types, then every check that needs nothing but Node. CI runs the same command.
 - `ics` — calendar files (RFC 5545): tasks as floating local time or whole days, agenda events in UTC,
   (v18, GEN-26: every rule of the app reads back as itself, weekends, the 2nd Tuesday, every n months, 29 February and
   days picked by hand included; habits, chores, supplements and payments with their repeats; "after", flexible and
-  "3 times a week" in GetIt's own X-GETIT-REPEAT line, read back exactly)
+  "3 times a week" in Visuma's own X-VISUMA-REPEAT line, read back exactly; an older file's X-GETIT-… lines read the same)
   repeats as RRULE/RDATE/EXDATE with changed copies; folding at 75 bytes, escaping, CRLF, stable UIDs. A file
   shaped like a Google Calendar export read back in the reader's zone (TZID, UTC, whole days, DURATION,
   moved and cancelled repeats); every app rule written as RRULE lands on the same days both ways.
@@ -164,7 +164,7 @@ Types, then every check that needs nothing but Node. CI runs the same command.
   the author's name (never an address), and the recipe editor's form and what a save changes.
 - `calendarlinks` — calendar links: the three months back to twelve ahead both directions keep (month ends, leap
   years); what the feed link Google Calendar reads holds (timed and whole-day tasks, a repeating series once with its
-  RRULE and skipped days, own agenda events, a calendar called just GetIt) and leaves out (dropped, deleted and undated
+  RRULE and skipped days, own agenda events, a calendar called just Visuma) and leaves out (dropped, deleted and undated
   tasks, events from a followed calendar, notes unless turned on, and anything about health: a planned meal with its
   kcal, training, a weigh-in, sleep, habits, supplements, by source, module or section, and series of those; the health
   lists checked against the app's modules and sections); repeats cut to the window (a daily repeat from 2020, every
@@ -218,7 +218,7 @@ Types, then every check that needs nothing but Node. CI runs the same command.
   every pair of answers (work, training, a daily walk) leading to one, a typed factor (1.2 to 2.4, two decimals, a
   comma read as a point, warned outside 1.3 to 2.2), and training inside the factor or logged and added, never both.
 - `nevo` — the NEVO import (027): the file read as published (the byte-order mark, quotes, CRLF, decimal commas,
-  a value that is not a number refused), the food row each NEVO line becomes, unchanged, with its fixed id; GetIt's
+  a value that is not a number refused), the food row each NEVO line becomes, unchanged, with its fixed id; Visuma's
   display names and units marked as additions; the old catalogue foods replaced, kept or hidden; and that the
   generated part of 027 is exactly what the script makes from the file. Version 19 (FOOD-17): NEVO's vitamin and
   mineral columns read as published, each in the unit the app counts in (another unit is refused), an empty cell left
@@ -241,7 +241,7 @@ Types, then every check that needs nothing but Node. CI runs the same command.
   to the replacement, chains of replacements followed, nothing else touched.
 - `recipe` — recipes: roles (ready meals included), the one search over names and ingredients, the sorts, scaling to
   portions, figures with what is missing, variation names, what to buy against stock, ready meals.
-- `recipeio` — recipe import and export: schema.org JSON-LD from a page, GetIt's own file and CSV, ISO durations and
+- `recipeio` — recipe import and export: schema.org JSON-LD from a page, Visuma's own file and CSV, ISO durations and
   yields, ingredient lines read into amount, unit and food, and lines matched to foods or kept as text.
 - `repeat` — the one repeat control's choices: the rule each stands for from a first day (the 2nd or last Wednesday,
   the 14th, 14 October), numbers kept and capped, picked days, and every choice reading back as itself.
@@ -250,7 +250,7 @@ Types, then every check that needs nothing but Node. CI runs the same command.
   sets (every module's switches, Today's cards only for modules kept on), and which built-in rules the editor shows.
 - `settingsui` — the rules behind Settings: search in settings, profiles (which one opens, names, which can go),
   signing out with changes waiting, the merges list in words (refused, never "[object Object]"), the time zone
-  following the phone or a chosen one, height emptied as not known, tips shown once and "Make GetIt yours" after
+  following the phone or a chosen one, height emptied as not known, tips shown once and "Make Visuma yours" after
   three days, what moved where (once, only to people from before), and the Modules page's search.
 - `restore` — a backup brings the profile back whole: body fields, country and city, and the settings (note
   templates, stats views, looks, Today's cards, where each module shows), with a built module's settings following
@@ -412,7 +412,7 @@ Added when the ten version 16 branches were wired together (integration):
 - `shopping` — the add box's suggestions: the one search, the household's own things first, the amount left out.
 - `savedmeals` — the third time the same things are logged by hand, "Save it as a meal?" (never for one thing, or one
   already saved).
-- `ics`, `calendarlinks` — a repeating own event in a calendar file and in the GetIt feed: its RRULE at its own local
+- `ics`, `calendarlinks` — a repeating own event in a calendar file and in the Visuma feed: its RRULE at its own local
   time, from the first day the rule gives, cut to the feed's window.
 
 - `dayedge` — day start and day end (v19, GEN-70, day-edge-rules.ts): stored times read ('06:00:00'), the cut-off
@@ -529,7 +529,7 @@ to the test accounts, because they run against the live project.
   "Shared with everyone". At 360 px.
 - `calendarlinks` (uses `TEST_FEAT_EMAIL`, and `TEST_ONBOARD_EMAIL` as the other account; needs migrations 020 and 024
   and both calendar functions deployed) — at 360 px: a feed link made in More → Profile → Calendar links and copied,
-  fetched as Google would (200, text/calendar, named just GetIt, a task as a VEVENT at its time, a planned meal never,
+  fetched as Google would (200, text/calendar, named just Visuma, a task as a VEVENT at its time, a planned meal never,
   its note only once notes are turned on, the other account's task never), a wrong or missing token getting 404; the
   other account's feed link followed as if it were Google's secret address, its task on Today at its time, from that
   calendar (the sheet waits for the name to load), opening read-only, with no copy of it in Postgres; removing the

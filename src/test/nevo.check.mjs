@@ -2,7 +2,7 @@
 // NEVO's own layout (scripts/fixtures/nevo-fixture.csv; its foods and figures
 // are invented for this test): the file is read as published (quotes, '|',
 // CRLF, a byte-order mark, decimal commas), every value lands unchanged, an
-// empty cell stays empty, per 100 ml is kept, and GetIt's additions (display
+// empty cell stays empty, per 100 ml is kept, and Visuma's additions (display
 // names, state, units) are marked as additions. Then the real catalogue in
 // migration 027 is checked for the same rules.
 import { readFileSync } from 'node:fs'
@@ -82,7 +82,8 @@ is('the published names stay beside the display name', [row.name_nl, row.name_en
 is('sodium kept in mg as published; salt is worked out where shown', [row.sodium_mg, row.salt_g, saltOf(row)], [450, undefined, 1.125])
 is('the state read from the name (an addition)', row.state, 'raw')
 is('a drink keeps its per 100 ml', foodRow(drink).per_ml, true)
-is('an oil gets spoons, marked as GetIt’s', foodRow(oil).units.map((u) => `${u.name}:${u.source}`), ['tbsp:GetIt', 'tsp:GetIt'])
+// The tag for the app's own additions is "GetIt", the name it had when the catalogue was made (applied migrations).
+is('an oil gets spoons, marked as the app’s own', foodRow(oil).units.map((u) => `${u.name}:${u.source}`), ['tbsp:GetIt', 'tsp:GetIt'])
 is('empty fields are left out of the data', 'polyols_g' in compact(row), false)
 is('a known zero is kept', compact(row).alcohol_g, 0)
 

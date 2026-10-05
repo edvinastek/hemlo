@@ -7,6 +7,7 @@ import { productFoodId } from './products-rules'
 import { productSalt } from './products'
 import { useApp } from './store'
 import { restoredProfile } from './restore-rules'
+import { BUNDLE_FORMAT, isFormat } from './file-format-rules'
 
 /** One file that holds everything: profile, plan, logs, recipes and settings.
  *  It is the backup, how a device hands its state to another one, and the
@@ -29,7 +30,7 @@ const CHILDREN = [
 ] as const
 
 export interface Bundle {
-  format: 'getit.bundle'
+  format: typeof BUNDLE_FORMAT
   version: 1
   exported_at: string
   profile_id: string
@@ -43,7 +44,7 @@ export async function exportBundle(profileId: string): Promise<Blob> {
     records[table] = table === 'profile' ? rows : rows.filter((r) => r.profile_id === profileId)
   }
   // Events from a calendar the person follows are that calendar's, not
-  // GetIt's: the calendar (its address) is in the file, and its events are
+  // Visuma's: the calendar (its address) is in the file, and its events are
   // fetched again wherever the file is read back in.
   records.calendar_event = records.calendar_event.filter((r) => !(r as { subscription_id?: string | null }).subscription_id)
   for (const { table, parent, key } of CHILDREN) {
@@ -78,7 +79,7 @@ export async function exportBundle(profileId: string): Promise<Blob> {
   records.shop_price = household ? (await db.shop_price.where('household_id').equals(household).toArray()).filter((r) => !r.deleted_at) : []
 
   const bundle: Bundle = {
-    format: 'getit.bundle',
+    format: BUNDLE_FORMAT,
     version: 1,
     exported_at: new Date().toISOString(),
     profile_id: profileId,
@@ -116,13 +117,14 @@ export async function importBundle(file: File, profileId: string, userId: string
   const text = await file.text()
   let parsed: unknown
   try { parsed = JSON.parse(text) } catch {
-    throw new Error('That file is not a GetIt export.')
+    throw new Error('That file is not a Visuma export.')
   }
   const bundle = parsed as Bundle
-  if (bundle?.format !== 'getit.bundle' || typeof bundle.records !== 'object' || !bundle.records) {
-    throw new Error('That file is not a GetIt export.')
+  // A backup made before version 21 says getit.bundle; it reads the same.
+  if (!isFormat(bundle?.format, BUNDLE_FORMAT) || typeof bundle.records !== 'object' || !bundle.records) {
+    throw new Error('That file is not a Visuma export.')
   }
-  if (bundle.version !== 1) throw new Error('That export comes from a newer GetIt. Update the app, then import it again.')
+  if (bundle.version !== 1) throw new Error('That export comes from a newer Visuma. Update the app, then import it again.')
 
   const rows = (name: string) => {
     const r = bundle.records[name]

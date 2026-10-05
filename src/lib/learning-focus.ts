@@ -10,6 +10,7 @@ import type { ModuleRecord } from './types'
  *  on. Only its start and its pauses are stored, so leaving the page, a
  *  locked screen or a closed app loses nothing (learning-focus-rules.ts). */
 
+// The name from before Visuma, kept: renaming it would lose what is stored under it.
 const KEY = 'getit.focus'
 const listeners = new Set<(s: FocusState | null) => void>()
 

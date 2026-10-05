@@ -70,7 +70,7 @@ await toMore()
 const hadSleep = await sleepOn()
 await toBar()
 is('the page bar settings are in Settings → Page bar, six styles', await p.locator('.nv-styles .nv-style').count(), 6)
-const hadChosen = (await p.locator('button:has-text("Let GetIt pick")').count()) > 0
+const hadChosen = (await p.locator('button:has-text("Let Visuma pick")').count()) > 0
 const hadStyle = (await p.locator('.nv-style[aria-checked="true"] span').last().textContent())?.trim()
 /** Anything in the bar that scrolls sideways: none, ever (CALM-04). */
 const scrolls = () => p.evaluate(() => [...document.querySelectorAll('.bottom-nav, .bottom-nav *')]
@@ -168,7 +168,7 @@ is('a swipe right goes back to Today', path(), '/')
 
 // 5. Nobody's choice: the app picks; with many pages the hub, five at most.
 await toBar()
-await p.click('button:has-text("Let GetIt pick")')
+await p.click('button:has-text("Let Visuma pick")')
 await p.waitForTimeout(800)
 is('picked by the app: at most five on the bar', (await p.locator('.bottom-nav .nav-item').count()) <= 5, true)
 is('picked by the app: nothing scrolls', await scrolls(), 0)

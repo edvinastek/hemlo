@@ -128,7 +128,7 @@ eq('a line that is not NAME=value is refused', refused.startsWith('release.secre
 eq('Vault SQL quotes the value', vaultSql("it's").includes("'it''s'"), true)
 
 const secretsFile = path.join(dir, 'release.secrets.env')
-fs.writeFileSync(secretsFile, 'TELEGRAM_BOT_TOKEN=999:VALUE-one\nTELEGRAM_CRON_SECRET=VALUE-two\nTELEGRAM_BOT_NAME=GetItPlannerBot\n')
+fs.writeFileSync(secretsFile, 'TELEGRAM_BOT_TOKEN=999:VALUE-one\nTELEGRAM_CRON_SECRET=VALUE-two\nTELEGRAM_BOT_NAME=VisumaPlannerBot\n')
 const sent = []
 const logged = []
 const ok = await setSecrets('sbp_test', { dryRun: false, log: (s) => logged.push(s), file: secretsFile, fetchFn: async (url, init) => {

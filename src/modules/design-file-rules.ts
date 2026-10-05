@@ -5,8 +5,9 @@
  *  the app would not accept from its own editor. */
 import type { ModuleDef } from './types.ts'
 import { definitionFor, definitionProblem, readBuiltDefinition } from './def-rules.ts'
+import { MODULE_FORMAT, isFormat } from '../lib/file-format-rules.ts'
 
-export const DESIGN_FORMAT = 'getit.module'
+export const DESIGN_FORMAT = MODULE_FORMAT
 export const DESIGN_VERSION = 1
 
 export interface DesignFile {
@@ -25,10 +26,10 @@ export function designFile(def: ModuleDef): DesignFile {
   return { format: DESIGN_FORMAT, version: DESIGN_VERSION, name: def.name, definition: { ...d, entities } }
 }
 
-/** "plant-care.getit-module.json" */
+/** "plant-care.visuma-module.json" */
 export function designFileName(name: string): string {
   const base = name.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 40) || 'module'
-  return `${base}.getit-module.json`
+  return `${base}.visuma-module.json`
 }
 
 /** A file read back as a draft to build, or what is wrong with it. */
@@ -36,8 +37,9 @@ export function readDesignFile(text: string): { ok: true; def: ModuleDef } | { o
   let raw: unknown
   try { raw = JSON.parse(text) } catch { return { ok: false, problem: 'That file is not a module design.' } }
   const f = raw as Partial<DesignFile>
-  if (!f || f.format !== DESIGN_FORMAT || typeof f.definition !== 'object' || !f.definition) return { ok: false, problem: 'That file is not a module design.' }
-  if (f.version !== DESIGN_VERSION) return { ok: false, problem: 'That design comes from a newer GetIt. Update the app, then import it again.' }
+  // A design saved before version 21 says getit.module; it reads the same.
+  if (!f || !isFormat(f.format, DESIGN_FORMAT) || typeof f.definition !== 'object' || !f.definition) return { ok: false, problem: 'That file is not a module design.' }
+  if (f.version !== DESIGN_VERSION) return { ok: false, problem: 'That design comes from a newer Visuma. Update the app, then import it again.' }
   const def = readBuiltDefinition({ key: 'u_import00', name: typeof f.name === 'string' ? f.name : '', definition: f.definition })
   if (def.entities.length === 0 || def.entities.every((e) => e.fields.length === 0)) return { ok: false, problem: 'That design has no fields to build from.' }
   const problem = definitionProblem(def)

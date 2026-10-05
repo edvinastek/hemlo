@@ -13,7 +13,7 @@ const task = { title: 'Calisthenics A', planned_time: '16:30:00', push_count: 0 
 is('plain reminder', reminderText(task, 'Nova'), { title: 'Nova', body: 'Calisthenics A at 16:30.' })
 is('after three pushes it offers', reminderText({ ...task, push_count: 3 }, 'Nova'),
    { title: 'Nova', body: 'Calisthenics A has moved 3 times. Want a new time for it?' })
-is('no persona set', reminderText(task, null).title, 'GetIt')
+is('no persona set', reminderText(task, null).title, 'Visuma')
 is('the extension limit decides when it asks', reminderText({ ...task, push_count: 3 }, 'Nova', 5).body, 'Calisthenics A at 16:30.')
 
 // Quiet hours: dropped, or held until they end (REM-04).

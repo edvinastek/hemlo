@@ -16,7 +16,7 @@ import { readSharing, statusOf } from '../lib/sharing-rules'
 import {
   isReady, readyProduct, recipeFigures, roleLabel, scaleLines, toBuy, type ScaledLine,
 } from '../lib/recipe-rules'
-import { toCsv, toGetItJson, toSchemaOrg, type ExportRecipe } from '../lib/recipe-io-rules'
+import { toCsv, toVisumaJson, toSchemaOrg, type ExportRecipe } from '../lib/recipe-io-rules'
 import { recipeToNote } from '../lib/recipe-note-rules'
 import { blankTask, saveTask } from '../lib/tasks'
 import { addItems, removeItems } from '../lib/meals'
@@ -145,7 +145,7 @@ export function RecipeView({ recipe: given, lines, foods, userId, onClose, onEdi
           {/* Who can see it, only when it is not the usual: one's own recipes
               are private unless proposed (v17: no "Private" chip). */}
           {mine ? (statusOf(recipe).tone !== 'plain' && <> · <SharingStatus recipe={recipe} withNote={false} /></>)
-            : <> · {recipe.owner_id ? 'Shared by someone' : 'GetIt’s recipe'}</>}
+            : <> · {recipe.owner_id ? 'Shared by someone' : 'Visuma’s recipe'}</>}
         </p>
         {mine && sharing === 'rejected' && recipe.review_note && <p className="rcp-warn">Not accepted: {recipe.review_note}</p>}
         {recipe.photo_path && (!panel || panel === 'photo') && <RecipePhoto path={recipe.photo_path} name={recipe.name} />}
@@ -478,14 +478,14 @@ function ShopPanel({ recipe, scaled, portions, profile, onBack, onDone }: {
   )
 }
 
-/** Export one recipe (DATA-05): GetIt's own file (everything, to read back
+/** Export one recipe (DATA-05): Visuma's own file (everything, to read back
  *  in), a spreadsheet, or schema.org Recipe for other apps and sites. */
 function ExportPanel({ shape, attribution, onBack, onDone }: { shape: ExportRecipe; attribution: string | null; onBack: () => void; onDone: (said: string) => void }) {
   const base = shape.name.replace(/[^\w -]+/g, '').trim().slice(0, 60) || 'recipe'
   async function save(kind: 'json' | 'csv' | 'schema') {
-    const body = kind === 'json' ? toGetItJson([shape], attribution) : kind === 'csv' ? toCsv([shape]) : JSON.stringify(toSchemaOrg(shape, attribution), null, 2)
+    const body = kind === 'json' ? toVisumaJson([shape], attribution) : kind === 'csv' ? toCsv([shape]) : JSON.stringify(toSchemaOrg(shape, attribution), null, 2)
     const type = kind === 'csv' ? 'text/csv' : 'application/json'
-    const name = kind === 'json' ? `${base}.getit-recipe.json` : kind === 'csv' ? `${base}.csv` : `${base}.schema.json`
+    const name = kind === 'json' ? `${base}.visuma-recipe.json` : kind === 'csv' ? `${base}.csv` : `${base}.schema.json`
     const how = await saveFile(name, new Blob([body], { type }))
     if (how !== 'cancelled') onDone(`Exported ${name}.`)
   }
@@ -493,7 +493,7 @@ function ExportPanel({ shape, attribution, onBack, onDone }: { shape: ExportReci
     <div className="rcp-choice">
       <p className="rcp-section">Export</p>
       <div className="rcp-actions">
-        <button type="button" className="btn" onClick={() => void save('json')}>GetIt recipe file</button>
+        <button type="button" className="btn" onClick={() => void save('json')}>Visuma recipe file</button>
         <button type="button" className="btn" onClick={() => void save('csv')}>Spreadsheet (CSV)</button>
         <button type="button" className="btn" onClick={() => void save('schema')}>schema.org Recipe</button>
       </div>

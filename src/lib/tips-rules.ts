@@ -1,4 +1,4 @@
-/** Tips shown once, when they are useful (ONB-13), the "Make GetIt yours"
+/** Tips shown once, when they are useful (ONB-13), the "Make Visuma yours"
  *  line a few days in (ONB-12), and the one-time note on what moved in this
  *  version (NAV-26). Since v17 (CALM-14) a tip is one slim line with ×, at
  *  most one shows in a session app-wide, and once shown it never comes
@@ -20,7 +20,7 @@ export const TIPS: TipDef[] = [
   { id: 'first-hold', text: 'Hold and move to drag an item; hold still longer to open it in place.' },
   { id: 'first-checklist', text: 'Tap a line’s box to tick it; the ticks stay in the note.' },
   { id: 'save-as-meal', text: 'Logged this three times? Save it as a meal: one tap next time.' },
-  { id: 'make-yours', text: 'Make GetIt yours: a theme, dark mode, text size and icon.' },
+  { id: 'make-yours', text: 'Make Visuma yours: a theme, dark mode, text size and icon.' },
 ]
 
 /** Longest a tip may be, so it stays one or two short lines at 360 px. */
@@ -28,7 +28,7 @@ export const TIP_MAX = 80
 
 export const tipById = (id: string) => TIPS.find((t) => t.id === id)
 
-/** The first time a version of GetIt ran on this device, and for each
+/** The first time a version of Visuma ran on this device, and for each
  *  profile it met then, whether that profile was already set up. */
 export interface VersionRun {
   /** ISO time of the first run of this version here. */
@@ -40,7 +40,7 @@ export interface VersionRun {
 export interface TipState {
   /** Tips shown (or dismissed) on this device. */
   seen: string[]
-  /** The day GetIt was first opened on this device, yyyy-MM-dd. */
+  /** The day Visuma was first opened on this device, yyyy-MM-dd. */
   first: string | null
   /** The version whose "what moved" note was read. */
   moved: string | null
@@ -82,7 +82,7 @@ export function readTipState(v: unknown): TipState {
 /** Days from one yyyy-MM-dd to another. */
 const days = (a: string, b: string) => Math.round((Date.parse(`${b}T00:00:00Z`) - Date.parse(`${a}T00:00:00Z`)) / 86400000)
 
-/** "Make GetIt yours" waits a few days (ONB-12): first the planner, then the
+/** "Make Visuma yours" waits a few days (ONB-12): first the planner, then the
  *  looks, as the research found people only bother once they use an app. */
 export const MAKE_YOURS_AFTER_DAYS = 3
 

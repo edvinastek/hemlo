@@ -6,7 +6,7 @@
  *  The app works out the reminders (notify.ts, the same rules as the phone's
  *  own notifications) and hands the next three days to the server; the server
  *  only sends what falls due. Only the reminder's line goes: what the person
- *  wrote and its time. What GetIt itself writes from food, training, body and
+ *  wrote and its time. What Visuma itself writes from food, training, body and
  *  sleep plans (a meal with its calories, a weigh-in) stays on the phone, and
  *  so do amounts and pill counts. */
 
@@ -24,7 +24,7 @@ const MAX_BODY = 500
 /* ---------- linking ------------------------------------------------------------- */
 
 /** A bot's username as BotFather gives it: 5 to 32 letters, digits and
- *  underscores, ending in "bot". Accepts "@GetItBot" and "t.me/GetItBot" too. */
+ *  underscores, ending in "bot". Accepts "@VisumaBot" and "t.me/VisumaBot" too. */
 export function cleanBotName(raw: string | null | undefined): string | null {
   const name = (raw ?? '').trim().replace(/^https?:\/\//i, '').replace(/^t\.me\//i, '').replace(/^@/, '')
   return /^[A-Za-z][A-Za-z0-9_]{4,31}$/.test(name) && /bot$/i.test(name) ? name : null
@@ -51,10 +51,10 @@ const obj = (v: unknown): Record<string, unknown> | null => (v && typeof v === '
 const chatId = (v: unknown): string | null =>
   (typeof v === 'number' && Number.isSafeInteger(v) && v > 0) || (typeof v === 'string' && /^[0-9]{1,20}$/.test(v)) ? String(v) : null
 
-/** One update from Telegram, read as one of the two things GetIt answers:
+/** One update from Telegram, read as one of the two things Visuma answers:
  *  "/start" (with the code from the link, or without one) and "/stop", in a
  *  private chat only. Blocking the bot counts as /stop (with no reply: a
- *  blocked bot cannot send one). Everything else is ignored: GetIt reads no
+ *  blocked bot cannot send one). Everything else is ignored: Visuma reads no
  *  messages, and a group chat is never linked. */
 export function parseUpdate(update: unknown): TelegramCommand {
   const u = obj(update)
@@ -81,16 +81,16 @@ export function parseUpdate(update: unknown): TelegramCommand {
 
 /** What the bot answers. Plain text, no formatting. */
 export const REPLIES = {
-  linked: 'Linked to GetIt. Your reminders will come here. Send /stop to unlink.',
-  expired: 'This link has expired or was used already. Make a new one in GetIt: Settings, Reminders, Telegram.',
-  noCode: 'To link this chat, open GetIt: Settings, Reminders, Telegram.',
-  stopped: 'Unlinked. GetIt sends nothing more here.',
-  notLinked: 'This chat is not linked to GetIt.',
+  linked: 'Linked to Visuma. Your reminders will come here. Send /stop to unlink.',
+  expired: 'This link has expired or was used already. Make a new one in Visuma: Settings, Reminders, Telegram.',
+  noCode: 'To link this chat, open Visuma: Settings, Reminders, Telegram.',
+  stopped: 'Unlinked. Visuma sends nothing more here.',
+  notLinked: 'This chat is not linked to Visuma.',
 } as const
 
 /* ---------- what goes to Telegram ---------------------------------------------------- */
 
-/** Tasks GetIt writes from a meal plan or a training routine: their titles
+/** Tasks Visuma writes from a meal plan or a training routine: their titles
  *  carry calories and plans the person did not type. */
 const GENERATED_HEALTH_SOURCES = new Set(['meal', 'workout'])
 /** Modules whose rules write tasks about the body (a weigh-in, a bedtime). */

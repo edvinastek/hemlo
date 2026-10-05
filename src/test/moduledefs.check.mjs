@@ -367,15 +367,17 @@ const designDef = readBuiltDefinition({ key: 'u_plants01', name: 'Plants', defin
     { name: 'pot', label: 'Pot', type: 'lookup', lookup: 'record', module: 'u_pots0001' }] }],
   views: [{ key: 'list', name: 'Plants', type: 'list', entity: 'item' }], rules: [{ name: RULE_DAY_TASK, off: false }] } })
 const file = designFile(designDef)
-is('a design: fields, views and rules, no records', [file.format, file.name, Object.keys(file.definition).sort().join(',')], ['getit.module', 'Plants', 'entities,glyph,keywords,name,rules,summary,views'])
+is('a design: fields, views and rules, no records', [file.format, file.name, Object.keys(file.definition).sort().join(',')], ['visuma.module', 'Plants', 'entities,glyph,keywords,name,rules,summary,views'])
 is('a link to another module’s records stays behind', file.definition.entities[0].fields.some((f) => f.lookup === 'record'), false)
 const back = readDesignFile(JSON.stringify(file))
 is('read back, it is the same design', back.ok && [back.def.name, back.def.glyph, back.def.entities[0].fields.length, ruleOn(back.def, RULE_DAY_TASK)], ['Plants', '✿', 5, true])
+const oldDesign = readDesignFile(JSON.stringify({ ...file, format: 'getit.module' }))
+is('a design saved when the app was GetIt still reads', oldDesign.ok && oldDesign.def.name, 'Plants')
 is('not a design', readDesignFile('{"format":"other"}'), { ok: false, problem: 'That file is not a module design.' })
 is('not even JSON', readDesignFile('hello').ok, false)
-is('a newer one', readDesignFile(JSON.stringify({ ...file, version: 2 })).problem, 'That design comes from a newer GetIt. Update the app, then import it again.')
+is('a newer one', readDesignFile(JSON.stringify({ ...file, version: 2 })).problem, 'That design comes from a newer Visuma. Update the app, then import it again.')
 is('a design with no fields', readDesignFile(JSON.stringify({ ...file, definition: { ...file.definition, entities: [] } })).ok, false)
-is('a file name from the module’s name', designFileName('Plant care: indoor!'), 'plant-care-indoor.getit-module.json')
+is('a file name from the module’s name', designFileName('Plant care: indoor!'), 'plant-care-indoor.visuma-module.json')
 
 // Several kinds of record in one built module (MOD-15).
 const car = {

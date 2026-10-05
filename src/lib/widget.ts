@@ -15,7 +15,7 @@ import { useApp } from './store'
 import { planToday } from './day-edge'
 import { features } from './native'
 
-/** The Android home-screen widgets (android/…/widget): "GetIt · Today" and
+/** The Android home-screen widgets (android/…/widget): "Visuma · Today" and
  *  the stats widgets. The app keeps them current by writing snapshots
  *  whenever the data behind them changes (WID-12); the widgets draw from
  *  those without starting the app. Ticks made on the Today widget queue up

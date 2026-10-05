@@ -32,18 +32,18 @@ export function checkRecipeUrl(text: string): { url: string } | { error: string 
   try { u = new URL(t) } catch { return { error: 'That is not a web address.' } }
   if (u.protocol !== 'https:' && u.protocol !== 'http:') return { error: 'A web address starts with https://' }
   if (!u.hostname.includes('.') && !u.hostname.includes(':')) return { error: 'That is not a web address.' }
-  if (privateHost(u.hostname)) return { error: 'That address is on your own network: GetIt reads public recipe pages only.' }
+  if (privateHost(u.hostname)) return { error: 'That address is on your own network: Visuma reads public recipe pages only.' }
   u.hash = ''
   return { url: u.toString() }
 }
 
-/** A fetched page, if it holds recipe data GetIt can read (schema.org, as
+/** A fetched page, if it holds recipe data Visuma can read (schema.org, as
  *  nearly every recipe site publishes), or what to say. */
 export function readPage(body: unknown): { html: string } | { error: string } {
   if (typeof body !== 'string' || !body.trim()) return { error: 'That page came back empty.' }
   if (body.length > PAGE_MAX) return { error: 'That page is too large to be a recipe page.' }
   if (!/<script[^>]*application\/ld\+json/i.test(body)) {
-    return { error: 'That page has no recipe data GetIt can read. Copy the recipe’s ingredients and paste them above.' }
+    return { error: 'That page has no recipe data Visuma can read. Copy the recipe’s ingredients and paste them above.' }
   }
   return { html: body }
 }
@@ -58,11 +58,11 @@ export function fetchProblem(kind: FetchFailure, opts: { status?: number; web?: 
     case 'timeout': return 'The site took too long to answer. Try again, or paste the recipe instead.'
     case 'status':
       return opts.status === 404 ? 'There is no page at that address.'
-        : opts.status === 401 || opts.status === 403 ? 'That site turned GetIt away. Open the page, copy the recipe and paste it above.'
+        : opts.status === 401 || opts.status === 403 ? 'That site turned Visuma away. Open the page, copy the recipe and paste it above.'
           : `The site answered with an error (${opts.status ?? 'unknown'}). Try again later, or paste the recipe instead.`
     case 'blocked':
       return opts.web
-        ? 'That site does not let a web page read it. The GetIt app on your phone can; here, open the page, copy the recipe and paste it above.'
+        ? 'That site does not let a web page read it. The Visuma app on your phone can; here, open the page, copy the recipe and paste it above.'
         : 'That page could not be read. Open it, copy the recipe and paste it above.'
   }
 }

@@ -32,7 +32,7 @@ is('a page past the limit', /too large/.test(readPage(`<script type="application
 is('on the web a blocked site points to the app and to pasting', /app on your phone/.test(fetchProblem('blocked', { web: true })), true)
 is('in the app a blocked site points to pasting', /paste it above/.test(fetchProblem('blocked')), true)
 is('a missing page', fetchProblem('status', { status: 404 }), 'There is no page at that address.')
-is('a refused request', /turned GetIt away/.test(fetchProblem('status', { status: 403 })), true)
+is('a refused request', /turned Visuma away/.test(fetchProblem('status', { status: 403 })), true)
 is('offline', /offline/.test(fetchProblem('offline')), true)
 is('the site’s name', siteOf('https://www.bbcgoodfood.com/recipes/x'), 'bbcgoodfood.com')
 

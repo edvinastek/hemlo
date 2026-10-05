@@ -24,6 +24,7 @@ import {
  *  or backup can carry it. In a browser no token is kept at all. Tokens are
  *  never written to the console. */
 
+// The name from before Visuma, kept: renaming it would lose what is stored under it.
 const KEY = 'getit-accounts'
 
 interface AccountsState {
@@ -186,7 +187,7 @@ async function unlock(name: string): Promise<'ok' | 'cancelled' | 'failed'> {
     await BiometricAuth.authenticate({
       reason: `Switch to ${name}`,
       androidTitle: 'Switch account',
-      androidSubtitle: `Open ${name} in GetIt`,
+      androidSubtitle: `Open ${name} in Visuma`,
       // The phone's PIN, pattern or password works as well as a fingerprint or face.
       allowDeviceCredential: true,
       androidConfirmationRequired: false,
@@ -206,7 +207,7 @@ let spare = 0
  *  check a token or password before anything on the device changes. */
 function scratchClient() {
   return createClient(import.meta.env.VITE_SUPABASE_URL as string, import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY as string, {
-    auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false, storageKey: `getit-check-${++spare}` },
+    auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false, storageKey: `visuma-check-${++spare}` },
   })
 }
 

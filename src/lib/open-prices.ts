@@ -5,11 +5,11 @@ import { OPEN_PRICES_AGENT, openPricesUrl, readOpenPrices, type OpenPrice } from
 
 /** Asking Open Prices (prices.openfoodfacts.org) for the prices people
  *  shared for one product (PRICE-01). Straight from this device: only the
- *  barcode goes out, nothing about the person, and GetIt's server is not
+ *  barcode goes out, nothing about the person, and Visuma's server is not
  *  involved. The rules for reading the answer are in price-rules.ts; this
  *  file only asks, slowly, and never from a test. */
 
-/** Open Prices names no limit; GetIt keeps to the pace Open Food Facts asks
+/** Open Prices names no limit; Visuma keeps to the pace Open Food Facts asks
  *  of its product service (15 a minute), a little under it. */
 const limiter = new RateLimiter(10, 60_000)
 let queue: Promise<void> = Promise.resolve()

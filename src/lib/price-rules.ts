@@ -16,8 +16,8 @@ import { gramsLabel } from './units-rules.ts'
  *  in full (the price detail) and in Settings → About. */
 export const PRICE_ATTRIBUTION = 'Prices: Open Prices (Open Food Facts), ODbL'
 export const OPEN_PRICES = 'https://prices.openfoodfacts.org'
-/** How GetIt names itself to Open Prices, as Open Food Facts asks. */
-export const OPEN_PRICES_AGENT = 'GetIt/18 (app.visuma.planner)'
+/** How Visuma names itself to Open Prices, as Open Food Facts asks. */
+export const OPEN_PRICES_AGENT = 'Visuma/18 (app.visuma.planner)'
 /** A product's prices are asked again after a week; until then the copy on
  *  the device is used, also with no connection. */
 export const CACHE_DAYS = 7
@@ -37,7 +37,7 @@ export const openPricesPage = (code: string) => `${OPEN_PRICES}/products/${encod
 
 // ---- reading Open Prices -----------------------------------------------------------------
 
-/** One shared price, as GetIt keeps it. */
+/** One shared price, as Visuma keeps it. */
 export interface OpenPrice {
   price: number
   currency: string
@@ -68,7 +68,7 @@ export function packGrams(qty: unknown, unit: unknown): number | null {
   return g > 0 && g <= 100_000 ? g : null
 }
 
-/** An Open Prices answer, cut to what GetIt needs. A price without an
+/** An Open Prices answer, cut to what Visuma needs. A price without an
  *  amount, a currency or a shop is left out; an offer counts at its normal
  *  price when that was given, else not at all (a one-week offer is not what
  *  the thing costs). */

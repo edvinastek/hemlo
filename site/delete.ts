@@ -6,10 +6,10 @@ import { controller } from '../src/legal/policy'
  *  not depend on reinstalling it. Sign in, confirm with a typed word, and the
  *  same database function the app uses removes everything. */
 el(`${nav}
-  <h1>Delete your GetIt account</h1>
+  <h1>Delete your Visuma account</h1>
   <p class="sub">Also possible in the app: Settings → Data and account → Delete account.</p>
   <h2>What is deleted</h2>
-  <p>Everything GetIt keeps for you, at once:</p>
+  <p>Everything Visuma keeps for you, at once:</p>
   <ul>
     <li>your account and sign-in, your profiles and your settings, with your stats views and note templates;</li>
     <li>your plan: tasks, notes, goals, projects and milestones, routines, and the events in your own agenda;</li>
@@ -34,7 +34,7 @@ el(`${nav}
     <p class="note" id="note" role="status"></p>
   </form>
   <h2>Cannot sign in?</h2>
-  <p>Write from the address the account uses to ${controller.email ? `<a href="mailto:${esc(controller.email)}?subject=Delete%20my%20GetIt%20account">${esc(controller.email)}</a>` : 'the contact address on the Google Play listing'} with the subject "Delete my GetIt account". It is deleted within 30 days and you get a reply when it is done.</p>`)
+  <p>Write from the address the account uses to ${controller.email ? `<a href="mailto:${esc(controller.email)}?subject=Delete%20my%20Visuma%20account">${esc(controller.email)}</a>` : 'the contact address on the Google Play listing'} with the subject "Delete my Visuma account". It is deleted within 30 days and you get a reply when it is done.</p>`)
 
 const form = document.getElementById('f') as HTMLFormElement
 const note = document.getElementById('note')!

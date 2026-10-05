@@ -253,7 +253,7 @@ is('the line naming the new food is linked to it', r.matched, 1)
 
 // 7. Export, then read the file into a different account.
 const [download] = await Promise.all([p.waitForEvent('download'), p.click('.setting-row:has-text("Export") button:has-text("Export")')])
-const exported = join(dir, 'export.getit.json')
+const exported = join(dir, 'export.visuma.json')
 await download.saveAs(exported)
 await p.click('button:has-text("Sign out")')
 await p.locator('input[type=email]').waitFor({ timeout: 15000 })
@@ -268,7 +268,7 @@ const before = await one(`select
   (select count(*) from public.recipe rc join auth.users u on u.id = rc.owner_id where rc.name = 'E2E porridge' and u.email = '${other}') recipes`)
 await openSettings(p, 'data')
 await p.setInputFiles('input[type=file]', exported)
-await p.locator('text=/records from export.getit.json added/').waitFor({ timeout: 15000 })
+await p.locator('text=/records from export.visuma.json added/').waitFor({ timeout: 15000 })
 // A whole export goes up row by row, parents first: wait until all of it has
 // been sent (it can take longer than the usual half minute) before counting.
 await p.waitForTimeout(600)

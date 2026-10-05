@@ -7,7 +7,7 @@ import { useBackClose } from './useBackClose'
 
 /** "What moved where" (NAV-26, CALM-18): once, after updating to this
  *  version, a short note on every function that moved and where it is now.
- *  Only for someone who used GetIt before (tips-rules movedShows); a new
+ *  Only for someone who used Visuma before (tips-rules movedShows); a new
  *  account never sees it. It takes the session's one tip place, so no tip
  *  shows on top of it. Mounted once in App; the list can be read again from
  *  Settings → Reminders and tips (`<WhatMovedList />`). */
@@ -36,7 +36,7 @@ export function WhatMoved() {
       <div className="sheet-scrim" onClick={done} />
       <div ref={box} className="bottom-sheet wm" role="dialog" aria-modal="true" aria-labelledby="wm-title">
         <h2 id="wm-title">What moved where</h2>
-        <p className="wm-lead">GetIt is calmer. Nothing was taken away: here is where each thing is now.</p>
+        <p className="wm-lead">Visuma is calmer. Nothing was taken away: here is where each thing is now.</p>
         <WhatMovedList />
         <div className="sheet-actions">
           <button type="button" className="btn btn-primary grow" onClick={done}>Got it</button>

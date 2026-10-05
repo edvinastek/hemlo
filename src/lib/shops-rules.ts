@@ -61,7 +61,7 @@ export function suggestShops(country: string | null | undefined, kept: string[],
 }
 
 /** Each chain's own weekly offers page (PRICE-06), by country. Only the
- *  retailer's official site: GetIt opens it in the browser and copies
+ *  retailer's official site: Visuma opens it in the browser and copies
  *  nothing from it. A chain with no page here gets no link. Checked by hand
  *  on 3 October 2026. */
 export const OFFERS: Record<string, Record<string, string>> = {

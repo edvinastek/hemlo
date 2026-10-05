@@ -1,6 +1,7 @@
 import type { FieldDef, ModuleDef } from '../modules/types.ts'
 import { LIMITS, coerce, firstDateField, mainField } from '../modules/def-rules.ts'
 import { addDays, weekdayOf } from './series-rules.ts'
+import { BUNDLE_FORMAT, DATASET_FORMAT, isFormat } from './file-format-rules.ts'
 
 /** What can leave the app and come back in: every module's records, tasks,
  *  the calendar, notes and figures for charts, as CSV, Excel, JSON or a
@@ -284,11 +285,11 @@ export function rangeFor(kind: RangeKind, day: string, custom?: { from: string; 
 export const inRange = (day: string | null | undefined, r: Range | null) =>
   !r || (!!day && day.slice(0, 10) >= r.from && day.slice(0, 10) <= r.to)
 
-/** A file name people can read: getit-finance-entry-september-2026.csv */
+/** A file name people can read: visuma-finance-entry-september-2026.csv */
 export function fileName(label: string, range: Range | null, format: Format): string {
   const slug = (s: string) => s.normalize('NFKD').replace(/[̀-ͯ]/g, '').toLowerCase()
     .replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 60)
-  return `getit-${[slug(label) || 'export', range ? slug(range.label) : null].filter(Boolean).join('-')}.${FORMATS[format].ext}`
+  return `visuma-${[slug(label) || 'export', range ? slug(range.label) : null].filter(Boolean).join('-')}.${FORMATS[format].ext}`
 }
 
 /* ---------- CSV (RFC 4180) --------------------------------------------------- */
@@ -368,7 +369,7 @@ export function parseCsv(text: string, maxRows = IMPORT_LIMITS.rows + 1): { rows
 /* ---------- JSON ------------------------------------------------------------- */
 
 export interface DatasetFile {
-  format: 'getit.dataset'
+  format: typeof DATASET_FORMAT
   version: 1
   dataset: string
   label: string
@@ -380,7 +381,7 @@ export interface DatasetFile {
 
 export function toJson(d: Pick<Dataset, 'key' | 'label'>, fields: FieldDef[], rows: Record<string, unknown>[], range: Range | null, at: string): string {
   const file: DatasetFile = {
-    format: 'getit.dataset', version: 1, dataset: d.key, label: d.label, exported_at: at, range,
+    format: DATASET_FORMAT, version: 1, dataset: d.key, label: d.label, exported_at: at, range,
     fields: fields.map((f) => ({ name: f.name, label: f.label, type: f.type, ...(f.unit ? { unit: f.unit } : {}) })),
     rows,
   }
@@ -393,7 +394,7 @@ export function jsonTable(text: string): { table: unknown[][]; dataset: string |
   let parsed: unknown
   try { parsed = JSON.parse(text.replace(/^﻿/, '')) } catch { return { error: 'That file is not valid JSON.' } }
   const obj = parsed as Record<string, unknown>
-  if (obj && typeof obj === 'object' && (obj as { format?: unknown }).format === 'getit.bundle') {
+  if (obj && typeof obj === 'object' && isFormat((obj as { format?: unknown }).format, BUNDLE_FORMAT)) {
     return { error: 'That is a whole-account backup. Choose "Whole account (backup file)" to restore it.' }
   }
   const list = Array.isArray(parsed) ? parsed : Array.isArray(obj?.rows) ? obj.rows as unknown[] : null

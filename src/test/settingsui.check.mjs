@@ -92,7 +92,7 @@ is('nonsense is refused, nothing saved', [heightFrom('0'), heightFrom('abc'), he
 // ---------- tips (ONB-12, ONB-13) and what moved (NAV-26) -----------------------------------
 const t0 = noteFirstDay(NO_TIPS, '2026-10-03')
 is('a tip shows until dismissed', [tipShows('hub-hold', t0, '2026-10-03'), tipShows('hub-hold', dismissTip(t0, 'hub-hold'), '2026-10-03')], [true, false])
-is('Make GetIt yours waits three days', [tipShows('make-yours', t0, '2026-10-05'), tipShows('make-yours', t0, '2026-10-06')], [false, true])
+is('Make Visuma yours waits three days', [tipShows('make-yours', t0, '2026-10-05'), tipShows('make-yours', t0, '2026-10-06')], [false, true])
 is('…and never shows before the first day is known', tipShows('make-yours', NO_TIPS, '2030-01-01'), false)
 is('the first day is kept once', noteFirstDay(t0, '2027-01-01').first, '2026-10-03')
 is('show tips again keeps the first day', resetTips(dismissTip(t0, 'hub-hold')), { seen: [], first: '2026-10-03', moved: null, runs: {} })
@@ -100,7 +100,7 @@ is('an unknown tip never shows', tipShows('nope', t0, '2026-10-03'), false)
 is('stored junk is cleaned', readTipState({ seen: ['hub-hold', 'nope', 3], first: 'yesterday', moved: 7, runs: { x: 1, 17: { at: 'soon' } } }), { seen: ['hub-hold'], first: null, moved: null, runs: {} })
 is('every tip says something short, as one slim line (CALM-14)', TIPS.every((t) => t.text.length > 20 && t.text.length <= TIP_MAX && !/[\u{1F300}-\u{1FAFF}]/u.test(t.text)), true)
 
-// What moved where: only for someone who used GetIt before this version.
+// What moved where: only for someone who used Visuma before this version.
 const ID = '22222222-2222-4222-8222-222222222222'
 const ID2 = '33333333-3333-4333-8333-333333333333'
 const RUN = '2026-11-01T09:00:00.000Z'

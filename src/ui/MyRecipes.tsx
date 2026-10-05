@@ -4,7 +4,7 @@ import type { Food, Recipe, RecipeLine } from '../lib/types'
 import './recipes.css'
 import { useBackClose } from './useBackClose'
 
-/** Every recipe out as a file, in the formats other recipe apps read: GetIt's
+/** Every recipe out as a file, in the formats other recipe apps read: Visuma's
  *  own file (to read back in), a spreadsheet, or schema.org Recipe. Opened
  *  from the Recipes tab's ⋮ (v17: until then "Export all" sat on the page,
  *  above a second list of one's own recipes). */
@@ -37,7 +37,7 @@ export function RecipesExportSheet({ recipes, lines, foods, onClose }: {
       <div className="bottom-sheet" role="dialog" aria-modal="true" aria-labelledby={titleId}>
         <h2 id={titleId}>Export recipes</h2>
         <div className="rcp-actions">
-          <button type="button" className="btn" disabled={busy} onClick={() => void out('json')}>GetIt recipe file</button>
+          <button type="button" className="btn" disabled={busy} onClick={() => void out('json')}>Visuma recipe file</button>
           <button type="button" className="btn" disabled={busy} onClick={() => void out('csv')}>Spreadsheet (CSV)</button>
           <button type="button" className="btn" disabled={busy} onClick={() => void out('schema')}>schema.org Recipe</button>
         </div>

@@ -3,7 +3,7 @@ import { useLiveQuery } from 'dexie-react-hooks'
 import { db } from '../lib/db'
 import { edit } from '../lib/write'
 import { FoodMatcher } from '../lib/match-food'
-import { planRecipes, readRecipes, toCsv, toGetItJson, toSchemaOrg } from '../lib/recipe-io-rules'
+import { planRecipes, readRecipes, toCsv, toVisumaJson, toSchemaOrg } from '../lib/recipe-io-rules'
 import { attributionFor } from '../lib/eu-label-rules'
 import { saveFile } from '../lib/native'
 import { checkRecipeUrl, siteOf } from '../lib/recipe-fetch-rules'
@@ -16,7 +16,7 @@ import './recipes.css'
 
 /** Recipes in (REC-07, DATA-05): paste a recipe's text ("200 g oats, 2
  *  eggs"), a page's source with its schema.org data, or a recipe file
- *  (GetIt's JSON, a CSV); or give a web address: the app reads the page
+ *  (Visuma's JSON, a CSV); or give a web address: the app reads the page
  *  through the phone's own connection, and on the web, where most sites
  *  refuse other pages, pasting is the way. Shown before anything is saved: each recipe, and
  *  which lines found a food. Lines that did not are kept as text to finish
@@ -108,7 +108,7 @@ export function RecipeImport({ userId, onClose }: { userId: string; onClose: () 
             <textarea value={text} rows={6} placeholder={'Banana pancakes\n1 banana\n2 eggs\n30 g oats\nMethod\nMash and fry.'}
               onChange={(e) => { setText(e.target.value); setProblem(null) }} style={{ fontFamily: 'var(--font-sans)', fontSize: 14 }} />
           </label>
-          <p className="fe-note">Its text, a recipe page’s source (schema.org recipe data is read), or a GetIt or CSV recipe file.</p>
+          <p className="fe-note">Its text, a recipe page’s source (schema.org recipe data is read), or a Visuma or CSV recipe file.</p>
           <div className="rcp-actions">
             <label className="btn" style={{ cursor: 'pointer' }}>
               Choose a file
@@ -163,9 +163,9 @@ export async function exportRecipes(kind: 'json' | 'csv' | 'schema', recipes: Re
   const shapes = recipes.map((r) => exportShape(r, lines, foods, ['kcal', 'protein_g', 'fat_g', 'sat_fat_g', 'carbs_g', 'sugars_g', 'fiber_g', 'salt_g']))
   const used = lines.filter((l) => recipes.some((r) => r.id === l.recipe_id)).flatMap((l) => (l.food_id && foods.get(l.food_id) ? [foods.get(l.food_id)!] : []))
   const attribution = attributionFor(used)
-  const body = kind === 'json' ? toGetItJson(shapes, attribution) : kind === 'csv' ? toCsv(shapes)
+  const body = kind === 'json' ? toVisumaJson(shapes, attribution) : kind === 'csv' ? toCsv(shapes)
     : JSON.stringify(shapes.map((s) => toSchemaOrg(s, attribution)), null, 2)
   const day = new Date().toISOString().slice(0, 10)
-  return saveFile(kind === 'json' ? `recipes-${day}.getit-recipes.json` : kind === 'csv' ? `recipes-${day}.csv` : `recipes-${day}.schema.json`,
+  return saveFile(kind === 'json' ? `recipes-${day}.visuma-recipes.json` : kind === 'csv' ? `recipes-${day}.csv` : `recipes-${day}.schema.json`,
     new Blob([body], { type: kind === 'csv' ? 'text/csv' : 'application/json' }))
 }

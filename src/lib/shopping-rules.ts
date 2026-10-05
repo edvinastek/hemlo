@@ -859,7 +859,7 @@ export function recentTiles(
 
 // ---- prices ------------------------------------------------------------------------------
 
-/** Currencies of the countries GetIt knows well; anything else is in euros
+/** Currencies of the countries Visuma knows well; anything else is in euros
  *  unless the person's country says otherwise. */
 const CURRENCY: Record<string, string> = {
   GB: 'GBP', CH: 'CHF', SE: 'SEK', NO: 'NOK', DK: 'DKK', PL: 'PLN', CZ: 'CZK', HU: 'HUF', RO: 'RON', BG: 'BGN',
