@@ -17,7 +17,7 @@ A group is easier because:
 - At the end of the test you empty or delete one group, instead of hunting for lists.
 - The addresses stay in one place you control, rather than being re-typed into Play Console, which keeps `store/testers/` the only other copy until you delete it.
 
-Either way, joining the group does not let anyone create a GetIt account. Sign-up
+Either way, joining the group does not let anyone create a Visuma account. Sign-up
 is invite-only, so each address also goes into the allowlist (step 5).
 
 ## 1. Collect the addresses
@@ -32,7 +32,7 @@ At [groups.google.com](https://groups.google.com), signed in with the developer
 Google account ([Google Groups Help: create a group](https://support.google.com/groups/answer/2464926)):
 
 1. Click **Create group**.
-2. Name: `GetIt testers`. Group email: something like `getit-testers` (it becomes `getit-testers@googlegroups.com`). Description: "Closed test of the GetIt app."
+2. Name: `Visuma testers`. Group email: something like `visuma-testers` (it becomes `visuma-testers@googlegroups.com`). Description: "Closed test of the Visuma app."
 3. Privacy settings:
    - Who can search for group: **Group members**.
    - Who can join group: **Only invited users**.
@@ -55,7 +55,7 @@ In [Play Console](https://play.google.com/console), with the app open:
 
 1. **Test and release → Testing → Closed testing**. Use the default closed track, or **Create track**.
 2. **Manage track → Testers**.
-3. Choose **Google Groups** and enter `getit-testers@googlegroups.com`.
+3. Choose **Google Groups** and enter `visuma-testers@googlegroups.com`.
 4. Feedback: the contact address.
 5. **Save changes**, then **Copy link** under "Join on the web": this is the opt-in link for the invite message.
 6. **Countries / regions**: choose where testers live (at least the Netherlands). This applies to every track.

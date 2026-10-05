@@ -1,8 +1,8 @@
-Not legal advice: drafted from public sources, and to be checked by someone qualified before GetIt launches publicly.
+Not legal advice: drafted from public sources, and to be checked by someone qualified before Visuma launches publicly.
 
 # DPIA screening
 
-Does GetIt need a data protection impact assessment (article 35)? Screened on
+Does Visuma need a data protection impact assessment (article 35)? Screened on
 24 September 2026, for the app as it is: a planner that stores health data for a
 few dozen invited testers, moving towards a public release on Google Play.
 
@@ -13,11 +13,11 @@ few dozen invited testers, moving towards a public release on Google Play.
 3. **The AP's list** (article 35(4)), [Staatscourant 2019, 64418](https://www.autoriteitpersoonsgegevens.nl/uploads/imported/stcrt-2019-64418.pdf), names 17 kinds of processing that always need one. Item 7, health data, covers "Grootschalige verwerkingen van gegevens over gezondheid" (large-scale processing of health data), with examples such as care institutions, insurers and research institutes. Item 15 covers profiling that systematically and extensively evaluates personal aspects, including health. Item 16 covers large-scale automated observation or influencing of behaviour.
 4. **The nine European criteria**, repeated in that decision: evaluation or scoring; automated decisions with legal or similar effect; systematic monitoring; sensitive data; large scale; matching or combining datasets; vulnerable data subjects; innovative technology; processing that stops people using a service or contract. The AP's rule of thumb: "Als vuistregel geldt dat u een DPIA moet uitvoeren als uw verwerking aan 2 of meer van deze criteria voldoet" (as a rule, carry out a DPIA if the processing meets two or more) ([AP: DPIA](https://autoriteitpersoonsgegevens.nl/nl/zelf-doen/data-protection-impact-assessment-dpia)).
 
-## GetIt against the criteria
+## Visuma against the criteria
 
 | Criterion | Met? | Why |
 | --- | --- | --- |
-| 1. Evaluation or scoring | Partly | GetIt calculates a calorie and protein budget from weight, height, age, sex and activity (Mifflin-St Jeor, `src/lib/calc.ts`). That is a calculation for the user's own use, not an assessment of the person by or for anyone else, and nothing is decided about them. Counted as borderline. |
+| 1. Evaluation or scoring | Partly | Visuma calculates a calorie and protein budget from weight, height, age, sex and activity (Mifflin-St Jeor, `src/lib/calc.ts`). That is a calculation for the user's own use, not an assessment of the person by or for anyone else, and nothing is decided about them. Counted as borderline. |
 | 2. Automated decisions with legal or similar effect | No | Nothing is decided; the user sees suggestions and edits them. |
 | 3. Systematic monitoring | No | Users log their own entries. No location, no sensors, no background tracking. Since version 19 the Android app can import sleep sessions from Health Connect, but only when the person taps Import, for the days they choose, read once on the phone: not continuous monitoring. |
 | 4. Sensitive data | **Yes** | Weight, food eaten, training and sleep are health data (art. 9). |

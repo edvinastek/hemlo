@@ -1,4 +1,4 @@
-Not legal advice: drafted from public sources, and to be checked by someone qualified before GetIt launches publicly.
+Not legal advice: drafted from public sources, and to be checked by someone qualified before Visuma launches publicly.
 
 # Handling data requests
 
@@ -110,8 +110,8 @@ select jsonb_pretty(jsonb_build_object(
 Photos in module records (version 18, migration 033) are files in Supabase Storage, not rows: list them in the
 dashboard (Storage → the module photos bucket → the folder named after the user's id) and attach them.
 
-Prices the person shared with Open Prices are not GetIt's: they are public on prices.openfoodfacts.org under the
-person's Open Food Facts user name, and Open Food Facts answers for them. GetIt's server holds nothing about them.
+Prices the person shared with Open Prices are not Visuma's: they are public on prices.openfoodfacts.org under the
+person's Open Food Facts user name, and Open Food Facts answers for them. Visuma's server holds nothing about them.
 
 This includes items the person deleted in the app (rows with `deleted_at` set):
 they are still held, so they are part of an access request. If the household is
@@ -183,8 +183,8 @@ old copy and uploads it again.
 
 ## Restriction (article 18) and objection (article 21)
 
-- GetIt's processing rests on the contract and on consent, not on legitimate interest, so the right to object (art. 21) mostly does not apply to app data. What someone who objects usually wants is to stop: that is withdrawing consent, which is account deletion. Explain that, and offer it.
-- The public site's hosting logs rest on legitimate interest. An objection there can be answered: the logs are Netlify's, kept only as long as needed for security, and GetIt does not use them.
+- Visuma's processing rests on the contract and on consent, not on legitimate interest, so the right to object (art. 21) mostly does not apply to app data. What someone who objects usually wants is to stop: that is withdrawing consent, which is account deletion. Explain that, and offer it.
+- The public site's hosting logs rest on legitimate interest. An objection there can be answered: the logs are Netlify's, kept only as long as needed for security, and Visuma does not use them.
 - Restriction while accuracy is disputed: ask them to stop using the app while you check; the data is not used for anything but their own planning, so nothing else needs pausing. Record it.
 
 ## Reply templates
@@ -193,19 +193,19 @@ Plain sentences, no legal jargon beyond what is needed. Replace the brackets.
 
 ### Received
 
-> Subject: Your request about your GetIt data
+> Subject: Your request about your Visuma data
 >
-> Thank you, I have your request of [date] to [see / correct / delete] your GetIt data. I will reply by [date, one month later] at the latest.
+> Thank you, I have your request of [date] to [see / correct / delete] your Visuma data. I will reply by [date, one month later] at the latest.
 >
-> [Name], GetIt
+> [Name], Visuma
 
 ### Identity check
 
-> I received a request about the GetIt account for [address], but it came from a different address. To protect the account, please send the request again from [address], the one the account uses. If you no longer have access to it, tell me and we will find another way to confirm it is you.
+> I received a request about the Visuma account for [address], but it came from a different address. To protect the account, please send the request again from [address], the one the account uses. If you no longer have access to it, tell me and we will find another way to confirm it is you.
 
 ### Access
 
-> Attached is a copy of everything GetIt holds about you, as a JSON file. It includes items you deleted in the app, which are kept, hidden, until the account is deleted.
+> Attached is a copy of everything Visuma holds about you, as a JSON file. It includes items you deleted in the app, which are kept, hidden, until the account is deleted.
 >
 > Why and how it is used, and how long it is kept, is in the privacy policy: [policy URL]. In short: it is used only to plan your days, meals and shopping; it is stored by Supabase in Frankfurt, Germany, on my behalf; nothing is shared or sold, and no decisions are made about you automatically.
 >
@@ -219,13 +219,13 @@ Plain sentences, no legal jargon beyond what is needed. Replace the brackets.
 
 ### Deletion done
 
-> Your GetIt account and everything in it were deleted on [date]: your profile, plan, weigh-ins, food and training logs, recipes and settings. [GetIt has no backups at the moment, so nothing remains.] / [Backups that still contain it are overwritten by [date].] If GetIt is still installed on a phone, sign out or uninstall it to remove the copy on that device.
+> Your Visuma account and everything in it were deleted on [date]: your profile, plan, weigh-ins, food and training logs, recipes and settings. [Visuma has no backups at the moment, so nothing remains.] / [Backups that still contain it are overwritten by [date].] If Visuma is still installed on a phone, sign out or uninstall it to remove the copy on that device.
 >
 > I keep this email exchange for two years as a record that the request was handled, and then delete it.
 
 ### Objection
 
-> GetIt uses your data only to provide the planner, on the basis of our agreement and the consent you gave for your health details. If you no longer want GetIt to use your data, the way to stop it is to delete your account, which removes everything. Would you like me to do that? Or you can do it yourself under More → Data → Delete account.
+> Visuma uses your data only to provide the planner, on the basis of our agreement and the consent you gave for your health details. If you no longer want Visuma to use your data, the way to stop it is to delete your account, which removes everything. Would you like me to do that? Or you can do it yourself under More → Data → Delete account.
 
 ### More time needed
 
@@ -233,4 +233,4 @@ Plain sentences, no legal jargon beyond what is needed. Replace the brackets.
 
 ### No account found
 
-> I could not find a GetIt account for [address]. If you used a different address, send the request from that one.
+> I could not find a Visuma account for [address]. If you used a different address, send the request from that one.

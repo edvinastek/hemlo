@@ -219,7 +219,7 @@ is('“Done” from the review reached the server', r.errand, 'done')
 is('“Tomorrow” moved it on', r.call_day > yesterday, true)
 
 // 6. The Excel import: preview first, then saved to this account only.
-const dir = mkdtempSync(join(tmpdir(), 'getit-'))
+const dir = mkdtempSync(join(tmpdir(), 'visuma-'))
 const wb = XLSX.utils.book_new()
 XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet([
   ['id', 'name', 'kcal', 'carbs', 'fiber', 'fat', 'protein'],

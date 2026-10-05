@@ -1,6 +1,6 @@
-# Releasing GetIt for iPhone
+# Releasing Visuma for iPhone
 
-GetIt's iPhone app is built by GitHub on its own Macs, from the same commit and
+Visuma's iPhone app is built by GitHub on its own Macs, from the same commit and
 the same version number as the Android app, and sent to TestFlight. No Mac is
 needed: everything below is done in a browser on Windows, plus one step with
 the iPhone plugged into the Windows computer.
@@ -49,9 +49,9 @@ the ML Kit scanner compile with the current Xcode. Nothing is uploaded.
 
 3. **Register the app's id.** developer.apple.com/account → Certificates,
    Identifiers & Profiles → **Identifiers** → + → App IDs → App →
-   - Description: `GetIt`
+   - Description: `Visuma`
    - Bundle ID: **Explicit**, `app.visuma.planner`
-   - Capabilities: leave everything as it is (GetIt needs none).
+   - Capabilities: leave everything as it is (Visuma needs none).
    Continue → Register. The id is permanent, like the Android package name.
 
 4. **Register your iPhone** (once). Apple only gives the build Mac its
@@ -64,10 +64,10 @@ the ML Kit scanner compile with the current Xcode. Nothing is uploaded.
 
 5. **Create the app in App Store Connect.** Apps → + → New App:
    - Platforms: iOS
-   - Name: `GetIt - Day & Meal Planner` (the store name; 30 characters at most)
+   - Name: `Visuma - Day & Meal Planner` (the store name; 30 characters at most)
    - Primary language: English (U.K.)
    - Bundle ID: `app.visuma.planner` (from step 3)
-   - SKU: `getit-ios`
+   - SKU: `visuma-ios`
    - User access: Full access
 
 6. **Make an App Store Connect API key** for GitHub. Users and Access →
@@ -104,11 +104,11 @@ deletes it at the end; GitHub hides secret values in the logs. Never put the
 
 1. Actions → **Build** → **Run workflow** → `main` → Run. With the four
    secrets set, the iPhone job archives the app, signs it through the key,
-   keeps the `.ipa` as the `getit-ios-release` artifact and uploads it to App
+   keeps the `.ipa` as the `visuma-ios-release` artifact and uploads it to App
    Store Connect. Its version is `version` in `package.json`; its build number
    is the run number, the same number the Android build of that run gets.
 2. After 5 to 30 minutes the build shows in App Store Connect → your app →
-   **TestFlight**, first as Processing. GetIt declares that it uses only
+   **TestFlight**, first as Processing. Visuma declares that it uses only
    standard encryption (HTTPS), so no export compliance question is asked.
 3. **Internal testers** (you, and up to 100 people who are users of your App
    Store Connect team): TestFlight → Internal Testing → + → a group ("Owner") →
@@ -118,7 +118,7 @@ deletes it at the end; GitHub hides secret values in the logs. Never put the
    TestFlight → External Testing → + → a group → add testers → add the build →
    fill in What to test and the review information from
    `store/app-store-answers.md`. The first build of each version goes through
-   **Beta App Review** (usually a day). Testers must also be on GetIt's invite
+   **Beta App Review** (usually a day). Testers must also be on Visuma's invite
    list, as for Android (`node scripts/allowlist.mjs`).
 
 Each build in TestFlight lasts 90 days.
@@ -153,7 +153,7 @@ checked by `src/test/platform.check.mjs`).
 | --- | --- | --- |
 | Planner, food, shopping, habits, every module, sync, offline | Works | The same web code. |
 | Sign-in, confirmation and password-reset links | Works | The app.visuma.planner:// link is registered in Info.plist; Supabase already allows it for Android. |
-| Reminders (local notifications), Done and In 15 min | Works, changed | No notification channels on iOS (the call is skipped); the iPhone keeps 64 scheduled notifications at most, so the soonest 64 are set and the rest on a later run; Done and In 15 min open GetIt so the tick is surely written. Lock-screen text follows the iPhone's Show Previews setting. |
+| Reminders (local notifications), Done and In 15 min | Works, changed | No notification channels on iOS (the call is skipped); the iPhone keeps 64 scheduled notifications at most, so the soonest 64 are set and the rest on a later run; Done and In 15 min open Visuma so the tick is surely written. Lock-screen text follows the iPhone's Show Previews setting. |
 | Focus timer's end notification | Works | Counts towards the 64. |
 | Barcode scanner | Works, changed | ML Kit is built into the iPhone app (no download from Google Play); the iPhone asks for the camera on the first scan. Refused: a note says where to allow it. |
 | Photos (records, recipes, labels, prices) | Works | The iPhone's camera screen or photo picker, through the web view. |

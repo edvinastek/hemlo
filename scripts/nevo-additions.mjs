@@ -1,4 +1,4 @@
-// What GetIt adds to NEVO-online 2025/9.0, kept apart from NEVO's own data.
+// What Visuma adds to NEVO-online 2025/9.0, kept apart from NEVO's own data.
 //
 // NEVO's conditions of use allow additions "provided that it is clear these
 // are additional to the original dataset and to what part(s) they apply", and
@@ -7,7 +7,7 @@
 //  * a plainer display name worked out from NEVO's English name (the
 //    published Dutch and English names are kept beside it, unchanged);
 //  * units (small, medium, large, slices, spoons), from RIVM Portie-online
-//    2026/2.0 where it gives them (requirements Part H3), or GetIt's own
+//    2026/2.0 where it gives them (requirements Part H3), or the app's own
 //    portion conventions from version 15;
 //  * cook yields GetIt used in version 15 (migration 007);
 //  * how the old shared catalogue (807 foods from a US list) meets NEVO:
@@ -20,6 +20,8 @@
 export const NEVO_VERSION = 'NEVO-online 2025/9.0'
 export const NEVO_ATTRIBUTION = 'Based on data from NEVO online version 2025/9.0, RIVM, Bilthoven'
 export const PORTIE = 'Portie-online 2026/2.0'
+// The tags below are data in applied migrations (027, 035), written when the
+// app was called GetIt; they stay so a rebuilt catalogue matches the live one.
 export const GETIT = 'GetIt'
 export const USDA_VERSION = 'USDA SR Legacy (GetIt version 15 catalogue)'
 

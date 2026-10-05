@@ -1,4 +1,4 @@
-# Play Console answers for GetIt
+# Play Console answers for Visuma
 
 Every form Google Play asks for before a release, with the answer that matches
 what the app does as of **version 18** (checked 4 October 2026 against the code,
@@ -10,7 +10,7 @@ commit, and update the form in Play Console.
 
 | Field | Answer |
 | --- | --- |
-| App name | GetIt - Day & Meal Planner |
+| App name | Visuma - Day & Meal Planner |
 | Package name | `app.visuma.planner` (permanent) |
 | Default language | English (United Kingdom) |
 | App or game | App |
@@ -60,7 +60,7 @@ No.
 No.
 
 ### Financial features
-**My app doesn't provide any financial features.** Finance in GetIt is a personal record the person types (what
+**My app doesn't provide any financial features.** Finance in Visuma is a personal record the person types (what
 they spent and received, budgets, planned payments). It does not connect to a bank, move money, give loans or
 advice, or trade anything. (If the form's wording has changed, choose the option for "no financial services".)
 
@@ -70,7 +70,7 @@ Tick:
 - **Activity and fitness**
 - **Sleep management** (the Sleep module logs sleep and works out sleep debt)
 
-Do not tick anything medical: GetIt does not diagnose, treat or monitor any condition, and the listing says it
+Do not tick anything medical: Visuma does not diagnose, treat or monitor any condition, and the listing says it
 gives no medical advice. From version 19 it can read sleep from Health Connect (see "Health Connect" below).
 
 ### Data safety
@@ -83,7 +83,7 @@ account → Delete account), and at `https://<site-name>.netlify.app/delete.html
 
 #### Collected
 
-| Category | Data type | Collected | Optional? | Purpose | What it is in GetIt |
+| Category | Data type | Collected | Optional? | Purpose | What it is in Visuma |
 | --- | --- | --- | --- | --- | --- |
 | Personal info | Email address | Yes | Required | Account management, App functionality | The sign-in address. |
 | Personal info | Name | Yes | Optional | App functionality | The profile name; the name a member shows in a household. |
@@ -93,10 +93,10 @@ account → Delete account), and at `https://<site-name>.netlify.app/delete.html
 | Health and fitness | Health info | Yes | Optional | App functionality | Weight, waist, food eaten, targets, sleep, supplements. |
 | Health and fitness | Fitness info | Yes | Optional | App functionality | Training sessions, sets and exercises. |
 | Photos and videos | Photos | Yes | Optional | App functionality | Photos added to records in a module the person built (private storage); a photo of a price tag or receipt, sent to Open Prices only when the person shares a price. |
-| Location | Approximate location | Yes | Optional | App functionality | The country and town the person types in their profile (for shops, prices and public holidays), and the shop's place when they share a price. Never the device's location: GetIt has no location permission. |
+| Location | Approximate location | Yes | Optional | App functionality | The country and town the person types in their profile (for shops, prices and public holidays), and the shop's place when they share a price. Never the device's location: Visuma has no location permission. |
 | Calendar | Calendar events | Yes | Optional | App functionality | Events the person puts in their own agenda; the addresses of calendars they follow (those calendars' events stay on the device). |
 | App activity | Other user-generated content | Yes | Optional | App functionality | Tasks, notes, recipes, shopping lists, stock, module records, household chores. |
-| App info and performance | Diagnostics | Yes | Optional | Analytics | Collected by Google's ML Kit code scanner (in Google Play services) when the person scans a barcode: performance figures and error codes, for Google's own diagnostics. GetIt itself collects none. |
+| App info and performance | Diagnostics | Yes | Optional | Analytics | Collected by Google's ML Kit code scanner (in Google Play services) when the person scans a barcode: performance figures and error codes, for Google's own diagnostics. Visuma itself collects none. |
 | Device or other IDs | Device or other IDs | Yes | Optional | Analytics | The same ML Kit scanner: a per-installation identifier "not intended to uniquely identify a user or physical device", for Google's diagnostics ([ML Kit data disclosure](https://developers.google.com/ml-kit/android-data-disclosure)). |
 
 Not collected: precise location, contacts, messages, audio, files and docs, web browsing, installed apps, crash
@@ -107,7 +107,7 @@ only ephemerally.
 
 **No data is shared.** Explain if asked:
 
-- Supabase stores data as a processor on GetIt's behalf, which Google does not count as sharing.
+- Supabase stores data as a processor on Visuma's behalf, which Google does not count as sharing.
 - Product searches and barcodes sent to Open Food Facts, and prices looked up on Open Prices, are requests the
   person makes, and they carry no personal data beyond what any website sees.
 - A price shared with Open Prices (optional, off by default) is sent only when the person taps Share on that price,
@@ -139,7 +139,7 @@ asks the person for:
 | `RECEIVE_BOOT_COMPLETED` | Setting reminders again after a restart. |
 | `WAKE_LOCK` | Held briefly by the notification library so a reminder arrives on time. |
 | `USE_BIOMETRIC`, `USE_FINGERPRINT` | Only to confirm switching between accounts kept on the phone. |
-| `app.visuma.planner.DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION` | Added by AndroidX; only GetIt holds it. |
+| `app.visuma.planner.DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION` | Added by AndroidX; only Visuma holds it. |
 | `android.permission.health.READ_SLEEP` | Version 19: reading sleep sessions from Health Connect, only when the person chooses Import from Health Connect on the Sleep page (see "Health Connect" below). |
 
 Removed on purpose (`tools:node="remove"` in `android/app/src/main/AndroidManifest.xml`): `CAMERA` (barcodes go
@@ -171,7 +171,7 @@ as it is.
 
 | Item | Value |
 | --- | --- |
-| Format | Android App Bundle (`.aab`), from the `getit-android-release` CI artifact |
+| Format | Android App Bundle (`.aab`), from the `visuma-android-release` CI artifact |
 | Target API | 36 (Android 16), required for new apps since 31 August 2026 |
 | Minimum API | 24 (Android 7.0) |
 | Signing | Play App Signing. You keep only the upload key (see `docs/android-release.md`) |
@@ -180,7 +180,7 @@ as it is.
 
 ## Health Connect (version 19, SLP-05)
 
-GetIt reads **one** Health Connect data type, **Sleep** (`android.permission.health.READ_SLEEP`), and writes none.
+Visuma reads **one** Health Connect data type, **Sleep** (`android.permission.health.READ_SLEEP`), and writes none.
 The merged manifest declares nothing else from Health Connect (checked with `aapt2 dump permissions` on the version 19
 build). Health Connect access has its own declaration in Play Console, separate from Data safety; without it the
 release is rejected.
@@ -195,8 +195,8 @@ together.
 | Data type | Sleep (read only) |
 | Write access | None |
 | Use case | Sleep tracking / sleep management: show the person's own nights (bed and wake time, hours asleep) on the Sleep page, against their sleep target, with sleep debt and how regular their nights are. |
-| How the data is used | When the person chooses **Import from Health Connect** on the Sleep page (Android only), GetIt asks for the Sleep permission and reads the sleep sessions that ended in the last 7, 14 or 30 days (they choose). Each night becomes a sleep entry in their GetIt account, the same as a night they type in, so it shows on their other devices. Sessions that overlap are joined, naps are left out, and a day that already has a night keeps it. Nothing is read in the background or on a schedule. |
-| Shared with third parties | No. The nights are stored by Supabase as GetIt's processor, like the rest of the person's data; never sold, never used for advertising, never shared. |
+| How the data is used | When the person chooses **Import from Health Connect** on the Sleep page (Android only), Visuma asks for the Sleep permission and reads the sleep sessions that ended in the last 7, 14 or 30 days (they choose). Each night becomes a sleep entry in their Visuma account, the same as a night they type in, so it shows on their other devices. Sessions that overlap are joined, naps are left out, and a day that already has a night keeps it. Nothing is read in the background or on a schedule. |
+| Shared with third parties | No. The nights are stored by Supabase as Visuma's processor, like the rest of the person's data; never sold, never used for advertising, never shared. |
 | Used for advertising or credit | No |
 | Human access | No. Only the person sees it, in their own account; it is not shared with their household. |
 | Data retention | Kept until the person deletes the night or their account. Taking the permission back stops new imports; nights already imported stay until deleted. |
@@ -210,6 +210,6 @@ asks whether health data comes from Health Connect, answer Yes.
 
 ### Reviewer notes
 To see it: an Android phone with Health Connect (built in on Android 14 and later; the Health Connect app from Google
-Play on Android 9 to 13) holding some sleep (any sleep tracker or Health Connect's own "add data"). In GetIt: switch
+Play on Android 9 to 13) holding some sleep (any sleep tracker or Health Connect's own "add data"). In Visuma: switch
 on Sleep (More → Modules), open Sleep, ⋮ → Import from Health Connect → Import, allow Sleep on Health Connect's screen.
 

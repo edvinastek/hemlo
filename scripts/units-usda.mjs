@@ -8,7 +8,7 @@
 // Where the data comes from: USDA FoodData Central, "SR Legacy" (April 2018),
 // downloaded as CSV from https://fdc.nal.usda.gov/download-datasets. USDA's
 // data is in the public domain (CC0 1.0), so it may be used and changed
-// freely; GetIt still says where every figure came from. The CSV release has
+// freely; Visuma still says where every figure came from. The CSV release has
 // no refuse figures (the share of a food as bought that is not eaten: peel,
 // core, stone, shell), so those are read from the same data in its SR28 ASCII
 // form (FOOD_DES.txt, https://www.ars.usda.gov/ARSUserFiles/80400535/DATA/SR/sr28/dnload/sr28asc.zip).

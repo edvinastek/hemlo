@@ -19,7 +19,7 @@ is('drops mailto:', normalise('mailto:kees@example.nl'), 'kees@example.nl')
 
 // Validation.
 is('plain gmail address', isValidEmail('anna.jansen@gmail.com'), true)
-is('plus tag', isValidEmail('anna+getit@gmail.com'), true)
+is('plus tag', isValidEmail('anna+visuma@gmail.com'), true)
 is('apostrophe in local part', isValidEmail("o'neill@example.ie"), true)
 is('subdomain', isValidEmail('a@mail.example.co.uk'), true)
 is('punycode tld', isValidEmail('a@example.xn--p1ai'), true)

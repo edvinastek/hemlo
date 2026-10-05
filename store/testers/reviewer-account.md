@@ -1,6 +1,6 @@
 # The Google Play reviewer account
 
-GetIt shows nothing without signing in, so Play Console's **App access** section
+Visuma shows nothing without signing in, so Play Console's **App access** section
 must give Google's reviewers a working account. Reviewers need access that
 keeps working through the review: no expiry, no one-time codes, no second factor
 ([Play Console Help: App access](https://support.google.com/googleplay/android-developer/answer/9859455)).
@@ -12,7 +12,7 @@ Gmail account, or `play-review@<your domain>` if you have one. Do not use your
 own address, a tester's, or the contact address: the reviewer account's
 password will be stored in Play Console.
 
-It must be able to receive email from GetIt. That needs custom SMTP set up in
+It must be able to receive email from Visuma. That needs custom SMTP set up in
 Supabase first: the built-in sender only delivers to members of the Supabase
 team (`docs/privacy/processors.md`).
 
@@ -30,7 +30,7 @@ insert into private.signup_allowlist (email) values ('play-review@example.com') 
 
 1. Make a long random password (20 characters or more) in a password manager, and save it there with the address.
 2. On an Android phone with the test build, or in the web build, choose **Create account**, enter the address and password, and tick the consent box.
-3. Open the confirmation email **on the same device** and tap the link. GetIt's links carry a one-time code that only works where the sign-up started (`src/lib/supabase.ts`, PKCE).
+3. Open the confirmation email **on the same device** and tap the link. Visuma's links carry a one-time code that only works where the sign-up started (`src/lib/supabase.ts`, PKCE).
 4. Sign in. Go through the first-run setup with **made-up** figures (for example 75 kg, 175 cm, born 1990), never your own: reviewers will see them.
 5. Add enough to show the app working: a few tasks today, a meal plan for the week, a shopping list. Reviewers approve faster when screens are not empty.
 
