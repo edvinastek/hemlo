@@ -72,13 +72,13 @@ function toBase64(blob: Blob): Promise<string> {
  *  On a phone that is the app itself, through the link the phone hands to it;
  *  in a browser it is the page they signed up from. */
 export function authRedirect(kind: 'confirm' | 'recovery'): string {
-  if (isNative()) return `app.visuma.planner://auth-callback?kind=${kind}`
+  if (isNative()) return `app.hemlo.planner://auth-callback?kind=${kind}`
   return `${window.location.origin}${import.meta.env.BASE_URL}?kind=${kind}`
 }
 
 /* ---------- looks, app icon and haptics (android/…/LooksPlugin.java) ---------- */
 
-interface VisumaLooks {
+interface HemloLooks {
   setTextZoom(options: { percent: number }): Promise<void>
   fontScale(): Promise<{ scale: number }>
   systemColours(): Promise<{ accent: string | null }>
@@ -86,7 +86,7 @@ interface VisumaLooks {
   getIcon(): Promise<{ key: string; pending: string | null }>
   haptic(options: { kind: 'tick' | 'hold' }): Promise<void>
 }
-const Looks = registerPlugin<VisumaLooks>('VisumaLooks')
+const Looks = registerPlugin<HemloLooks>('HemloLooks')
 const android = isAndroid
 
 /** Text drawn at this percent of normal (LOOK-07); Android app only. */
@@ -164,7 +164,7 @@ export function haptic(kind: 'tick' | 'hold' = 'tick') {
  *  from Google Play first; 'unsupported' on this phone (or not Android). */
 export type HealthStatus = 'available' | 'install' | 'unsupported'
 
-interface VisumaHealth {
+interface HemloHealth {
   availability(): Promise<{ status: HealthStatus }>
   install(): Promise<void>
   openSettings(): Promise<void>
@@ -172,7 +172,7 @@ interface VisumaHealth {
   requestSleep(): Promise<{ allowed: boolean }>
   readSleep(options: { start: number; end: number }): Promise<{ sessions: HcSession[] }>
 }
-const Health = registerPlugin<VisumaHealth>('VisumaHealth')
+const Health = registerPlugin<HemloHealth>('HemloHealth')
 
 /** Whether Health Connect can be used here (SLP-05). */
 export async function healthStatus(): Promise<HealthStatus> {

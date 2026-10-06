@@ -100,14 +100,14 @@ for (const [d, px] of Object.entries(densities)) {
   const dir = `android/app/src/main/res/drawable-${d}`
   mkdirSync(dir, { recursive: true })
   const s = px / 700
-  await png(svg(px, px, `<g transform="translate(${px/2} ${px/2})">${glyph(s, '#fff', '#fff', '#fff')}</g>`), `${dir}/ic_stat_visuma.png`)
+  await png(svg(px, px, `<g transform="translate(${px/2} ${px/2})">${glyph(s, '#fff', '#fff', '#fff')}</g>`), `${dir}/ic_stat_hemlo.png`)
 }
 
 // Play Store: a 512 x 512 icon, and the 1024 x 500 feature graphic.
 await sharp(Buffer.from(mark)).resize(512, 512).png().toFile('store/icon-512.png')
 const feature = svg(1024, 500, `
   <g transform="translate(250 250)">${glyph(0.62)}</g>
-  <text x="440" y="235" font-family="Georgia, 'Iowan Old Style', serif" font-size="96" font-weight="600" fill="${INK}">Visuma</text>
+  <text x="440" y="235" font-family="Georgia, 'Iowan Old Style', serif" font-size="96" font-weight="600" fill="${INK}">Hemlo</text>
   <text x="444" y="300" font-family="'Helvetica Neue', Arial, sans-serif" font-size="30" fill="#6c665b">Plan the day, the meals and the shop.</text>
   <text x="444" y="342" font-family="'Helvetica Neue', Arial, sans-serif" font-size="30" fill="#6c665b">Works offline.</text>`, PAPER)
 await png(feature, 'store/feature-graphic.png')

@@ -141,10 +141,10 @@ export function latestTicks(ticks: WidgetTick[]): WidgetTick[] {
   return [...last.values()]
 }
 
-/** A stats widget's tap: app.visuma.planner://open/stats?view=… becomes
+/** A stats widget's tap: app.hemlo.planner://open/stats?view=… becomes
  *  /stats?view=…, a path inside the app. Anything else is not ours. */
 export function widgetPath(url: string): string | null {
-  const prefix = 'app.visuma.planner://open'
+  const prefix = 'app.hemlo.planner://open'
   if (!url.startsWith(prefix)) return null
   const path = url.slice(prefix.length) || '/'
   return path.startsWith('/') && !path.startsWith('//') ? path : null

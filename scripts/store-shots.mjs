@@ -32,7 +32,7 @@ const STUB = path.join(HERE, 'supabase-stub.ts')
 const REAL = path.join(ROOT, 'src', 'lib', 'supabase.ts')
 
 // 1. Build.
-const dist = fs.mkdtempSync(path.join(os.tmpdir(), 'visuma-store-shots-'))
+const dist = fs.mkdtempSync(path.join(os.tmpdir(), 'hemlo-store-shots-'))
 await build({
   configFile: false,
   root: HERE,

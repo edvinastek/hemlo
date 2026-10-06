@@ -47,7 +47,7 @@ export const SETTINGS_INDEX: SettingEntry[] = [
   { title: 'Profiles', page: 'profile', words: 'profile switch add rename delete person another' },
   { title: 'Time zone', page: 'profile', words: 'timezone zone clock travel' },
   { title: 'Where you are', page: 'profile', words: 'country city town location shops' },
-  { title: 'Looks', page: 'looks', words: 'theme dark light black mode icon text size make visuma yours' },
+  { title: 'Looks', page: 'looks', words: 'theme dark light black mode icon text size make hemlo yours' },
   { title: 'Colours', page: 'looks', words: 'colour color module colours' },
   { title: 'Style', page: 'bar', words: 'navigation bottom bar style one row two rows three rows drawer fan hub tabs' },
   { title: 'Pages', page: 'bar', words: 'order hide move pages bar pin' },

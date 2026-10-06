@@ -12,9 +12,9 @@ export function platformFrom(name: string | null | undefined): Platform {
 }
 
 export interface PlatformFeatures {
-  /** The home-screen widgets (VisumaWidget, Android only). */
+  /** The home-screen widgets (HemloWidget, Android only). */
   widgets: boolean
-  /** Choosing the launcher icon (VisumaLooks, LOOK-10). */
+  /** Choosing the launcher icon (HemloLooks, LOOK-10). */
   appIcons: boolean
   /** Text size through the web view's own text zoom (Android); elsewhere the
    *  page is zoomed with CSS. */
@@ -30,7 +30,7 @@ export interface PlatformFeatures {
    *  quick-add widget as the person orders them (Android). The iPhone has
    *  fixed quick actions instead, declared in its Info.plist. */
   quickAddSync: boolean
-  /** app.visuma.planner://open/… links (widgets, shortcuts, quick actions). */
+  /** app.hemlo.planner://open/… links (widgets, shortcuts, quick actions). */
   openLinks: boolean
   /** Google's scanner module, fetched from Google Play when missing. */
   scannerModule: boolean

@@ -16,11 +16,11 @@ import type { Food } from './types'
  *  products-rules.ts; this file only asks.
  *
  *  Everything goes straight from this device to Open Food Facts: the words
- *  searched or the barcode, and nothing about the person. Visuma's own server
+ *  searched or the barcode, and nothing about the person. Hemlo's own server
  *  is not involved, and answers are kept in memory only, never on the device.
  *
  *  In the Android app requests go through the phone's own connection
- *  (CapacitorHttp), which may say it is Visuma and may use the newer search;
+ *  (CapacitorHttp), which may say it is Hemlo and may use the newer search;
  *  in a browser they are ordinary fetches, which Open Food Facts allows from
  *  any page for the product and price services and the older search. */
 

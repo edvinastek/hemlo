@@ -1,4 +1,4 @@
-/* Visuma's offline shell.
+/* Hemlo's offline shell.
  *
  * The data was already local — but on the web the page itself still came from
  * the network, so opening the app in a basement gym showed nothing at all.
@@ -6,13 +6,13 @@
  * when there is no connection. Supabase calls are never cached: stale data
  * pretending to be current is worse than the app saying it is offline.
  */
-const CACHE = 'visuma-shell-v1'
+const CACHE = 'hemlo-shell-v1'
 
 // The build writes the emitted filenames here. Caching only what happens to be
 // fetched misses the very first visit — the assets load before this worker
 // takes control, so nothing of the app would be in the cache when the
 // connection goes away.
-const PRECACHE = self.__VISUMA_ASSETS__ || ['/', '/index.html']
+const PRECACHE = self.__HEMLO_ASSETS__ || ['/', '/index.html']
 
 self.addEventListener('install', (event) => {
   event.waitUntil(

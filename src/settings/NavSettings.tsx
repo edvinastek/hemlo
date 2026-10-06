@@ -67,7 +67,7 @@ export function NavSettings() {
           </div>
           {nav.chosen && (
             <button type="button" className="btn nv-reset" onClick={() => save({ style: 'row', chosen: false })}>
-              Let Visuma pick
+              Let Hemlo pick
             </button>
           )}
         </div>

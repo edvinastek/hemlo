@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Run a .sql file against the Visuma Supabase project via the Management API.
+# Run a .sql file against the Hemlo Supabase project via the Management API.
 set -euo pipefail
 REF=lphysuemxnmcuukzsoya
 [ -n "${SB:-}" ] || { echo "SB token not set"; exit 1; }

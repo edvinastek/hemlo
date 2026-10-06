@@ -63,7 +63,7 @@ export function suggestShops(country: string | null | undefined, kept: string[],
 
 /** Each chain's own pages, by country (PRICE-06, PRICE-07, PRICE-08): its
  *  weekly offers page and its site search, where `{q}` stands for the words
- *  searched. Only the retailer's official site: Visuma opens it in the
+ *  searched. Only the retailer's official site: Hemlo opens it in the
  *  browser and copies nothing from it. A chain with no search here has none
  *  that opens from a link (or none that could be confirmed); its offers page
  *  still shows. Checked by hand on the date below, and every month by

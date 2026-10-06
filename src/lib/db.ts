@@ -14,7 +14,7 @@ import type { PhotoRow } from '../modules/photos-types'
 
 /** The local copy. Every device holds the whole account, so the app works
  *  with no connection at all and merges when one comes back. */
-class VisumaDB extends Dexie {
+class HemloDB extends Dexie {
   profile!: Table<Profile, string>
   task!: Table<Task, string>
   food!: Table<Food, string>
@@ -55,7 +55,7 @@ class VisumaDB extends Dexie {
   meta!: Table<{ key: string; value: unknown }, string>
 
   constructor() {
-    // The database keeps the name it had before the app was called Visuma:
+    // The database keeps the name it had before the app was called Hemlo:
     // a new name would be a new, empty database on every device.
     super('getit')
     // Version 2 adds meal_plan_slot; Dexie migrates the existing copy in place.
@@ -157,7 +157,7 @@ class VisumaDB extends Dexie {
   }
 }
 
-export const db = new VisumaDB()
+export const db = new HemloDB()
 
 export async function getMeta<T>(key: string, fallback: T): Promise<T> {
   const row = await db.meta.get(key)

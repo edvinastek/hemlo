@@ -154,4 +154,4 @@ export function describeWeighInPlan(plan: WeighInPlan): string {
 }
 
 /** The reminder's words. */
-export const weighInReminderText = (persona: string | null) => ({ title: persona || 'Visuma', body: 'Time to weigh in.' })
+export const weighInReminderText = (persona: string | null) => ({ title: persona || 'Hemlo', body: 'Time to weigh in.' })

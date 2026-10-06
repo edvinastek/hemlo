@@ -36,7 +36,7 @@ export function readSharing(r: SharingRow): Sharing {
 export const CHOICES: { value: Choice; label: string; hint: string }[] = [
   { value: 'private', label: 'Only me', hint: 'No one else sees it.' },
   { value: 'propose', label: 'Propose to everyone',
-    hint: 'The app’s owner looks at it first. Once approved, everyone using Visuma can find it. Your name is not shown with it.' },
+    hint: 'The app’s owner looks at it first. Once approved, everyone using Hemlo can find it. Your name is not shown with it.' },
 ]
 
 /** The editor's choice for a recipe as it stands. Rejected reads as "Only

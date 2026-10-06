@@ -42,7 +42,7 @@ is('not an answer at all', readOpenPrices(null), [])
 is('pack sizes', [packGrams(500, 'g'), packGrams(1.5, 'l'), packGrams(75, 'cl'), packGrams('250', 'ml'), packGrams(2, 'pieces'), packGrams(0, 'g')], [500, 1500, 750, 250, null, null])
 is('the address asks for the latest 50', openPricesUrl('8718452222386'), 'https://prices.openfoodfacts.org/api/v1/prices?product_code=8718452222386&order_by=-date&size=50')
 is('the credit line', PRICE_ATTRIBUTION, 'Prices: Open Prices (Open Food Facts), ODbL')
-is('Visuma names itself', OPEN_PRICES_AGENT, 'Visuma/18 (app.visuma.planner)')
+is('Hemlo names itself', OPEN_PRICES_AGENT, 'Hemlo/18 (app.hemlo.planner)')
 
 // ---- the person's chain ----------------------------------------------------------------------
 is('brand matches', chainMatches('Albert Heijn', { brand: 'Albert Heijn', name: null }), true)
@@ -138,7 +138,7 @@ is(`never more than ${ASK_AT_ONCE} at once`, codesToAsk(Array.from({ length: 20 
 is('Albert Heijn in the Netherlands', offersUrl('Albert Heijn', 'NL'), 'https://www.ah.nl/bonus')
 is('Lidl in Germany is the German site', offersUrl('lidl', 'DE'), 'https://www.lidl.de/c/online-prospekte/s10005610')
 is('a chain from next door still finds its page', offersUrl('Jumbo', 'DE'), 'https://www.jumbo.com/aanbiedingen/nu')
-is('a shop Visuma does not know has none', offersUrl('Bakker Bart', 'NL'), null)
+is('a shop Hemlo does not know has none', offersUrl('Bakker Bart', 'NL'), null)
 is('only official https pages', offersUrl('Plus', 'NL').startsWith('https://www.plus.nl/'), true)
 
 if (fail) { console.log(`\n${fail} failed`); process.exit(1) }

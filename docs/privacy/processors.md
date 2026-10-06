@@ -1,8 +1,8 @@
-Not legal advice: drafted from public sources, and to be checked by someone qualified before Visuma launches publicly.
+Not legal advice: drafted from public sources, and to be checked by someone qualified before Hemlo launches publicly.
 
 # Processors and other services
 
-Every outside party that receives personal data from Visuma, what it gets, where,
+Every outside party that receives personal data from Hemlo, what it gets, where,
 and the contract that covers it. Checked on 24 September 2026; the public site's
 host (Netlify) and the optional Open Prices sharing checked on 4 October 2026
 (version 18); Telegram reminders and Health Connect on 4 October 2026 (version 19). A new service
@@ -20,7 +20,7 @@ that receives user data is added here, to `records-of-processing.md` and to
 | Contracting entity | Supabase Pte. Ltd. (Singapore), per the DPA. |
 | DPA | [Data Processing Addendum](https://supabase.com/legal/dpa), Version 1, 1 August 2026. It "supplements and forms part of the Supabase Terms of Service", and the Terms say "The Parties agree to comply with the Data Processing Addendum, which is incorporated into this Agreement" ([Terms](https://supabase.com/terms), section 7(b)). |
 | How it is accepted | By accepting Supabase's Terms of Service when creating the organisation. The DPA adds that "acceptance of the Agreement shall have the same effect as signing the SCCs". Neither the DPA nor the Terms limit it to paid plans, so it applies to the free plan as well. There is no separate signature step described on Supabase's public pages; if a countersigned copy is wanted for the file, ask Supabase support. |
-| Breach notice to Visuma | "without undue delay, and where feasible, within forty-eight (48) hours" (DPA). |
+| Breach notice to Hemlo | "without undue delay, and where feasible, within forty-eight (48) hours" (DPA). |
 | Sub-processor changes | At least 30 days' notice; objection within 5 days of notice (DPA). Subscribe to updates on the [sub-processor page](https://supabase.com/legal/customer-resources/subprocessor-list). |
 | End of contract | Data can be requested back within 30 days, after which Supabase deletes all copies (DPA). |
 | Transfers | Standard Contractual Clauses are part of the DPA (Schedule 2). Supabase publishes a [transfer impact assessment](https://supabase.com/downloads/docs/Supabase+TIA+250314.pdf). |
@@ -30,7 +30,7 @@ that receives user data is added here, to `records-of-processing.md` and to
 
 From the [list dated 1 June 2026](https://supabase.com/legal/subprocessor-list/June-1-2026.pdf). The list does not give locations. The ones that can touch a project's data or traffic:
 
-| Sub-processor | Stated purpose | Relevance to Visuma |
+| Sub-processor | Stated purpose | Relevance to Hemlo |
 | --- | --- | --- |
 | Amazon Web Services, Inc. | Hosting | Runs the Frankfurt database (`eu-central-1` is an AWS region). |
 | Cloudflare, Inc. | Hosting | Carries API traffic to the project (see the log fields above). |
@@ -44,7 +44,7 @@ From the [list dated 1 June 2026](https://supabase.com/legal/subprocessor-list/J
 | OpenAI, LLC | Natural language processing | Supabase's AI assistant in the dashboard. Do not paste user data into the dashboard assistant. |
 | Latacora, LLC | Managed security service | Security operations. |
 
-The remaining entries (Postmark, FrontApp, HubSpot, Notion, Slack, PandaDoc, Atlassian, Clay, Clazar, ConfigCat, GitHub, Hex, Sublime Security) are described as communication with, or services for, Supabase's own customers ("Authorized Users"), not Visuma's users.
+The remaining entries (Postmark, FrontApp, HubSpot, Notion, Slack, PandaDoc, Atlassian, Clay, Clazar, ConfigCat, GitHub, Hex, Sublime Security) are described as communication with, or services for, Supabase's own customers ("Authorized Users"), not Hemlo's users.
 
 ## Email delivery for sign-up and password reset: not chosen yet
 
@@ -73,18 +73,18 @@ The pages built by `npm run build:site` (`site/`) are published with Netlify
 | Where | Netlify's network, the location nearest to the visitor; Netlify, Inc. is a US company and its sub-processors are mostly in the US ([sub-processors](https://www.netlify.com/legal/subprocessors/)). |
 | DPA | [Netlify Data Processing Agreement](https://www.netlify.com/pdf/netlify-dpa.pdf), last updated 9 June 2026. |
 | How it is accepted | Automatically: the DPA "forms part of the Enterprise Master Subscription Agreement and the Self-Serve Subscription Agreement", and Netlify's [GDPR page](https://www.netlify.com/gdpr-ccpa/) says it "is incorporated by reference in Netlify's terms and conditions". |
-| Breach notice to Visuma | "without undue delay, but in any event within forty-eight (48) hours" (DPA 10.1). |
+| Breach notice to Hemlo | "without undue delay, but in any event within forty-eight (48) hours" (DPA 10.1). |
 | Sub-processor changes | At least 30 days' notice before a new one may process data (DPA 6.2); subscribe to the RSS feed on the [sub-processor page](https://www.netlify.com/legal/subprocessors/). |
 | Transfers | The EU-US Data Privacy Framework; if it falls away, the EU Standard Contractual Clauses in the DPA apply (DPA section 14). |
 | Settings to keep | No Netlify Analytics, no forms, no functions, no identity, no snippet injection, no extra scripts. The site sets no cookies. |
 
 ## Google: Play distribution, Play Console and Google Groups
 
-Google is not a processor of the data users enter in Visuma: the app sends
+Google is not a processor of the data users enter in Hemlo: the app sends
 nothing to Google. Google receives, under its own terms and as its own
 controller:
 
-- install, update and store data about people who download Visuma from Play;
+- install, update and store data about people who download Hemlo from Play;
 - the testers' addresses, through the Google Group or email list attached to the closed test;
 - the answers in Play Console (Data safety, App access with the reviewer account's credentials).
 
@@ -110,13 +110,13 @@ non-profit ([privacy policy](https://world.openfoodfacts.org/privacy)).
   storage, or a browser tab's session storage, and forgotten on sign-out). For each shared price: the photo of the
   price tag or receipt (resized and re-encoded on the device, which drops its EXIF data such as GPS position), the
   barcode, price, currency, date, offer flag and normal price, the shop's OpenStreetMap id, and the app's name
-  (`app_name=Visuma`). Open Prices publishes these under the ODbL with the person's Open Food Facts user name; Open Food
-  Facts is the controller of the publication. Visuma keeps on the device only which of its prices were shared (the
+  (`app_name=Hemlo`). Open Prices publishes these under the ODbL with the person's Open Food Facts user name; Open Food
+  Facts is the controller of the publication. Hemlo keeps on the device only which of its prices were shared (the
   Open Prices id) and the last place picked per shop. Code: `src/lib/open-prices-*.ts`, `src/sections/SharePrice.tsx`.
 - Adding an unknown product (v19, PROD-05, off by default, per product, on the person's tap after ticking "Also add it
   to Open Food Facts"): a form POST to `world.openfoodfacts.org/cgi/product_jqm2.pl` with the barcode, the name and
-  brand typed, the figures per 100 g or 100 ml (and any vitamins and minerals typed), `app_name=Visuma`,
-  `app_version=19`, a random `app_uuid` per Visuma account and device (not derived from the account; kept in the
+  brand typed, the figures per 100 g or 100 ml (and any vitamins and minerals typed), `app_name=Hemlo`,
+  `app_version=19`, a random `app_uuid` per Hemlo account and device (not derived from the account; kept in the
   device's database) and the person's own Open Food Facts `user_id` and `password` (typed each time, never stored;
   the v18 Open Prices token does not work for Open Food Facts writes); then, if a photo of the nutrition table was
   taken, `cgi/product_image_upload.pl` with the same credentials and the photo (resized and re-encoded on the device,
@@ -141,25 +141,25 @@ brief for version 19 names Telegram FZ-LLC (Dubai), which runs the service. The 
 entity Telegram names when this is next reviewed. Telegram's policy says bots are "completely independent" from it.
 
 - Only after the person links it (Settings → Reminders → Telegram), and only while linked.
-- Visuma sends, through the Bot API (`api.telegram.org`, `sendMessage`, from the `telegram-send` function at
+- Hemlo sends, through the Bot API (`api.telegram.org`, `sendMessage`, from the `telegram-send` function at
   Supabase): the chat id and the reminder lines that fall due (the title the person gave the item and its time).
-  Left out, on the device (`telegramBody`, `src/lib/telegram-rules.ts`): tasks Visuma writes from meal plans and
+  Left out, on the device (`telegramBody`, `src/lib/telegram-rules.ts`): tasks Hemlo writes from meal plans and
   training routines, tasks written by the Nutrition, Health, Training and Sleep rules, refill counts and payment
   amounts. Nothing else: no name, email address or account.
-- Visuma receives, at the `telegram-webhook` function: Telegram's updates for the bot (which include the sender's
+- Hemlo receives, at the `telegram-webhook` function: Telegram's updates for the bot (which include the sender's
   Telegram name and user name). Only `/start <code>` and `/stop` (and the bot being blocked) are acted on; nothing of
   an update is stored except the chat id, on a successful link. The function checks Telegram's secret header.
 - Stored at Supabase (migration 038): `channel_setting.telegram_chat_id` (until unlinked), `telegram_link_code` (hash
   of a one-time code, 10 minutes), `telegram_reminder` (the next three days' lines; deleted on unlink), `telegram_sent`
   (key and time of each sent reminder, two days). None readable through the API, not even by the owner.
 - Transfer: Telegram's servers are outside the EEA. The person asks for the messages to be delivered there, by
-  linking; Visuma is not Telegram's customer under a contract and no SCCs apply (article 49(1)(b): the transfer is
+  linking; Hemlo is not Telegram's customer under a contract and no SCCs apply (article 49(1)(b): the transfer is
   necessary for the service the person asked for). Delivered messages are Telegram's to keep under its terms.
 
 ## Health Connect: sleep read on the phone (v19, optional)
 
 Not a recipient: Android's Health Connect is a store on the person's own phone. Only after the person turns it on
-in the Android app and allows it in Health Connect, Visuma reads the sleep sessions allowed (start, end and stages
+in the Android app and allows it in Health Connect, Hemlo reads the sleep sessions allowed (start, end and stages
 where given), on the phone, and keeps them as the person's own sleep records (`sleep_log`), synced to Supabase like
 the ones typed. It reads no other kind of data, writes nothing to Health Connect, and sends what it read to no one
 else. Taking the permission back in Health Connect stops further reads; records already kept stay until deleted.

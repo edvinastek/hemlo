@@ -95,7 +95,7 @@ Allow: /zoeken/hulp$
 Disallow: /cart
 
 User-agent: Googlebot
-User-agent: Visuma-link-check
+User-agent: Hemlo-link-check
 Disallow: /folders`
 is('robots: no file allows all', robotsAllows(null, '/zoeken?query=melk'), true)
 is('robots: our own group is used, not "*"', [robotsAllows(robots, '/zoeken?query=melk'), robotsAllows(robots, '/folders')], [true, false])

@@ -322,7 +322,7 @@ export function taskTitle(g: Pick<MealGroup, 'name' | 'time' | 'key' | 'items'>,
  *  day and the meal: the same on every device, with nothing stored to keep
  *  it. Four rounds of FNV-1a over the text, shaped as a UUID (version 8). */
 export function groupRef(profileId: string, day: string, key: string): string {
-  // "getit-meal" stays after the rename to Visuma: a new text would give every
+  // "getit-meal" stays after the rename to Hemlo: a new text would give every
   // meal's task a new id, and meals already planned would be planned twice.
   const text = `getit-meal:${profileId}:${day}:${key}`
   const parts: string[] = []

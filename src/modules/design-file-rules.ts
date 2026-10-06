@@ -26,10 +26,10 @@ export function designFile(def: ModuleDef): DesignFile {
   return { format: DESIGN_FORMAT, version: DESIGN_VERSION, name: def.name, definition: { ...d, entities } }
 }
 
-/** "plant-care.visuma-module.json" */
+/** "plant-care.hemlo-module.json" */
 export function designFileName(name: string): string {
   const base = name.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 40) || 'module'
-  return `${base}.visuma-module.json`
+  return `${base}.hemlo-module.json`
 }
 
 /** A file read back as a draft to build, or what is wrong with it. */
@@ -39,7 +39,7 @@ export function readDesignFile(text: string): { ok: true; def: ModuleDef } | { o
   const f = raw as Partial<DesignFile>
   // A design saved before version 21 says getit.module; it reads the same.
   if (!f || !isFormat(f.format, DESIGN_FORMAT) || typeof f.definition !== 'object' || !f.definition) return { ok: false, problem: 'That file is not a module design.' }
-  if (f.version !== DESIGN_VERSION) return { ok: false, problem: 'That design comes from a newer Visuma. Update the app, then import it again.' }
+  if (f.version !== DESIGN_VERSION) return { ok: false, problem: 'That design comes from a newer Hemlo. Update the app, then import it again.' }
   const def = readBuiltDefinition({ key: 'u_import00', name: typeof f.name === 'string' ? f.name : '', definition: f.definition })
   if (def.entities.length === 0 || def.entities.every((e) => e.fields.length === 0)) return { ok: false, problem: 'That design has no fields to build from.' }
   const problem = definitionProblem(def)

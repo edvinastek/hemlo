@@ -374,7 +374,7 @@ export function StatsBuilder({ profileId, today, start, onClose }: {
               onChange={(e) => setOnToday(e.target.checked)} />
             <span>As a card on Today{!onToday && settings.today_cards.length >= MAX_CARDS ? ' (Today already has 6 cards; take one off first)' : ''}</span>
           </label>
-          {!isIos() && <p className="sb-hint">It can also go on the home screen as a Visuma stats widget.</p>}
+          {!isIos() && <p className="sb-hint">It can also go on the home screen as a Hemlo stats widget.</p>}
         </fieldset>
         <div className="sheet-actions sb-foot">
           <button type="button" className="btn" onClick={() => onClose()}>Cancel</button>

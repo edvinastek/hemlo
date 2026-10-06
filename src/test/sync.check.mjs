@@ -44,7 +44,7 @@ is('a UPC-A code and its 13-digit spelling, the same', await productFoodId(me, '
 is('capitals in the person’s id do not matter', await productFoodId(me.toUpperCase(), '8710496979125'), id)
 is('another person’s food for it is another row', (await productFoodId(other, '8710496979125')) !== id, true)
 is('another product is another row', (await productFoodId(me, '5449000000996')) !== id, true)
-is('it is the name “owner:barcode” in Visuma’s namespace', await uuidV5(`${me}:8710496979125`, PRODUCT_NAMESPACE), id)
+is('it is the name “owner:barcode” in Hemlo’s namespace', await uuidV5(`${me}:8710496979125`, PRODUCT_NAMESPACE), id)
 is('not a barcode, no id', await productFoodId(me, '8710496979124'), null)
 is('no owner, no id', await productFoodId('', '8710496979125'), null)
 

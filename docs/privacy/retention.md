@@ -1,11 +1,11 @@
-Not legal advice: drafted from public sources, and to be checked by someone qualified before Visuma launches publicly.
+Not legal advice: drafted from public sources, and to be checked by someone qualified before Hemlo launches publicly.
 
 # Retention
 
 How long each kind of personal data is kept, and what removes it. Article 5(1)(e)
 requires data to be kept no longer than needed; article 30(1)(f) asks for these
 limits in the register. Figures for Supabase are for the **free plan**, which
-Visuma uses today. If the plan changes, update this file, `records-of-processing.md`
+Hemlo uses today. If the plan changes, update this file, `records-of-processing.md`
 and the policy's "How long it is kept" section together.
 
 ## Summary
@@ -21,7 +21,7 @@ and the policy's "How long it is kept" section together.
 | Backups | Supabase | **None on Free**: free projects are not backed up automatically, and Supabase advises exporting with `supabase db dump`; Pro keeps daily backups for 7 days, Team 14, Enterprise 30 ([Supabase backups](https://supabase.com/docs/guides/platform/backups)) | Overwritten when they age out. A deleted account stays in a backup until that backup expires. |
 | Everything, after leaving Supabase | Supabase | 30 days after the contract ends, to allow export | Supabase deletes all copies, including at sub-processors ([Supabase DPA](https://supabase.com/legal/dpa)). |
 | Local copy on a device | The phone or browser (IndexedDB) | Until sign-out or uninstall | Sign-out clears every local table (`src/lib/db.ts`, called from `src/App.tsx`). Excluded from Android backup and device transfer. |
-| Export files | Wherever the user saves them | The user decides | Not Visuma's copy. |
+| Export files | Wherever the user saves them | The user decides | Not Hemlo's copy. |
 | Tester allowlist (`private.signup_allowlist`) | Supabase | Until the tester deletes their account, or sign-ups open to the public | Remove by hand (SQL in `data-requests.md`). Account deletion does not remove it. |
 | Tester lists (`store/testers/*.txt`, `*.csv`) | The developer's computer | Until the allowlist SQL has been run | Delete the file. Git ignores these files so they never reach the repository. |
 | Google Group and Play Console tester list | Google | Until the closed test ends | Remove members, or delete the group. |
@@ -29,19 +29,19 @@ and the policy's "How long it is kept" section together.
 | Breach register | Outside the repository | Five years after the breach is closed | Delete by hand. |
 | Visitor logs of the public site | Netlify | Set by Netlify; not configurable on the free plan, and the period is not published on the pages checked | Netlify. See open question below. |
 | Photos in module records (v18) | Supabase Storage, Frankfurt, private bucket (migration 033) | Until the record or the account is deleted | Deleting the record deletes the file; account deletion must delete the user's folder too (check `delete_my_account` with migration 033). A copy on the device until sign-out. |
-| Open Food Facts token for price sharing (v18) | The device only: Android secure storage, or the browser tab's session storage | Until sign-out from Open Food Facts, sharing turned off, sign-out from Visuma, or (browser) the tab closing | `src/lib/open-prices-account.ts` (also a reset hook on the local copy). |
+| Open Food Facts token for price sharing (v18) | The device only: Android secure storage, or the browser tab's session storage | Until sign-out from Open Food Facts, sharing turned off, sign-out from Hemlo, or (browser) the tab closing | `src/lib/open-prices-account.ts` (also a reset hook on the local copy). |
 | Which own prices were shared, the last shop place and photo id per shop (v18) | The device only (local `meta` table) | Until sign-out | Cleared with the local copy. |
-| Prices and photos shared with Open Prices (v18) | Open Prices (Open Food Facts), public | Under Open Food Facts' own terms | The user, on prices.openfoodfacts.org. Not Visuma's copy; account deletion does not touch it. |
+| Prices and photos shared with Open Prices (v18) | Open Prices (Open Food Facts), public | Under Open Food Facts' own terms | The user, on prices.openfoodfacts.org. Not Hemlo's copy; account deletion does not touch it. |
 | Which newer policy version the user has read (v18) | Supabase, the user's auth metadata (`policy_read`), and the device | Until the account is deleted | Removed with the `auth.users` row. |
 | Telegram chat id (v19, `channel_setting.telegram_chat_id`) | Supabase | Until unlinked | Unlink in the app, `/stop` or blocking the bot (`telegram_stop()`), or account deletion (cascade). Migration 038. |
 | Telegram link code (v19, `telegram_link_code`: a SHA-256 hash) | Supabase | 10 minutes, or until used | Used up on linking; expired ones purged a day later by `telegram_claim_due()`. |
 | Reminders waiting for Telegram (v19, `telegram_reminder`: key, time, the line) | Supabase | At most three days ahead; a sent one a day | Replaced by each new list from the device; past ones purged after a day; all cleared on unlink and with the account. |
 | Telegram sent log (v19, `telegram_sent`: key and time only) | Supabase | Two days | Purged by `telegram_claim_due()` every run; removed with the account. |
-| Messages delivered through Telegram (v19) | Telegram | Under Telegram's own terms | The user, in their Telegram chat. Not Visuma's copy. |
+| Messages delivered through Telegram (v19) | Telegram | Under Telegram's own terms | The user, in their Telegram chat. Not Hemlo's copy. |
 
 ## Soft-deleted rows
 
-Visuma syncs between devices, so a deletion must travel as a row with
+Hemlo syncs between devices, so a deletion must travel as a row with
 `deleted_at` set, not as a missing row. The rows stay until the account is
 deleted, which the policy says plainly. A purge of rows deleted more than, for
 example, 90 days ago would be better, but it needs a matching change in the sync

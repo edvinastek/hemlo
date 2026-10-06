@@ -285,11 +285,11 @@ export function rangeFor(kind: RangeKind, day: string, custom?: { from: string; 
 export const inRange = (day: string | null | undefined, r: Range | null) =>
   !r || (!!day && day.slice(0, 10) >= r.from && day.slice(0, 10) <= r.to)
 
-/** A file name people can read: visuma-finance-entry-september-2026.csv */
+/** A file name people can read: hemlo-finance-entry-september-2026.csv */
 export function fileName(label: string, range: Range | null, format: Format): string {
   const slug = (s: string) => s.normalize('NFKD').replace(/[̀-ͯ]/g, '').toLowerCase()
     .replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 60)
-  return `visuma-${[slug(label) || 'export', range ? slug(range.label) : null].filter(Boolean).join('-')}.${FORMATS[format].ext}`
+  return `hemlo-${[slug(label) || 'export', range ? slug(range.label) : null].filter(Boolean).join('-')}.${FORMATS[format].ext}`
 }
 
 /* ---------- CSV (RFC 4180) --------------------------------------------------- */

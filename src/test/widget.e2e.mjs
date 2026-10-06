@@ -21,8 +21,8 @@ function fakeAndroid(startTicks) {
     App: ['addListener', 'removeListener', 'getLaunchUrl', 'getState', 'exitApp'],
     LocalNotifications: ['checkPermissions', 'requestPermissions', 'getPending', 'cancel', 'schedule', 'createChannel',
       'registerActionTypes', 'addListener', 'removeListener', 'removeAllListeners'],
-    VisumaWidget: ['update', 'takeTicks', 'clear', 'setLooks', 'updateStats', 'addListener', 'removeListener'],
-    VisumaLooks: ['setTextZoom', 'fontScale', 'systemColours', 'setIcon', 'getIcon', 'haptic'],
+    HemloWidget: ['update', 'takeTicks', 'clear', 'setLooks', 'updateStats', 'addListener', 'removeListener'],
+    HemloLooks: ['setTextZoom', 'fontScale', 'systemColours', 'setIcon', 'getIcon', 'haptic'],
     // The saved-accounts list lives in the phone's secure storage; this
     // stand-in holds it in memory. Without a stand-in, the plugin's own
     // fallback calls itself until the page crashes.
@@ -46,14 +46,14 @@ function fakeAndroid(startTicks) {
     },
     async nativePromise(plugin, method, options) {
       state.calls.push(`${plugin}.${method}`)
-      if (plugin === 'VisumaWidget') {
+      if (plugin === 'HemloWidget') {
         if (method === 'update') { state.snapshot = JSON.parse(options.snapshot); return undefined }
         if (method === 'takeTicks') { const t = state.ticks; state.ticks = []; return { ticks: t } }
         if (method === 'clear') { state.snapshot = null; state.ticks = []; state.stats = null; return undefined }
         if (method === 'setLooks') { state.looks = JSON.parse(options.looks); return undefined }
         if (method === 'updateStats') { state.stats = JSON.parse(options.snapshot); return undefined }
       }
-      if (plugin === 'VisumaLooks') {
+      if (plugin === 'HemloLooks') {
         if (method === 'fontScale') return { scale: 1.15 }
         if (method === 'systemColours') return { accent: '#6750a4' }
         if (method === 'getIcon') return { key: 'classic', pending: null }
@@ -77,7 +77,7 @@ function fakeAndroid(startTicks) {
   /** What the widget's TickReceiver does: queue the tick, wake the app. */
   window.__tick = (kind, id, d, done) => {
     state.ticks.push({ kind, id, day: d, done, at: new Date().toISOString() })
-    for (const cb of state.listeners['VisumaWidget:tick'] ?? []) cb({})
+    for (const cb of state.listeners['HemloWidget:tick'] ?? []) cb({})
   }
 }
 
@@ -155,7 +155,7 @@ await p.click('button:has-text("Sign out")')
 await p.locator('input[type=email]').waitFor({ timeout: 15000 })
 await p.waitForTimeout(800)
 is('signing out clears the widget', await p.evaluate(() => window.__widget.snapshot), null)
-is('the widget was told to clear', await p.evaluate(() => window.__widget.calls.includes('VisumaWidget.clear')), true)
+is('the widget was told to clear', await p.evaluate(() => window.__widget.calls.includes('HemloWidget.clear')), true)
 
 console.log(A.errors.length ? 'PAGE ERRORS: ' + A.errors.join(' | ') : 'no page errors')
 console.log(failed() ? `\n${failed()} check(s) failed` : '\nall checks passed')

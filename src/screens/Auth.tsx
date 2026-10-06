@@ -36,7 +36,7 @@ export function Auth({ adding = false }: { adding?: boolean } = {}) {
       await supabase.auth.resetPasswordForEmail(email, { redirectTo: authRedirect('recovery') })
       setBusy(false)
       // Same words whether or not the address has an account, so this form
-      // cannot be used to find out who uses Visuma.
+      // cannot be used to find out who uses Hemlo.
       setNote('If that address has an account, a reset link is on its way. Open it on this device.')
       return
     }
@@ -66,7 +66,7 @@ export function Auth({ adding = false }: { adding?: boolean } = {}) {
       // The database refuses addresses that are not on the invite list; the
       // auth service reports that as a generic database error.
       const invite = /invite-only|saving new user/i.test(error.message)
-      setNote(invite ? 'Visuma is invite-only for now. Ask to have your address added.' : error.message)
+      setNote(invite ? 'Hemlo is invite-only for now. Ask to have your address added.' : error.message)
     } else if (mode === 'up' && !data.session) {
       // Only when the project still asks new addresses to be confirmed; with
       // confirmation off, the new account is signed in and the app opens.
@@ -89,7 +89,7 @@ export function Auth({ adding = false }: { adding?: boolean } = {}) {
   return (
     <div className="page">
       <div style={{ maxWidth: 360, margin: '0 auto', padding: 'var(--space-6) var(--space-4)' }}>
-        <h1 className="page-date" style={{ marginBottom: 4 }}>Visuma</h1>
+        <h1 className="page-date" style={{ marginBottom: 4 }}>Hemlo</h1>
         <p className="page-sub" style={{ marginBottom: 'var(--space-6)' }}>{title}</p>
 
         {!adding && mode === 'in' && <SavedAccounts onPick={(e) => { setEmail(e); setNote('Enter the password for this account.') }} />}
@@ -114,7 +114,7 @@ export function Auth({ adding = false }: { adding?: boolean } = {}) {
             <label className="label" style={{ ...labelStyle, gridTemplateColumns: 'auto 1fr', alignItems: 'start', gap: 10, color: 'var(--e-ink)' }}>
               <input type="checkbox" required checked={consent} onChange={(e) => setConsent(e.target.checked)} style={{ marginTop: 3 }} />
               <span>
-                I agree that Visuma stores the health and fitness details I enter — weight, food,
+                I agree that Hemlo stores the health and fitness details I enter — weight, food,
                 training — to plan with them.{' '}
                 <button type="button" style={{ ...link, display: 'inline' }} onClick={() => setShowPolicy(true)}>Read the privacy policy</button>
               </span>

@@ -5,9 +5,9 @@ import type { CapacitorConfig } from '@capacitor/cli'
  *  can ever be changed, only abandoned for a new listing. */
 const config: CapacitorConfig = {
   // app.getit.planner until version 20; nothing had been published yet, so
-  // the id changed with the name (Visuma).
-  appId: 'app.visuma.planner',
-  appName: 'Visuma',
+  // the id changed with the name (Hemlo).
+  appId: 'app.hemlo.planner',
+  appName: 'Hemlo',
   webDir: 'dist',
   android: {
     allowMixedContent: false,
@@ -33,10 +33,10 @@ const config: CapacitorConfig = {
       style: 'DEFAULT',
     },
     LocalNotifications: {
-      smallIcon: 'ic_stat_visuma',
+      smallIcon: 'ic_stat_hemlo',
       iconColor: '#b4442a',
-      // iPhone: a reminder that comes due while Visuma is open still shows as a
-      // banner, with the sound; no badge on the icon (Visuma never sets one).
+      // iPhone: a reminder that comes due while Hemlo is open still shows as a
+      // banner, with the sound; no badge on the icon (Hemlo never sets one).
       presentationOptions: ['banner', 'list', 'sound'],
     },
   },

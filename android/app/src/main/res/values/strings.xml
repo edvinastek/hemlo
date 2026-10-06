@@ -1,7 +1,7 @@
 <?xml version='1.0' encoding='utf-8'?>
 <resources>
-    <string name="app_name">Visuma</string>
-    <string name="title_activity_main">Visuma</string>
-    <string name="package_name">app.visuma.planner</string>
-    <string name="custom_url_scheme">app.visuma.planner</string>
+    <string name="app_name">Hemlo</string>
+    <string name="title_activity_main">Hemlo</string>
+    <string name="package_name">app.hemlo.planner</string>
+    <string name="custom_url_scheme">app.hemlo.planner</string>
 </resources>

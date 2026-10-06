@@ -62,7 +62,7 @@ export function HouseholdShare() {
   const label = (m: Member) => (m.me ? `${m.display_name ?? 'You'} (you)` : m.display_name ?? 'Someone without a name yet')
 
   async function share(i: Invite) {
-    const text = `Join my household in Visuma: in Settings, Shopping and household, choose Join a household and type ${i.code}. It works once, for two days.`
+    const text = `Join my household in Hemlo: in Settings, Shopping and household, choose Join a household and type ${i.code}. It works once, for two days.`
     try {
       if (navigator.share) { await navigator.share({ text }); return }
       await navigator.clipboard.writeText(i.code)

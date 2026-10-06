@@ -10,13 +10,13 @@ import {
  *  same code: scripts/copy-shared.mjs copies this file, with ics-rules.ts and
  *  series-rules.ts, into supabase/functions/_shared/.
  *
- *  Visuma → Google: a private link (the "feed") that Google Calendar reads
+ *  Hemlo → Google: a private link (the "feed") that Google Calendar reads
  *  every few hours. Anyone holding the link can read what it shows, so it
  *  shows as little as it can: titles, times, sections and places, and task
  *  notes only when the person asks for them. Nothing about health: meals,
  *  training, weigh-ins, sleep, habits and supplements stay out (isHealthTask).
  *
- *  Google → Visuma: the person pastes their calendar's secret address; the
+ *  Google → Hemlo: the person pastes their calendar's secret address; the
  *  server fetches it (a browser may not) and the app reads the file with
  *  ics-rules.ts and keeps those events on the device, read-only. */
 
@@ -101,9 +101,9 @@ export interface FeedInput {
   events: FeedEvent[]
 }
 
-/** The calendar's name in Google. Only "Visuma": the profile's name would tell
+/** The calendar's name in Google. Only "Hemlo": the profile's name would tell
  *  whoever holds the link whose plan it is. */
-export const FEED_NAME = 'Visuma'
+export const FEED_NAME = 'Hemlo'
 
 /* ---------- what never goes in the feed: health ------------------------------ */
 

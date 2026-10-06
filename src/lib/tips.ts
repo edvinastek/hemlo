@@ -8,7 +8,7 @@ import { meetProfile, NO_TIPS, noteFirstDay, noteRun, readTipState, versionKey, 
  *  clears the database, and a version's first run must outlive that, or a
  *  new account signed in later would look like an old one. A private
  *  window that forgets simply shows a tip again. */
-// The name from before Visuma, kept: renaming it would lose what is stored under it.
+// The name from before Hemlo, kept: renaming it would lose what is stored under it.
 const KEY = 'getit-tips'
 const listeners = new Set<(s: TipState) => void>()
 
@@ -28,7 +28,7 @@ export function useTipState(): TipState {
   const [s, setS] = useState<TipState>(tipState)
   useEffect(() => {
     listeners.add(setS)
-    // The first day Visuma is opened here, written once, for the tips that wait.
+    // The first day Hemlo is opened here, written once, for the tips that wait.
     const now = tipState()
     if (!now.first) saveTipState(noteFirstDay(now, format(new Date(), 'yyyy-MM-dd')))
     return () => { listeners.delete(setS) }

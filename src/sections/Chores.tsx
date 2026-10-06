@@ -69,7 +69,7 @@ export function Chores({ profileId, day }: { profileId: string; day: string }) {
   }, [householdId, online, userId])
 
   const [view, setView] = useState<'when' | 'room'>(() => {
-    // The name from before Visuma, kept: renaming it would lose what is stored under it.
+    // The name from before Hemlo, kept: renaming it would lose what is stored under it.
     try { return localStorage.getItem('getit:chores:group') === 'room' ? 'room' : 'when' } catch { return 'when' }
   })
   const group = (v: 'when' | 'room') => {

@@ -219,7 +219,7 @@ is('“Done” from the review reached the server', r.errand, 'done')
 is('“Tomorrow” moved it on', r.call_day > yesterday, true)
 
 // 6. The Excel import: preview first, then saved to this account only.
-const dir = mkdtempSync(join(tmpdir(), 'visuma-'))
+const dir = mkdtempSync(join(tmpdir(), 'hemlo-'))
 const wb = XLSX.utils.book_new()
 XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet([
   ['id', 'name', 'kcal', 'carbs', 'fiber', 'fat', 'protein'],
@@ -253,7 +253,7 @@ is('the line naming the new food is linked to it', r.matched, 1)
 
 // 7. Export, then read the file into a different account.
 const [download] = await Promise.all([p.waitForEvent('download'), p.click('.setting-row:has-text("Export") button:has-text("Export")')])
-const exported = join(dir, 'export.visuma.json')
+const exported = join(dir, 'export.hemlo.json')
 await download.saveAs(exported)
 await p.click('button:has-text("Sign out")')
 await p.locator('input[type=email]').waitFor({ timeout: 15000 })
@@ -268,7 +268,7 @@ const before = await one(`select
   (select count(*) from public.recipe rc join auth.users u on u.id = rc.owner_id where rc.name = 'E2E porridge' and u.email = '${other}') recipes`)
 await openSettings(p, 'data')
 await p.setInputFiles('input[type=file]', exported)
-await p.locator('text=/records from export.visuma.json added/').waitFor({ timeout: 15000 })
+await p.locator('text=/records from export.hemlo.json added/').waitFor({ timeout: 15000 })
 // A whole export goes up row by row, parents first: wait until all of it has
 // been sent (it can take longer than the usual half minute) before counting.
 await p.waitForTimeout(600)

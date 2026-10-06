@@ -11,13 +11,13 @@
     <color name="widget_rule">#E4DDCD</color>
     <color name="widget_rail">#CFC6B3</color>
     <color name="widget_accent">#B4442A</color>
-    <string name="widget_name">Visuma · Today</string>
+    <string name="widget_name">Hemlo · Today</string>
     <string name="widget_description">Today\'s next tasks and habits. Tick them off without opening the app.</string>
     <string name="widget_tick">Tick</string>
-    <string name="widget_stats_name">Visuma · Stats</string>
+    <string name="widget_stats_name">Hemlo · Stats</string>
     <string name="widget_stats_description">One of your saved stats views: a figure, a ring, a small chart or a short table. Place as many as you like.</string>
     <string name="widget_stats_choose">Choose a stats view</string>
-    <string name="widget_quickadd_name">Visuma · Quick add</string>
+    <string name="widget_quickadd_name">Hemlo · Quick add</string>
     <string name="widget_quickadd_description">The first entries of your + menu, one tap each.</string>
     <!-- The launcher shortcuts' icons (quickadd/QuickAdd.java) keep the
          default theme's paper and accent in both modes, like the app icon. -->

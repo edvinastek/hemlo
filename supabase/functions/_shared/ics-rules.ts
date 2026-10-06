@@ -36,21 +36,21 @@ export interface IcsEvent {
   recurrenceId?: When | null
   categories?: string[]
   status?: 'CONFIRMED' | 'TENTATIVE' | 'CANCELLED' | null
-  /** Visuma's own lines (GEN-26), which other calendars pass over:
-   *  X-VISUMA-KIND (habit, chore, supplement, payment) and X-VISUMA-REPEAT, a
+  /** Hemlo's own lines (GEN-26), which other calendars pass over:
+   *  X-HEMLO-KIND (habit, chore, supplement, payment) and X-HEMLO-REPEAT, a
    *  repeat no RRULE can say ("3 times a week", "7 days after it was last
    *  done", "about every 7 days"). Reading the file back keeps them. */
-  visuma?: { kind?: VisumaKind | null; repeat?: string | null } | null
+  hemlo?: { kind?: HemloKind | null; repeat?: string | null } | null
 }
 
-/** What a Visuma event was in the app, when it was not a task or an event. */
-export type VisumaKind = 'habit' | 'chore' | 'supplement' | 'payment'
-export const VISUMA_KINDS: VisumaKind[] = ['habit', 'chore', 'supplement', 'payment']
+/** What a Hemlo event was in the app, when it was not a task or an event. */
+export type HemloKind = 'habit' | 'chore' | 'supplement' | 'payment'
+export const HEMLO_KINDS: HemloKind[] = ['habit', 'chore', 'supplement', 'payment']
 
-/** The app's own lines are written with the name Visuma; files written before
+/** The app's own lines are written with the name Hemlo; files written before
  *  version 21, when the app was called GetIt, say X-GETIT-…, and read the same. */
-export const X_KIND = ['X-VISUMA-KIND', 'X-GETIT-KIND'] as const
-export const X_REPEAT = ['X-VISUMA-REPEAT', 'X-GETIT-REPEAT'] as const
+export const X_KIND = ['X-HEMLO-KIND', 'X-GETIT-KIND'] as const
+export const X_REPEAT = ['X-HEMLO-REPEAT', 'X-GETIT-REPEAT'] as const
 
 const pad = (n: number, w = 2) => String(n).padStart(w, '0')
 const DATE = /^\d{4}-\d{2}-\d{2}$/
@@ -144,7 +144,7 @@ export interface CalendarOptions {
   timezone?: string | null
 }
 
-export const PRODID = '-//Visuma//Visuma planner//EN'
+export const PRODID = '-//Hemlo//Hemlo planner//EN'
 
 /** A whole calendar file, lines ending in CRLF. */
 export function buildCalendar(events: IcsEvent[], o: CalendarOptions): string {
@@ -167,8 +167,8 @@ export function buildCalendar(events: IcsEvent[], o: CalendarOptions): string {
     if (e.location) lines.push(prop('LOCATION', escapeText(e.location)))
     if (e.categories?.length) lines.push(prop('CATEGORIES', e.categories.map(escapeText).join(',')))
     if (e.status) lines.push(`STATUS:${e.status}`)
-    if (e.visuma?.kind) lines.push(prop(X_KIND[0], e.visuma.kind))
-    if (e.visuma?.repeat) lines.push(prop(X_REPEAT[0], e.visuma.repeat))
+    if (e.hemlo?.kind) lines.push(prop(X_KIND[0], e.hemlo.kind))
+    if (e.hemlo?.repeat) lines.push(prop(X_REPEAT[0], e.hemlo.repeat))
     lines.push('END:VEVENT')
   }
   lines.push('END:VCALENDAR')
@@ -325,7 +325,7 @@ export function firstDay(s: SeriesLike): string | null {
 export function seriesRule(s: SeriesLike, allDay: boolean): { rrule: string | null; rdates: string[] } | null {
   const c = s.rule_config ?? {}
   // Counted from the last time it was done (GEN-22): no calendar rule says
-  // that, so there is none; looseRepeat() writes it as Visuma's own line.
+  // that, so there is none; looseRepeat() writes it as Hemlo's own line.
   if (looseRepeat(s)) return null
   let parts: string[]
   switch (s.rule) {
@@ -447,7 +447,7 @@ export function looseRepeat(s: Pick<SeriesLike, 'rule' | 'rule_config'>): string
   return null
 }
 
-/** X-VISUMA-REPEAT (or the older X-GETIT-REPEAT) read back into the app's rule, or null. */
+/** X-HEMLO-REPEAT (or the older X-GETIT-REPEAT) read back into the app's rule, or null. */
 export function readLooseRepeat(value: string): { rule: 'daily' | 'times_per_week'; rule_config: { n?: number; mode?: 'after' | 'flexible'; times?: number } } | null {
   const kv = Object.fromEntries(value.split(';').map((p) => p.split('=')).filter((p) => p.length === 2)
     .map(([k, v]) => [k.trim().toUpperCase(), v.trim().toUpperCase()]))
@@ -465,7 +465,7 @@ export function readLooseRepeat(value: string): { rule: 'daily' | 'times_per_wee
  *  supplement, a planned payment. */
 export interface ScheduleLike {
   id: string
-  kind: VisumaKind
+  kind: HemloKind
   title: string
   rule: string | null
   rule_config: SeriesLike['rule_config'] | null
@@ -482,17 +482,17 @@ export interface ScheduleLike {
 /** One event for something that comes round: its rule as an RRULE (or its
  *  days as RDATE) like a repeating task, or, for what no RRULE can say, one
  *  event on the day it is next due ("after", flexible) or once a week from
- *  the Monday of its first week ("3 times a week"), with Visuma's own line so
- *  that reading the file back into Visuma gives the very same rule. No rule:
+ *  the Monday of its first week ("3 times a week"), with Hemlo's own line so
+ *  that reading the file back into Hemlo gives the very same rule. No rule:
  *  once, on its first day. Null when it never lands on a day. */
 export function scheduleEvent(x: ScheduleLike, defaultMinutes = 30): IcsEvent | null {
   if (!DATE.test(x.start_date)) return null
   const time = x.time && TIME.test(x.time.slice(0, 5)) ? x.time.slice(0, 5) : null
-  const visuma = { kind: x.kind, repeat: x.rule ? looseRepeat({ rule: x.rule, rule_config: x.rule_config ?? {} }) : null }
+  const hemlo = { kind: x.kind, repeat: x.rule ? looseRepeat({ rule: x.rule, rule_config: x.rule_config ?? {} }) : null }
   const minutes = x.minutes && x.minutes > 0 ? x.minutes : defaultMinutes
   const single = (day: string): IcsEvent | null => {
     const e = taskEvent({ id: x.id, title: x.title, planned_date: day, planned_time: time, duration_min: minutes, notes: x.notes ?? null })
-    return e ? { ...e, visuma } : null
+    return e ? { ...e, hemlo } : null
   }
   if (!x.rule) return single(x.start_date)
   if (x.rule === 'times_per_week') {
@@ -501,15 +501,15 @@ export function scheduleEvent(x: ScheduleLike, defaultMinutes = 30): IcsEvent | 
     return {
       uid: uidFor(x.id), summary: x.title || 'Untitled', description: x.notes || null,
       start: { kind: 'date', date: monday }, end: { kind: 'date', date: addDays(monday, 1) },
-      rrule: `FREQ=WEEKLY;BYDAY=MO;WKST=MO${until}`, visuma,
+      rrule: `FREQ=WEEKLY;BYDAY=MO;WKST=MO${until}`, hemlo,
     }
   }
-  if (visuma.repeat) return x.next && DATE.test(x.next) && (!x.end_date || x.next <= x.end_date) ? single(x.next) : null
+  if (hemlo.repeat) return x.next && DATE.test(x.next) && (!x.end_date || x.next <= x.end_date) ? single(x.next) : null
   const [master] = seriesEvents({
     id: x.id, title: x.title, rule: x.rule, rule_config: x.rule_config ?? {}, start_date: x.start_date, end_date: x.end_date,
     occurrence_count: null, time_of_day: time, task_template: { duration_min: minutes, notes: x.notes ?? null },
   })
-  return master ? { ...master, visuma } : null
+  return master ? { ...master, hemlo } : null
 }
 
 /* ---------- reading -------------------------------------------------------- */
@@ -943,9 +943,9 @@ export interface ParsedEvent {
   /** TRANSP (AGN-07): 'opaque' when the calendar marks the time busy,
    *  'transparent' when free, null when it does not say. */
   transp?: 'opaque' | 'transparent' | null
-  /** Visuma's own lines, when the file came from Visuma (GEN-26): what it was
+  /** Hemlo's own lines, when the file came from Hemlo (GEN-26): what it was
    *  (a habit, a chore…) and a repeat no RRULE says, as the app's rule. */
-  kind?: VisumaKind | null
+  kind?: HemloKind | null
   repeat?: ReturnType<typeof readLooseRepeat>
 }
 
@@ -1037,7 +1037,7 @@ export function parseIcs(text: string, o: ReadOptions): ReadResult {
         allDay, date: start.date, time: start.time, endDate, endTime, minutes,
         series: null, exdates: [...new Set(exdates)].sort(), dates: [], recurrenceId: rid?.date ?? null,
         transp: readTransp(get('TRANSP')?.value),
-        kind: VISUMA_KINDS.find((k) => k === (get(X_KIND[0]) ?? get(X_KIND[1]))?.value.trim().toLowerCase()) ?? null,
+        kind: HEMLO_KINDS.find((k) => k === (get(X_KIND[0]) ?? get(X_KIND[1]))?.value.trim().toLowerCase()) ?? null,
         repeat: (() => { const x = get(X_REPEAT[0]) ?? get(X_REPEAT[1]); return x ? readLooseRepeat(x.value) : null })(),
       },
       rule, rdates, cancelled: status === 'CANCELLED', line: label,

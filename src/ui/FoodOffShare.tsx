@@ -85,7 +85,7 @@ export function FoodOffShare({ product, photo, onDone }: { product: OffProduct; 
   )
 }
 
-/** A random id for this Visuma account on this device, sent with each
+/** A random id for this Hemlo account on this device, sent with each
  *  product as Open Food Facts asks of apps, so its moderators can tell one
  *  person's edits apart without knowing who they are. */
 async function appUuid(owner: string | null): Promise<string> {

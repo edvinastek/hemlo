@@ -1,4 +1,4 @@
-// Visuma on Windows. The web build does the work; this wraps it in a real
+// Hemlo on Windows. The web build does the work; this wraps it in a real
 // window and lends it the notification API a browser tab does not get.
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
@@ -6,5 +6,5 @@ fn main() {
     tauri::Builder::default()
         .plugin(tauri_plugin_notification::init())
         .run(tauri::generate_context!())
-        .expect("error while running Visuma");
+        .expect("error while running Hemlo");
 }

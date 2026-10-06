@@ -95,7 +95,7 @@ export function FollowedSheet({ event, onClose }: { event: CalendarEvent; onClos
           {event.location && <><dt>Where</dt><dd>{event.location}</dd></>}
         </dl>
         <p className="fe-why">
-          Read-only here. Change it in its own calendar; Visuma picks the change up the next time it fetches
+          Read-only here. Change it in its own calendar; Hemlo picks the change up the next time it fetches
           that calendar.
         </p>
         <div className="sheet-actions">

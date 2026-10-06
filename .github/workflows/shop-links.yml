@@ -1,7 +1,7 @@
 name: Shop links
 
 # Once a month (and by hand: Actions → Shop links → Run workflow), asks each
-# shop's offers page and site search that Visuma links to whether it is still
+# shop's offers page and site search that Hemlo links to whether it is still
 # there (scripts/check-shop-links.mjs, PRICE-09). A broken link (404, 410, or a
 # site name that no longer exists) fails the run, so GitHub sends its usual
 # failure email; the run's summary lists the links to fix in

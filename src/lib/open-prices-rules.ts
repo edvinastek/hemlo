@@ -18,9 +18,9 @@ export const OPEN_PRICES_API = `${OPEN_PRICES}/api/v1`
  *  per search the person starts, at most one a second, naming the app,
  *  never while typing and never in bulk. */
 export const NOMINATIM = 'https://nominatim.openstreetmap.org'
-/** How Visuma names itself on the requests that write, as Open Prices asks
+/** How Hemlo names itself on the requests that write, as Open Prices asks
  *  (it records the app with each price) and as OpenStreetMap's policy asks. */
-export const APP_NAME = 'Visuma'
+export const APP_NAME = 'Hemlo'
 export const APP_VERSION = '18'
 export const SHARE_AGENT = OPEN_PRICES_AGENT
 /** Where a person makes an Open Food Facts account (the same one signs in

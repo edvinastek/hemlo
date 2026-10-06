@@ -44,7 +44,7 @@ const token = 'A'.repeat(20) + '-_' + 'b'.repeat(21)
 eq('a 43-character base64url token is a token', isFeedToken(token), true)
 eq('a padded or short one is not', [isFeedToken(token + '='), isFeedToken('abc'), isFeedToken(token.slice(1) + '+'), isFeedToken(null)], [false, false, false, false])
 eq('the feed address', feedUrl('https://x.supabase.co/', token), `https://x.supabase.co/functions/v1/calendar-feed?t=${token}`)
-eq('the calendar is called Visuma, with no one\'s name', FEED_NAME, 'Visuma')
+eq('the calendar is called Hemlo, with no one\'s name', FEED_NAME, 'Hemlo')
 
 const task = (id, title, day, time = null, extra = {}) => ({
   id, title, planned_date: day, planned_time: time, duration_min: 45, notes: 'private note', category: 'Work', status: 'todo', ...extra,
@@ -94,7 +94,7 @@ eq('one that ended before the window is not', titles.includes('Old course'), fal
 eq('with notes on, they go out', feedEvents({ ...input, notes: true }).filter((e) => e.description).map((e) => e.summary).sort(), ['Dentist', 'Gym', 'Taxes'])
 eq('a task keeps its section', evs.find((e) => e.summary === 'Dentist').categories, ['Work'])
 const file = buildFeed(input)
-eq('the file names the calendar just Visuma, and the zone', [file.includes('X-WR-CALNAME:Visuma\r\n'), file.includes('X-WR-TIMEZONE:Europe/Amsterdam')], [true, true])
+eq('the file names the calendar just Hemlo, and the zone', [file.includes('X-WR-CALNAME:Hemlo\r\n'), file.includes('X-WR-TIMEZONE:Europe/Amsterdam')], [true, true])
 eq('the file is CRLF and one VEVENT per event', [file.endsWith('END:VCALENDAR\r\n'), file.split('BEGIN:VEVENT').length - 1], [true, evs.length])
 eq('the dentist is floating local time', file.includes('DTSTART:20260930T090000\r\n'), true)
 eq('no note text anywhere in the file', /private note|bring shoes/.test(file), false)

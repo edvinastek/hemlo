@@ -1,4 +1,4 @@
-# Releasing Visuma: the checklist
+# Releasing Hemlo: the checklist
 
 Everything for a release, in order, in PowerShell, from the repository folder
 (`C:\Users\edvin\Documents\GetIt16`). Version 19 is the first release made this
@@ -8,33 +8,33 @@ You need Node and npm (installed), Git, a Supabase **personal access token**,
 and for step 6 nothing else: the script fetches the Supabase command line tool
 itself with `npx`.
 
-## Once, for the name Visuma (version 21)
+## Once, for the name Hemlo (version 21)
 
-Version 21 renames the app from GetIt to Visuma, with the app ID
-`app.visuma.planner` (it was `app.getit.planner`). Before the first Visuma
+Version 21 renames the app from GetIt to Hemlo, with the app ID
+`app.hemlo.planner` (it was `app.getit.planner`). Before the first Hemlo
 build reaches anyone:
 
 1. **Sign-in return address.** Supabase → Authentication → URL Configuration →
-   Redirect URLs → Add URL: `app.visuma.planner://auth-callback**` (the same as
-   the GetIt entry already there, with `getit` changed to `visuma`). Keep the
+   Redirect URLs → Add URL: `app.hemlo.planner://auth-callback**` (the same as
+   the GetIt entry already there, with `getit` changed to `hemlo`). Keep the
    old `app.getit.planner://…` entry until no phone has the GetIt app any more.
    Without the new entry, the links in confirmation and password-reset emails
-   do not come back to the Visuma app.
-2. **Contact address.** Make the new Visuma address, then put it in
+   do not come back to the Hemlo app.
+2. **Contact address.** Make the new Hemlo address, then put it in
    `VITE_CONTACT_EMAIL` in `.env` and in the GitHub secret of the same name
    (Settings → Secrets and variables → Actions). The privacy policy, the
    public pages and the store texts show it.
-3. **Public site.** The policy and the pages now say Visuma (and the policy's
+3. **Public site.** The policy and the pages now say Hemlo (and the policy's
    date is 8 October 2026), so build and drop the site again (step 9 below).
-4. **Telegram bot.** Rename it with BotFather, or make a Visuma one
+4. **Telegram bot.** Rename it with BotFather, or make a Hemlo one
    (docs/telegram.md, step 1).
-5. **Google Play.** A package name can never change, so Visuma is a new app in
-   Play Console: Create app → name `Visuma`, then the listing from
+5. **Google Play.** A package name can never change, so Hemlo is a new app in
+   Play Console: Create app → name `Hemlo`, then the listing from
    `store/listing.json` and the answers in `store/play-console-answers.md`. An
    app made earlier as `app.getit.planner` (never published) can be left as a
-   draft. The upload key you made for GetIt can sign Visuma too.
-6. **App Store.** Register the bundle ID `app.visuma.planner` and make the app
-   record named Visuma (docs/ios-release.md, steps 3 and 5); an id registered
+   draft. The upload key you made for GetIt can sign Hemlo too.
+6. **App Store.** Register the bundle ID `app.hemlo.planner` and make the app
+   record named Hemlo (docs/ios-release.md, steps 3 and 5); an id registered
    earlier as `app.getit.planner` can stay unused.
 7. **GitHub repository.** Its name does not matter to any build; rename it on
    GitHub if you like (GitHub sends the old address on).
@@ -157,7 +157,7 @@ git commit -m "Version 0.19.0"
 git push
 ```
 
-GitHub builds the signed App Bundle; download `visuma-android-release` from the
+GitHub builds the signed App Bundle; download `hemlo-android-release` from the
 run (docs/android-release.md, "Each release").
 
 ## 11. Play Console

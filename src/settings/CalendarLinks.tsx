@@ -15,8 +15,8 @@ import './colour-settings.css'
 import './calendar-links.css'
 
 /** Settings → Calendars → Calendar links. Two directions, no Google account
- *  connected: a private link Google Calendar reads (Visuma → Google), and
- *  Google calendars followed by their secret address (Google → Visuma). */
+ *  connected: a private link Google Calendar reads (Hemlo → Google), and
+ *  Google calendars followed by their secret address (Google → Hemlo). */
 export function CalendarLinks() {
   const profile = useApp((s) => s.profile)
   const ref = useRef<HTMLDivElement>(null)
@@ -34,7 +34,7 @@ export function CalendarLinks() {
   )
 }
 
-/* ---------- Visuma in Google Calendar ------------------------------------------ */
+/* ---------- Hemlo in Google Calendar ------------------------------------------ */
 
 function FeedPanel({ profile }: { profile: Profile }) {
   const online = useApp((s) => s.online)
@@ -82,7 +82,7 @@ function FeedPanel({ profile }: { profile: Profile }) {
     <section className="cl-block" aria-labelledby="cl-feed-title">
       <div className="setting-row cl-top">
         <div>
-          <div className="row-name" id="cl-feed-title">Show Visuma in Google Calendar</div>
+          <div className="row-name" id="cl-feed-title">Show Hemlo in Google Calendar</div>
           <div className="row-meta">A private, read-only link to your tasks and events; health details stay out.</div>
           <div className="row-meta cl-state" role="status">
             {!online ? 'Needs a connection.' : status === null && !error ? 'Checking…'
@@ -129,7 +129,7 @@ function FeedPanel({ profile }: { profile: Profile }) {
                 <p id="cl-confirm-text" className="row-meta">
                   {confirm === 'new'
                     ? 'The old link stops working at once. Google Calendar will need the new one.'
-                    : 'The link stops working at once, and Google Calendar will show nothing new from Visuma. Remove it there too.'}
+                    : 'The link stops working at once, and Google Calendar will show nothing new from Hemlo. Remove it there too.'}
                 </p>
                 <div className="cl-copy">
                   <button className="btn" onClick={() => setConfirm(null)}>Cancel</button>
@@ -270,7 +270,7 @@ function SubRow({ sub, online }: { sub: CalendarSubscription; online: boolean })
           </>
         ) : (
           <div className="cl-confirm" role="alertdialog" aria-label={`Remove ${sub.name}?`}>
-            <p className="row-meta">Stop following {sub.name}? Its events leave Visuma on every device and its address is erased. The calendar itself is not touched.</p>
+            <p className="row-meta">Stop following {sub.name}? Its events leave Hemlo on every device and its address is erased. The calendar itself is not touched.</p>
             <div className="cl-copy">
               <button className="btn" onClick={() => setConfirm(false)}>Cancel</button>
               <button className="btn btn-primary" onClick={() => void removeSubscription(sub)}>Remove</button>

@@ -14,7 +14,7 @@ await modulesOn(email, ['finance'])
 const { is, failed } = checks()
 const { b, p, errors } = await open({ viewport: { width: 360, height: 740 }, acceptDownloads: true })
 await signIn(p, email)
-const dir = mkdtempSync(join(tmpdir(), 'visuma-transfer-'))
+const dir = mkdtempSync(join(tmpdir(), 'hemlo-transfer-'))
 const note = `e2e-transfer-${Date.now()}`
 
 // 1. A Finance entry, made on its page.

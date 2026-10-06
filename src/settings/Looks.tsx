@@ -237,11 +237,11 @@ function IconPicker({ chosen, onSaved }: { chosen: string; onSaved: (key: string
       </div>
       <p className="row-meta">
         {native
-          ? 'It shows once you leave the app; shortcuts to Visuma may need adding again.'
+          ? 'It shows once you leave the app; shortcuts to Hemlo may need adding again.'
           : 'The icon can be changed in the Android app.'}
       </p>
       {device?.pending && device.pending !== device.key && (
-        <p className="lk-note" role="status">The {ICONS.find((i) => i.key === device.pending)?.name ?? 'new'} icon appears when you leave Visuma.</p>
+        <p className="lk-note" role="status">The {ICONS.find((i) => i.key === device.pending)?.name ?? 'new'} icon appears when you leave Hemlo.</p>
       )}
     </div>
   )

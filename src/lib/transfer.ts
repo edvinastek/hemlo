@@ -23,7 +23,7 @@ import type { RuleKind } from './schedule-rules'
 import { parseUnitsText, readUnits, unitsText } from './units-rules'
 import {
   buildCalendar, calendarEvent, looseRepeat, minutesBetween, parseIcs, recordEvent, scheduleEvent, seriesEvents, taskEvent, uidFor,
-  type VisumaKind, type IcsEvent, type ParsedEvent, type ScheduleLike,
+  type HemloKind, type IcsEvent, type ParsedEvent, type ScheduleLike,
 } from './ics-rules'
 import { windowedSeries } from './calendar-links-rules'
 import { choreState, habitSchedule, looseOf, looseState } from './schedule-rules'
@@ -96,7 +96,7 @@ function taskValues(t: Task): Record<string, unknown> {
 
 /** The person's own agenda events. Events from a calendar they follow are
  *  that calendar's, fetched again at any time, so they are not exported
- *  (and a calendar made from Visuma never sends Google's events back). */
+ *  (and a calendar made from Hemlo never sends Google's events back). */
 async function ownEvents(profileId: string) {
   return (await db.calendar_event.where('profile_id').equals(profileId).toArray()).filter((e) => live(e) && !e.subscription_id)
 }
@@ -220,13 +220,13 @@ export async function exportDataset(profile: Profile, userId: string | null, req
   const d = req.dataset
   const range = d.dateField ? req.range ?? null : null
   if (d.store === 'backup') {
-    return { blob: await exportBundle(profile.id), name: `visuma-${today()}.visuma.json`, count: 1 }
+    return { blob: await exportBundle(profile.id), name: `hemlo-${today()}.hemlo.json`, count: 1 }
   }
   if (!d.formats.includes(req.format)) throw new Error(`${d.label} cannot be saved as ${FORMATS[req.format].label}.`)
   const name = fileName(d.label, range, req.format)
   if (req.format === 'ics') {
     const events = await icsEvents(profile, userId, d, range, req.fields)
-    const text = buildCalendar(events, { stamp: new Date().toISOString(), name: `Visuma · ${d.label}${range ? ` · ${range.label}` : ''}`, timezone: profile.timezone || null })
+    const text = buildCalendar(events, { stamp: new Date().toISOString(), name: `Hemlo · ${d.label}${range ? ` · ${range.label}` : ''}`, timezone: profile.timezone || null })
     return { blob: new Blob([text], { type: FORMATS.ics.mime }), name, count: events.length }
   }
   const rows = (await readRows(profile, d, userId)).filter((r) => inRange(r.date, range))
@@ -279,7 +279,7 @@ async function tableFile(label: string, fields: FieldDef[], table: unknown[][], 
     const ws = XLSX.utils.aoa_to_sheet([headers, ...table])
     ws['!cols'] = fields.map((f) => ({ wch: Math.max(8, Math.min(40, Math.round((f.width ?? 100) / 7))) }))
     const wb = XLSX.utils.book_new()
-    XLSX.utils.book_append_sheet(wb, ws, label.replace(/[\][:*?/\\]/g, ' ').slice(0, 31) || 'Visuma')
+    XLSX.utils.book_append_sheet(wb, ws, label.replace(/[\][:*?/\\]/g, ' ').slice(0, 31) || 'Hemlo')
     const data = XLSX.write(wb, { type: 'array', bookType: 'xlsx' }) as ArrayBuffer
     return { blob: new Blob([data], { type: FORMATS.xlsx.mime }) }
   }
@@ -296,11 +296,11 @@ async function taskEvents(profile: Profile, range: Range | null): Promise<IcsEve
   for (const s of series) exceptions.set(s.id, (await db.series_exception.where('series_id').equals(s.id).toArray()).filter(live))
   const out: IcsEvent[] = []
   // "After" and flexible series (GEN-22) go as their tasks; the one still
-  // open carries the rule in Visuma's own line, so reading it back gives the
+  // open carries the rule in Hemlo's own line, so reading it back gives the
   // same series (GEN-26).
   const loose = new Map(series.map((s) => [s.id, looseRepeat(s)] as const).filter(([, r]) => !!r))
   const withRule = (t: Task, e: IcsEvent | null): IcsEvent | null =>
-    e && t.series_id && loose.has(t.series_id) && t.status !== 'done' && t.status !== 'dropped' ? { ...e, visuma: { repeat: loose.get(t.series_id) } } : e
+    e && t.series_id && loose.has(t.series_id) && t.status !== 'done' && t.status !== 'dropped' ? { ...e, hemlo: { repeat: loose.get(t.series_id) } } : e
   if (!range) {
     const repeating = new Set<string>()
     for (const s of series) {
@@ -341,10 +341,10 @@ function eventInRange(e: Pick<CalendarEvent, 'rule' | 'end_date'>, startDay: str
 /** Everything of a module that comes round, as the calendar file needs it,
  *  for the modules that are on: habits, the household's chores, supplements
  *  and Finance's planned payments. */
-async function moduleSchedules(profile: Profile, kinds: VisumaKind[] = ['habit', 'chore', 'supplement', 'payment']): Promise<ScheduleLike[]> {
+async function moduleSchedules(profile: Profile, kinds: HemloKind[] = ['habit', 'chore', 'supplement', 'payment']): Promise<ScheduleLike[]> {
   const out: ScheduleLike[] = []
   const now = today()
-  const want = async (k: VisumaKind, key: string) => kinds.includes(k) && await isModuleOn(profile.id, key)
+  const want = async (k: HemloKind, key: string) => kinds.includes(k) && await isModuleOn(profile.id, key)
   if (await want('habit', 'habits')) {
     const habits = (await db.habit.where('profile_id').equals(profile.id).toArray()).filter((h) => live(h) && h.active)
     const logs = habits.length ? await db.habit_log.where('habit_id').anyOf(habits.map((h) => h.id)).filter((l) => l.done).toArray() : []
@@ -408,14 +408,14 @@ function scheduleInRange(x: ScheduleLike, range: Range | null): ScheduleLike | n
   return cut ? { ...x, start_date: cut.start_date, end_date: cut.end_date, rule_config: cut.rule_config } : null
 }
 
-async function scheduleEvents(profile: Profile, range: Range | null, kinds?: VisumaKind[]): Promise<IcsEvent[]> {
+async function scheduleEvents(profile: Profile, range: Range | null, kinds?: HemloKind[]): Promise<IcsEvent[]> {
   return (await moduleSchedules(profile, kinds)).map((x) => scheduleInRange(x, range)).flatMap((x) => {
     const e = x ? scheduleEvent(x) : null
     return e ? [e] : []
   })
 }
 
-const STORE_KIND: Partial<Record<Dataset['store'], VisumaKind>> = { habit: 'habit', supplement: 'supplement', chore: 'chore' }
+const STORE_KIND: Partial<Record<Dataset['store'], HemloKind>> = { habit: 'habit', supplement: 'supplement', chore: 'chore' }
 
 async function icsEvents(profile: Profile, userId: string | null, d: Dataset, range: Range | null, chosen?: string[]): Promise<IcsEvent[]> {
   if (d.store === 'tasks') return taskEvents(profile, range)
@@ -467,8 +467,8 @@ async function icsEvents(profile: Profile, userId: string | null, d: Dataset, ra
 interface SeriesPlan {
   rule: NonNullable<ParsedEvent['series']>
   exdates: string[]
-  /** What it was in Visuma (GEN-26): it goes back there, not into a task. */
-  kind?: VisumaKind | null
+  /** What it was in Hemlo (GEN-26): it goes back there, not into a task. */
+  kind?: HemloKind | null
 }
 
 export interface ImportPreview {
@@ -495,8 +495,8 @@ export async function readImport(profile: Profile, userId: string | null, datase
   const empty: ImportPlan = { columns: [], missing: [], rows: [], valid: 0, duplicates: 0, withProblems: 0, truncated: false }
   if (d.store === 'backup') {
     let parsed: { format?: string; records?: Record<string, unknown[]> }
-    try { parsed = JSON.parse(await file.text()) } catch { throw new Error('That file is not a Visuma backup.') }
-    if (!isFormat(parsed?.format, BUNDLE_FORMAT) || !parsed.records) throw new Error('That file is not a Visuma backup.')
+    try { parsed = JSON.parse(await file.text()) } catch { throw new Error('That file is not a Hemlo backup.') }
+    if (!isFormat(parsed?.format, BUNDLE_FORMAT) || !parsed.records) throw new Error('That file is not a Hemlo backup.')
     const count = Object.values(parsed.records).reduce((n, v) => n + (Array.isArray(v) ? v.length : 0), 0)
     return { dataset: d, format, file, plan: empty, series: new Map(), notes: [], backupRecords: count }
   }
@@ -570,7 +570,7 @@ function icsTable(d: Dataset, events: ParsedEvent[], series: Map<number, SeriesP
     for (const e of events) {
       for (const day of days(e)) {
         if (rows.length >= IMPORT_LIMITS.rows) break
-        // A habit, chore, supplement or payment from a Visuma file (GEN-26):
+        // A habit, chore, supplement or payment from a Hemlo file (GEN-26):
         // one row, its repeat kept, saved back into its own module.
         if (e.kind) {
           const rule = e.repeat ?? e.series ?? { rule: 'dates', rule_config: { dates: [day] } }
@@ -579,7 +579,7 @@ function icsTable(d: Dataset, events: ParsedEvent[], series: Map<number, SeriesP
           break
         }
         if (e.series) series.set(rows.length + 2, { rule: e.series, exdates: e.exdates })
-        // "After" or flexible (GEN-22), from Visuma's own line (GEN-26).
+        // "After" or flexible (GEN-22), from Hemlo's own line (GEN-26).
         else if (e.repeat?.rule === 'daily') series.set(rows.length + 2, { rule: { rule: 'daily', rule_config: e.repeat.rule_config, start_date: day, end_date: null, occurrence_count: null }, exdates: [] })
         const lastDay = e.endDate && e.allDay ? addDays(day, Math.max(0, minutesBetween({ date: e.date, time: '00:00' }, { date: e.endDate, time: '00:00' }) / 1440)) : null
         const end = !e.allDay && e.time && e.minutes !== null ? endOf(day, e.time, e.minutes) : null
@@ -591,14 +591,14 @@ function icsTable(d: Dataset, events: ParsedEvent[], series: Map<number, SeriesP
     return [header, ...rows]
   }
   // Habits, supplements and chores (GEN-26): each event is one, with its
-  // repeat, from an RRULE or Visuma's own line ("3 times a week", "after",
+  // repeat, from an RRULE or Hemlo's own line ("3 times a week", "after",
   // flexible); an event that does not repeat is one on its own day.
   if (d.store === 'habit' || d.store === 'supplement' || d.store === 'chore') {
-    // A file Visuma wrote says what each event was: only this module's are
+    // A file Hemlo wrote says what each event was: only this module's are
     // taken from it. Any other calendar's events are all taken.
-    const fromVisuma = events.some((e) => !!e.kind)
+    const fromHemlo = events.some((e) => !!e.kind)
     for (const e of events) {
-      if (fromVisuma && e.kind !== d.store) continue
+      if (fromHemlo && e.kind !== d.store) continue
       if (rows.length >= IMPORT_LIMITS.rows) break
       const rule = e.repeat ?? e.series ?? { rule: 'dates', rule_config: { dates: [e.date] } }
       if (rule) series.set(rows.length + 2, { rule: { ...rule, start_date: e.series?.start_date ?? e.date, end_date: e.series?.end_date ?? null, occurrence_count: null } as SeriesPlan['rule'], exdates: [] })
@@ -685,7 +685,7 @@ const str = (v: unknown) => (typeof v === 'string' && v.trim() ? v.trim() : null
  *  (GEN-26), saved into its own module with its repeat. "3 times a week" is
  *  a habit's own: a chore takes it as weekly, a supplement or a payment as
  *  every day. */
-async function saveScheduled(profile: Profile, kind: VisumaKind, name: string, rule: SeriesPlan['rule'], order: number, notes: string | null): Promise<boolean> {
+async function saveScheduled(profile: Profile, kind: HemloKind, name: string, rule: SeriesPlan['rule'], order: number, notes: string | null): Promise<boolean> {
   const now = new Date().toISOString()
   // One already there by that name is left as it is (a file read twice adds nothing).
   const same = (n: string | null | undefined) => (n ?? '').trim().toLowerCase() === name.replace(/ (due|expected)$/i, '').trim().toLowerCase()

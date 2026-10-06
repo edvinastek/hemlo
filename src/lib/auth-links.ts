@@ -39,7 +39,7 @@ async function handle(url: string) {
 export function listenForAuthLinks() {
   if (isNative()) {
     void NativeApp.addListener('appUrlOpen', ({ url }) => {
-      if (url.startsWith('app.visuma.planner://auth-callback')) void handle(url)
+      if (url.startsWith('app.hemlo.planner://auth-callback')) void handle(url)
     })
     return
   }

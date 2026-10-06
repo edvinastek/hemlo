@@ -1,5 +1,5 @@
 ---
-title: "Visuma — Requirements and Specification"
+title: "Hemlo — Requirements and Specification"
 subtitle: "Every requirement, the app as built in version 15, and what the next version must change"
 author: "Prepared for Edvinas Straigis"
 date: "5 October 2026 (statuses updated for version 19, the final development version)"
@@ -9,16 +9,16 @@ date: "5 October 2026 (statuses updated for version 19, the final development ve
 
 ## A1. What it is for
 
-Visuma was called GetIt until version 20.
+Hemlo was called GetIt until version 20.
 
-This is the single reference for Visuma. It holds:
+This is the single reference for Hemlo. It holds:
 
 - **every requirement** the owner has given, from the first brief to the feedback of 1 October 2026, each with an ID, a priority and its status in version 15;
 - **the specification of the app as it is built today** (version 15), read from the code, including its rough edges;
 - **the gaps** between the two;
 - **the reference data** the next version needs: EU food labelling rules, unit weights for food sold per piece, activity levels for the calorie budget, and a review of the shared food catalogue.
 
-The competitor comparison and the usability plan are in the second document ("Visuma — Competitors and Usability"). The colour themes and app icons are on the design page ("Visuma — Looks").
+The competitor comparison and the usability plan are in the second document ("Hemlo — Competitors and Usability"). The colour themes and app icons are on the design page ("Hemlo — Looks").
 
 ## A2. How to read it
 
@@ -63,7 +63,7 @@ The competitor comparison and the usability plan are in the second document ("Vi
 | R5 | Feedback of 1 Oct 2026 | 1 Oct 2026 |
 | R6 | Feedback after testing version 16: clutter, prices | 3 Oct 2026 |
 | R7 | Owner request: iPhone app | 5 Oct 2026 |
-| R8 | Owner decision: the name Visuma | 6 Oct 2026 |
+| R8 | Owner decision: the name Hemlo | 6 Oct 2026 |
 | R9 | Owner request: links to the shops' catalogues | 6 Oct 2026 |
 | SR | Found by the specification and research work (not asked for, but needed for the asked-for result) | 1 Oct 2026 |
 
@@ -81,7 +81,7 @@ The specification in Parts E and F was read from commit `02c9d7f`. Three stateme
 
 ## B1. Vision
 
-Visuma (Lithuanian for "the whole": the whole of your life in one app) is a **planner first and a life tracker second**. A person sets it up for their own life and uses only what they need. Most people will switch on a handful of modules; a few will switch on all of them. Either way:
+Hemlo (Habits, Eating, Moving, Learning, Organising: the whole of your day in one app) is a **planner first and a life tracker second**. A person sets it up for their own life and uses only what they need. Most people will switch on a handful of modules; a few will switch on all of them. Either way:
 
 - what is switched off is **invisible everywhere** (pages, tabs, lists, sections, settings, stats, widget), and nothing is lost by switching it off;
 - what is switched on is **finished**: every module works end to end, links to the others where that saves effort, and can be shaped by the person (fields, views, schedules, names, colours);
@@ -113,15 +113,15 @@ These are settled. Requirements in Part D follow them.
 
 | Area | Decision | When |
 |---------------|-------------------------------------------------------------------------------------|---------|
-| Product | Visuma is a planner first; body tracking, targets, work hours, commute and protein display are all optional | R1–R2 |
+| Product | Hemlo is a planner first; body tracking, targets, work hours, commute and protein display are all optional | R1–R2 |
 | Product | All modules exist at launch: nutrition, shopping, training, habits, supplements, health, learning, agenda, sleep, projects, finance, household, stats, custom | R1, R3 |
-| Product | Visuma stays a planner: no built-in diet or training strategies; the person's own plan lives in their profile, not in the app | R1 |
+| Product | Hemlo stays a planner: no built-in diet or training strategies; the person's own plan lives in their profile, not in the app | R1 |
 | Product | The owner's personal data (bedtime, protein plan, girlfriend's profile, own schedule) stays out of the app's defaults | R1 |
 | Product | Setup templates now; AI-built setups maybe later | R2 |
 | Language | English only | R1 |
 | Platforms | One React/TypeScript codebase: Android (Capacitor) first, Windows (Tauri) and web kept up to date; iPhone later | R1 |
-| Platforms | Android package `app.visuma.planner` (it was `app.getit.planner` until version 20; nothing had been published) | R1, R8 |
-| Name | Visuma, Lithuanian for "the whole" (the app was called GetIt until version 20) | R8 |
+| Platforms | Android package `app.hemlo.planner` (it was `app.getit.planner` until version 20; nothing had been published) | R1, R8 |
+| Name | Hemlo, from Habits, Eating, Moving, Learning, Organising (the app was called GetIt until version 20; the name Visuma was considered in version 21 and dropped because it is a registered software trademark in Germany and the UK) | R8 |
 | Accounts | Log in from anywhere, data synced (Supabase, EU region) | R1 |
 | Accounts | Several accounts on one phone; switching asks for the phone's own unlock | R3 |
 | Accounts | Email confirmation on sign-up is off; accounts stay password-protected | R4 |
@@ -138,7 +138,7 @@ These are settled. Requirements in Part D follow them.
 | AI | Everything AI is hidden for now. If it comes, it edits and adjusts the planner when asked; it does not plan by itself | R4 |
 | Food | Food entries can be counted in units (eggs, slices) as well as grams | R4 |
 | Release | Google Play closed test first; the upload key is made by the owner on his own computer | R4 |
-| Legal | Data controller named "Edvinas Straigis"; contact through a new Visuma address (to be created); public pages on Netlify Drop | R4 |
+| Legal | Data controller named "Edvinas Straigis"; contact through a new Hemlo address (to be created); public pages on Netlify Drop | R4 |
 
 # Part C. Analysis of the feedback of 1 October 2026
 
@@ -758,7 +758,7 @@ Columns: **ID**, **Requirement** (with "Done when" where a test is needed), **Pr
 | AGN-01 | Own events (title, start, end, all day, place) with month and list views. | Must | Done | R1 |
 | AGN-02 | **Own events show on Today and Plan** (today only followed calendars do). | Must | Done (v16) | SR |
 | AGN-03 | Events can repeat (shared Repeat sheet) and have reminders. | Should | Done (v16) | SR |
-| AGN-04 | Calendar links: a private feed of Visuma into Google Calendar (health items, built modules and notes kept out unless chosen); new link and off. | Must | Done | R4 |
+| AGN-04 | Calendar links: a private feed of Hemlo into Google Calendar (health items, built modules and notes kept out unless chosen); new link and off. | Must | Done | R4 |
 | AGN-05 | Follow calendars by their iCal address: shown read-only on Today, Plan and Agenda, refreshed on open and every 3 hours, kept on the device. | Must | Done | R4 |
 | AGN-06 | Calendar visibility chips on Plan (hide a followed calendar with one tap without unfollowing). | Should | Done (v16) | SR |
 | AGN-07 | The "Nothing across an all-day event" rule: warn when planning across an all-day event that is marked busy. | Could | Done (v19: busy from followed calendars; own events cannot be marked busy) | SR |
@@ -852,7 +852,7 @@ Columns: **ID**, **Requirement** (with "Done when" where a test is needed), **Pr
 | ONB-03 | "Start again from a template" in More. | Must | Done | R2 |
 | ONB-10 | Templates also set each module's "Show on Today / Plan / widget" switches and pinned cards. | Must | Done (v16) | R5 |
 | ONB-11 | A visible **Skip** that lands on a working default (Today, Plan, tasks). | Should | Done (v16) | SR |
-| ONB-12 | No colour or icon choices during onboarding; a dismissible "Make Visuma yours" card a few days later opens Looks. | Should | Done (v16) | SR |
+| ONB-12 | No colour or icon choices during onboarding; a dismissible "Make Hemlo yours" card a few days later opens Looks. | Should | Done (v16) | SR |
 | ONB-13 | Just-in-time tips instead of a tour (first long press, first checklist, third manual meal: "Save as meal?"), each shown once, replayable in settings. | Should | Done (v16) | SR |
 | ONB-14 | Every empty module page has a designed empty state with one main action and a template or import where one exists. | Must | Done (v16) | SR |
 
@@ -889,7 +889,7 @@ Columns: **ID**, **Requirement** (with "Done when" where a test is needed), **Pr
 
 | ID | Requirement | Pri | Status | Src |
 |------------|---------------------------------------------------------------|-----------|------------------|-------|
-| LOOK-01 | **Themes ("colour flows")**: a set of named themes, each with light and dark versions (paper, ink, accent, tint, lines, heat scale), chosen in Settings → Looks with a live preview. The design page ("Visuma — Looks") is the starting set. | Must | Done (v16) | R5 |
+| LOOK-01 | **Themes ("colour flows")**: a set of named themes, each with light and dark versions (paper, ink, accent, tint, lines, heat scale), chosen in Settings → Looks with a live preview. The design page ("Hemlo — Looks") is the starting set. | Must | Done (v16) | R5 |
 | LOOK-02 | **System colours** (Android 12+ Material You): the theme follows the phone's wallpaper colours, re-read when the app comes back. | Should | Done (v16) | SR |
 | LOOK-03 | Mode: System, Light, Dark, and **Black** (AMOLED) for dark. | Must | Done (v16) | R5 |
 | LOOK-04 | **Own colour**: pick one accent (wheel, hex or swatches) and the theme is generated from it. | Should | Done (v16) | R5 |
@@ -917,7 +917,7 @@ Columns: **ID**, **Requirement** (with "Done when" where a test is needed), **Pr
 
 | ID | Requirement | Pri | Status | Src |
 |-----------|---------------------------------------------------------------------|-----------|-------------|-------|
-| WID-01 | "Visuma · Today" widget: open tasks with ticks, today's habits, done tasks, resizable, ticks applied safely. | Must | Done | R1 |
+| WID-01 | "Hemlo · Today" widget: open tasks with ticks, today's habits, done tasks, resizable, ticks applied safely. | Must | Done | R1 |
 | WID-02 | The Today widget shows items from every module set to "Show on the widget". | Should | Done (v16) | R5 |
 | WID-10 | **Stats widgets**: the person places as many as they want, each showing a saved stats view of their choice (a figure, a small chart, a ring or a short table), in 2×2, 4×2 and 4×4 sizes, refreshed whenever the data changes. | Must | Done (v16) | R5 |
 | WID-11 | **Quick add widget**: buttons for the + menu's top items. | Could | Done (v19) | SR |
@@ -952,26 +952,26 @@ Columns: **ID**, **Requirement** (with "Done when" where a test is needed), **Pr
 
 | ID | Requirement | Pri | Status | Src |
 |------------|---------------------------------------------------------------|---------|------------------|-------|
-| PLAT-01 | Android app `app.visuma.planner`, Capacitor, targeting the current API level; INTERNET and USE_BIOMETRIC permissions only. | Must | Done | R1 |
+| PLAT-01 | Android app `app.hemlo.planner`, Capacitor, targeting the current API level; INTERNET and USE_BIOMETRIC permissions only. | Must | Done | R1 |
 | PLAT-02 | Windows app (Tauri) and web build kept up to date with every version. | Must | Done | R1 |
 | PLAT-03 | Google Play closed test: 12 testers opted in for 14 continuous days, then production application. | Must | Open | R4 |
 | PLAT-04 | Store listing texts and screenshots (made after version 16, so they show the new design). | Must | Done (v19: listing texts in store/listing.json; seven phone screenshots at 1080 × 1920 in store/screenshots/, made from an invented demo week by scripts/store-shots.mjs; the owner uploads them in Play Console) | R4 |
 | PLAT-05 | Data safety answers, including Google's code scanner (ML Kit) and Open Food Facts requests. | Must | Partly (v18: answers ready in store/play-console-answers.md; the owner enters them in Play Console) | R4 |
-| PLAT-06 | Public privacy and account-deletion pages with controller "Edvinas Straigis" and the new Visuma contact address; the deletion page's "What is deleted" lists shared recipes, scanned foods, calendar links and followed calendars. | Must | Partly (v18: pages ready, "What is deleted" complete; needs the owner's new contact address in VITE_CONTACT_EMAIL and the pages published on Netlify) | R4 |
+| PLAT-06 | Public privacy and account-deletion pages with controller "Edvinas Straigis" and the new Hemlo contact address; the deletion page's "What is deleted" lists shared recipes, scanned foods, calendar links and followed calendars. | Must | Partly (v18: pages ready, "What is deleted" complete; needs the owner's new contact address in VITE_CONTACT_EMAIL and the pages published on Netlify) | R4 |
 | PLAT-07 | The privacy policy names Netlify (not Cloudflare) as the host of the public pages. | Must | Done (v18) | R4 |
 | PLAT-08 | Upload key made by the owner on his own computer; signing keys never pass through anyone else. | Must | Open (owner action) | R4 |
 | PLAT-09 | APK size kept in check (the barcode scanner adds about 25 MB per build of all processor types): ship an App Bundle so each phone downloads only its own. | Must | Done (v16: the App Bundle splits by processor type on Play) | SR |
-| PLAT-10 | iPhone app later, from the same code. | Could | Partly (v20: iPhone project ios/ (bundle id app.visuma.planner, iOS 15.5, iPhone only) and the iPhone job in the Build workflow ready: a compile check on GitHub's Mac without Apple secrets, TestFlight upload with them; Android-only features hidden on the iPhone, reminders, scanner, text size, safe areas and quick actions made to work there; docs/ios-release.md, store/app-store-answers.md; left: the Apple Developer account, the four GitHub secrets, the first TestFlight build and a test on an iPhone) | R1 |
+| PLAT-10 | iPhone app later, from the same code. | Could | Partly (v20: iPhone project ios/ (bundle id app.hemlo.planner, iOS 15.5, iPhone only) and the iPhone job in the Build workflow ready: a compile check on GitHub's Mac without Apple secrets, TestFlight upload with them; Android-only features hidden on the iPhone, reminders, scanner, text size, safe areas and quick actions made to work there; docs/ios-release.md, store/app-store-answers.md; left: the Apple Developer account, the four GitHub secrets, the first TestFlight build and a test on an iPhone) | R1 |
 | PLAT-11 | iPhone home-screen widgets (WidgetKit): Today and stats, as on Android. | Could | Open (needs a widget extension, an App Group and a Mac to test) | R7 |
 | PLAT-12 | Sleep from Apple Health on the iPhone, as Health Connect on Android (SLP-05). | Could | Open (needs a HealthKit plugin, the HealthKit entitlement and Apple's health data review) | R7 |
-| BRAND-01 | The app is called Visuma everywhere a person sees it; app ID app.visuma.planner on Android, iOS and Windows; old backups still import. | Must | Done (v21) | R8 |
+| BRAND-01 | The app is called Hemlo everywhere a person sees it; app ID app.hemlo.planner on Android, iOS and Windows; old backups still import. | Must | Done (v21) | R8 |
 
 ## D35. Assistant (AI)
 
 | ID | Requirement | Pri | Status | Src |
 |----------|------------------------------------------------------------------------|----------|-----------|--------|
 | AI-01 | Everything AI is hidden. | Must | Done | R4 |
-| AI-02 | If an assistant is added later, it edits and adjusts the planner when asked (move, add, copy, set up a module) and shows every change for approval; it never plans by itself. Its name and tone are the person's choice. | Could | Open (no assistant in Visuma for now, by the owner's decision; nothing in the app sends data to an AI) | R1, R4 |
+| AI-02 | If an assistant is added later, it edits and adjusts the planner when asked (move, add, copy, set up a module) and shows every change for approval; it never plans by itself. Its name and tone are the person's choice. | Could | Open (no assistant in Hemlo for now, by the owner's decision; nothing in the app sends data to an AI) | R1, R4 |
 
 ## D36. Calm by default (CALM)
 
@@ -1050,13 +1050,13 @@ Words used throughout:
 ## 1. Sign-in, sign-up, invite list, onboarding, accounts
 
 ### 1.1 Sign-in screen (three modes)
-- Title "Visuma". The line under it changes with the mode:
+- Title "Hemlo". The line under it changes with the mode:
   - Sign in: "Sign in to your planner."
   - Create account: "Create an account. Passwords are at least 10 characters."
   - Reset: "Reset your password."
   - Adding an account: "Add another account. The one open now stays on this device."
 - Fields: Email (required, type email). Password (required; at least 10 characters only when creating an account). Reset mode has no password field.
-- Create account adds a required tick box: "I agree that Visuma stores the health and fitness details I enter — weight, food, training — to plan with them." with an inline "Read the privacy policy" link that opens the policy inside the app. "Create account" stays disabled until the box is ticked.
+- Create account adds a required tick box: "I agree that Hemlo stores the health and fitness details I enter — weight, food, training — to plan with them." with an inline "Read the privacy policy" link that opens the policy inside the app. "Create account" stays disabled until the box is ticked.
 - When the account is created, the time of consent (`health_consent_at`) and the policy version (`privacy_version`, currently `2026-09-29`) are stored with the account.
 - The main button reads "Sign in" / "Create account" / "Send reset link" / "Add account", and "Working…" while busy.
 - "Continue with Google" appears only when the build sets `VITE_ENABLE_GOOGLE=true`. It is hidden in reset and adding modes.
@@ -1067,21 +1067,21 @@ Words used throughout:
 - Messages:
   - Reset always says "If that address has an account, a reset link is on its way. Open it on this device." The wording is the same either way, so the form cannot be used to find out who has an account.
   - Sign-up while email confirmation is on: "Check your email and open the link on this device to confirm the address." Email confirmation is now off on the server, so new accounts open straight away and this note does not appear.
-  - An address not on the invite list: "Visuma is invite-only for now. Ask to have your address added."
+  - An address not on the invite list: "Hemlo is invite-only for now. Ask to have your address added."
   - Any other error shows the server's message as it is.
 - Email links (confirm and reset) use PKCE. A link works only on the device that asked for it. Possible notes:
   - "That link has expired. Ask for a new one."
   - "That link could not be used. Ask for a new one."
   - "Open the link on the phone or browser where you asked for it, or ask for a new one."
   - "Your address is confirmed."
-  - In a browser, the code is removed from the address bar so it cannot be used twice. On Android the link returns as `app.visuma.planner://auth-callback?...`.
+  - In a browser, the code is removed from the address bar so it cannot be used twice. On Android the link returns as `app.hemlo.planner://auth-callback?...`.
 - The "New password" screen: "New password" and "The same again", each at least 10 characters. Mismatch: "The two passwords do not match." Button "Save password" ("Saving…").
 - When accounts are kept on this device (see 1.6), an "On this device" list appears above the sign-in form, with "Remove" and "Open" for each account.
 
 [src/screens/Auth.tsx, src/lib/auth-links.ts, src/lib/supabase.ts, src/lib/native.ts `authRedirect`, src/settings/Accounts.tsx `SavedAccounts`]
 
 ### 1.2 Invite-only list (server)
-- The database checks every new sign-up. The rule: if `private.settings.signups` is not `'open'`, the email (in lower case) must be in `private.signup_allowlist`. Otherwise the sign-up fails with "Visuma is invite-only for now". The setting starts as `'invite'`.
+- The database checks every new sign-up. The rule: if `private.settings.signups` is not `'open'`, the email (in lower case) must be in `private.signup_allowlist`. Otherwise the sign-up fails with "Hemlo is invite-only for now". The setting starts as `'invite'`.
 - To open sign-ups to everyone: `update private.settings set value='open' where key='signups'`.
 - The list cannot be read or changed through the app's API, and there is no admin screen for it. There is a script for it (the `allowlist` check covers it).
 - Deleting an account also removes its address from the invite list.
@@ -1180,7 +1180,7 @@ Writing the profile last is what swaps the wizard for the app.
 [src/screens/Onboarding.tsx, src/lib/templates.ts, src/lib/activity.ts, src/lib/calc.ts, src/settings/WorkFields.tsx, src/lib/setup.ts, src/lib/countries.ts]
 
 ### 1.4 Sign-out
-- Where: More → Data → Account → "Sign out" ("Also clears everything Visuma stored on this device.").
+- Where: More → Data → Account → "Sign out" ("Also clears everything Hemlo stored on this device.").
 - What it does: signs out, then wipes the whole local database and the Android widget's copy.
 - **Caveat:** it does not first send changes that are still waiting. Any offline edits still queued are lost. Switching accounts, by contrast, refuses until the queue is empty.
 - The signed-out account is taken off the "kept on this device" list.
@@ -1207,7 +1207,7 @@ Writing the profile last is what swaps the wizard for the app.
 - At most 5 accounts per device. One account's data is on the device at a time.
 - The list is stored differently by platform:
   - Android: in encrypted storage (Android Keystore), including each account's refresh token.
-  - Browser and Windows: `localStorage` key `getit-accounts` (named before Visuma, kept so the list survives), with no tokens.
+  - Browser and Windows: `localStorage` key `getit-accounts` (named before Hemlo, kept so the list survives), with no tokens.
 - Email addresses are shown masked ("e•••@gmail.com"). The list is ordered by most recently used.
 - The list only starts filling once a second account is added. After that, every account that signs in on the device joins it.
 - Rows on the screen:
@@ -1218,7 +1218,7 @@ Writing the profile last is what swaps the wizard for the app.
 - **Switching:**
   1. The app first sends every queued change and any widget ticks.
   2. It refuses if offline ("Switching needs a connection, so that nothing waiting to be sent is lost. Try again when you are online.") or if anything is still queued ("N changes are still waiting to be sent. Switching waits until they have gone up, so nothing is lost.").
-  3. On Android, with a screen lock and a saved token, it asks for the phone's unlock (biometric prompt "Switch account" / "Open <name> in Visuma"; PIN, pattern or password also work). Anywhere else, a password box appears under the row ("Password for e•••@…", buttons "Cancel" / "Open").
+  3. On Android, with a screen lock and a saved token, it asks for the phone's unlock (biometric prompt "Switch account" / "Open <name> in Hemlo"; PIN, pattern or password also work). Anywhere else, a password box appears under the row ("Password for e•••@…", buttons "Cancel" / "Open").
   4. The other account is opened "on the side" first, so a wrong password or a dead token changes nothing on the device. Possible messages: "Cancelled. Nothing changed." / "The phone was not unlocked. Nothing changed." / "This account was signed out on this device. Enter its password to open it." / "That password is not right for this account. Nothing changed." / "The server could not be reached. Nothing changed." / "That signed in to a different account. Nothing changed."
   5. Then the local copy is wiped and a full-screen "Switching to <name>…" appears ("Opening the account and downloading its plan. This device shows one account at a time."). After 20 seconds it adds: "This is taking longer than usual…" and a "Try again" button.
   6. In a browser, the account left behind is signed out on the server.
@@ -1607,32 +1607,32 @@ See 3.6. In short:
 - Status `stuck` exists in the data and is drawn as flagged, but nothing in the app sets it.
 
 ### 5.5 Reminders (notifications) — More → Reminders
-- **"Who reminds you" → Name**: the name reminders arrive under. Empty means "Visuma". It is stored on the profile (`ai_persona_name`), so it syncs. The same name prefixes the review line ("Ava: 3 tasks are left…").
+- **"Who reminds you" → Name**: the name reminders arrive under. Empty means "Hemlo". It is stored on the profile (`ai_persona_name`), so it syncs. The same name prefixes the review line ("Ava: 3 tasks are left…").
 - **"Reminders on this device" → "Remind me at each task’s time"** switch.
   - Default **off**. Device-only.
-  - Text: "Within a few minutes of the time, for the next three days, even with Visuma closed. On a locked phone the text is hidden. This setting is for this device only."
-  - Turning it on asks for notification permission. If refused: "Notifications are blocked for Visuma. Allow them in the phone’s settings, then turn this on again."
+  - Text: "Within a few minutes of the time, for the next three days, even with Hemlo closed. On a locked phone the text is hidden. This setting is for this device only."
+  - Turning it on asks for notification permission. If refused: "Notifications are blocked for Hemlo. Allow them in the phone’s settings, then turn this on again."
 - **"Quiet hours"**: two time boxes ("to"), default 22:00 to 07:00, device-only. "Nothing arrives between these times." The window wraps past midnight. A reminder that falls in quiet hours is dropped, not delayed.
 - **What gets a reminder:** every task in the next 3 days with a time, not done, not dropped, not deleted, and in the future.
-  - Text: title = persona or "Visuma"; body = "<title> at HH:MM." (or "<title> has moved N times. Want a new time for it?" once pushed 3 or more times).
+  - Text: title = persona or "Hemlo"; body = "<title> at HH:MM." (or "<title> has moved N times. Want a new time for it?" once pushed 3 or more times).
 - **On Android:**
   - Reminders are scheduled with the phone's own scheduler. They are not exact (no exact-alarm permission), but they work while the phone is idle.
   - Channel "Reminders": high importance, private on the lock screen ("Contents hidden").
   - Every scheduled reminder is cancelled and rebuilt each time: at start-up, after a sync, after any task change (debounced 0.8 s) and when the app returns to the front.
-- **In a browser and the Windows app:** only reminders due within 24 hours, and only while Visuma is open (timers).
+- **In a browser and the Windows app:** only reminders due within 24 hours, and only while Hemlo is open (timers).
 - **Not supported:** tapping a notification has no special handling (it does not open the task), and there are no "done" or "snooze" actions. Reminders never fire for the review, meals without a time, or untimed tasks.
 
 [src/lib/notify.ts, src/lib/reminder-text.ts, src/lib/lifecycle.ts, src/screens/More.tsx `RemindersPanel`]
 
 ### 5.6 Android home-screen widget
-- **Name:** "Visuma · Today". Default size 4×3 cells, resizable (smallest 180×110 dp).
+- **Name:** "Hemlo · Today". Default size 4×3 cells, resizable (smallest 180×110 dp).
 - **What it shows:**
   - Header: the date ("Thursday 1 October", or "Thu 1 Oct" when narrow) and a summary ("N left", "All done" or blank).
   - Rows (up to 8; each 34 dp, so the number depends on height), in this order:
     1. open tasks by time (untimed last), with tick circles;
     2. the label "Habits" and the day's habits (up to half the rows; at least 1 when there are habits and 3 or more rows);
     3. tasks already done (struck through), if there is room.
-  - Messages: "Nothing planned today." / "Open Visuma and sign in to see your day here." / "Open Visuma to bring today up to date." (when the snapshot has no entry for today).
+  - Messages: "Nothing planned today." / "Open Hemlo and sign in to see your day here." / "Open Hemlo to bring today up to date." (when the snapshot has no entry for today).
 - **Where the data comes from:** the app writes a snapshot of today and tomorrow whenever the tasks or habits behind it change (0.4 s after the changes stop).
   - The snapshot holds up to 30 tasks and 12 habits a day, titles cut to 80 characters.
   - Only tasks of horizon "day" that are not dropped or deleted are included.
@@ -1647,7 +1647,7 @@ See 3.6. In short:
   - It redraws every 30 minutes, which is what moves it to the next day after midnight.
   - Signing out, or another account signing in, clears it.
 
-[src/lib/widget.ts, src/lib/widget-rules.ts, android/app/src/main/java/app/visuma/planner/widget/*, android/app/src/main/res/xml/widget_today_info.xml]
+[src/lib/widget.ts, src/lib/widget-rules.ts, android/app/src/main/java/app/hemlo/planner/widget/*, android/app/src/main/res/xml/widget_today_info.xml]
 
 ### 5.7 Counters and flags on a task (data model)
 - **`push_count`**: Today push buttons. Shown as "pushed N×".
@@ -1810,7 +1810,7 @@ See 5.5. This tab has only the persona name, the reminders switch and quiet hour
      - For .json: a backup import (10.3).
      - For .xlsx: the workbook preview and import (10.4).
 5. **Import and export** centre (10.1).
-6. **Privacy → "Privacy policy"**: "What Visuma stores, why, where, and how to get it back or delete it." The "Read" button opens the in-app policy with a "Back" button.
+6. **Privacy → "Privacy policy"**: "What Hemlo stores, why, where, and how to get it back or delete it." The "Read" button opens the in-app policy with a "Back" button.
 7. **Account:** the accounts on this device (1.6), "Sign out" (1.4), "Delete account" (1.5).
 
 [src/screens/More.tsx `DataPanel`, src/settings/RecipeReview.tsx]
@@ -2044,10 +2044,10 @@ Of the 14 rules, 4 can be switched and are carried out, 1 is always on, and 9 ar
   - **Phone browser:** through the share sheet when possible.
   - **Elsewhere:** as a download.
   - Then a note: "Saved <file> · N rows.", "Shared …" or "Not saved."
-  - File names read like `visuma-<label>-<range>.<ext>`.
+  - File names read like `hemlo-<label>-<range>.<ext>`.
 - **Export details:**
   - **CSV:** UTF-8 with Excel's byte-order mark and CRLF line ends. A cell starting with `= + - @`, a tab or a carriage return gets an apostrophe in front (protection against spreadsheet formulas).
-  - **JSON:** `{format:'visuma.dataset', version:1, dataset, label, exported_at, range, fields, rows}`.
+  - **JSON:** `{format:'hemlo.dataset', version:1, dataset, label, exported_at, range, fields, rows}`.
   - **Calendar file:** tasks use the person's own clock time ("floating" time) with the profile's time zone named once. Events are in UTC. With no range, a repeating task goes out as one repeating event (RRULE/RDATE/EXDATE). With a range, every day in it goes out, including repeats not yet laid out as tasks.
   - Events from followed calendars are never exported.
 - **Import into the chosen dataset:**
@@ -2092,7 +2092,7 @@ Of the 14 rules, 4 can be switched and are carried out, 1 is always on, and 9 ar
 
 ### 10.3 Backup file (whole account)
 - **Two ways to make it:** More → Data → Your data → Export, or the "Whole account (backup file)" dataset.
-- **File:** `visuma-<yyyy-mm-dd>.visuma.json`, shaped `{format:'visuma.bundle', version:1, exported_at, profile_id, records}`. A backup made before version 21 (`getit.bundle`) reads the same.
+- **File:** `hemlo-<yyyy-mm-dd>.hemlo.json`, shaped `{format:'hemlo.bundle', version:1, exported_at, profile_id, records}`. A backup made before version 21 (`getit.bundle`) reads the same.
 - **What it holds:**
   - every profile row, including all settings;
   - the profile's tasks, targets, weigh-ins, food log, meal plan, module switches, series and their exceptions, habits and their ticks, supplements and their ticks, module records, own calendar events, goals, sleep, training log and followed-calendar subscriptions;
@@ -2108,7 +2108,7 @@ Of the 14 rules, 4 can be switched and are carried out, 1 is always on, and 9 ar
   - **Profile fields copied:** name, sex, date of birth, height, activity, goal, time zone, day start/end and persona name.
   - **Caveat:** settings, country and city are **not** restored, although the export holds them and says "settings".
   - Message: "N records from <file> added to <profile>. They go up to your account with the next sync."
-  - Errors: "That file is not a Visuma export." / "That export comes from a newer Visuma. Update the app, then import it again."
+  - Errors: "That file is not a Hemlo export." / "That export comes from a newer Hemlo. Update the app, then import it again."
   - Importing needs a signed-in session.
 
 [src/lib/bundle.ts]
@@ -2131,7 +2131,7 @@ Of the 14 rules, 4 can be switched and are carried out, 1 is always on, and 9 ar
 
 ## 11. Calendar links (More → Profile → Calendar links)
 
-### 11.1 "Show Visuma in Google Calendar" (Visuma → Google)
+### 11.1 "Show Hemlo in Google Calendar" (Hemlo → Google)
 - Text: "A private link to your tasks and events, from three months back to a year ahead. Meals, training, weigh-ins, other health details and modules you built stay out. Google Calendar reads it every few hours; it cannot change anything here."
 - State line: "Needs a connection." / "Checking…" / "On · link made <date>" / "Off". The switch needs a connection because the link lives only on the server.
 - **Make link:**
@@ -2143,12 +2143,12 @@ Of the 14 rules, 4 can be switched and are carried out, 1 is always on, and 9 ar
 - **When the feed is on, there are three more controls:**
   - **"Include task notes"** (default off): "Off unless you turn it on: a link passed on by mistake would show them." Stored in `calendar.feed_notes`.
   - **"Make a new link"**: "The old link stops working at once. Google Calendar will need the new one."
-  - **"Turn off"**: "The link stops working at once, and Google Calendar will show nothing new from Visuma. Remove it there too."
+  - **"Turn off"**: "The link stops working at once, and Google Calendar will show nothing new from Hemlo. Remove it there too."
 - **What the feed includes:**
   - tasks with a day from 3 months back to 12 months ahead, not dropped and not deleted;
   - each repeating series as one repeating event, cut to that window;
   - the person's own Agenda events.
-  - Shown: titles, times, sections and places. The calendar's name is just "Visuma", never the profile's name.
+  - Shown: titles, times, sections and places. The calendar's name is just "Hemlo", never the profile's name.
 - **What the feed excludes:**
   - anything about health: source meal, workout or habit; module nutrition, health, training, sleep, habits or supplements; sections Meal, Training or Body; every day of a health series;
   - all tasks of modules the person built;
@@ -2160,8 +2160,8 @@ Of the 14 rules, 4 can be switched and are carried out, 1 is always on, and 9 ar
 
 [src/settings/CalendarLinks.tsx, src/lib/calendar-links.ts, src/lib/calendar-links-rules.ts, supabase/functions/calendar-feed/index.ts, migrations 020/024]
 
-### 11.2 "Calendars you follow" (Google → Visuma)
-- Text: "Events from Google Calendar (or any calendar with an iCal address), on Today and in Plan. They are read-only here, fetched when Visuma opens and every three hours while it is open, and kept on this device."
+### 11.2 "Calendars you follow" (Google → Hemlo)
+- Text: "Events from Google Calendar (or any calendar with an iCal address), on Today and in Plan. They are read-only here, fetched when Hemlo opens and every three hours while it is open, and kept on this device."
 - **"Add"** (at most 10 calendars; "That is 10 calendars. Remove one to follow another."):
   - Steps for finding Google's "Secret address in iCal format".
   - **Name:** required, at most 60 characters ("Work, Family…").
@@ -2174,11 +2174,11 @@ Of the 14 rules, 4 can be switched and are carried out, 1 is always on, and 9 ar
   - a colour swatch (tap to choose from the 16 swatches), the name, and "N events";
   - "Fetched <date time>" or "Not fetched yet", plus the last error;
   - after a refresh: "Up to date: N events (A new, C changed, R gone)." plus up to 2 notes from reading the file.
-  - Buttons "Refresh now" ("Fetching…") and "Remove". Remove asks: "Stop following <name>? Its events leave Visuma on every device and its address is erased. The calendar itself is not touched."
+  - Buttons "Refresh now" ("Fetching…") and "Remove". Remove asks: "Stop following <name>? Its events leave Hemlo on every device and its address is erased. The calendar itself is not touched."
 - **How fetching works:**
   - The server function `calendar-fetch` fetches the calendar. It must be signed in and checks ownership.
   - Safety limits: https only, every redirect checked, at most 3 redirects, 10 s, 3 MB. The answer must start with BEGIN:VCALENDAR. The address is never logged.
-  - The app reads the file itself and keeps events from 3 months back to 12 months ahead, at most 5,000 per calendar ("The calendar has more events than Visuma keeps; the first 5000 in the window are shown.").
+  - The app reads the file itself and keeps events from 3 months back to 12 months ahead, at most 5,000 per calendar ("The calendar has more events than Hemlo keeps; the first 5000 in the window are shown.").
   - Repeats are laid out one row per day.
   - Events are matched by UID and start time, so a refresh changes only what changed.
   - Due calendars are checked 5 s after opening, then every 15 minutes. Each calendar is fetched at most every 3 hours. A failed fetch waits 1 hour before retrying. Coming back online triggers a check. "Refresh now" always fetches.
@@ -2189,7 +2189,7 @@ Of the 14 rules, 4 can be switched and are carried out, 1 is always on, and 9 ar
   - Month and Year marks, and the load (timed events count by their length, up to 24 h; whole-day events count 0).
   - Agenda module pages.
   - Legends.
-  - Tapping one opens a read-only sheet with the title, "From <calendar>", When, Where, and "Read-only here. Change it in its own calendar; Visuma picks the change up the next time it fetches that calendar." Buttons "Open subscription settings" (goes to More → Profile → Calendar links) and "Close".
+  - Tapping one opens a read-only sheet with the title, "From <calendar>", When, Where, and "Read-only here. Change it in its own calendar; Hemlo picks the change up the next time it fetches that calendar." Buttons "Open subscription settings" (goes to More → Profile → Calendar links) and "Close".
   - Multi-day whole-day events show on each day, up to 31.
 - **Excluded:** from backups, exports, the Google feed and Stats.
 
@@ -2245,7 +2245,7 @@ Of the 14 rules, 4 can be switched and are carried out, 1 is always on, and 9 ar
 ## 13. Cross-cutting
 
 ### 13.1 Sync model
-- **Local-first:** every device holds a full copy of the account in its own database (IndexedDB "getit", the name from before Visuma, kept so no device loses its copy). Every screen reads that copy. Every change is written locally first and added to a queue (`pending`). Nothing in the app writes to the server directly.
+- **Local-first:** every device holds a full copy of the account in its own database (IndexedDB "getit", the name from before Hemlo, kept so no device loses its copy). Every screen reads that copy. Every change is written locally first and added to a queue (`pending`). Nothing in the app writes to the server directly.
 - **Synced tables:**
   - **Profile-scoped**, fetched by what changed since last time: task, target, body_log, food_log, meal_plan_slot, module_instance, series, habit, supplement, module_record, calendar_event (own events only), goal, sleep_log, workout_log, calendar_subscription. Profiles are fetched first.
   - **Children**, fetched by what changed (the database's access rules limit them to the account): habit_log, supplement_log, series_exception, stock (per household), module (built modules).
@@ -2291,7 +2291,7 @@ Of the 14 rules, 4 can be switched and are carried out, 1 is always on, and 9 ar
 [supabase/migrations/004_rls.sql, 012_security.sql, 014, 017, 019, 020, 024, 025; supabase/tests/security.sql; android/app/src/main/AndroidManifest.xml]
 
 ### 13.3 Platforms
-- **Android (Capacitor, package `app.visuma.planner`):**
+- **Android (Capacitor, package `app.hemlo.planner`):**
   - the home-screen widget (5.6);
   - local notifications (5.5);
   - email links returning to the app;
@@ -2321,14 +2321,14 @@ Of the 14 rules, 4 can be switched and are carried out, 1 is always on, and 9 ar
 - Shown from sign-up ("Read the privacy policy") and from More → Data → Privacy → "Read". Version "Last changed 2026-09-29".
 - Sections:
   - Who is responsible
-  - What Visuma stores
+  - What Hemlo stores
   - Why, and on what basis
   - Where your data is kept (Supabase in Frankfurt; email service; device copy; Cloudflare-hosted pages; Open Food Facts for product search; Google's barcode scanner)
   - Who else can see it (household stock; proposed recipes; calendar links)
   - How long it is kept (until account deletion; deleted items kept marked as deleted; logs 1 day; no backups today)
   - Your rights (export, correct, delete, object, complain to the Autoriteit Persoonsgegevens)
   - If something goes wrong
-  - Age ("Visuma is for adults. It is not for anyone under 18.")
+  - Age ("Hemlo is for adults. It is not for anyone under 18.")
   - Changes
 - The controller's name and email come from build settings.
 - The policy promises that changes are "announced in the app first". There is no mechanism for this in the code.
@@ -2336,7 +2336,7 @@ Of the 14 rules, 4 can be switched and are carried out, 1 is always on, and 9 ar
 [src/legal/policy.ts, src/screens/Privacy.tsx]
 
 ### 13.6 Public website
-- `site/index.html` (home), `site/privacy.html` (the same policy text), and `site/delete.html` ("Delete your Visuma account").
+- `site/index.html` (home), `site/privacy.html` (the same policy text), and `site/delete.html` ("Delete your Hemlo account").
 - The delete page: Email, Password, "Type **delete** to confirm", "Delete my account for good". It signs in and calls the same `delete_my_account` function.
   - Messages: "That email and password did not match. Nothing was deleted." / "The account could not be deleted…" / "Your account and everything in it has been deleted."
   - Fallback: write to the contact address; the account is deleted within 30 days.
@@ -2588,7 +2588,7 @@ Tabs: **Fields, Views, Rules, Settings**.
 - **Only the person's own foods can be changed**, and only their units:
   - Add-unit form: Unit (e.g. egg), "Plural, if odd" (e.g. eggs), "One weighs, g". Note: "A new weight only counts for what is typed from now on."
   - × removes a unit.
-  - Shared catalogue foods show "Shared foods' units are set by Visuma." Someone else's food shows "Only the person who added this food can change it."
+  - Shared catalogue foods show "Shared foods' units are set by Hemlo." Someone else's food shows "Only the person who added this food can change it."
 - **A food's name, macros, state, pack size or store section cannot be edited anywhere in the app.**
 - **There is no "create a food by hand" button.** A food only comes from the catalogue, the Excel import, or an Open Food Facts product (search or scan).
 - Unit rules:
@@ -3475,7 +3475,7 @@ Export: rows of period, module, metric, value, unit.
   - Reads sheets D_Food (name in column B, kcal, carbs, fibre, fat, protein), D_Exercises (read but not saved) and D_Meals (name, macros, and an ingredients text that is matched to foods).
   - Shows a preview before saving: new foods and recipes, existing ones, matched and unmatched lines, impossible amounts.
   - Saved foods get source 'import' and belong to you.
-- **Export and import of a backup:** a `.visuma.json` bundle of the profile.
+- **Export and import of a backup:** a `.hemlo.json` bundle of the profile.
 - Recipes have a `shared_with_partner` column that is not used.
 [src/lib/excel.ts, src/lib/import.ts, src/lib/bundle.ts, src/screens/More.tsx]
 
@@ -3600,13 +3600,13 @@ Voluntary: mono-unsaturates, polyunsaturates, polyols, starch, **fibre**, and vi
 
 **Vitamin and mineral reference values (Annex XIII Part A, selection):** vitamin A 800 µg, D 5 µg, E 12 mg, K 75 µg, C 80 mg, thiamin 1.1 mg, riboflavin 1.4 mg, niacin 16 mg, B6 1.4 mg, folic acid 200 µg, B12 2.5 µg, biotin 50 µg, pantothenic acid 6 mg, potassium 2,000 mg, chloride 800 mg, calcium 800 mg, phosphorus 700 mg, magnesium 375 mg, iron 14 mg, zinc 10 mg, copper 1 mg, manganese 2 mg, fluoride 3.5 mg, selenium 55 µg, chromium 40 µg, molybdenum 50 µg, iodine 150 µg. (Taken from the regulation as adopted; whether later amendments changed the vitamin D value was not checked.)
 
-**What Visuma stores (FOOD-02):** every food per 100 g or per 100 ml with exactly these fields; kcal and kJ both kept or derived; salt stored, sodium derived; unknown values left empty.
+**What Hemlo stores (FOOD-02):** every food per 100 g or per 100 ml with exactly these fields; kcal and kJ both kept or derived; salt stored, sodium derived; unknown values left empty.
 
 Sources: Regulation (EU) No 1169/2011, Articles 30, 32 and 33, Annexes I, XIII, XIV and XV (legislation.gov.uk "as adopted" and the EUR-Lex consolidated text of 1 January 2018).
 
 ## H2. Food data sources and their terms
 
-| Source | Country | Size | Terms that matter | Use in Visuma |
+| Source | Country | Size | Terms that matter | Use in Hemlo |
 |--------------------------|-----------|-------------------|------------------------------------|------------------|
 | **NEVO-online 2025/9.0** (RIVM) | NL | 2,328 foods | Free; may be built into commercial software; **values used unchanged**; own additions clearly marked; attribution "Based on data from NEVO online version 2025/9.0, RIVM, Bilthoven"; **no charge to users for the NEVO data itself** | Base of the shared catalogue |
 | **Portie-online 2026/2.0** (RIVM and Wageningen University) | NL | Measures and weights per NEVO code | Use only unchanged, with source and version: "Portie-online versie 2026/2.0, RIVM, Bilthoven" | Unit weights (small, medium, large; edible and as bought) |
@@ -3768,7 +3768,7 @@ PAL (physical activity level) = total energy used in 24 hours ÷ resting energy 
 3. For a BMR of 1,700 kcal, 1.2 gives 2,040 kcal and 1.45–1.55 gives 2,465–2,635 kcal: **400 to 600 kcal a day too low**, so a planned 500 kcal cut becomes a 900–1,100 kcal cut.
 4. 1.2 is only defensible when exercise and daily steps are added separately (MyFitnessPal's approach), and even then it ignores ordinary movement.
 
-### H5.3 Visuma's lifestyle presets (BODY-12)
+### H5.3 Hemlo's lifestyle presets (BODY-12)
 
 Built from the FAO factorial method and activity values, the EFSA and FAO bands and the Tudor-Locke step zones. Step ranges are a guide, not an equivalence.
 
@@ -3825,8 +3825,8 @@ Sources: FAO/WHO/UNU, *Human energy requirements*, chapter 5; EFSA NDA Panel 201
 | Stats template | A saved stats view (to be built, STA-13). |
 | Pinned card | A small summary placed on Today (to be built, TOD-20). |
 | Overlay | Changes a person makes to a built-in module, kept on top of the app's version. |
-| Followed calendar | A calendar (for example Google) whose iCal address Visuma reads; read-only. |
-| Calendar feed | Visuma's private link that Google Calendar reads. |
+| Followed calendar | A calendar (for example Google) whose iCal address Hemlo reads; read-only. |
+| Calendar feed | Hemlo's private link that Google Calendar reads. |
 | Stock | What is in the cupboard, shared by the household. |
 | Edible weight / as bought | The weight of the part eaten / the weight including peel, core or waste. |
 | PAL, activity factor | Total daily energy ÷ resting energy. |

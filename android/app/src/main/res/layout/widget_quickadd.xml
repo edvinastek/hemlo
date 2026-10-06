@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Visuma · Quick add (WID-11): up to four buttons, the + menu's first entries,
+<!-- Hemlo · Quick add (WID-11): up to four buttons, the + menu's first entries,
      filled or hidden by QuickAddWidget (quickadd/QuickAdd.java). The colours
      here are the default theme's; QuickAddWidget paints the chosen theme over
      them (WidgetColours), the page through the bg image, as Today does. -->

@@ -44,7 +44,7 @@ export async function exportBundle(profileId: string): Promise<Blob> {
     records[table] = table === 'profile' ? rows : rows.filter((r) => r.profile_id === profileId)
   }
   // Events from a calendar the person follows are that calendar's, not
-  // Visuma's: the calendar (its address) is in the file, and its events are
+  // Hemlo's: the calendar (its address) is in the file, and its events are
   // fetched again wherever the file is read back in.
   records.calendar_event = records.calendar_event.filter((r) => !(r as { subscription_id?: string | null }).subscription_id)
   for (const { table, parent, key } of CHILDREN) {
@@ -117,14 +117,14 @@ export async function importBundle(file: File, profileId: string, userId: string
   const text = await file.text()
   let parsed: unknown
   try { parsed = JSON.parse(text) } catch {
-    throw new Error('That file is not a Visuma export.')
+    throw new Error('That file is not a Hemlo export.')
   }
   const bundle = parsed as Bundle
   // A backup made before version 21 says getit.bundle; it reads the same.
   if (!isFormat(bundle?.format, BUNDLE_FORMAT) || typeof bundle.records !== 'object' || !bundle.records) {
-    throw new Error('That file is not a Visuma export.')
+    throw new Error('That file is not a Hemlo export.')
   }
-  if (bundle.version !== 1) throw new Error('That export comes from a newer Visuma. Update the app, then import it again.')
+  if (bundle.version !== 1) throw new Error('That export comes from a newer Hemlo. Update the app, then import it again.')
 
   const rows = (name: string) => {
     const r = bundle.records[name]

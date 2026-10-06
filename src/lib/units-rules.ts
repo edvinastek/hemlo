@@ -24,7 +24,7 @@ export interface FoodUnit {
   /** The small, medium or large one (S, M, L; XL for eggs). The medium one
    *  carries the food's own word, so "1 onion" is a medium onion. */
   size?: UnitSize
-  /** Where its weight came from: "Portie-online 2026/2.0", "Visuma", or
+  /** Where its weight came from: "Portie-online 2026/2.0", "Hemlo", or
    *  "mine" for a unit a person added to a shared food (their overlay). */
   source?: string
 }

@@ -132,7 +132,7 @@ for (const [key, units] of [...onNevo.map((r) => [`nevo:${r.nevo_code}`, r.units
 }
 is('035: units within limits, every one with its source, sizes in order', bad035, [])
 // Additions only: every unit a NEVO food had stays, unchanged, except
-// Visuma's own version-15 piece weights where USDA measured that piece.
+// Hemlo's own version-15 piece weights where USDA measured that piece.
 const was = new Map(nevo.map((r) => [r.nevo_code, r.units ?? []]))
 const lost = onNevo.flatMap((r) => was.get(r.nevo_code).filter((x) =>
   !r.units.some((y) => JSON.stringify(y) === JSON.stringify(x)) && x.source !== 'GetIt').map((x) => `${r.nevo_code} ${x.name}`))
@@ -159,7 +159,7 @@ const portie = [{ name: 'pear', g: 214, size: 'M', ...P }]
 is('Portie-online wins: USDA sizes of a piece it gives are not added', merge(portie, [{ name: 'small pear', g: 148, size: 'S', source: USDA }]).map((x) => x.name), ['pear'])
 is('USDA adds a part Portie-online does not give', merge(portie, [{ name: 'slice', g: 20, source: USDA }]).map((x) => x.name), ['pear', 'slice'])
 is('a name the food has is never added again', merge([{ name: 'Slice', g: 35, source: 'GetIt' }], [{ name: 'slice', g: 20, source: USDA }]).length, 1)
-is('Visuma\'s own piece weight gives way where USDA measured it', merge([{ name: 'plum', g: 65, source: 'GetIt' }], [{ name: 'plum', g: 66, source: USDA }], ['plum']).map((x) => x.g), [66])
+is('Hemlo\'s own piece weight gives way where USDA measured it', merge([{ name: 'plum', g: 65, source: 'GetIt' }], [{ name: 'plum', g: 66, source: USDA }], ['plum']).map((x) => x.g), [66])
 is('never more than eight units', merge(Array.from({ length: 8 }, (_, i) => ({ name: `u${i}`, g: 1 })), [{ name: 'x', g: 1, source: USDA }]).length, 8)
 is('plurals: leaf, cherry, radish, tbsp chopped', ['leaf', 'outer leaf', 'cherry', 'radish', 'tbsp chopped'].map(plural), ['leaves', 'outer leaves', 'cherries', 'radishes', undefined])
 is('a USDA food\'s id is the same every run and a version 5 UUID', [usdaId('18408') === usdaId('18408'), /^[0-9a-f]{8}-[0-9a-f]{4}-5/.test(usdaId('18408'))], [true, true])

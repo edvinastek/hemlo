@@ -1,7 +1,7 @@
-# Visuma
+# Hemlo
 
-Visuma is Lithuanian for "the whole": the whole of your life in one app. It was
-called GetIt until version 20 (app ID `app.visuma.planner`, formerly
+Hemlo stands for Habits, Eating, Moving, Learning, Organising: the whole of your day in one app. It was
+called GetIt until version 20 (app ID `app.hemlo.planner`, formerly
 `app.getit.planner`).
 
 A modular planner that plans at every horizon — today's list to a full year — and
@@ -56,11 +56,11 @@ three on GitHub's runners:
 
 | Client | Downloaded from | Notes |
 | --- | --- | --- |
-| Android | The run's `visuma-android-release` artifact | Signed App Bundle for Google Play, and an APK |
-| iPhone | TestFlight, and the run's `visuma-ios-release` artifact | Only when the version changed or the run was started by hand; signed and uploaded once the Apple secrets are set (`docs/ios-release.md`) |
-| Windows | The run's `visuma-windows` artifact | NSIS installer and MSI |
-| Web | The run's `visuma-web` artifact | Static files; host anywhere |
-| Public site | The run's `visuma-site` artifact | Privacy policy and account deletion pages |
+| Android | The run's `hemlo-android-release` artifact | Signed App Bundle for Google Play, and an APK |
+| iPhone | TestFlight, and the run's `hemlo-ios-release` artifact | Only when the version changed or the run was started by hand; signed and uploaded once the Apple secrets are set (`docs/ios-release.md`) |
+| Windows | The run's `hemlo-windows` artifact | NSIS installer and MSI |
+| Web | The run's `hemlo-web` artifact | Static files; host anywhere |
+| Public site | The run's `hemlo-site` artifact | Privacy policy and account deletion pages |
 
 All of them carry the version in `package.json`.
 

@@ -1,6 +1,6 @@
 // Checks the supermarket product rules: barcodes and their check digit, a
 // product from Open Food Facts read into a food's figures, shop names, shared
-// prices, and the limiter and cache that keep Visuma within Open Food Facts'
+// prices, and the limiter and cache that keep Hemlo within Open Food Facts'
 // limits. Real answers from the three services are copied in, trimmed.
 import {
   checkDigit, normaliseBarcode, expandUpcE, maybeShopLabel, offCountry, offLang, cleanQuery, searchUrl, productUrl, pricesUrl,
@@ -54,14 +54,14 @@ is('the same search in other capitals is the same', searchKey(' Hagelslag ', 'en
 const newer = searchUrl('search', 'hagelslag', 'en:netherlands', 'nl', '0.2.0')
 is('the newer search filters on the country', newer.includes(encodeURIComponent('hagelslag countries_tags:"en:netherlands"')), true)
 is('and asks for Dutch names first', newer.includes('langs=nl%2Cen'), true)
-is('and says it is Visuma', newer.endsWith('app_name=Visuma&app_version=0.2.0'), true)
+is('and says it is Hemlo', newer.endsWith('app_name=Hemlo&app_version=0.2.0'), true)
 const older = searchUrl('legacy', 'halfvolle melk', 'en:netherlands', 'nl', '0.2.0')
 is('the older search is full text, one page of 20', older.startsWith('https://world.openfoodfacts.org/cgi/search.pl?search_terms=halfvolle%20melk&search_simple=1&action=process&json=1&page_size=20'), true)
 is('and filters on the country by name', older.includes('tagtype_0=countries&tag_contains_0=contains&tag_0=netherlands'), true)
 is('a lookup asks only for what is shown', productUrl('8710496979125', 'nl', '0.2.0').includes('fields=code%2Cproduct_name%2Cbrands'), true)
 is('a lookup uses the current product API (v3)', productUrl('8710496979125', 'nl', '0.2.0').startsWith('https://world.openfoodfacts.org/api/v3/product/8710496979125?'), true)
 is('and asks for the Nutri-Score and the table basis', ['nutriscore_grade', 'nutrition_data_per'].every((f) => decodeURIComponent(productUrl('8710496979125', 'nl', '0.2.0')).includes(f)), true)
-is('the app names itself as Open Food Facts asks', USER_AGENT, 'Visuma/16 (contact via app)')
+is('the app names itself as Open Food Facts asks', USER_AGENT, 'Hemlo/16 (contact via app)')
 is('a v3 answer with a product is found', lookupFound({ code: '8710496979125', status: 'success', product: { code: '8710496979125' } }), true)
 is('a v3 failure is not found', lookupFound({ status: 'failure', result: { id: 'product_not_found' } }), false)
 is('a v2 "status 0" is not found', lookupFound({ status: 0, status_verbose: 'product not found' }), false)

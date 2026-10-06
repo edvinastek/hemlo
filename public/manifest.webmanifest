@@ -1,6 +1,6 @@
 {
-  "name": "Visuma",
-  "short_name": "Visuma",
+  "name": "Hemlo",
+  "short_name": "Hemlo",
   "description": "A modular planner that plans at every horizon.",
   "start_url": "/",
   "display": "standalone",

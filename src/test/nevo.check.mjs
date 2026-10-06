@@ -2,7 +2,7 @@
 // NEVO's own layout (scripts/fixtures/nevo-fixture.csv; its foods and figures
 // are invented for this test): the file is read as published (quotes, '|',
 // CRLF, a byte-order mark, decimal commas), every value lands unchanged, an
-// empty cell stays empty, per 100 ml is kept, and Visuma's additions (display
+// empty cell stays empty, per 100 ml is kept, and Hemlo's additions (display
 // names, state, units) are marked as additions. Then the real catalogue in
 // migration 027 is checked for the same rules.
 import { readFileSync } from 'node:fs'

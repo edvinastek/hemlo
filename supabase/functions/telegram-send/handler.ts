@@ -30,7 +30,7 @@ const json = (status: number, body: unknown) =>
 export async function handleSend(req: Request, deps: SendDeps): Promise<Response> {
   if (req.method !== 'POST') return json(405, { error: 'Method not allowed' })
   if (!deps.cronSecret || !deps.token) return json(503, { error: 'Not set up' })
-  // The header keeps its name from before Visuma: migration 038's cron job sends it.
+  // The header keeps its name from before Hemlo: migration 038's cron job sends it.
   if (!sameSecret(req.headers.get('x-getit-cron'), deps.cronSecret)) return json(401, { error: 'Unauthorised' })
 
   let claimed: DueRow[]

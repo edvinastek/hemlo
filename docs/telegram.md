@@ -11,7 +11,7 @@ setup for the owner. Commands are for PowerShell.
    person taps Start in Telegram; Telegram posts `/start <code>` to the
    `telegram-webhook` function, which checks Telegram's secret header, uses the
    code up (10 minutes, once) and stores the chat id on the profile. The bot
-   answers "Linked to Visuma". `/stop`, blocking the bot, or Unlink in the app
+   answers "Linked to Hemlo". `/stop`, blocking the bot, or Unlink in the app
    unlinks it.
 2. **What is sent.** While linked, the app hands the next three days of
    reminders to the server each time it works out the phone's reminders (same
@@ -32,26 +32,26 @@ the profile that is open in the app.
 ## 1. Make the bot (BotFather)
 
 1. In Telegram, open **@BotFather** and send `/newbot`.
-2. Name: `Visuma`. Username: one that ends in `bot`, for example `VisumaPlannerBot`
+2. Name: `Hemlo`. Username: one that ends in `bot`, for example `HemloPlannerBot`
    (it must be free). BotFather answers with the **token** (`123456789:AA…`).
    Keep it secret: whoever has it controls the bot.
 
    A bot already made when the app was called GetIt keeps working: send
-   `/setname` to BotFather, choose the bot and send `Visuma`, then
+   `/setname` to BotFather, choose the bot and send `Hemlo`, then
    `/setcommands` and `/setdescription` again (steps 4 and 5). Its username
    stays as it is, which is fine (the app reads it from `VITE_TELEGRAM_BOT`). For a username with
-   Visuma in it, make a new bot as above and use its token and name in the
+   Hemlo in it, make a new bot as above and use its token and name in the
    steps below; links made with the old bot then stop working, so people link
    again.
-3. Send `/setjoingroups`, choose the bot, **Disable** (Visuma answers only in
+3. Send `/setjoingroups`, choose the bot, **Disable** (Hemlo answers only in
    private chats anyway).
 4. Send `/setcommands`, choose the bot, and paste:
    ```
-   start - Link this chat to Visuma
+   start - Link this chat to Hemlo
    stop - Unlink this chat
    ```
-5. Optional: `/setdescription` ("Reminders from your Visuma planner. Link it in
-   Visuma: Settings, Reminders, Telegram.") and `/setuserpic` with
+5. Optional: `/setdescription` ("Reminders from your Hemlo planner. Link it in
+   Hemlo: Settings, Reminders, Telegram.") and `/setuserpic` with
    `store/icon-512.png`.
 
 ## 2. Secrets
@@ -68,7 +68,7 @@ ignores it; never commit it):
 
 ```
 TELEGRAM_BOT_TOKEN=123456789:AA...the token from BotFather
-TELEGRAM_BOT_NAME=VisumaPlannerBot
+TELEGRAM_BOT_NAME=HemloPlannerBot
 TELEGRAM_WEBHOOK_SECRET=<first random secret>
 TELEGRAM_CRON_SECRET=<second random secret>
 ```
@@ -93,7 +93,7 @@ select vault.create_secret('<second random secret>', 'telegram_cron_secret');
 
 Migration 038 switches on `pg_cron` and `pg_net` and schedules the job
 `getit-telegram-send` (the job and its `x-getit-cron` header keep the names
-from before the app was called Visuma; nobody sees them). Check it in the SQL
+from before the app was called Hemlo; nobody sees them). Check it in the SQL
 Editor:
 
 ```sql
@@ -136,7 +136,7 @@ The app offers the setting only when it knows the bot's username. Put it in
 `.env` before building (the web build, Android and Windows):
 
 ```
-VITE_TELEGRAM_BOT=VisumaPlannerBot
+VITE_TELEGRAM_BOT=HemloPlannerBot
 ```
 
 For builds on GitHub Actions, add it as a repository variable
@@ -145,7 +145,7 @@ For builds on GitHub Actions, add it as a repository variable
 ## 6. Try it
 
 1. In the app: Settings → Reminders → Telegram → Link → Open Telegram → Start.
-   The bot answers "Linked to Visuma", and the app shows "Linked" within a few
+   The bot answers "Linked to Hemlo", and the app shows "Linked" within a few
    seconds.
 2. Add a task three minutes from now. Within a minute of its time a message
    arrives.
@@ -167,7 +167,7 @@ Revoke the token in BotFather (`/revoke`) if it may have leaked.
 ## Privacy
 
 Telegram is an independent controller of the messages it delivers, outside the
-EU; Visuma sends it only the reminder lines and the chat id. See the policy
+EU; Hemlo sends it only the reminder lines and the chat id. See the policy
 (`src/legal/policy.ts`, "Reminders through Telegram"), `docs/privacy/processors.md`,
 `records-of-processing.md` and `retention.md`.
 

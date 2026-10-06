@@ -7,7 +7,7 @@ send the second one.
 
 ## First message: asking
 
-> Hi [name], I have built an app called Visuma: a planner for your day, your meals and your shopping, with calorie and protein targets worked out from your weight and goal. Before Google lets me publish it, 12 people have to test it for 14 days in a row.
+> Hi [name], I have built an app called Hemlo: a planner for your day, your meals and your shopping, with calorie and protein targets worked out from your weight and goal. Before Google lets me publish it, 12 people have to test it for 14 days in a row.
 >
 > Would you be one of them? You need an Android phone. Send me the Gmail address you use on that phone, because that is the address Google checks.
 >
@@ -20,7 +20,7 @@ send the second one.
 > Thanks. You are on the list. Three steps:
 >
 > 1. Open this link on your phone and tap to join the test: [opt-in link]
-> 2. Install Visuma from the Play Store page that link takes you to. It can take a few minutes to show up after joining.
-> 3. Open Visuma and create an account with the same address you gave me: [their address]. Any other address will be refused, because the test is invite-only. Then open the confirmation email on the same phone.
+> 2. Install Hemlo from the Play Store page that link takes you to. It can take a few minutes to show up after joining.
+> 3. Open Hemlo and create an account with the same address you gave me: [their address]. Any other address will be refused, because the test is invite-only. Then open the confirmation email on the same phone.
 >
 > Please stay in the test until [date, 14 days after they join]. Uninstalling the app does not take you out of the test, but leaving the test on the opt-in page does, and restarts the count.

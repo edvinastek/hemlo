@@ -18,8 +18,8 @@ const is = (label, got, want) => {
 }
 
 // ---- naming the app ----------------------------------------------------------------------
-is('the app is named on every write', appQuery('android'), 'app_name=Visuma&app_version=18&app_platform=android')
-is('the agent names the app and its package', SHARE_AGENT, 'Visuma/18 (app.visuma.planner)')
+is('the app is named on every write', appQuery('android'), 'app_name=Hemlo&app_version=18&app_platform=android')
+is('the agent names the app and its package', SHARE_AGENT, 'Hemlo/18 (app.hemlo.planner)')
 is('Open Prices is reached over https', OPEN_PRICES_API, 'https://prices.openfoodfacts.org/api/v1')
 
 // ---- signing in --------------------------------------------------------------------------

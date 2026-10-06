@@ -8,7 +8,7 @@ const dark = window.matchMedia('(prefers-color-scheme: dark)')
 const theme = () => { document.documentElement.dataset.theme = dark.matches ? 'dark' : 'light' }
 theme(); dark.addEventListener('change', theme)
 
-export const nav = `<nav><a href="./">Visuma</a><a href="./privacy.html">Privacy</a><a href="./delete.html">Delete your account</a></nav>`
+export const nav = `<nav><a href="./">Hemlo</a><a href="./privacy.html">Privacy</a><a href="./delete.html">Delete your account</a></nav>`
 
 export function el(html: string) {
   document.getElementById('page')!.innerHTML = html

@@ -15,14 +15,14 @@ import { useApp } from './store'
 import { planToday } from './day-edge'
 import { features } from './native'
 
-/** The Android home-screen widgets (android/…/widget): "Visuma · Today" and
+/** The Android home-screen widgets (android/…/widget): "Hemlo · Today" and
  *  the stats widgets. The app keeps them current by writing snapshots
  *  whenever the data behind them changes (WID-12); the widgets draw from
  *  those without starting the app. Ticks made on the Today widget queue up
  *  on the phone and are applied here, through the same code as a tick in
  *  the app. */
 
-interface VisumaWidget {
+interface HemloWidget {
   update(options: { snapshot: string }): Promise<void>
   takeTicks(): Promise<{ ticks: WidgetTick[] }>
   clear(): Promise<void>
@@ -36,7 +36,7 @@ interface VisumaWidget {
   addListener(event: 'tick', listener: () => void): Promise<PluginListenerHandle>
 }
 
-const Widget = registerPlugin<VisumaWidget>('VisumaWidget')
+const Widget = registerPlugin<HemloWidget>('HemloWidget')
 const available = () => features().widgets
 
 /** Today and tomorrow, from the same day items Today draws, for the modules

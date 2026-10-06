@@ -79,8 +79,8 @@ const titles = [...plist.matchAll(/<key>UIApplicationShortcutItemTitle<\/key>\s*
 eq('their titles are the short names', titles, QUICK_ADD_DEFAULT.map((q) => q.short))
 eq('the link SceneDelegate.swift builds routes to the + menu entry', keys.map((k) => widgetPath(addLink(k))), keys.map((k) => `/?add=${k}`))
 const scene = readFileSync(new URL('../../ios/App/App/SceneDelegate.swift', import.meta.url), 'utf8')
-eq('SceneDelegate.swift builds app.visuma.planner://open/?add=…', ['parts.scheme = "app.visuma.planner"', 'parts.host = "open"', 'parts.path = "/"', 'URLQueryItem(name: "add"'].every((t) => scene.includes(t)), true)
-eq('the auth links and quick actions share the scheme Info.plist registers', plist.includes('<string>app.visuma.planner</string>'), true)
+eq('SceneDelegate.swift builds app.hemlo.planner://open/?add=…', ['parts.scheme = "app.hemlo.planner"', 'parts.host = "open"', 'parts.path = "/"', 'URLQueryItem(name: "add"'].every((t) => scene.includes(t)), true)
+eq('the auth links and quick actions share the scheme Info.plist registers', plist.includes('<string>app.hemlo.planner</string>'), true)
 
 if (fail) { console.log(`\n${fail} failed`); process.exit(1) }
 console.log('\nall platform checks passed')

@@ -1,4 +1,4 @@
-// What Visuma adds to NEVO-online 2025/9.0, kept apart from NEVO's own data.
+// What Hemlo adds to NEVO-online 2025/9.0, kept apart from NEVO's own data.
 //
 // NEVO's conditions of use allow additions "provided that it is clear these
 // are additional to the original dataset and to what part(s) they apply", and

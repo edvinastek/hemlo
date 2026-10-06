@@ -90,7 +90,7 @@ export function SleepImportSheet({ profileId, today, onClose }: { profileId: str
       <button type="submit" className="btn btn-primary" disabled={busy}>{busy ? 'Importing…' : 'Import'}</button>
     </>
   } else if (step.kind === 'refused') {
-    body = <p className="kit-hint" role="status">Visuma may not read sleep. You can allow it in Health Connect.</p>
+    body = <p className="kit-hint" role="status">Hemlo may not read sleep. You can allow it in Health Connect.</p>
     actions = <>{close}<button type="button" className="btn btn-primary" onClick={() => void openHealthConnect()}>Open Health Connect</button></>
   } else if (step.kind === 'done') {
     body = <p className="kit-hint" role="status">{step.line}</p>

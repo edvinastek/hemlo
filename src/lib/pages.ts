@@ -33,7 +33,7 @@ export function usePages(): Pages | undefined {
 
 /* ---------- how often each page is opened, on this device ------------------ */
 
-// The name from before Visuma, kept: renaming it would lose what is stored under it.
+// The name from before Hemlo, kept: renaming it would lose what is stored under it.
 const USES_KEY = 'getit-page-uses'
 type Uses = Record<string, number>
 const listeners = new Set<() => void>()

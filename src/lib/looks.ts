@@ -36,7 +36,7 @@ export interface LooksState {
 }
 
 /** Kept in sync with the reader in index.html. */
-// The name from before Visuma, kept: renaming it would lose what is stored under it.
+// The name from before Hemlo, kept: renaming it would lose what is stored under it.
 export const LOOKS_CACHE = 'getit.looks'
 
 const darkQuery = typeof window !== 'undefined' && window.matchMedia ? window.matchMedia('(prefers-color-scheme: dark)') : null

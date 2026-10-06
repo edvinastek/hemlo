@@ -43,10 +43,10 @@ eq('row cap', parseCsv('h\n1\n2\n3\n4\n', 3), { rows: [['h'], ['1'], ['2']], tru
 const js = toJson({ key: 'tasks', label: 'Tasks' }, TASK_FIELDS.slice(0, 2), [{ title: 'A', planned_date: '2026-09-28' }], null, '2026-09-27T10:00:00Z')
 eq('our JSON reads back as a table', jsonTable(js), { table: [['title', 'planned_date'], ['A', '2026-09-28']], dataset: 'tasks' })
 eq('a plain list of objects', jsonTable('[{"a":1,"b":{"x":2}},{"a":3,"c":true}]').table, [['a', 'b', 'c'], [1, '{"x":2}', null], [3, null, true]])
-eq('a backup is sent to the backup choice', 'error' in jsonTable('{"format":"visuma.bundle","records":{}}'), true)
+eq('a backup is sent to the backup choice', 'error' in jsonTable('{"format":"hemlo.bundle","records":{}}'), true)
 eq('…and so is one made when the app was GetIt', 'error' in jsonTable('{"format":"getit.bundle","records":{}}'), true)
-eq('a dataset file says visuma.dataset', JSON.parse(js).format, 'visuma.dataset')
-eq('an old getit.dataset file reads the same', jsonTable(js.replace('visuma.dataset', 'getit.dataset')), jsonTable(js))
+eq('a dataset file says hemlo.dataset', JSON.parse(js).format, 'hemlo.dataset')
+eq('an old getit.dataset file reads the same', jsonTable(js.replace('hemlo.dataset', 'getit.dataset')), jsonTable(js))
 eq('not JSON', jsonTable('{nope').error, 'That file is not valid JSON.')
 
 // ---- headers ------------------------------------------------------------------
@@ -165,8 +165,8 @@ eq('a year', rangeFor('year', '2026-06-01'), { from: '2026-01-01', to: '2026-12-
 eq('custom, and backwards', [rangeFor('custom', '', { from: '2026-09-01', to: '2026-09-10' }).label, rangeFor('custom', '', { from: '2026-09-10', to: '2026-09-01' })], ['1 Sep 2026 to 10 Sep 2026', null])
 eq('everything', rangeFor('all', '2026-09-28'), null)
 eq('in range', [inRange('2026-09-28', rangeFor('week', '2026-09-28')), inRange('2026-10-05', rangeFor('week', '2026-09-28')), inRange(null, null), inRange('2026-09-28T09:00', rangeFor('day', '2026-09-28'))], [true, false, true, true])
-eq('file names', fileName('Learning and reading · Block', rangeFor('month', '2026-09-01'), 'csv'), 'visuma-learning-and-reading-block-september-2026.csv')
-eq('letters with accents', fileName('Kūryba ė', null, 'ics'), 'visuma-kuryba-e.ics')
+eq('file names', fileName('Learning and reading · Block', rangeFor('month', '2026-09-01'), 'csv'), 'hemlo-learning-and-reading-block-september-2026.csv')
+eq('letters with accents', fileName('Kūryba ė', null, 'ics'), 'hemlo-kuryba-e.ics')
 eq('formats from file names', ['a.CSV', 'b.xlsx', 'c.json', 'd.ics', 'e.pdf'].map(formatOfFile), ['csv', 'xlsx', 'json', 'ics', null])
 
 // ---- values out -------------------------------------------------------------------

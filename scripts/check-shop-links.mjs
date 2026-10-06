@@ -1,4 +1,4 @@
-// Checks that the links Visuma gives to the shops' own pages still lead
+// Checks that the links Hemlo gives to the shops' own pages still lead
 // somewhere (PRICE-09): every chain's weekly offers page, and its site search
 // with one harmless word ("melk", "milch"). Run monthly by
 // .github/workflows/shop-links.yml, which fails, and so sends GitHub's failure
@@ -24,7 +24,7 @@
 import { pathToFileURL } from 'node:url'
 import { LINKS, LINKS_CHECKED } from '../src/lib/shops-rules.ts'
 
-export const AGENT = 'Visuma-link-check/1.0 (monthly check that the shop links in the Visuma app still work; one request per page)'
+export const AGENT = 'Hemlo-link-check/1.0 (monthly check that the shop links in the Hemlo app still work; one request per page)'
 const WORD = { NL: 'melk', BE: 'melk', DE: 'milch' }
 const PAUSE_MS = 1500
 const TIMEOUT_MS = 20000

@@ -29,24 +29,24 @@ class SceneDelegate: UIResponder, UIWindowSceneDelegate {
         SceneDelegateProxy.shared.scene(scene, continue: userActivity)
     }
 
-    // A quick action chosen while Visuma is already running.
+    // A quick action chosen while Hemlo is already running.
     func windowScene(_ windowScene: UIWindowScene, performActionFor shortcutItem: UIApplicationShortcutItem, completionHandler: @escaping (Bool) -> Void) {
         completionHandler(QuickActions.open(shortcutItem))
     }
 }
 
 /// The home-screen quick actions (Info.plist, UIApplicationShortcutItems): a
-/// long press on the Visuma icon offers the + menu's first entries, as the
+/// long press on the Hemlo icon offers the + menu's first entries, as the
 /// Android launcher shortcuts do (NAV-24). Each becomes the same link the
-/// Android shortcuts open, app.visuma.planner://open/?add=<entry>, handed to
+/// Android shortcuts open, app.hemlo.planner://open/?add=<entry>, handed to
 /// Capacitor as an opened link, so the page routes it exactly as on Android.
 enum QuickActions {
-    static let addType = "app.visuma.planner.add"
+    static let addType = "app.hemlo.planner.add"
 
     static func link(for item: UIApplicationShortcutItem) -> URL? {
         guard item.type == addType, let key = item.userInfo?["add"] as? String else { return nil }
         var parts = URLComponents()
-        parts.scheme = "app.visuma.planner"
+        parts.scheme = "app.hemlo.planner"
         parts.host = "open"
         parts.path = "/"
         parts.queryItems = [URLQueryItem(name: "add", value: key)]

@@ -90,7 +90,7 @@ eq('001–031 by hand: and the second run does nothing', (await migrate(runner('
 dropDb('rel_031')
 
 // 5. A failing file between 031 and 033.
-const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'visuma-release-db-'))
+const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'hemlo-release-db-'))
 for (const f of files) fs.copyFileSync(f.file, path.join(dir, f.name))
 fs.writeFileSync(path.join(dir, '032_broken.sql'), 'create table public.zz_half_done (x int);\nselect 1 / 0;\n')
 freshDb('rel_fail')

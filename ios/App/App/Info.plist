@@ -5,7 +5,7 @@
 	<key>CFBundleDevelopmentRegion</key>
 	<string>en</string>
 	<key>CFBundleDisplayName</key>
-	<string>Visuma</string>
+	<string>Hemlo</string>
 	<key>CFBundleExecutable</key>
 	<string>$(EXECUTABLE_NAME)</string>
 	<key>CFBundleIdentifier</key>
@@ -24,10 +24,10 @@
 	<array>
 		<dict>
 			<key>CFBundleURLName</key>
-			<string>app.visuma.planner</string>
+			<string>app.hemlo.planner</string>
 			<key>CFBundleURLSchemes</key>
 			<array>
-				<string>app.visuma.planner</string>
+				<string>app.hemlo.planner</string>
 			</array>
 		</dict>
 	</array>
@@ -36,9 +36,9 @@
 	<key>LSRequiresIPhoneOS</key>
 	<true/>
 	<key>NSCameraUsageDescription</key>
-	<string>Visuma uses the camera only when you scan a barcode or take a photo, for example of a food label.</string>
+	<string>Hemlo uses the camera only when you scan a barcode or take a photo, for example of a food label.</string>
 	<key>NSFaceIDUsageDescription</key>
-	<string>Visuma uses Face ID only to confirm switching to another account kept on this iPhone.</string>
+	<string>Hemlo uses Face ID only to confirm switching to another account kept on this iPhone.</string>
 	<key>UIApplicationSceneManifest</key>
 	<dict>
 		<key>UIApplicationSupportsMultipleScenes</key>
@@ -62,7 +62,7 @@
 	<array>
 		<dict>
 			<key>UIApplicationShortcutItemType</key>
-			<string>app.visuma.planner.add</string>
+			<string>app.hemlo.planner.add</string>
 			<key>UIApplicationShortcutItemTitle</key>
 			<string>Task</string>
 			<key>UIApplicationShortcutItemIconSymbolName</key>
@@ -75,7 +75,7 @@
 		</dict>
 		<dict>
 			<key>UIApplicationShortcutItemType</key>
-			<string>app.visuma.planner.add</string>
+			<string>app.hemlo.planner.add</string>
 			<key>UIApplicationShortcutItemTitle</key>
 			<string>Inbox</string>
 			<key>UIApplicationShortcutItemIconSymbolName</key>
@@ -88,7 +88,7 @@
 		</dict>
 		<dict>
 			<key>UIApplicationShortcutItemType</key>
-			<string>app.visuma.planner.add</string>
+			<string>app.hemlo.planner.add</string>
 			<key>UIApplicationShortcutItemTitle</key>
 			<string>Food</string>
 			<key>UIApplicationShortcutItemIconSymbolName</key>
@@ -101,7 +101,7 @@
 		</dict>
 		<dict>
 			<key>UIApplicationShortcutItemType</key>
-			<string>app.visuma.planner.add</string>
+			<string>app.hemlo.planner.add</string>
 			<key>UIApplicationShortcutItemTitle</key>
 			<string>Event</string>
 			<key>UIApplicationShortcutItemIconSymbolName</key>

@@ -28,7 +28,7 @@ const PRIVATE = 'That address points at a private network, so it cannot be follo
 const OWN = (() => { try { return new URL(Deno.env.get('SUPABASE_URL') ?? '').hostname } catch { return '' } })()
 const KNOWN = [/^calendar\.google\.com$/, /^p\d+-caldav\.icloud\.com$/, /^outlook\.(office365|live)\.com$/, /^outlook\.office\.com$/]
 const known = (host: string) => host === OWN || KNOWN.some((r) => r.test(host))
-const CANNOT_CHECK = 'Visuma could not check where that address leads, so it was not fetched.'
+const CANNOT_CHECK = 'Hemlo could not check where that address leads, so it was not fetched.'
 
 export async function checkHost(u: URL): Promise<void> {
   const host = u.hostname.toLowerCase()
@@ -92,7 +92,7 @@ export async function fetchCalendar(address: string): Promise<string> {
       res = await fetch(url.href, {
         redirect: 'manual',
         signal,
-        headers: { Accept: 'text/calendar, text/plain;q=0.8, */*;q=0.1', 'User-Agent': 'Visuma-calendar/1.0' },
+        headers: { Accept: 'text/calendar, text/plain;q=0.8, */*;q=0.1', 'User-Agent': 'Hemlo-calendar/1.0' },
       })
     } catch (e) {
       throw new Unreachable(errorName(e), url.hostname)
@@ -100,13 +100,13 @@ export async function fetchCalendar(address: string): Promise<string> {
     if ([301, 302, 303, 307, 308].includes(res.status)) {
       await res.body?.cancel().catch(() => undefined)
       const next = res.headers.get('location')
-      if (!next) throw new Problem('The calendar’s server sent Visuma on without saying where.')
-      if (hop >= MAX_REDIRECTS) throw new Problem('The calendar’s server sent Visuma on too many times.')
+      if (!next) throw new Problem('The calendar’s server sent Hemlo on without saying where.')
+      if (hop >= MAX_REDIRECTS) throw new Problem('The calendar’s server sent Hemlo on too many times.')
       try {
         current = new URL(next, url).href
       } catch {
         // The error would quote the address it was sent to.
-        throw new Problem('The calendar’s server sent Visuma on to something that is not an address.')
+        throw new Problem('The calendar’s server sent Hemlo on to something that is not an address.')
       }
       continue
     }

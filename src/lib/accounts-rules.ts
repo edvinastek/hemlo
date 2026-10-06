@@ -225,7 +225,7 @@ export function profileDeleteProblem(p: ProfileLike, list: ProfileLike[]): strin
 }
 
 /** Where the device remembers the profile chosen last (localStorage). */
-// The name from before Visuma, kept: renaming it would lose what is stored under it.
+// The name from before Hemlo, kept: renaming it would lose what is stored under it.
 export const PROFILE_MEMORY = 'getit-profile'
 
 /* ---------- signing out (SET-04) ---------------------------------------------- */

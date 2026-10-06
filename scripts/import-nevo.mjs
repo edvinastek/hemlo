@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// Builds Visuma's shared food catalogue from NEVO-online 2025/9.0 (RIVM).
+// Builds Hemlo's shared food catalogue from NEVO-online 2025/9.0 (RIVM).
 //
 //   node scripts/import-nevo.mjs <NEVO2025_v9.0.csv>           report only
 //   node scripts/import-nevo.mjs <NEVO2025_v9.0.csv> --write   rewrite migration 027's data and 036's
@@ -19,7 +19,7 @@
 // salt is worked out from it where it is shown (sodium × 2.5), never stored
 // as if NEVO had published it. NEVO's CHO is available carbohydrate without
 // fibre, which is the EU label's definition, so carb_basis is 'eu'. What
-// Visuma adds (display names, units, cook yields) is in nevo-additions.mjs and
+// Hemlo adds (display names, units, cook yields) is in nevo-additions.mjs and
 // is marked as such in the rows (`units[].source`, `source_version`).
 //
 // The raw NEVO files are not kept in the repository; the generated migration
@@ -174,7 +174,7 @@ export function missingMicroColumns(text) {
 
 // ---- rows for the catalogue -------------------------------------------------------------
 
-/** A catalogue row for a NEVO food: NEVO's values unchanged, Visuma's
+/** A catalogue row for a NEVO food: NEVO's values unchanged, Hemlo's
  *  additions beside them. */
 export function foodRow(f) {
   const name = displayName(f.en)

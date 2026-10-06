@@ -8,7 +8,7 @@ import type { Profile } from '../lib/types'
 import './shop-links.css'
 
 /** Links to the shops' own pages (PRICE-07, PRICE-08): each chain's weekly
- *  offers page and its site search, opened in the browser. Visuma copies
+ *  offers page and its site search, opened in the browser. Hemlo copies
  *  nothing back; a search sends the shop only the item's name. */
 
 /** How many "Search at …" lines an item's ⋮ shows before "Other shops…". */

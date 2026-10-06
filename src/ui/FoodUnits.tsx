@@ -180,7 +180,7 @@ export function FoodUnitsSheet({ food: given, onClose }: { food: Food; onClose: 
           {copiedFromNevo(food) && <div>Copied from NEVO online version 2025/9.0, RIVM, Bilthoven; the figures are yours from here.</div>}
           {additions && (
             <div>
-              Added by Visuma, not part of NEVO: {[food.name !== food.name_en ? 'the name shown' : null, units.some((u) => u.source !== 'mine') ? 'units' : null,
+              Added by Hemlo, not part of NEVO: {[food.name !== food.name_en ? 'the name shown' : null, units.some((u) => u.source !== 'mine') ? 'units' : null,
                 food.cook_yield ? 'cook yield' : null].filter(Boolean).join(', ')}.
               {food.name_en && food.name !== food.name_en ? ` NEVO’s own name: ${food.name_en}.` : ''}
             </div>
@@ -268,7 +268,7 @@ function Units({ food, units, mine, shared, profileId }: {
                   {/* Where Portie-online's units sit beside others, each says its source. */}
                   {mixed && u.source === 'USDA FoodData Central' && <span className="fs-unit-tag">USDA</span>}
                   {/* 'GetIt:' marks a unit the app worked out itself: a data tag in the
-                      catalogue (applied migrations), kept from before the name Visuma. */}
+                      catalogue (applied migrations), kept from before the name Hemlo. */}
                   {mixed && u.source?.startsWith('GetIt:') && <span className="fs-unit-tag">worked out</span>}
                 </span>
                 {removable(u) && (

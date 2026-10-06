@@ -2,7 +2,7 @@ import { need, open, signIn, sql, profileOf, checks, drained, modulesOn, toPage 
 
 // A shared NEVO food's page (migration 027), at 360 px: found by its Dutch
 // name, it shows the EU label per 100 g, %RI on request, its Portie-online
-// units with the as-bought weight, NEVO's attribution and Visuma's additions
+// units with the as-bought weight, NEVO's attribution and Hemlo's additions
 // marked as such; it cannot be edited, but a unit of one's own can be laid
 // over it (kept with Nutrition, not on the shared row), and "Make my own
 // copy" saves an own food that says it came from NEVO. A new own food with
@@ -50,7 +50,7 @@ is('the units say what one weighs as bought', (await sheet.locator('.fu-list li'
 const source = (await sheet.locator('.fs-source').textContent()) ?? ''
 is('NEVO is credited', source.includes('Based on data from NEVO online version 2025/9.0, RIVM, Bilthoven'), true)
 is('the units are credited to Portie-online', /Portie-online/.test(source), true)
-is('Visuma’s additions are marked', /Added by Visuma, not part of NEVO/.test(source), true)
+is('Hemlo’s additions are marked', /Added by Hemlo, not part of NEVO/.test(source), true)
 is('the page fits 360 px', (await overflow()).join(', '), '')
 // The page's actions are in the ⋮ by its name (v17); its main one at the foot.
 const menu = async (item) => {

@@ -50,7 +50,7 @@ export function useBackClose(onClose: () => void, active = true) {
         gone = true
         const i = stack.indexOf(entry)
         if (i >= 0) stack.splice(i, 1)
-        if (pushed && history.state?.visumaSheet === id) {
+        if (pushed && history.state?.hemloSheet === id) {
           ownBacks++
           history.back()
         }
@@ -63,7 +63,7 @@ export function useBackClose(onClose: () => void, active = true) {
     // the same instant (React's development double run) leaves none behind.
     const timer = window.setTimeout(() => {
       if (gone) return
-      history.pushState({ ...(history.state ?? {}), visumaSheet: id }, '')
+      history.pushState({ ...(history.state ?? {}), hemloSheet: id }, '')
       pushed = true
     }, 0)
     return () => {
@@ -72,7 +72,7 @@ export function useBackClose(onClose: () => void, active = true) {
       if (i >= 0) stack.splice(i, 1)
       // Closed some other way: take back the step it added, unless the page
       // has moved on since (then the step is the page's, not the sheet's).
-      if (!gone && pushed && history.state?.visumaSheet === id) {
+      if (!gone && pushed && history.state?.hemloSheet === id) {
         ownBacks++
         history.back()
       }

@@ -6,7 +6,7 @@
  *  A theme is a handful of colours for the light page and the dark page; the
  *  rest (the black page, tints, the heat scale, fields) is worked out from
  *  them the same way for every theme, so all themes behave alike. The design
- *  page "Visuma — Looks" is the source of the eleven built-in themes.
+ *  page "Hemlo — Looks" is the source of the eleven built-in themes.
  *
  *  Every theme passes the contrast guard (LOOK-05): text at least 4.5:1 on the
  *  page, on tinted chips and in fields; chart strokes and marks at least 3:1.
@@ -466,7 +466,7 @@ export interface AppIcon {
 
 /** The icons bundled in the Android app (android/…/res/drawable/ic_icon_*),
  *  drawn by scripts/make-assets.mjs from these same colours. Classic is the
- *  icon Visuma always had, and the default. */
+ *  icon Hemlo always had, and the default. */
 export const ICONS: AppIcon[] = [
   { key: 'classic', name: 'Classic', kind: 'rows', bg: '#f8f4ed', rail: '#cfc6b3', ink: '#201e1b', dot: '#b4442a' },
   { key: 'night', name: 'Night', kind: 'rows', bg: '#15141b', rail: '#3a3842', ink: '#f0eae0', dot: '#d9674a' },

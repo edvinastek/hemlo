@@ -7,7 +7,7 @@
 //   bash:        SB=<personal access token> node scripts/release.mjs [--dry-run] [--functions] [--secrets]
 //
 // Migrations. The database keeps a list of the migrations it has had, in
-// public._getit_migrations (its name is from before Visuma and stays, as the
+// public._getit_migrations (its name is from before Hemlo and stays, as the
 // live database may have it already; made here when missing; no one but the
 // owner can read it). Migrations applied before that list existed (001 to 035, by hand,
 // with scripts/apply-migrations.mjs) are recognised by a cheap look for

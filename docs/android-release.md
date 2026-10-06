@@ -1,4 +1,4 @@
-# Releasing Visuma for Android
+# Releasing Hemlo for Android
 
 Every push to `main` builds a signed Android App Bundle for Google Play and a
 signed APK for installing directly. This page covers the one-time setup and
@@ -21,7 +21,7 @@ your own computer, so it never passes through anyone else's hands.
 2. Make the key. Pick a long password and write it down; you will need it twice.
    ```powershell
    cd $HOME\Documents
-   keytool -genkeypair -v -keystore visuma-upload.jks -alias upload -keyalg RSA -keysize 4096 -validity 10000
+   keytool -genkeypair -v -keystore hemlo-upload.jks -alias upload -keyalg RSA -keysize 4096 -validity 10000
    ```
    It asks for your name and location; only the password matters.
 
@@ -31,7 +31,7 @@ your own computer, so it never passes through anyone else's hands.
 
 4. Put it into GitHub, which is where the builds happen. Copy the key as text:
    ```powershell
-   [Convert]::ToBase64String([IO.File]::ReadAllBytes("$HOME\Documents\visuma-upload.jks")) | Set-Clipboard
+   [Convert]::ToBase64String([IO.File]::ReadAllBytes("$HOME\Documents\hemlo-upload.jks")) | Set-Clipboard
    ```
    Then in the repository: Settings → Secrets and variables → Actions → New
    repository secret, four times:
@@ -76,7 +76,7 @@ built from this repository by `npm run build:site` into `dist-site/`.
 1. Raise `version` in `package.json` (for example 0.2.0 → 0.3.0). The web,
    Android and Windows builds all read it, so every platform carries the same
    number.
-2. Push to `main`. When the run is green, download `visuma-android-release`.
+2. Push to `main`. When the run is green, download `hemlo-android-release`.
 3. Play Console → your app → Testing → choose the track → Create new release →
    upload the `.aab`. Paste a short "what's new".
 4. The version code is the CI run number, so each upload is automatically

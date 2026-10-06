@@ -2,7 +2,7 @@
  *  and no plugin (checked in src/test/quickadd.check.mjs): the launcher
  *  shortcuts and the quick-add widget offer the same few entries the round +
  *  shows first, in the same order, and each opens that entry's sheet through
- *  a link the app routes: app.visuma.planner://open/?add=<entry key>. */
+ *  a link the app routes: app.hemlo.planner://open/?add=<entry key>. */
 
 /** One entry as the phone shows it. `short` fits a launcher shortcut and a
  *  widget button (about ten letters); `label` is the + menu's own. */
@@ -53,7 +53,7 @@ export function quickAddItems(shown: { key: string; label: string }[], size = QU
 }
 
 /** The link a shortcut or widget button opens. */
-export const addLink = (key: string) => `app.visuma.planner://open/?add=${encodeURIComponent(key)}`
+export const addLink = (key: string) => `app.hemlo.planner://open/?add=${encodeURIComponent(key)}`
 
 /** The entry an ?add= parameter names, or null for anything that is not one. */
 export function addKeyFrom(value: string | null | undefined): string | null {

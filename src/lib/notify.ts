@@ -69,7 +69,7 @@ async function ensureChannel() {
     })
   }
   // "Done" and "In 15 min" on the notification itself (REM-03). On the iPhone
-  // they open Visuma, so the page is running when the tick is written.
+  // they open Hemlo, so the page is running when the tick is written.
   const opens = here.actionsOpenApp ? { foreground: true } : {}
   const done = (title: string) => ({ id: 'done', title, ...opens })
   const snooze = { id: 'snooze', title: `In ${SNOOZE_MIN} min`, ...opens }
@@ -217,7 +217,7 @@ let webTimers: number[] = []
  *
  *  On Android the phone's own scheduler fires them with the app closed, within
  *  a few minutes of the time (no exact-alarm permission is used). In a browser
- *  or on Windows they can only fire while Visuma is open. */
+ *  or on Windows they can only fire while Hemlo is open. */
 export async function rescheduleReminders(profileId: string, persona: string | null, now = new Date()): Promise<number> {
   const settings = await getReminderSettings()
   // Worked out once, for the phone and for Telegram. Telegram (REM-05) has
@@ -340,7 +340,7 @@ export function listenForReminderActions() {
       const at = new Date(Date.now() + SNOOZE_MIN * 60_000)
       void LocalNotifications.schedule({
         notifications: [{
-          id: notificationId(`snooze:${e.id}:${Date.now()}`), title: e.title ?? 'Visuma', body: e.body ?? '', channelId: 'reminders',
+          id: notificationId(`snooze:${e.id}:${Date.now()}`), title: e.title ?? 'Hemlo', body: e.body ?? '', channelId: 'reminders',
           schedule: { at, allowWhileIdle: true }, isExactNotification: false,
           actionTypeId: e.kind && e.kind !== 'refill' ? reminderActions(e.kind) : 'later',
           extra: { ...e, snoozed: true },
@@ -360,7 +360,7 @@ let focusTimer: number | undefined
 
 /** A notification when a focus countdown ends: on Android the phone's own
  *  scheduler shows it with the screen locked or the app closed; in a browser
- *  only while Visuma is open. The person started the timer, so it is shown
+ *  only while Hemlo is open. The person started the timer, so it is shown
  *  whenever the phone allows notifications, outside the reminder settings
  *  (quiet hours included); it never asks for permission itself. */
 export async function scheduleFocusEnd(at: Date, subject: string): Promise<void> {
