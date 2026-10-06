@@ -49,7 +49,7 @@ is('a list of real codes, the euro first', [CURRENCIES[0].code, CURRENCIES.every
 is('the field’s own currency, an older sign, the country’s, else the euro', [
   moneyCurrency({ currency: 'CHF' }), moneyCurrency({ unit: '€' }), moneyCurrency({ unit: '£' }), moneyCurrency({ unit: 'sek' }), moneyCurrency({}, 'GBP'), moneyCurrency({}),
 ], ['CHF', 'EUR', 'GBP', 'SEK', 'GBP', 'EUR'])
-is('amounts in words', [moneyText(249.5, 'EUR'), moneyText(1200, 'JPY'), moneyText(12, 'CHF')], ['€249.50', 'JP¥1,200', 'CHF 12.00'])
+is('amounts in words', [moneyText(249.5, 'EUR'), moneyText(1200, 'JPY'), moneyText(12, 'CHF')], ['€249.50', 'JP¥1,200', 'CHF\u00a012.00'])
 is('a currency’s sign', [currencySign('EUR'), currencySign('GBP'), currencySign('CHF')], ['€', '£', 'CHF'])
 const cost = { name: 'cost', label: 'Cost', type: 'money', currency: 'GBP' }
 is('an amount typed with its sign or code', [coerce(cost, '£12.50'), coerce(cost, '12,5'), coerce(cost, '40 GBP'), coerce(cost, 'twelve')], [12.5, 12.5, 40, undefined])
