@@ -59,3 +59,21 @@ from Google Play). A sleep tracker app, a watch, or Health Connect's own data en
 28. On another device signed in to the same account (after sync): **Expect:** the imported nights are there.
 29. Health Connect only gives 30 days before the permission was first given: on a fresh grant, 30 days is the most
     that comes back. Not a fault.
+
+## A photo field from the phone's camera (MOD-12, v22)
+
+Everything else about the photo field was checked without a phone (a stand-in for the camera and for Storage, in
+version 22's harness). This is the one step that needs the real camera and the live project, once the version 22
+database changes are applied.
+
+30. Modules → Build a module, name it "Photo test", Blank, add a field of the kind **Photo**, Create. Add a record:
+    in the record's form tap **Take a photo**. **Expect:** the phone's camera opens (allow it if asked); take a
+    picture and accept it. **Expect:** "Making the photo smaller…", then the photo in the form, the right way up.
+31. Save. **Expect:** the card shows a small copy of the photo.
+32. Put the phone in aeroplane mode, close Hemlo fully and open it again, open the record. **Expect:** the photo
+    still shows (from the phone's own copy).
+33. Aeroplane mode off; on another device signed in to the same account (after a sync), open the record.
+    **Expect:** the photo shows there too (fetched from Storage).
+34. Tap **Choose a photo** on the phone and pick one from the gallery. **Expect:** it replaces the first one.
+35. Delete the record (Undo is offered). A day or more later, after a sync, Supabase → Storage → record-photos:
+    **Expect:** no folder left for that record.
