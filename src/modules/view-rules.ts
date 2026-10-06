@@ -1,5 +1,6 @@
 import type { FieldDef } from './types.ts'
 import { computeFormulas, isEmpty, type ChartPeriod } from './def-rules.ts'
+import { fieldMeasure } from './field-kinds.ts'
 import { addDays, weekStart } from '../lib/tracking-rules.ts'
 
 /** The arithmetic behind the board, grid and chart views, with no database
@@ -192,7 +193,7 @@ function addMonths(first: string, n: number): string {
  *  values on its days. Values after today, or before the first bucket, are
  *  left out. */
 export function chartBuckets(points: { day: string; value: number }[], period: ChartPeriod, today: string,
-  count = CHART_SPAN[period]): ChartBucket[] {
+  count = CHART_SPAN[period], combine: 'sum' | 'mean' = 'sum'): ChartBucket[] {
   const out: ChartBucket[] = []
   for (let i = count - 1; i >= 0; i--) {
     let start: string; let end: string; let label: string; let name: string
@@ -213,10 +214,19 @@ export function chartBuckets(points: { day: string; value: number }[], period: C
     }
     out.push({ key: start, label, name, start, end, value: null })
   }
+  // Stars and shares (MOD-12) are averaged over a day, week or month, never added up.
+  const sums = new Map<string, { sum: number; n: number }>()
   for (const p of points) {
     if (p.day > today) continue
     const b = out.find((x) => p.day >= x.start && p.day <= x.end)
-    if (b) b.value = Math.round(((b.value ?? 0) + p.value) * 100) / 100
+    if (!b) continue
+    const s = sums.get(b.key) ?? { sum: 0, n: 0 }
+    s.sum += p.value; s.n++
+    sums.set(b.key, s)
+  }
+  for (const b of out) {
+    const s = sums.get(b.key)
+    if (s) b.value = Math.round((combine === 'mean' ? s.sum / s.n : s.sum) * 100) / 100
   }
   return out
 }
@@ -229,7 +239,8 @@ export function chartPoints(fields: FieldDef[], value: FieldDef, date: FieldDef,
     if (!day) continue
     const raw = value.type === 'formula' ? computeFormulas(fields, r.values)[value.name] : r.values[value.name]
     if (isEmpty(raw)) continue
-    const n = num(raw)
+    // A start and end counts as its minutes (field-kinds.ts).
+    const n = value.type === 'timespan' ? fieldMeasure(value)?.value(raw) ?? NaN : num(raw)
     if (Number.isFinite(n)) out.push({ day, value: n })
   }
   return out

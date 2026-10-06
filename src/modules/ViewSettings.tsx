@@ -122,7 +122,7 @@ export function ViewSettings({ view, entity, change }: {
 
   if (view.type === 'chart') {
     const c = chartFields(entity, view)
-    const numbers = fields.filter(isNumeric)
+    const numbers = fields.filter((f) => isNumeric(f) || f.type === 'timespan')
     return (
       <div className="me-more vs">
         {c.value && (

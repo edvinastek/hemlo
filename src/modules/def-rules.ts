@@ -319,7 +319,9 @@ export function gridFields(entity: EntityDef, view: Pick<ViewDef, 'groupBy' | 'd
 
 /** Chart: the number drawn and the day it belongs to. */
 export function chartFields(entity: EntityDef, view: Pick<ViewDef, 'field' | 'dateField'>): { value?: FieldDef; date?: FieldDef } {
-  const value = entity.fields.find((f) => f.name === view.field && isNumeric(f)) ?? shownFirst(entity.fields, isNumeric)
+  // Any number, and a start and end as its minutes (v22).
+  const drawn = (f: Pick<FieldDef, 'type'>) => isNumeric(f) || f.type === 'timespan'
+  const value = entity.fields.find((f) => f.name === view.field && drawn(f)) ?? shownFirst(entity.fields, drawn)
   return { value, date: viewDateField(entity, view) }
 }
 

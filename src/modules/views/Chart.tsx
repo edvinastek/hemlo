@@ -2,6 +2,7 @@ import { useState } from 'react'
 import type { EntityDef, ViewDef } from '../types'
 import { CHART_PERIODS, chartFields, type ChartPeriod } from '../def-rules'
 import { chartBuckets, chartDomain, chartPoints, labelEvery, shortNumber, type ChartBucket } from '../view-rules'
+import { fieldMeasure } from '../field-kinds'
 import type { Rec } from '../records'
 import './views.css'
 import { planToday } from '../../lib/day-edge'
@@ -26,7 +27,11 @@ export function ChartView({ entity, view, recs }: { entity: EntityDef; view: Vie
   }
 
   const today = planToday()
-  const buckets = chartBuckets(chartPoints(entity.fields, value, date, recs), period, today)
+  // As the field counts (field-kinds.ts): stars and shares averaged, money
+  // in its currency, a start and end in minutes.
+  const measure = fieldMeasure(value)
+  const mean = measure?.combine === 'mean'
+  const buckets = chartBuckets(chartPoints(entity.fields, value, date, recs), period, today, undefined, mean ? 'mean' : 'sum')
   const [lo, hi] = chartDomain(buckets.map((b) => b.value))
   const plotW = PLOT.right - PLOT.left
   const plotH = PLOT.bottom - PLOT.top
@@ -35,7 +40,7 @@ export function ChartView({ entity, view, recs }: { entity: EntityDef; view: Vie
   const x = (i: number) => PLOT.left + step * i + step / 2
   const ticks = lo < 0 && hi > 0 ? [lo, 0, hi] : [lo, (lo + hi) / 2, hi]
   const kind = view.chart ?? 'bar'
-  const unit = value.unit ? ` ${value.unit}` : value.type === 'duration' ? ' min' : ''
+  const unit = measure?.unit ? ` ${measure.unit}` : value.unit ? ` ${value.unit}` : value.type === 'duration' ? ' min' : ''
   const fmt = (b: ChartBucket) => (b.value === null ? 'nothing logged' : `${shortNumber(b.value)}${unit}`)
   const shown = buckets.find((b) => b.key === picked)
   const logged = buckets.filter((b) => b.value !== null)
@@ -55,7 +60,7 @@ export function ChartView({ entity, view, recs }: { entity: EntityDef; view: Vie
   return (
     <figure className="ch">
       <div className="ch-top">
-        <div className="tabs ch-periods" role="tablist" aria-label="Added up per">
+        <div className="tabs ch-periods" role="tablist" aria-label={mean ? 'Averaged per' : 'Added up per'}>
           {CHART_PERIODS.map((p) => (
             <button key={p} role="tab" aria-selected={p === period} onClick={() => { setPeriod(p); setPicked(null) }}>{PERIOD_NAME[p]}</button>
           ))}
@@ -65,7 +70,10 @@ export function ChartView({ entity, view, recs }: { entity: EntityDef; view: Vie
         <span>{value.label}{unit ? ` (${unit.trim()})` : ''}, per {period}</span>
         <span className="ch-readout" aria-live="polite">
           {shown ? `${shown.name}: ${fmt(shown)}`
-            : logged.length ? `Total ${shortNumber(total)}${unit} over ${buckets.length} ${period}s` : 'Nothing logged in this time yet'}
+            : logged.length
+              ? mean ? `Average ${shortNumber(Math.round((total / logged.length) * 10) / 10)}${unit} over ${logged.length} ${logged.length === 1 ? period : `${period}s`}`
+                : `Total ${shortNumber(total)}${unit} over ${buckets.length} ${period}s`
+              : 'Nothing logged in this time yet'}
         </span>
       </figcaption>
       <div className="ch-frame">

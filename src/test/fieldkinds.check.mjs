@@ -16,6 +16,7 @@ import { readCell, cellValue, statsRows } from '../lib/transfer-rules.ts'
 import { recordMeasures } from '../lib/stats-builder-rules.ts'
 import { designFile, readDesignFile, builtNames, IMPORT_KEY } from '../modules/design-file-rules.ts'
 import { photoRefs, photosToRemove } from '../modules/photo-rules.ts'
+import { chartBuckets, chartPoints } from '../modules/view-rules.ts'
 
 let fail = 0
 const is = (label, got, want) => {
@@ -95,6 +96,14 @@ const ms = recordMeasures([{ name: 'item', label: 'Job', fields: [
 ] }])
 is('Stats: a measure a field, each in its own unit', ms.filter((x) => x.name !== 'item:count').map((x) => [x.name, x.unit, x.combine]),
   [['item:eur', 'EUR', 'sum'], ['item:gbp', 'GBP', 'sum'], ['item:service', 'of 5', 'mean'], ['item:shop', 'min', 'sum'], ['item:share', '%', 'mean']])
+
+// ---- the chart view --------------------------------------------------------------------------------
+const dayF = { name: 'day', label: 'Day', type: 'date' }
+const chartRecs = [{ id: '1', values: { day: '2026-10-05', service: 4, shop: '08:00-09:30' } }, { id: '2', values: { day: '2026-10-05', service: 2, shop: '10:00-10:30' } }]
+const ratingF = { name: 'service', label: 'Service', type: 'rating' }
+is('a chart of stars averages a day', chartBuckets(chartPoints([dayF, ratingF], ratingF, dayF, chartRecs), 'day', '2026-10-05', 1, 'mean')[0].value, 3)
+is('a chart of a start and end adds up its minutes', chartBuckets(chartPoints([dayF, spanF0()], spanF0(), dayF, chartRecs), 'day', '2026-10-05', 1)[0].value, 120)
+function spanF0() { return { name: 'shop', label: 'Workshop', type: 'timespan' } }
 
 // ---- sorting and filtering ----------------------------------------------------------------------------
 const spanF = { name: 'shop', label: 'Workshop', type: 'timespan' }
