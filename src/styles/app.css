@@ -260,6 +260,9 @@ hr, .rule { border: 0; border-top: 1px solid var(--e-rule); margin: 0; }
 .row-notemark { display: inline-block; margin-left: 6px; color: var(--e-ink-soft); vertical-align: 0; line-height: 1; }
 .row.is-done .row-chip, .row.is-done .row-notemark { opacity: 0.7; }
 .row.is-done .row-name { color: var(--e-ink-soft); text-decoration: line-through; }
+/* The name is often a button (tap to open), and a line-through does not reach
+   into an inline block: struck through on the button itself too (TOD-24, v22). */
+.row.is-done .row-name > button { text-decoration: line-through; color: inherit; }
 
 .row-right { display: flex; align-items: center; gap: var(--space-2); }
 
