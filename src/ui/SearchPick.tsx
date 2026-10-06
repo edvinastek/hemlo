@@ -15,6 +15,8 @@ export interface PickItem {
   mine?: boolean
   /** Used recently, higher is more recent: ranked ahead too. */
   recent?: number
+  /** Deleted, kept only so a link to it can say so; never offered. */
+  gone?: boolean
 }
 
 /** Type to find, with THE search (search-rules.ts, GEN-10 to GEN-12): every

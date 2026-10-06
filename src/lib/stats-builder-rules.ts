@@ -1,4 +1,5 @@
 import type { EntityDef, FieldDef } from '../modules/types.ts'
+import { fieldMeasure } from '../modules/field-kinds.ts'
 import { addDays, fromDayNumber, mondayOf, toDayNumber } from './schedule-rules.ts'
 import { cellValue, dailyValues, spanDays, SUMMARY_LABEL, withWithout, type WithWithout, type Fact, type MeasureInfo, type PivotSpec, type Span } from './pivot-rules.ts'
 import { MICROS, microMeasure } from './micros-rules.ts'
@@ -190,7 +191,6 @@ function builtIn(key: string, nutrients: string[], extras: CatalogueExtras = {})
   return []
 }
 
-const NUMERIC = new Set(['number', 'integer', 'duration', 'formula', 'rating', 'money', 'currency', 'decimal'])
 const CHOICE = new Set(['select', 'text', 'multiselect', 'multi', 'tags', 'multi_select', 'choice'])
 const isDated = (e: EntityDef) => e.fields.some((f) => f.type === 'date' || f.type === 'datetime')
 const fieldDims = (e: EntityDef): Record<string, string> => {
@@ -209,8 +209,10 @@ export function plural(word: string): string {
 
 /** The measures of a module kept in the record store (GEN-41): records per
  *  day for a dated entity (records added per day for one without a date),
- *  every number field (added up, or averaged when marked so), every yes/no
- *  field (times it was yes), and its choice and text fields as groupings. */
+ *  every number field as its kind counts (field-kinds.ts: added up, or
+ *  averaged when marked so; stars and shares always averaged; money in its
+ *  own currency; a start and end as minutes), every yes/no field (times it
+ *  was yes), and its choice and text fields as groupings. */
 export function recordMeasures(entities: EntityDef[]): Base[] {
   const out: Base[] = []
   const many = entities.length > 1
@@ -227,11 +229,13 @@ export function recordMeasures(entities: EntityDef[]): Base[] {
     const fields: Base[] = []
     for (const f of e.fields as FieldDef[]) {
       if (f.hidden) continue
-      if (NUMERIC.has(f.type)) {
-        const mean = f.stats === 'average'
+      const m = fieldMeasure(f)
+      if (m) {
+        const mean = m.combine === 'mean'
+        const what = f.type === 'timespan' ? `${f.label} in minutes` : f.label
         fields.push({
-          ...COUNT(f.label, mean ? `${f.label}, averaged over the records that have it.` : `${f.label}, added up over the records.`, dims, !!f.stats),
-          name: `${e.name}:${f.name}`, unit: f.unit ?? '', decimals: f.type === 'integer' ? 0 : 1,
+          ...COUNT(f.label, mean ? `${what}, averaged over the records that have it.` : `${what}, added up over the records.`, dims, !!f.stats),
+          name: `${e.name}:${f.name}`, unit: m.unit, decimals: m.decimals,
           combine: mean ? 'mean' : 'sum', known: mean ? 'logged' : 'all', summary: mean ? 'avg' : 'sum',
         })
       } else if (f.type === 'boolean') {

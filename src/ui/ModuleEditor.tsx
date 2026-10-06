@@ -14,7 +14,8 @@ import { FieldForm, STATS_OPTIONS, describeField } from '../modules/FieldForm'
 import { VIEW_TYPE_NAME, VIEW_TYPE_OPTIONS, ViewSettings } from '../modules/ViewSettings'
 import { Dropdown } from './Dropdown'
 import { ModuleShow } from '../modules/ModuleShow'
-import { designFile, designFileName } from '../modules/design-file-rules'
+import { builtNames, designFile, designFileName } from '../modules/design-file-rules'
+import { db } from '../lib/db'
 import { saveFile } from '../lib/native'
 import { MEASURE_ENTITY, missingFromSet } from '../lib/body-measure-rules'
 import '../modules/modules.css'
@@ -578,7 +579,11 @@ function SettingsTab({ draft, base, change, setDraft, onDelete }: {
 
       {draft.built && (
         <div className="me-block">
-          <button type="button" className="btn" onClick={() => void saveFile(designFileName(draft.name), new Blob([JSON.stringify(designFile(draft), null, 1)], { type: 'application/json' }))}>
+          <button type="button" className="btn" onClick={() => void (async () => {
+            // Links keep the name of the module they point at (v22).
+            const names = builtNames(await db.module.toArray())
+            await saveFile(designFileName(draft.name), new Blob([JSON.stringify(designFile(draft, names), null, 1)], { type: 'application/json' }))
+          })()}>
             Save the design as a file
           </button>
           <p className="mf-hint" style={{ marginTop: 6 }}>Its fields, views and rules, not its records: someone else can build it with Import a design.</p>

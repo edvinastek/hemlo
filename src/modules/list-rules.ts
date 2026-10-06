@@ -2,6 +2,7 @@ import type { FieldDef } from './types.ts'
 import { computeFormulas, firstDateField, isDateLike, isEmpty, mainField } from './def-rules.ts'
 import { fold } from '../lib/search-rules.ts'
 import { REPEAT_KEY } from './repeat-rules.ts'
+import { spanMinutes } from './field-kinds.ts'
 
 /** A module's records as a list a person arranges (competitor review 4.2,
  *  GEN-52, CALM-08): sorted and filtered by any field, copied, and a
@@ -35,7 +36,9 @@ export const filterableFields = (fields: FieldDef[]) => fields.filter((f) => !f.
  *  "Oldest first", "A to Z", "No first". */
 export function sortDirs(f: Pick<FieldDef, 'type'>): { dir: SortDir; label: string }[] {
   if (NUMBERS.has(f.type)) return [{ dir: 'desc', label: 'Highest first' }, { dir: 'asc', label: 'Lowest first' }]
-  if (isDateLike(f) || f.type === 'time' || f.type === 'timespan') return [{ dir: 'desc', label: 'Newest first' }, { dir: 'asc', label: 'Oldest first' }]
+  // A start and end is put in order by how long it lasts (v22).
+  if (f.type === 'timespan') return [{ dir: 'desc', label: 'Longest first' }, { dir: 'asc', label: 'Shortest first' }]
+  if (isDateLike(f) || f.type === 'time') return [{ dir: 'desc', label: 'Newest first' }, { dir: 'asc', label: 'Oldest first' }]
   if (f.type === 'boolean') return [{ dir: 'desc', label: 'Yes first' }, { dir: 'asc', label: 'No first' }]
   return [{ dir: 'asc', label: 'A to Z' }, { dir: 'desc', label: 'Z to A' }]
 }
@@ -46,6 +49,8 @@ export function filterOps(f: Pick<FieldDef, 'type' | 'options'>): { op: FilterOp
   if (f.type === 'boolean') return [{ op: 'yes', label: 'is yes', needsValue: false }, { op: 'no', label: 'is no', needsValue: false }]
   if (f.type === 'photo') return [{ op: 'filled', label: 'is there', needsValue: false }, { op: 'empty', label: 'is missing', needsValue: false }]
   if (NUMBERS.has(f.type)) return [{ op: 'gt', label: 'is more than', needsValue: true }, { op: 'lt', label: 'is less than', needsValue: true }, { op: 'is', label: 'is', needsValue: true }, ...filled]
+  // A start and end, by its minutes (v22).
+  if (f.type === 'timespan') return [{ op: 'gt', label: 'lasts more than (min)', needsValue: true }, { op: 'lt', label: 'lasts less than (min)', needsValue: true }, ...filled]
   if (isDateLike(f)) return [{ op: 'gt', label: 'is after', needsValue: true }, { op: 'lt', label: 'is before', needsValue: true }, { op: 'is', label: 'is on', needsValue: true }, ...filled]
   if (f.type === 'select') return [{ op: 'is', label: 'is', needsValue: true }, { op: 'not', label: 'is not', needsValue: true }, ...filled]
   if (f.type === 'multi') return [{ op: 'has', label: 'includes', needsValue: true }, { op: 'not', label: 'does not include', needsValue: true }, ...filled]
@@ -87,8 +92,9 @@ const toNum = (v: unknown) => { const n = typeof v === 'number' ? v : typeof v =
 function sortKey(f: FieldDef, v: unknown, text: (f: FieldDef, v: unknown) => string): number | string | null {
   if (isEmpty(v) || (Array.isArray(v) && !v.length)) return null
   if (NUMBERS.has(f.type)) return toNum(v)
+  if (f.type === 'timespan') return spanMinutes(v)
   if (f.type === 'boolean') return v ? 1 : 0
-  if (isDateLike(f) || f.type === 'time' || f.type === 'timespan') return String(v)
+  if (isDateLike(f) || f.type === 'time') return String(v)
   return fold(text(f, v))
 }
 
@@ -122,8 +128,8 @@ export function passesFilter(rec: ListRec, fields: FieldDef[], filter: ListOrder
     case 'no': return v !== true
     case 'gt': case 'lt': {
       if (empty) return false
-      if (NUMBERS.has(f.type)) {
-        const a = toNum(v); const b = toNum(want)
+      if (NUMBERS.has(f.type) || f.type === 'timespan') {
+        const a = f.type === 'timespan' ? spanMinutes(v) : toNum(v); const b = toNum(want)
         return a !== null && b !== null && (filter.op === 'gt' ? a > b : a < b)
       }
       const a = String(v).slice(0, 10)

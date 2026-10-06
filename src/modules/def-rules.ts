@@ -2,6 +2,9 @@ import type { EntityDef, FieldDef, FieldType, ModuleDef, RuleDef, ViewDef } from
 import { checkFormula, evaluateFormula } from './formula.ts'
 import { MODULES } from './registry.ts'
 import { isPhotoPath } from './photo-rules.ts'
+import { RATING_SCALES, isCurrency, percentRange, PERCENT_LIMIT, ratingMax, spanMinutes, statsChoices } from './field-kinds.ts'
+
+export { spanMinutes }
 
 /** The rules every module definition obeys, whoever wrote it. Pure: no
  *  database and no React, so the checks run in Node.
@@ -19,7 +22,7 @@ export type LookupKind = NonNullable<FieldDef['lookup']>
 export const LOOKUPS: LookupKind[] = ['food', 'recipe', 'exercise', 'task', 'goal', 'record']
 /** Kinds whose values are picked from the field's own options. */
 export const hasOptions = (t: FieldType) => t === 'select' || t === 'multi'
-/** Stars run from 1 to this. */
+/** Stars run from 1 to this unless the field sets its own scale (field-kinds.ts). */
 export const RATING_MAX = 5
 export const VIEW_TYPES: ViewDef['type'][] = ['list', 'table', 'calendar', 'board', 'grid', 'chart', 'form']
 /** The view types the generic module page draws: all of them. */
@@ -143,6 +146,14 @@ export function fieldProblem(f: FieldDef, others: FieldDef[], index = others.len
     if (new Set(opts).size !== opts.length) return 'Two options are the same.'
     if (opts.some((o) => !o.trim() || o.length > LIMITS.option)) return `Options are 1 to ${LIMITS.option} characters.`
   }
+  if (f.type === 'rating' && f.max !== undefined && !RATING_SCALES.includes(f.max)) return `Stars run to ${RATING_SCALES.join(', ')}.`
+  if (f.type === 'percent' && (f.min !== undefined || f.max !== undefined)) {
+    const lo = f.min ?? 0
+    const hi = f.max ?? 100
+    if (!Number.isFinite(lo) || !Number.isFinite(hi) || Math.abs(lo) > PERCENT_LIMIT || Math.abs(hi) > PERCENT_LIMIT) return `A share runs between −${PERCENT_LIMIT} and ${PERCENT_LIMIT} %.`
+    if (hi <= lo) return 'The highest share must be above the lowest.'
+  }
+  if (f.type === 'money' && f.currency !== undefined && !isCurrency(f.currency)) return 'Pick a currency.'
   if (f.type === 'lookup' && !LOOKUPS.includes(f.lookup as LookupKind)) return 'Pick what the field links to.'
   if (f.type === 'lookup' && f.lookup === 'record' && !BUILT_KEY.test(f.module ?? '')) return 'Pick the module whose records it links to.'
   if (f.type === 'formula') {
@@ -153,7 +164,9 @@ export function fieldProblem(f: FieldDef, others: FieldDef[], index = others.len
     list.splice(index, index < others.length ? 1 : 0, f)
     return checkFormula(src, formulaScope(list, index))
   }
-  if (f.stats && (!STATS.includes(f.stats) || (f.stats !== 'count' && !isNumeric(f)))) return 'Only numbers can be added up or averaged.'
+  if (f.stats && (!STATS.includes(f.stats) || !statsChoices(f).includes(f.stats))) {
+    return f.type === 'rating' || f.type === 'percent' ? 'Stars and shares are averaged, not added up.' : 'Only numbers can be added up or averaged.'
+  }
   return null
 }
 
@@ -199,8 +212,18 @@ export function cleanField(raw: unknown, before: FieldDef[] = []): FieldDef | nu
   if (raw.required === true && type !== 'formula') f.required = true
   const unit = str(raw.unit, LIMITS.unit)
   if (unit) f.unit = unit
+  // The settings of the v16–v22 kinds (field-kinds.ts): kept only when they fit.
+  if (type === 'money' && isCurrency(raw.currency)) f.currency = raw.currency
+  if (type === 'rating' && typeof raw.max === 'number' && RATING_SCALES.includes(raw.max)) f.max = raw.max
+  if (type === 'percent') {
+    const lo = typeof raw.min === 'number' ? raw.min : undefined
+    const hi = typeof raw.max === 'number' ? raw.max : undefined
+    const r = percentRange({ min: lo, max: hi })
+    if (lo !== undefined && r.min === lo && lo !== 0) f.min = lo
+    if (hi !== undefined && r.max === hi && hi !== 100) f.max = hi
+  }
   if (typeof raw.width === 'number' && raw.width >= 40 && raw.width <= 400) f.width = Math.round(raw.width)
-  if (STATS.includes(raw.stats as StatsKind) && (raw.stats === 'count' || isNumeric(f))) f.stats = raw.stats as StatsKind
+  if (STATS.includes(raw.stats as StatsKind) && statsChoices(f).includes(raw.stats as StatsKind)) f.stats = raw.stats as StatsKind
   if (raw.hidden === true && !f.required) f.hidden = true
   return f
 }
@@ -606,7 +629,7 @@ export function readOverlay(raw: unknown, base: ModuleDef): Overlay {
       const [en, fn] = k.split('.')
       const f = [...(base.entities.find((e) => e.name === en)?.fields ?? []), ...(extra[en] ?? [])].find((x) => x.name === fn)
       if (!f) continue
-      if (v === 'none' || (STATS.includes(v as StatsKind) && (v === 'count' || isNumeric(f)))) stats[k] = v as StatsKind | 'none'
+      if (v === 'none' || (STATS.includes(v as StatsKind) && statsChoices(f).includes(v as StatsKind))) stats[k] = v as StatsKind | 'none'
     }
     if (Object.keys(stats).length) o.stats = stats
   }
@@ -853,12 +876,12 @@ export function coerce(f: FieldDef, v: unknown): unknown {
     }
     case 'rating': {
       const n = typeof v === 'number' ? v : Number(String(v).trim())
-      return Number.isInteger(n) && n >= 1 && n <= RATING_MAX ? n : undefined
+      return Number.isInteger(n) && n >= 1 && n <= ratingMax(f) ? n : undefined
     }
     case 'percent': case 'money': {
-      const n = typeof v === 'number' ? v : Number(String(v).replace('%', '').replace(/[€$£\s]/g, '').replace(',', '.').trim())
+      const n = typeof v === 'number' ? v : Number(String(v).replace('%', '').replace(/[€$£¥₹\s]/g, '').replace(/^[A-Z]{3}|[A-Z]{3}$/g, '').replace(',', '.').trim())
       if (!Number.isFinite(n) || Math.abs(n) > 1e12) return undefined
-      if (f.type === 'percent' && (n < 0 || n > 100)) return undefined
+      if (f.type === 'percent') { const r = percentRange(f); if (n < r.min || n > r.max) return undefined }
       return Math.round(n * 100) / 100
     }
     case 'note': case 'checklist': return typeof v === 'string' ? v.slice(0, LIMITS.text) : undefined
@@ -870,14 +893,6 @@ export function coerce(f: FieldDef, v: unknown): unknown {
     case 'photo': return isPhotoPath(v) ? v : undefined
   }
   return undefined
-}
-
-/** A stretch of time "HH:MM-HH:MM" in minutes, across midnight when the
- *  end is earlier; null when it is not one. */
-export function spanMinutes(v: unknown): number | null {
-  if (typeof v !== 'string' || !SPAN.test(v)) return null
-  const [a, b] = v.split('-').map((t) => Number(t.slice(0, 2)) * 60 + Number(t.slice(3, 5)))
-  return b >= a ? b - a : b + 1440 - a
 }
 
 /** A checklist's lines ticked and in all ("- [x] milk"). */
@@ -894,6 +909,13 @@ const WHAT: Partial<Record<FieldType, string>> = {
   money: 'an amount', note: 'text', checklist: 'text', timespan: 'a start and an end time', photo: 'a photo',
 }
 
+/** What a field needs, in words, for the message when a value will not do. */
+export function needs(f: FieldDef): string {
+  if (f.type === 'rating') return `1 to ${ratingMax(f)} stars`
+  if (f.type === 'percent') { const r = percentRange(f); return `a share from ${r.min} to ${r.max}` }
+  return WHAT[f.type] ?? 'a value'
+}
+
 /** Values checked against their fields. With `partial`, only the fields
  *  given are checked (an edit to one cell); otherwise every field is, and
  *  required ones must be there. Calculated fields are never kept. */
@@ -905,7 +927,7 @@ export function cleanValues(fields: FieldDef[], values: Record<string, unknown>,
     if (f.type === 'formula') continue
     if (partial && !(f.name in values)) continue
     const v = coerce(f, values[f.name])
-    if (v === undefined) { errors[f.name] = `${f.label} needs ${WHAT[f.type] ?? 'a value'}.`; continue }
+    if (v === undefined) { errors[f.name] = `${f.label} needs ${needs(f)}.`; continue }
     if (v === null && f.required) { errors[f.name] = `${f.label} is needed.`; continue }
     data[f.name] = v
   }

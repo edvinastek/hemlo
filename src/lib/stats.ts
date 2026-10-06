@@ -10,6 +10,7 @@ import { moduleLabel, taskModule } from './colours-rules'
 import { moduleView } from './module-view-rules'
 import { moduleDefs, instanceFor } from '../modules/defs'
 import { computeFormulas, recordDate } from '../modules/def-rules'
+import { fieldMeasure } from '../modules/field-kinds'
 import { edit } from './write'
 import type { EntityDef } from '../modules/types'
 import type { Food, ModuleRecord, RecipeLine } from './types'
@@ -202,10 +203,6 @@ const localDay = (iso: string | null | undefined): string | null => {
   if (!iso) return null
   const t = new Date(iso)
   return Number.isNaN(t.getTime()) ? null : format(t, 'yyyy-MM-dd')
-}
-const num = (v: unknown): number | null => {
-  const n = typeof v === 'number' ? v : typeof v === 'string' && v.trim() !== '' ? Number(v.replace(',', '.')) : NaN
-  return Number.isFinite(n) ? n : null
 }
 
 async function taskFacts(c: Ctx, wantProjects: boolean): Promise<Fact[]> {
@@ -501,7 +498,6 @@ async function shoppingFacts(c: Ctx): Promise<Fact[]> {
   return out
 }
 
-const NUMERIC = new Set(['number', 'integer', 'duration', 'formula', 'rating', 'money', 'currency', 'decimal'])
 const CHOICE = new Set(['select', 'text', 'multiselect', 'multi', 'tags', 'multi_select', 'choice'])
 
 /** A record's name: its first text value. */
@@ -549,8 +545,10 @@ async function recordFacts(c: Ctx, m: StatsModule): Promise<Fact[]> {
         if (f.hidden) continue
         // Finance's amount is money in and out alike: moneyFacts keeps them apart.
         if (m.key === 'finance' && e.name === 'entry' && f.name === 'amount') continue
-        if (NUMERIC.has(f.type)) {
-          const v = num(data[f.name])
+        // Each kind as it counts (field-kinds.ts): a start and end as its minutes.
+        const fm = fieldMeasure(f)
+        if (fm) {
+          const v = fm.value(data[f.name])
           if (v != null) out.push({ ...base, measure: `${m.key}:${e.name}:${f.name}`, value: v })
         } else if (f.type === 'boolean' && data[f.name] === true) {
           out.push({ ...base, measure: `${m.key}:${e.name}:${f.name}`, value: 1 })

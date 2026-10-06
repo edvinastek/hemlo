@@ -6,7 +6,8 @@ import { DataTable, type LookupOption } from '../ui/DataTable'
 import type { EntityDef, FieldDef, ModuleDef, ViewDef } from './types'
 import { computeFormulas, firstDateField, isDateLike, mainField } from './def-rules'
 import { updateRecord, type Lookups, type Rec } from './records'
-import { PhotoThumb, formatValue } from './RecordSheet'
+import { PhotoThumb, formatValue, spokenValue } from './RecordSheet'
+import { combineValues, currencySign, fieldMeasure, moneyCurrency } from './field-kinds'
 import { eventTimes } from '../lib/day-items-rules'
 import type { Selection } from '../ui/useSelection'
 import { planToday } from '../lib/day-edge'
@@ -47,14 +48,13 @@ export function ListView({ entity, recs, lookups, onOpen, sel }: {
       {recs.map((r) => {
         const calc = computeFormulas(entity.fields, r.values)
         const shownAs = titleField(entity, r)
-        const bits = entity.fields.filter((f) => !f.hidden && f !== shownAs && f !== dateF && f.type !== 'photo')
-          .map((f) => {
-            const v = f.type === 'formula' ? calc[f.name] : r.values[f.name]
-            if (v === null || v === undefined || v === '' || (f.type === 'boolean' && !v)) return null
-            return f.type === 'boolean' ? f.label : `${f.label} ${formatValue(f, v, lookups)}`
-          })
-          .filter(Boolean)
+        const shownFields = entity.fields.filter((f) => !f.hidden && f !== shownAs && f !== dateF && f.type !== 'photo')
+          .filter((f) => { const v = f.type === 'formula' ? calc[f.name] : r.values[f.name]; return !(v === null || v === undefined || v === '' || (f.type === 'boolean' && !v)) })
           .slice(0, 5)
+        const said = (f: FieldDef, how: typeof formatValue) => (f.type === 'boolean' ? f.label : `${f.label} ${how(f, f.type === 'formula' ? calc[f.name] : r.values[f.name], lookups)}`)
+        const bits = shownFields.map((f) => said(f, formatValue))
+        // Read out with stars as words ("Service 4 of 5 stars"), not star signs.
+        const spoken = shownFields.map((f) => said(f, spokenValue))
         const dv = dateF ? r.values[dateF.name] : null
         const picking = !!sel?.selecting
         const on = !!sel?.has(r.id)
@@ -63,7 +63,8 @@ export function ListView({ entity, recs, lookups, onOpen, sel }: {
         return (
           <li key={r.id}>
             <button type="button" className={`mp-card${picking ? ' is-pickable' : ''}${on ? ' is-picked' : ''}${pic ? ' has-thumb' : ''}`} {...sel?.hold(r.id)}
-              aria-pressed={picking ? on : undefined} aria-label={picking ? `${on ? 'Selected' : 'Select'}: ${title}` : undefined}
+              aria-pressed={picking ? on : undefined}
+              aria-label={picking ? `${on ? 'Selected' : 'Select'}: ${title}` : [title, dv ? formatValue(dateF!, dv) : '', ...spoken].filter(Boolean).join(', ')}
               onClick={() => (picking ? sel!.toggle(r.id) : onOpen(r))}>
               {picking && <span className={`mp-tick${on ? ' is-on' : ''}`} aria-hidden>{on ? '✓' : ''}</span>}
               <span className="mp-card-main">{title}</span>
@@ -93,7 +94,7 @@ export function TableView({ def, entity, view, recs, lookups, profileId, onOpen,
   // and open in the record's sheet; money and shares edit as numbers.
   const asText = (f: FieldDef) => ['multi', 'rating', 'checklist', 'note', 'timespan', 'photo'].includes(f.type) || (f.type === 'lookup' && f.lookup === 'record')
   const shownCols: FieldDef[] = cols.map((f) => asText(f) ? { ...f, type: 'text' as const }
-    : f.type === 'money' || f.type === 'percent' ? { ...f, type: 'number' as const, unit: f.type === 'percent' ? '%' : f.unit || '€' } : f)
+    : f.type === 'money' || f.type === 'percent' ? { ...f, type: 'number' as const, unit: f.type === 'percent' ? '%' : currencySign(moneyCurrency(f)) } : f)
   const rows = recs.map((r) => {
     const row: Record<string, unknown> = { id: r.id, ...r.values }
     for (const f of cols) if (asText(f)) row[f.name] = formatValue(f, r.values[f.name], lookups)
@@ -210,7 +211,9 @@ export function CalendarView({ entity, view, recs, lookups, onOpen, onAdd }: {
   )
 }
 
-/** Totals for the fields marked to count in Stats, over what is shown. */
+/** Totals for the fields marked to count in Stats, over what is shown: each
+ *  as its kind counts (field-kinds.ts). Stars and shares are averaged, money
+ *  is added up in its own currency, a start and end counts as its minutes. */
 export function Totals({ entity, recs }: { entity: EntityDef; recs: Rec[] }) {
   const flagged = entity.fields.filter((f) => f.stats)
   if (flagged.length === 0 || recs.length === 0) return null
@@ -218,11 +221,10 @@ export function Totals({ entity, recs }: { entity: EntityDef; recs: Rec[] }) {
     const vals = recs.map((r) => (f.type === 'formula' ? computeFormulas(entity.fields, r.values)[f.name] : r.values[f.name]))
       .filter((v) => v !== null && v !== undefined && v !== '')
     if (f.stats === 'count') return { label: `${f.label}, count`, value: String(vals.length) }
-    const nums = vals.map(Number).filter(Number.isFinite)
-    if (nums.length === 0) return null
-    const sum = nums.reduce((a, b) => a + b, 0)
-    const v = f.stats === 'average' ? sum / nums.length : sum
-    return { label: `${f.label}, ${f.stats === 'average' ? 'average' : 'total'}`, value: `${Math.round(v * 100) / 100}${f.unit ? ` ${f.unit}` : ''}` }
+    const m = fieldMeasure(f)
+    const v = m ? combineValues(m, vals) : null
+    if (!m || v === null) return null
+    return { label: `${f.label}, ${m.combine === 'mean' ? 'average' : 'total'}`, value: m.text(v) }
   }).filter((p): p is { label: string; value: string } => !!p)
   if (parts.length === 0) return null
   return (

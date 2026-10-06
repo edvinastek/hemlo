@@ -1,5 +1,6 @@
 import { format as formatDate } from 'date-fns'
 import { db, getMeta } from './db'
+import { linkKey, linkText } from '../modules/field-kinds'
 import { edit } from './write'
 import { blankTask, saveTask } from './tasks'
 import { materializeSeries } from './series'
@@ -13,7 +14,7 @@ import { hasNote } from './notes'
 import { cachedMembers } from './household'
 import { choreExportRows, choreHistoryRows, memberName } from './chore-rules'
 import { moduleDef, moduleDefs } from '../modules/defs'
-import { addRecord, isoToLocal, listRecords } from '../modules/records'
+import { addRecord, isoToLocal, listRecords, lookupItems as recordItems } from '../modules/records'
 import { computeFormulas, mainField } from '../modules/def-rules'
 import type { FieldDef } from '../modules/types'
 import type { CalendarEvent, Habit, Profile, Series, SeriesException, Supplement, Task } from './types'
@@ -67,12 +68,14 @@ async function lookupItems(profile: Profile, kind: string): Promise<LookupItem[]
 }
 
 async function lookupsFor(profile: Profile, fields: FieldDef[]) {
-  const kinds = [...new Set(fields.filter((f) => f.type === 'lookup' && f.lookup).map((f) => f.lookup!))]
+  // By linkKey: a link to another built module's records is that module's
+  // list (MOD-12, v22), its deleted records included so a file says so.
+  const kinds = [...new Set(fields.filter((f) => f.type === 'lookup' && f.lookup).map(linkKey))]
   const items: Record<string, LookupItem[]> = {}
   const names: Record<string, Map<string, string>> = {}
   for (const k of kinds) {
-    items[k] = await lookupItems(profile, k)
-    names[k] = new Map(items[k].map((i) => [i.id, i.name]))
+    items[k] = k.startsWith('record:') ? await recordItems(profile.id, k) : await lookupItems(profile, k)
+    names[k] = new Map(items[k].map((i) => [i.id, linkText(i.id, items[k])]))
   }
   return { items, names }
 }

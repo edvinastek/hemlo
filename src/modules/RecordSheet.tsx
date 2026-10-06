@@ -16,7 +16,8 @@ import { canCopy } from './records'
 import { copyValues, stageFields, stagedSummary } from './list-rules'
 import type { ModuleRecord } from '../lib/types'
 import type { EntityDef, FieldDef, ModuleDef } from './types'
-import { RATING_MAX, checklistCount, computeFormulas, firstDateField, isDateLike, spanMinutes } from './def-rules'
+import { checklistCount, computeFormulas, firstDateField, isDateLike, spanMinutes } from './def-rules'
+import { currencySign, linkText, minutesText, moneyCurrency, moneyText, percentRange, ratingMax, starsText } from './field-kinds'
 import { addRecord, deleteRecord, lookupKey, restoreRecord, setEventRepeat, updateRecord, type Lookups, type Rec } from './records'
 import { RECORD_REPEAT_KINDS } from './repeat-rules'
 import { recordRepeat, setRecordRepeat } from './record-repeat'
@@ -31,31 +32,27 @@ import { planToday } from '../lib/day-edge'
 
 const today = () => planToday()
 
-/** A shown value, in words: "3 Oct 2026", "45 min", "Yes", a linked name. */
+/** A shown value, in words: "3 Oct 2026", "45 min", "Yes", a linked name,
+ *  "★★★★☆", "€249.50", "08:30–12:15 (3 h 45 min)". A link to a record
+ *  that was deleted says so ("Quick Fit (deleted)"), never the bare id. */
 export function formatValue(f: FieldDef, value: unknown, lookups: Lookups = {}): string {
   if (value === null || value === undefined || value === '') return ''
   switch (f.type) {
     case 'boolean': return value ? 'Yes' : 'No'
     case 'date': { try { return format(parseISO(String(value)), 'd MMM yyyy') } catch { return String(value) } }
     case 'datetime': { try { return format(parseISO(String(value)), 'd MMM, HH:mm') } catch { return String(value) } }
-    case 'lookup': return lookups[lookupKey(f)]?.find((i) => i.id === value)?.name ?? '(not found)'
+    case 'lookup': return linkText(value, lookups[lookupKey(f)])
     case 'duration': return `${value} ${f.unit || 'min'}`
     case 'number': case 'integer': case 'formula': {
       const n = typeof value === 'number' ? Math.round(value * 100) / 100 : value
       return f.unit ? `${n} ${f.unit}` : String(n)
     }
     case 'multi': return Array.isArray(value) ? value.join(', ') : String(value)
-    case 'rating': {
-      const n = Math.max(0, Math.min(RATING_MAX, Number(value) || 0))
-      return '★'.repeat(n) + '☆'.repeat(RATING_MAX - n)
-    }
+    case 'rating': return starsText(Number(value) || 0, ratingMax(f))
     case 'percent': return `${value}\u00a0%`
     case 'money': {
       const n = Number(value)
-      const amount = Number.isFinite(n) ? n.toFixed(2) : String(value)
-      const cur = f.unit || '€'
-      // A sign goes in front (€ 12.50); a code goes after (12.50 CHF).
-      return /^[A-Za-z]{2,}$/.test(cur) ? `${amount}\u00a0${cur}` : `${cur}\u00a0${amount}`
+      return Number.isFinite(n) ? moneyText(n, moneyCurrency(f)) : String(value)
     }
     case 'checklist': {
       const c = checklistCount(value)
@@ -69,10 +66,17 @@ export function formatValue(f: FieldDef, value: unknown, lookups: Lookups = {}):
     case 'timespan': {
       const m = spanMinutes(value)
       const [a, b] = String(value).split('-')
-      return m === null ? String(value) : `${a}–${b} (${m >= 60 ? `${Math.floor(m / 60)} h${m % 60 ? ` ${m % 60} min` : ''}` : `${m} min`})`
+      return m === null ? String(value) : `${a}–${b} (${minutesText(m)})`
     }
     default: return String(value)
   }
+}
+
+/** A value as a screen reader should say it: stars as "4 of 5 stars" rather
+ *  than a row of star signs; everything else as shown. */
+export function spokenValue(f: FieldDef, value: unknown, lookups: Lookups = {}): string {
+  if (f.type === 'rating' && value !== null && value !== undefined && value !== '') return `${Number(value)} of ${ratingMax(f)} stars`
+  return formatValue(f, value, lookups)
 }
 
 /** A text field called a note is written with the shared note editor
@@ -122,7 +126,7 @@ export function RecordForm({ fields, values, onChange, errors, lookups, autoFocu
 function FieldInput({ field: f, value, onChange, error, lookups, autoFocus, photo }: {
   field: FieldDef; value: unknown; onChange: (v: unknown) => void; error?: string; lookups: Lookups; autoFocus?: boolean; photo?: PhotoTarget
 }) {
-  const label = `${f.label}${f.unit && f.type !== 'boolean' && f.type !== 'money' ? ` (${f.unit})` : f.type === 'duration' ? ' (min)' : ''}${f.required ? ' *' : ''}`
+  const label = `${f.label}${f.unit && f.type !== 'boolean' && f.type !== 'money' && f.type !== 'rating' && f.type !== 'percent' ? ` (${f.unit})` : f.type === 'duration' ? ' (min)' : ''}${f.required ? ' *' : ''}`
   const err = error ? <p className="mf-error" role="alert">{error}</p> : null
   const text = (v: unknown) => (v === null || v === undefined ? '' : String(v))
 
@@ -179,12 +183,13 @@ function FieldInput({ field: f, value, onChange, error, lookups, autoFocus, phot
   }
   if (f.type === 'rating') {
     const n = Number(value) || 0
+    const max = ratingMax(f)
     return (
       <div className="mf-field">
         <span id={`mf-${f.name}`}>{label}</span>
-        <div className="mf-stars" role="radiogroup" aria-labelledby={`mf-${f.name}`}>
-          {Array.from({ length: RATING_MAX }, (_, i) => i + 1).map((k) => (
-            <button key={k} type="button" role="radio" aria-checked={n === k} aria-label={`${k} of ${RATING_MAX}`}
+        <div className={`mf-stars${max > 5 ? ' is-many' : ''}`} role="radiogroup" aria-labelledby={`mf-${f.name}`}>
+          {Array.from({ length: max }, (_, i) => i + 1).map((k) => (
+            <button key={k} type="button" role="radio" aria-checked={n === k} aria-label={`${k} of ${max} ${max === 1 ? 'star' : 'stars'}`}
               className={`mf-star${k <= n ? ' is-on' : ''}`}
               // Tapping the stars already given takes them back.
               onClick={() => onChange(n === k ? null : k)}>{k <= n ? '★' : '☆'}</button>
@@ -226,7 +231,7 @@ function FieldInput({ field: f, value, onChange, error, lookups, autoFocus, phot
     return (
       <div className="mf-field">
         <span>{label}</span>
-        <SearchPick label={f.label} items={items} value={chosen?.name ?? (value ? '(not found)' : null)}
+        <SearchPick label={f.label} items={items.filter((i) => !i.gone)} value={chosen ? linkText(value, items) : value ? 'Deleted' : null}
           placeholder={items.length ? `Search ${f.lookup === 'record' ? f.label.toLowerCase() : `${f.lookup}s`}` : `Nothing to link to yet`}
           onPick={(item) => onChange(item.id)} onClear={() => onChange(null)} />
         {err}
@@ -235,13 +240,14 @@ function FieldInput({ field: f, value, onChange, error, lookups, autoFocus, phot
   }
   const numeric = f.type === 'number' || f.type === 'integer' || f.type === 'duration' || f.type === 'percent' || f.type === 'money'
   const type = numeric ? 'number' : f.type === 'date' ? 'date' : f.type === 'time' ? 'time' : f.type === 'datetime' ? 'datetime-local' : 'text'
+  const range = f.type === 'percent' ? percentRange(f) : null
   return (
     <label>
-      {label}{f.type === 'percent' ? ' (%)' : f.type === 'money' ? ` (${f.unit || '€'})` : ''}
+      {label}{f.type === 'percent' ? ' (%)' : f.type === 'money' ? ` (${currencySign(moneyCurrency(f))})` : ''}
       <input type={type} value={text(value)} autoFocus={autoFocus} aria-invalid={!!error}
         inputMode={f.type === 'integer' ? 'numeric' : numeric ? 'decimal' : undefined}
         step={f.type === 'number' || f.type === 'money' || f.type === 'percent' ? 'any' : numeric ? 1 : undefined}
-        min={f.type === 'duration' || f.type === 'percent' ? 0 : undefined} max={f.type === 'percent' ? 100 : undefined}
+        min={f.type === 'duration' ? 0 : range ? range.min : undefined} max={range ? range.max : undefined}
         maxLength={f.type === 'text' ? 2000 : undefined}
         onChange={(e) => onChange(e.target.value === '' ? null : e.target.value)} />
       {err}

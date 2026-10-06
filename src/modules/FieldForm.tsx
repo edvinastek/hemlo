@@ -1,7 +1,10 @@
 import { useState } from 'react'
 import { Dropdown, type Option } from '../ui/Dropdown'
 import type { FieldDef, FieldType } from './types'
-import { LIMITS, RATING_MAX, fieldNameFrom, fieldProblem, formulaScope, hasOptions, isNumeric, type LookupKind, type StatsKind } from './def-rules'
+import { LIMITS, fieldNameFrom, fieldProblem, formulaScope, hasOptions, isNumeric, type LookupKind, type StatsKind } from './def-rules'
+import { CURRENCIES, RATING_DEFAULT, RATING_SCALES, moneyCurrency, percentRange, ratingMax, statsChoices } from './field-kinds'
+import { currencyFor } from '../lib/shopping-rules'
+import { useApp } from '../lib/store'
 import './modules.css'
 
 /** Adding or changing one field: its name, its kind, and whatever that kind
@@ -20,8 +23,8 @@ export const TYPE_OPTIONS: Option<FieldType>[] = [
   { value: 'timespan', label: 'Start and end', hint: 'From one time to another, with the length worked out' },
   { value: 'select', label: 'Choice', hint: 'One of a list you write' },
   { value: 'multi', label: 'Tags', hint: 'Any of a list you write, several at once' },
-  { value: 'rating', label: 'Rating', hint: `1 to ${RATING_MAX} stars` },
-  { value: 'percent', label: 'Percentage', hint: '0 to 100 %' },
+  { value: 'rating', label: 'Rating', hint: 'Stars, out of 3, 5 or 10' },
+  { value: 'percent', label: 'Percentage', hint: '0 to 100 %, or a range you set' },
   { value: 'money', label: 'Money', hint: 'An amount, in the currency you set' },
   { value: 'checklist', label: 'Checklist', hint: 'Lines to tick, kept with the record' },
   { value: 'note', label: 'Note', hint: 'Longer text, with lists and headings' },
@@ -50,7 +53,10 @@ export const STATS_OPTIONS: Option<StatsKind | 'none'>[] = [
 /** One line saying what a field is: "Number · kg", "Choice · 4 options". */
 export function describeField(f: FieldDef): string {
   const bits = [TYPE_NAME[f.type] ?? f.type]
-  if (f.unit) bits.push(f.unit)
+  if (f.type === 'money') bits.push(moneyCurrency(f))
+  else if (f.type === 'rating') bits.push(`${ratingMax(f)} stars`)
+  else if (f.type === 'percent') { const r = percentRange(f); bits.push(`${r.min} to ${r.max} %`) }
+  else if (f.unit) bits.push(f.unit)
   if (hasOptions(f.type)) bits.push(`${f.options?.length ?? 0} options`)
   if (f.type === 'lookup' && f.lookup) bits.push(f.lookup === 'record' ? 'picks a record' : `picks from ${f.lookup}s`)
   if (f.type === 'formula' && f.formula) bits.push(f.formula)
@@ -88,20 +94,34 @@ export function FieldForm({ field, fields, index, onSave, onCancel, typeLocked, 
   const [targetModule, targetEntity] = target.split('#')
   const [stats, setStats] = useState<StatsKind | 'none'>(field?.stats ?? 'none')
   const [touched, setTouched] = useState(false)
+  // Money's currency (one field, one currency): the person's country's by default.
+  const country = useApp((s) => s.profile?.country ?? null)
+  const [currency, setCurrency] = useState(() => (field ? moneyCurrency(field, currencyFor(country)) : currencyFor(country)))
+  // Stars: how many. A share: the range it may take.
+  const [stars, setStars] = useState(() => (field?.type === 'rating' ? ratingMax(field) : RATING_DEFAULT))
+  const [lowText, setLowText] = useState(() => String(field?.type === 'percent' ? percentRange(field).min : 0))
+  const [highText, setHighText] = useState(() => String(field?.type === 'percent' ? percentRange(field).max : 100))
+  const low = Number(lowText.replace(',', '.'))
+  const high = Number(highText.replace(',', '.'))
 
   const others = fields.filter((_, i) => i !== (field ? index : -1))
   const name = field?.name ?? fieldNameFrom(label || 'field', others.map((f) => f.name))
   const numeric = isNumeric({ type })
-  // Stars and shares carry their own unit; money's unit is its currency.
-  const ownUnit = numeric && type !== 'rating' && type !== 'percent'
+  // Stars and shares carry their own unit; money's is its currency.
+  const ownUnit = numeric && type !== 'rating' && type !== 'percent' && type !== 'money'
+  const choices = statsChoices({ type })
   const candidate: FieldDef = {
     name, label: label.trim(), type,
     ...(hasOptions(type) ? { options } : {}),
     ...(type === 'lookup' ? { lookup, ...(lookup === 'record' ? { module: targetModule, ...(targetEntity ? { entity: targetEntity } : {}) } : {}) } : {}),
     ...(type === 'formula' ? { formula: formula.trim() } : {}),
-    ...(unit.trim() && ownUnit ? { unit: unit.trim() } : type === 'money' ? { unit: '€' } : {}),
+    ...(unit.trim() && ownUnit ? { unit: unit.trim() } : {}),
+    ...(type === 'money' ? { currency } : {}),
+    ...(type === 'rating' && stars !== RATING_DEFAULT ? { max: stars } : {}),
+    ...(type === 'percent' && lowText.trim() !== '' && low !== 0 ? { min: low } : {}),
+    ...(type === 'percent' && highText.trim() !== '' && high !== 100 ? { max: high } : {}),
     ...(required && type !== 'formula' && type !== 'boolean' ? { required: true } : {}),
-    ...(stats !== 'none' && (numeric || stats === 'count') ? { stats } : {}),
+    ...(stats !== 'none' && choices.includes(stats) ? { stats } : {}),
     ...(field?.width ? { width: field.width } : {}),
     ...(field?.hidden && !(required && type !== 'formula') ? { hidden: true } : {}),
   }
@@ -172,15 +192,38 @@ export function FieldForm({ field, fields, index, onSave, onCancel, typeLocked, 
         </label>
       )}
       {!typeLocked && ownUnit && (
-        <label>{type === 'money' ? 'Currency' : 'Unit'}
-          <input value={unit} maxLength={LIMITS.unit} placeholder={type === 'duration' ? 'min' : type === 'money' ? '€' : 'kg, km, €'} onChange={(e) => setUnit(e.target.value)} />
+        <label>Unit
+          <input value={unit} maxLength={LIMITS.unit} placeholder={type === 'duration' ? 'min' : 'kg, km'} onChange={(e) => setUnit(e.target.value)} />
         </label>
+      )}
+      {!typeLocked && type === 'money' && (
+        <div className="mf-field">
+          <span>Currency</span>
+          <Dropdown label="Currency" value={currency} onChange={setCurrency}
+            options={CURRENCIES.map((c) => ({ value: c.code, label: `${c.code} · ${c.name}` }))} />
+        </div>
+      )}
+      {!typeLocked && type === 'rating' && (
+        <div className="mf-field">
+          <span>Stars</span>
+          <Dropdown label="Stars" value={String(stars)} onChange={(v) => setStars(Number(v))}
+            options={RATING_SCALES.map((n) => ({ value: String(n), label: `1 to ${n}` }))} />
+        </div>
+      )}
+      {!typeLocked && type === 'percent' && (
+        <div className="mf-field" role="group" aria-label="Range">
+          <span>Range</span>
+          <div className="two">
+            <label>From<input inputMode="decimal" value={lowText} onChange={(e) => setLowText(e.target.value)} /></label>
+            <label>To<input inputMode="decimal" value={highText} onChange={(e) => setHighText(e.target.value)} /></label>
+          </div>
+        </div>
       )}
       {(numeric || type === 'text' || hasOptions(type) || type === 'date' || type === 'checklist' || type === 'timespan') && (
         <div className="mf-field">
           <span>In Stats</span>
           <Dropdown label="In Stats" value={stats}
-            options={numeric ? STATS_OPTIONS : STATS_OPTIONS.filter((o) => o.value === 'none' || o.value === 'count')}
+            options={STATS_OPTIONS.filter((o) => o.value === 'none' || choices.includes(o.value as StatsKind))}
             onChange={setStats} />
         </div>
       )}

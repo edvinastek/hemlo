@@ -166,7 +166,7 @@ function FilterValue({ field: f, value, onChange }: { field: FieldDef; value: st
   if ((f.type === 'select' || f.type === 'multi') && f.options?.length) {
     return <Dropdown label={`${f.label} to look for`} value={value} placeholder="Choose" options={f.options.map((o) => ({ value: o, label: o }))} onChange={onChange} />
   }
-  const numeric = ['number', 'integer', 'duration', 'formula', 'rating', 'percent', 'money'].includes(f.type)
+  const numeric = ['number', 'integer', 'duration', 'formula', 'rating', 'percent', 'money', 'timespan'].includes(f.type)
   const date = f.type === 'date' || f.type === 'datetime'
   return (
     <input className="mp-order-value" aria-label={`${f.label} to look for`} value={value} onChange={(e) => onChange(e.target.value)}

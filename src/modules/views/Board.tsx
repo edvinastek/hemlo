@@ -4,7 +4,7 @@ import type { EntityDef, FieldDef, ModuleDef, ViewDef } from '../types'
 import { BOARD_CARD_FIELDS, boardField, computeFormulas, mainField } from '../def-rules'
 import { boardColumns, moveTargets } from '../view-rules'
 import { updateRecord, type Lookups, type Rec } from '../records'
-import { formatValue } from '../RecordSheet'
+import { formatValue, spokenValue } from '../RecordSheet'
 import { recordTitle } from '../views'
 import { useLongPress, type PressPoint } from '../../ui/useLongPress'
 import '../../ui/move.css'
@@ -136,15 +136,17 @@ export function BoardView({ def, entity, view, recs, lookups, profileId, onOpen 
                 if (!rec) return null
                 const calc = computeFormulas(entity.fields, rec.values)
                 const title = recordTitle(entity, rec, lookups)
-                const bits = shown.map((f) => {
+                const on = shown.filter((f) => {
                   const v = f.type === 'formula' ? calc[f.name] : rec.values[f.name]
-                  if (v === null || v === undefined || v === '' || (f.type === 'boolean' && !v)) return null
-                  return f.type === 'boolean' ? f.label : `${f.label} ${formatValue(f, v, lookups)}`
-                }).filter(Boolean).slice(0, BOARD_CARD_FIELDS)
+                  return !(v === null || v === undefined || v === '' || (f.type === 'boolean' && !v))
+                }).slice(0, BOARD_CARD_FIELDS)
+                const said = (f: typeof shown[number], how: typeof formatValue) => (f.type === 'boolean' ? f.label : `${f.label} ${how(f, f.type === 'formula' ? calc[f.name] : rec.values[f.name], lookups)}`)
+                const bits = on.map((f) => said(f, formatValue))
                 const open = menu === id
                 return (
                   <li key={id} className={`bd-card${lifted === id ? ' is-lifted' : ''}`} {...hold.bind(id)}>
-                    <button type="button" className="bd-card-open" onClick={() => onOpen(rec)}>
+                    <button type="button" className="bd-card-open" onClick={() => onOpen(rec)}
+                      aria-label={[title, ...on.map((f) => said(f, spokenValue))].join(', ')}>
                       <span className="bd-card-title">{title}</span>
                       {bits.length > 0 && <span className="bd-card-meta">{bits.join(' · ')}</span>}
                     </button>

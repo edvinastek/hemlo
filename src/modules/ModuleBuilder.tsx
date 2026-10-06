@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useApp } from '../lib/store'
+import { currencyFor } from '../lib/shopping-rules'
 import type { EntityDef, FieldDef, ModuleDef, ViewDef } from './types'
 import {
   LIMITS, RULE_DAY_TASK, RULE_REMIND, builtRuleCatalogue, cleanKeywords, definitionFor, definitionProblem,
@@ -14,7 +15,7 @@ import { saveSettings } from '../lib/write'
 import { db } from '../lib/db'
 import { FieldForm, LOOKUP_OPTIONS, STATS_OPTIONS, describeField } from './FieldForm'
 import { Dropdown } from '../ui/Dropdown'
-import { readDesignFile } from './design-file-rules'
+import { builtNames, readDesignFile } from './design-file-rules'
 import './modules.css'
 import { useBackClose } from '../ui/useBackClose'
 
@@ -97,7 +98,8 @@ export function ModuleBuilder({ onClose }: { onClose: () => void }) {
       : [...presetKeys.filter((k) => k !== 'blank'), key]
     const p = combinePresets(next.length ? next : ['blank'])
     setPresetKeys(p.keys)
-    setFields(p.fields)
+    // A preset's money is in the person's own currency (MOD-12, v22).
+    setFields(p.fields.map((f) => (f.type === 'money' && !f.currency ? { ...withoutUnit(f), currency: currencyFor(profile?.country) } : f)))
     setViews(p.views.map((v) => ({ ...v })))
     setItem(p.item)
     setKeywords(p.keywords.join(', '))
@@ -377,6 +379,12 @@ export function ModuleBuilder({ onClose }: { onClose: () => void }) {
   )
 }
 
+/** A field without its unit (a preset's money had "€" as its unit before v22). */
+function withoutUnit(f: FieldDef): FieldDef {
+  const { unit: _u, ...rest } = f
+  return rest
+}
+
 /** Build a module from a design file someone shared (MOD-16): its fields,
  *  views and rules, with no records. It opens as a new module of one's own. */
 export function ImportDesign() {
@@ -385,7 +393,8 @@ export function ImportDesign() {
   const [note, setNote] = useState<string | null>(null)
   async function read(file: File) {
     setNote(null)
-    const res = readDesignFile(await file.text())
+    // Its links find the person's own modules of the same name (v22).
+    const res = readDesignFile(await file.text(), builtNames(await db.module.toArray()))
     if (!res.ok) { setNote(res.problem); return }
     if (!profile || !session) { setNote('Sign in again to build a module.'); return }
     try {

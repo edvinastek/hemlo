@@ -1,5 +1,7 @@
 import type { FieldDef, ModuleDef } from '../modules/types.ts'
-import { LIMITS, coerce, firstDateField, mainField } from '../modules/def-rules.ts'
+import { LIMITS, coerce, firstDateField, mainField, needs } from '../modules/def-rules.ts'
+import { linkKey, moneyCurrency, spanMinutes } from '../modules/field-kinds.ts'
+import { isPhotoPath } from '../modules/photo-rules.ts'
 import { addDays, weekdayOf } from './series-rules.ts'
 import { BUNDLE_FORMAT, DATASET_FORMAT, isFormat } from './file-format-rules.ts'
 
@@ -443,9 +445,9 @@ export function matchHeaders(headers: string[], fields: FieldDef[], aliases: Rec
 
 /* ---------- reading values --------------------------------------------------- */
 
-export interface LookupItem { id: string; name: string }
+export interface LookupItem { id: string; name: string; gone?: boolean }
 export interface ReadContext {
-  /** Things a lookup field can name, by kind. */
+  /** Things a lookup field can name, by linkKey ('food', 'record:u_garage01'). */
   lookups?: Partial<Record<string, LookupItem[]>>
   /** How a date like 03/04/2026 is meant: day first (most of the world) or month first (the US, Google's CSV). */
   dateOrder?: 'dmy' | 'mdy'
@@ -593,7 +595,7 @@ export function readCell(f: FieldDef, raw: Cell, ctx: ReadContext = {}, bounds?:
       return hit ? { ok: true, value: hit } : { ok: false, problem: `${f.label}: "${shown}" is not one of ${(f.options ?? []).join(', ')}.` }
     }
     case 'lookup': {
-      const items = (f.lookup && ctx.lookups?.[f.lookup]) || []
+      const items = (f.lookup && ctx.lookups?.[linkKey(f)]?.filter((i) => !i.gone)) || []
       const s = String(raw).trim()
       const hit = items.find((i) => i.id === s) ?? items.find((i) => i.name.toLowerCase() === s.toLowerCase())
       return hit ? { ok: true, value: hit.id } : { ok: false, problem: `${f.label}: "${shown}" was not found.` }
@@ -607,12 +609,13 @@ export function readCell(f: FieldDef, raw: Cell, ctx: ReadContext = {}, bounds?:
       return { ok: true, value: coerce(f, hits as string[]) ?? null }
     }
     case 'rating': case 'percent': case 'money': {
-      const n = readNumber(typeof raw === 'string' ? unguard(raw).replace(/[%€$£]/g, '') : raw)
+      const n = readNumber(typeof raw === 'string' ? unguard(raw).replace(/[%€$£¥₹]|\b[A-Z]{3}\b/g, '').trim() : raw)
       const v = n === null ? undefined : coerce(f, n)
-      return v === undefined || v === null
-        ? bad(f.type === 'rating' ? 'a number of stars from 1 to 5' : f.type === 'percent' ? 'a share from 0 to 100' : 'an amount')
-        : { ok: true, value: v }
+      return v === undefined || v === null ? bad(f.type === 'money' ? 'an amount' : needs(f)) : { ok: true, value: v }
     }
+    // A photo cannot come from a spreadsheet; a file of this account's own
+    // export names its photo, which is kept, and anything else is left empty.
+    case 'photo': return { ok: true, value: isPhotoPath(String(raw).trim()) ? String(raw).trim() : null }
     case 'note': case 'checklist': {
       const s2 = unguard(String(raw)).replace(/\r\n?/g, '\n').trim()
       return s2.length > LIMITS.text ? { ok: false, problem: `${f.label} is longer than ${LIMITS.text} characters.` } : { ok: true, value: s2 }
@@ -733,7 +736,7 @@ export function cellValue(f: FieldDef, v: unknown, names: Partial<Record<string,
     }
     case 'multi': return Array.isArray(v) ? v.join('; ') : String(v)
     case 'datetime': return String(v).slice(0, 16).replace('T', ' ')
-    case 'lookup': return (f.lookup && names[f.lookup]?.get(String(v))) ?? String(v)
+    case 'lookup': return (f.lookup && names[linkKey(f)]?.get(String(v))) ?? String(v)
     default: return typeof v === 'object' ? JSON.stringify(v) : String(v)
   }
 }
@@ -755,11 +758,13 @@ export function statsRows(recs: { module: string; date: string | null; fields: F
   for (const r of recs) {
     if (!r.date) continue
     for (const f of r.fields) {
-      if (!['number', 'integer', 'duration', 'formula', 'rating', 'percent', 'money'].includes(f.type)) continue
+      if (!['number', 'integer', 'duration', 'formula', 'rating', 'percent', 'money', 'timespan'].includes(f.type)) continue
       const v = r.values[f.name]
-      const n = typeof v === 'number' ? v : typeof v === 'string' && v.trim() !== '' ? Number(v) : NaN
+      // A start and end counts as its minutes (v22).
+      const n = f.type === 'timespan' ? spanMinutes(v) ?? NaN : typeof v === 'number' ? v : typeof v === 'string' && v.trim() !== '' ? Number(v) : NaN
       if (!Number.isFinite(n)) continue
-      out.push({ date: r.date.slice(0, 10), module: r.module, measure: f.label, value: Math.round(n * 1000) / 1000, unit: f.unit ?? (f.type === 'duration' ? 'min' : null) })
+      const unit = f.type === 'timespan' || f.type === 'duration' ? f.unit ?? 'min' : f.type === 'percent' ? '%' : f.type === 'money' ? moneyCurrency(f) : f.unit ?? null
+      out.push({ date: r.date.slice(0, 10), module: r.module, measure: f.label, value: Math.round(n * 1000) / 1000, unit })
     }
   }
   return out.sort((a, b) => a.date.localeCompare(b.date) || a.module.localeCompare(b.module) || a.measure.localeCompare(b.measure))

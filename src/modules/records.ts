@@ -14,6 +14,7 @@ import type { PickItem } from '../ui/SearchPick'
 import { REPEAT_KEY } from './repeat-rules'
 import { endRecordRepeat } from './record-repeat'
 import { copyValues, readOrder, readOrders, type ListOrder } from './list-rules'
+import { linkKey } from './field-kinds'
 
 /** Records of a module's entity, wherever they live. Four built-in entities
  *  have tables of their own; everything else — every built module, and the
@@ -332,11 +333,12 @@ export function refreshExercises(): Promise<void> {
  *  'record:<module key>' for a link to another built module's records. */
 export type Lookups = Partial<Record<string, PickItem[]>>
 
-/** The list a link field picks from. */
-export const lookupKey = (f: Pick<FieldDef, 'lookup' | 'module' | 'entity'>): string =>
-  f.lookup === 'record' ? `record:${f.module ?? ''}${f.entity ? `:${f.entity}` : ''}` : (f.lookup ?? '')
+/** The list a link field picks from (field-kinds.ts). */
+export const lookupKey = linkKey
 
-/** A built module's records as things to pick: each by its title. */
+/** A built module's records as things to pick: each by its title. Deleted
+ *  ones come too, marked `gone`, so a link to one says "(deleted)" rather
+ *  than nothing; the picker leaves them out (MOD-12, v22). */
 async function moduleRecordItems(profileId: string, moduleKey: string, kind?: string): Promise<PickItem[]> {
   const row = await db.module.get(moduleKey)
   if (!row || row.deleted_at) return []
@@ -346,13 +348,17 @@ async function moduleRecordItems(profileId: string, moduleKey: string, kind?: st
   if (!entity) return []
   const main = mainField(entity.fields)
   const rows = await db.module_record.where('[profile_id+module_key]').equals([profileId, moduleKey]).toArray()
-  return rows.filter((r) => !r.deleted_at && r.entity === entity.name).map((r) => {
+  return rows.filter((r) => r.entity === entity.name).map((r) => {
     const v = main ? r.data?.[main.name] : null
-    return { id: r.id, name: typeof v === 'string' && v.trim() ? v.trim() : `${entity.label} ${r.record_date ?? ''}`.trim(), meta: r.record_date ?? undefined }
+    return {
+      id: r.id, name: typeof v === 'string' && v.trim() ? v.trim() : `${entity.label} ${r.record_date ?? ''}`.trim(), meta: r.record_date ?? undefined,
+      ...(r.deleted_at ? { gone: true } : {}),
+    }
   })
 }
 
-async function lookupItems(profileId: string, key: string): Promise<PickItem[]> {
+/** What a link field picks from, by its key (linkKey): also for the files. */
+export async function lookupItems(profileId: string, key: string): Promise<PickItem[]> {
   if (key.startsWith('record:')) { const [mod, kind] = key.slice(7).split(':'); return moduleRecordItems(profileId, mod, kind) }
   const kind = key as LookupKind
   switch (kind) {

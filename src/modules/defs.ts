@@ -7,7 +7,7 @@ import { deleteTask } from '../lib/tasks'
 import type { ModuleInstance, ModuleRow } from '../lib/types'
 import { MODULES, moduleByKey } from './registry'
 import { modulesOn } from '../lib/module-view-rules'
-import type { ModuleDef } from './types'
+import type { FieldDef, ModuleDef } from './types'
 import {
   BUILT_KEY, LIMITS, OVERLAY_KEY, applyOverlay, bytes, definitionFor, definitionProblem, moduleKeywords, newModuleKey,
   overlayFrom, readBuiltDefinition, readOverlay, type ModuleWords,
@@ -118,7 +118,10 @@ export async function saveModuleDef(profileId: string, draft: ModuleDef): Promis
 export async function createBuiltModule(userId: string, profileId: string, draft: ModuleDef): Promise<string> {
   let key = newModuleKey()
   while (await db.module.get(key)) key = newModuleKey()
-  const def: ModuleDef = { ...draft, key, built: true }
+  // A link to another kind of record of this same module (MOD-15) follows
+  // the module to its new key (a draft or an imported design had another).
+  const own = (f: FieldDef): FieldDef => (f.type === 'lookup' && f.lookup === 'record' && f.module === draft.key ? { ...f, module: key } : f)
+  const def: ModuleDef = { ...draft, key, built: true, entities: draft.entities.map((e) => ({ ...e, fields: e.fields.map(own) })) }
   const problem = definitionProblem(def)
   if (problem) throw new Error(problem)
   const row: ModuleRow = {

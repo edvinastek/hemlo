@@ -29,6 +29,14 @@ export interface FieldDef {
   options?: string[]
   required?: boolean
   unit?: string
+  /** Money (MOD-12, v22): its currency, an ISO 4217 code ('EUR'). One field
+   *  is one currency, so amounts of different currencies are never added. */
+  currency?: string
+  /** Rating: how many stars (3, 5 or 10; 5 when absent). Percent: the
+   *  highest share allowed (100 when absent). */
+  max?: number
+  /** Percent: the lowest share allowed (0 when absent). */
+  min?: number
   width?: number
   /** Counted in Stats: summed, averaged, or the records counted. */
   stats?: 'sum' | 'average' | 'count'
