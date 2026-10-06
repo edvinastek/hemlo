@@ -244,6 +244,15 @@ Types, then every check that needs nothing but Node. CI runs the same command.
   to the replacement, chains of replacements followed, nothing else touched.
 - `recipe` — recipes: roles (ready meals included), the one search over names and ingredients, the sorts, scaling to
   portions, figures with what is missing, variation names, ready meals.
+- `fieldkinds` — the field kinds of MOD-12 end to end (v22, field-kinds.ts): stars on a scale of 3, 5 or 10, a share in
+  a range (0 to 100 unless set), money in one ISO currency (older "€" units read as EUR; typed with a sign or a code),
+  a start and end as minutes (across midnight too); each kind's settings kept and refused as the field editor does;
+  sorting and filtering (a span by how long it lasts); Stats and totals (stars and shares averaged, money added up
+  in its own currency, a field per measure so two currencies are never one sum, a span as minutes); files out and back
+  (a link by its module's record name, a deleted one "(deleted)", a photo's own name kept, anything else left empty);
+  a definition and a record with every kind through JSON unchanged (what a sync sends); design files that keep a link
+  with its module's name and find it again (same key, same name, else text), a link to its own kind following the
+  module; and a deleted record's photo tidied away a day later.
 - `recipeshop` — recipes onto the shopping list (v22, REC-08, recipe-shop-rules.ts): servings (each recipe's own by
   default, the quiet −/+ stepper, in words), asked only when needed; the needs worked out the meal plan's way (scaled,
   cooked weights bought raw, counts in one unit, free text left out); what is at home left out only when asked (and a
