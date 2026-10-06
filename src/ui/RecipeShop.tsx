@@ -51,12 +51,14 @@ export function useRecipesToList() {
 /** The choices, for a sheet of their own or a recipe page's panel: a quiet
  *  stepper a recipe (when several, or the servings were not said), whether
  *  to leave out what is at home (only when something is), and Add. */
-export function RecipeShopChoices({ start, servingsKnown, onAdd, onCancel }: {
+export function RecipeShopChoices({ start, servingsKnown, onAdd, onCancel, cancelLabel = 'Cancel' }: {
   start: ShopPick[]
   /** The servings were said already (a recipe's page): no steppers. */
   servingsKnown: boolean
   onAdd: (picks: ShopPick[], skipHome: boolean) => Promise<unknown>
   onCancel: () => void
+  /** "Back" on a recipe's page, where the page stays. */
+  cancelLabel?: string
 }) {
   const profile = useApp((s) => s.profile)
   const [picks, setPicks] = useState(start)
@@ -103,7 +105,7 @@ export function RecipeShopChoices({ start, servingsKnown, onAdd, onCancel }: {
         </label>
       )}
       <div className="sheet-actions">
-        <button type="button" className="btn" onClick={onCancel}>Cancel</button>
+        <button type="button" className="btn" onClick={onCancel}>{cancelLabel}</button>
         <button type="button" className="btn btn-primary grow" disabled={busy || !preview || n === 0} onClick={() => void go()}>
           {!preview ? 'Add' : n === 0 ? 'Nothing to add' : `Add ${n} ${n === 1 ? 'item' : 'items'}`}
         </button>

@@ -570,7 +570,7 @@ Columns: **ID**, **Requirement** (with "Done when" where a test is needed), **Pr
 | REC-05 | Delete from inside the editor (with confirm), and Duplicate ("make a variation"). | Must | Done (v16) | SR |
 | REC-06 | Scale a recipe by portions in the view; the scale carries into notes, meals and the shopping list. | Should | Done (v16) | SR |
 | REC-07 | Import a recipe from a web address (schema.org Recipe data), and from text pasted in ("200 g oats, 2 eggs…") matched to foods. | Should | Done (v18) | R1, SR |
-| REC-08 | Recipe books and multi-select (copy ingredients, add to shopping list, delete own, export). | Must | Done (except "add to shopping list") | R3 |
+| REC-08 | Recipe books and multi-select (copy ingredients, add to shopping list, delete own, export). | Must | Done (v22) | R3 |
 | REC-09 | Share with everyone: propose, owner approves, statuses, review queue. | Must | Done | R3 |
 | REC-10 | **Add ingredient** when the food is not there: the ingredient search ends with "Add '<typed>' as a new food" (opens FOOD-01's form and returns to the line), plus Scan barcode and Find in stores. | Must | Done (v16) | R5 |
 | REC-11 | A photo per recipe (kept on the device and synced within size limits). | Could | Done (v19) | SR |

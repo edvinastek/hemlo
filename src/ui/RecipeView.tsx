@@ -159,7 +159,7 @@ export function RecipeView({ recipe: given, lines, foods, userId, onClose, onEdi
         {panel === 'shop' && toList.asking && (
           <>
             <p className="rcp-section">To buy for {qtyText(portions)} {portions === 1 ? 'portion' : 'portions'}</p>
-            <RecipeShopChoices start={toList.asking} servingsKnown onAdd={toList.add} onCancel={back} />
+            <RecipeShopChoices start={toList.asking} servingsKnown onAdd={toList.add} onCancel={back} cancelLabel="Back" />
           </>
         )}
         {panel === 'export' && <ExportPanel shape={exportShape(recipe, lines, foods, ['kcal', ...keys])} attribution={attribution} onBack={back} onDone={close} />}

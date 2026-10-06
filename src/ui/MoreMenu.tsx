@@ -48,7 +48,13 @@ function Menu({ items, onClose, anchor, children }: {
     const el = box.current
     if (!el) return
     const r = el.getBoundingClientRect()
-    setAbove(r.bottom > window.innerHeight - 96)
+    // Upwards only when it fits there: inside a sheet (which clips what
+    // sticks out of it) a menu too tall for the room above stays below,
+    // where the sheet scrolls to it (a short recipe's ⋮, v22).
+    const sheet = el.closest('.bottom-sheet')
+    const ceiling = sheet ? sheet.getBoundingClientRect().top : 0
+    const anchorTop = anchor.current?.getBoundingClientRect().top ?? r.top
+    setAbove(r.bottom > window.innerHeight - 96 && anchorTop - r.height - 2 >= ceiling)
     setLeft(r.left < 8)
     el.querySelector<HTMLButtonElement>('button:not(:disabled)')?.focus()
   }, [])
