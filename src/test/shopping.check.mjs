@@ -9,7 +9,7 @@ import {
   forShop, sameShop, onList, groupList, reorderWithin, nextSort, mergeAmounts, recentTiles, currencyFor, formatMoney,
   readPrice, perKilo, priceLabel, itemCost, tripTotal, pickPrice, nextShoppingDay, listWindow, describeDays, tripTitle,
   planTrip, listNames, windowText, isTripTask, readShoppingModule, DEFAULT_AISLES, OTHER,
-  addSuggestions, listAmountChoices, amountToField, fieldToAmount,
+  addSuggestions, listAmountChoices, amountToField, fieldToAmount, shopsBoughtAt,
 } from '../lib/shopping-rules.ts'
 import { suggestShops, cleanShopName, CHAINS } from '../lib/shops-rules.ts'
 
@@ -344,4 +344,11 @@ is('a name typed exactly is not offered back', addSuggestions('apple juice', cho
 }
 
 if (fail) { console.log(`\n${fail} failed`); process.exit(1) }
+// Where a food was bought (FOOD-18, v22): the shops set on ticked-off items, latest first, each once.
+is('bought at: latest first, each shop once, only this food and only bought', shopsBoughtAt([
+  { food_id: 'rice', shop: 'Lidl', bought_at: '2026-09-01T10:00:00Z' }, { food_id: 'rice', shop: 'Jumbo', bought_at: '2026-09-20T10:00:00Z' },
+  { food_id: 'rice', shop: 'lidl ', bought_at: '2026-09-10T10:00:00Z' }, { food_id: 'rice', shop: 'Aldi', bought_at: null },
+  { food_id: 'rice', shop: null, bought_at: '2026-09-30T10:00:00Z' }, { food_id: 'egg', shop: 'Plus', bought_at: '2026-09-30T10:00:00Z' },
+], 'rice'), ['Jumbo', 'lidl'])
+
 console.log('\nall shopping checks passed')

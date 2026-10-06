@@ -392,7 +392,7 @@ Columns: **ID**, **Requirement** (with "Done when" where a test is needed), **Pr
 | GEN-30 | Recipe → task note (insert ingredients as a checklist, steps, macros), keeping a link back (see NOT-20). | Must | Done (v16) | R5 |
 | GEN-31 | Meal task ↔ meal: ticking a meal task on Today marks the meal eaten, and the other way round. | Must | Done (v18) | SR |
 | GEN-32 | Shopping list → agenda: a trip task when items are waiting (SHOP-20). | Must | Done (v16) | R5 |
-| GEN-33 | Shopping → stock → recipes: what is bought goes into stock, what is cooked or eaten leaves it, what is in stock is not put on the list. | Must | Done for recipe meals; manual items and quick meals not yet | R2 |
+| GEN-33 | Shopping → stock → recipes: what is bought goes into stock, what is cooked or eaten leaves it, what is in stock is not put on the list. | Must | Done (v22) | R2 |
 | GEN-34 | Habits, chores, supplements, training and study items reach Today and Plan through GEN-03/GEN-04. | Must | Done (v16) | R5 |
 | GEN-35 | Projects hold tasks: a task can belong to a project; the project shows its tasks and progress; dated projects show as goals on the Year view. | Should | Done (v16) | SR |
 | GEN-36 | Goals: a goal page; tasks, projects and habits can be linked to a goal; the Year view's "Goals and phases" lists them. | Should | Done (v16) | R1, SR |
@@ -450,7 +450,7 @@ Columns: **ID**, **Requirement** (with "Done when" where a test is needed), **Pr
 | TOD-21 | Each card shows one glanceable figure and one main action ("+ Add food", "Start"). | Should | Done (v16) | SR |
 | TOD-22 | Optional **Plan my day** sheet on the first open of the day: yesterday's leftovers, suggestions (due soon, flexible chores, study reviews), and a workload bar (planned minutes against a daily capacity the person sets) that warns when over. | Could | Done (v19) | SR |
 | TOD-23 | Optional **Close the day** sheet at review time: moves leftovers to tomorrow or the Inbox in one go. | Could | Done (v19) | R1 |
-| TOD-24 | Completed repeating items stay visible (struck through) on Today, so the day's record is complete. | Should | Done for tasks | SR |
+| TOD-24 | Completed repeating items stay visible (struck through) on Today, so the day's record is complete. | Should | Done (v22) | SR |
 
 ## D3. Plan (PLN)
 
@@ -474,7 +474,7 @@ Columns: **ID**, **Requirement** (with "Done when" where a test is needed), **Pr
 
 | ID | Requirement | Pri | Status | Src |
 |-----------|---------------------------------------------------------------|----------|------------------|--------|
-| TSK-01 | Task fields: what, day (or none = Inbox), time, minutes or an end time ("Until"), section, repeat, ends, locked, note. | Must | Done (except Inbox) | R1, R2 |
+| TSK-01 | Task fields: what, day (or none = Inbox), time, minutes or an end time ("Until"), section, repeat, ends, locked, note. | Must | Done (v22) | R1, R2 |
 | TSK-02 | "Until" end time in the same cell as minutes; an end before the start means the next morning; at most 24 h. | Must | Done | R2 |
 | TSK-03 | Repeat options as GEN-20, in the task sheet. | Must | Done (v16) | R3, R5 |
 | TSK-04 | Edits to a repeating task ask "Only this one / This and following"; date-only changes and ticks never ask. | Must | Done | R3 |
@@ -535,7 +535,7 @@ Columns: **ID**, **Requirement** (with "Done when" where a test is needed), **Pr
 | FOOD-15 | Foods can be grouped into books and multi-selected (copy names, add to book, delete own, export). | Must | Done | R3 |
 | FOOD-16 | Nutrients tracked and shown are the person's choice from the full EU list (not only kcal, protein, carbs, fat, fibre). | Should | Done (v16) | R2, R5 |
 | FOOD-17 | Vitamins and minerals (Annex XIII NRVs) are optional fields, shown only if the person turns them on. | Could | Done (v19) | SR |
-| FOOD-18 | Shops are shown on a food when known (from Open Food Facts or set by the person). | Must | Done for scanned products | R4 |
+| FOOD-18 | Shops are shown on a food when known (from Open Food Facts or set by the person). | Must | Done (v22) | R4 |
 | FOOD-19 | Food data is reviewed by checks that run with the app's other checks (energy consistency, required fields, units within limits). | Must | Done (v16) | SR |
 | FOOD-20 | Catalogue updates reach every device without disturbing the person's own foods, logs and recipes. | Must | Done (v16) | SR |
 
@@ -921,7 +921,7 @@ Columns: **ID**, **Requirement** (with "Done when" where a test is needed), **Pr
 | WID-02 | The Today widget shows items from every module set to "Show on the widget". | Should | Done (v16) | R5 |
 | WID-10 | **Stats widgets**: the person places as many as they want, each showing a saved stats view of their choice (a figure, a small chart, a ring or a short table), in 2×2, 4×2 and 4×4 sizes, refreshed whenever the data changes. | Must | Done (v16) | R5 |
 | WID-11 | **Quick add widget**: buttons for the + menu's top items. | Could | Done (v19) | SR |
-| WID-12 | Widgets refresh at once after any change in the app or on the widget. | Must | Done for Today | R3 |
+| WID-12 | Widgets refresh at once after any change in the app or on the widget. | Must | Partly (v22: every widget redraws at once after a change in the app, and the Today widget at once after a tick on it; a tick made on the Today widget while Hemlo is not running reaches the stats widgets only when Hemlo next runs, as their figures are worked out in the app) | R3 |
 | WID-13 | Widgets follow the theme (LOOK-09) and have proper empty states. | Should | Done (v16) | SR |
 | WID-14 | A widget's settings can be changed by a long press on it (Android's own widget settings). | Should | Done (v16) | SR |
 

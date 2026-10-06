@@ -59,3 +59,20 @@ Running log. Branch v22/f1 from main (0.22.0). Harness port 5531, local DB pg22f
     leaves it while Undo can still bring it back, removes it from Storage and the device a day later. 20/20 ok.
     Local DB pg22f1: migrations 001–039 OK, security suite 325/325 ok (photo bucket rows 283–291).
   - store/phone-tests.md steps 30–35: the owner's camera check on the live project.
+- The partial rows:
+  - GEN-33 → Done (v22). Every food logged goes through meals.ts eatOne → consumeForMeal since v16 (planned meals,
+    the add-food sheet, saved meals, ready meals), and bought list items linked to a food go into stock (putInStock);
+    what is at home is left off planned meals and now off recipe adds (REC-08). Proven in the harness: a food eaten
+    2000 → 1800 g, a recipe 1800 → 1740, unticked gives back, an onion item put in stock. A meal typed as plain numbers
+    and an item with no food ("toilet paper") name no food, so there is nothing to count: not a gap.
+    (stock.ts consumeForLog is never called — every log goes through a slot; left alone.)
+  - TOD-24 → Done (v22). Done habits, chores, supplements, repeating tasks and repeating records' tasks all stay on
+    Today with is-done — but the line-through never showed: the name is a button (inline-block), which a
+    line-through does not reach. Fixed in app.css (shot 40).
+  - TSK-01 → Done (v22): the task sheet's "No day (Inbox)", Plan → Inbox, Today's ⋮ Inbox (shots 42, 43).
+  - FOOD-18 → Done (v22): own foods have had a Shops field (FoodEditor) shown on the food page; a food with none of its
+    own (a catalogue food) now shows "Bought at" from the household's ticked-off items' shops (shopsBoughtAt, shot 41).
+  - WID-12 → Partly: Today, stats and quick-add widgets redraw at once after any change in the app (liveQuery →
+    Widget.update / updateStats / setQuickAdd, each calling refreshAll); a tick on the Today widget redraws it at once
+    (TickReceiver) and is applied at once while the app runs; with the app not running, stats widgets catch up on
+    the next start. Closing that needs the stats worked out natively or a background JS runtime: not small.

@@ -3,6 +3,7 @@ import { useLiveQuery } from 'dexie-react-hooks'
 import { db } from '../lib/db'
 import { useApp } from '../lib/store'
 import { ShopNameLinks } from './ShopNameLinks'
+import { shopsBoughtAt } from '../lib/shopping-rules'
 import { edit } from '../lib/write'
 import {
   LABEL, PORTIE_ATTRIBUTION, NEVO_ATTRIBUTION, USDA_UNITS_ATTRIBUTION, energyCheck, figureOf, figureText, riPercent, sodiumOf, sourceKind,
@@ -38,6 +39,10 @@ export function FoodUnitsSheet({ food: given, onClose }: { food: Food; onClose: 
   const profileId = useApp((s) => s.profile?.id ?? null)
   // The stored row, so a change made here shows at once.
   const food = useLiveQuery(() => db.food.get(given.id), [given.id]) ?? given
+  // Where the household bought it, for a food that names no shops (FOOD-18).
+  const householdId = useApp((s) => s.profile?.household_id ?? null)
+  const boughtAt = useLiveQuery(async () => (householdId && !food.stores?.length
+    ? shopsBoughtAt(await db.shopping_entry.where('household_id').equals(householdId).toArray(), food.id) : []), [householdId, food.id, food.stores?.length], [] as string[])
   const replacement = useLiveQuery(async () => (food.replaced_by ? db.food.get(food.replaced_by) : undefined), [food.replaced_by])
   const prefs = useNutritionPrefs()
   const [mode, setMode] = useState<'view' | 'edit' | 'copy' | 'delete' | 'add'>('view')
@@ -158,7 +163,8 @@ export function FoodUnitsSheet({ food: given, onClose }: { food: Food; onClose: 
           <div><dt>State</dt> <dd>{food.state}{food.cook_yield ? ` · cooks to ${Number(food.cook_yield)}× its weight` : ''}</dd></div>
           {food.pack_size_g ? <div><dt>Pack</dt> <dd>{Number(food.pack_size_g)} g</dd></div> : null}
           {food.store_section ? <div><dt>Aisle</dt> <dd>{food.store_section}</dd></div> : null}
-          {food.stores?.length ? <div><dt>Shops</dt> <dd><ShopNameLinks names={food.stores} query={food.name} /></dd></div> : null}
+          {food.stores?.length ? <div><dt>Shops</dt> <dd><ShopNameLinks names={food.stores} query={food.name} /></dd></div>
+            : boughtAt.length ? <div><dt>Bought at</dt> <dd><ShopNameLinks names={boughtAt} query={food.name} /></dd></div> : null}
           {food.density ? <div><dt>Weighs</dt> <dd>{Number(food.density)} g per ml</dd></div> : null}
           {food.source_note ? (kind === 'nevo'
             ? <div><dt>NEVO’s note</dt> <dd lang="nl">{food.source_note}</dd></div>

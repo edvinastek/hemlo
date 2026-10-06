@@ -801,6 +801,18 @@ export function mergeAmounts(
   return null
 }
 
+/** Where the household bought a food, from its shopping list (FOOD-18, v22):
+ *  the shops set on the items it ticked off, the latest first, each once.
+ *  Shown on a food that names no shops of its own (a catalogue food). */
+export function shopsBoughtAt(entries: Pick<ShoppingEntry, 'food_id' | 'shop' | 'bought_at'>[], foodId: string): string[] {
+  const seen = new Map<string, string>()
+  for (const e of [...entries].filter((x) => x.food_id === foodId && x.bought_at && x.shop?.trim()).sort((a, b) => String(b.bought_at).localeCompare(String(a.bought_at)))) {
+    const k = e.shop!.trim().toLowerCase()
+    if (!seen.has(k)) seen.set(k, e.shop!.trim())
+  }
+  return [...seen.values()].slice(0, 5)
+}
+
 // ---- recently bought -----------------------------------------------------------------
 
 export interface RecentTile {
