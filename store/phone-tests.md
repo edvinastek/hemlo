@@ -1,4 +1,4 @@
-# Phone tests for version 19 (X5: shortcuts, quick-add widget, Health Connect)
+# Phone tests (version 19: shortcuts, quick-add widget, Health Connect; version 22: a camera photo)
 
 What could not be checked without a phone. Install the version 19 build, sign in, and go through the list. Each line
 says what to do and what should happen. Note any that fail with the phone model and Android version.
