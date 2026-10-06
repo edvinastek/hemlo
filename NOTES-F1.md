@@ -76,3 +76,8 @@ Running log. Branch v22/f1 from main (0.22.0). Harness port 5531, local DB pg22f
     Widget.update / updateStats / setQuickAdd, each calling refreshAll); a tick on the Today widget redraws it at once
     (TickReceiver) and is applied at once while the app runs; with the app not running, stats widgets catch up on
     the next start. Closing that needs the stats worked out natively or a background JS runtime: not small.
+- Verification: npx tsc -b, npm run check (with the new recipeshop and fieldkinds checks), npx vite build,
+  node scripts/copy-shared.mjs --check all pass; local DB pg22f1 001–039 and security suite 325/325 ok (no SQL
+  changed). Harness (port 5531) scenarios all pass at 360 px light and dark; screenshots in scratchpad
+  shots22/f1 (01–07 REC-08, 20–22 photo, 30–38 MOD-12, 40–43 partial rows). The harness is deleted; the photo test
+  and its seed are kept beside the screenshots (photo-harness-test.mjs, harness-seed.ts).
