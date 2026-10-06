@@ -571,7 +571,7 @@ function FromStock({ profile, have }: { profile: Profile; have: Map<string, numb
               <RowMenu label={`More for ${r.name}`} items={[{
                 label: 'Put the rest on the list',
                 onSelect: async () => {
-                  const res = await addRecipesToList(profile, [{ recipe_id: r.id, portions: 1 }])
+                  const res = await addRecipesToList(profile, [{ recipe_id: r.id, servings: 1 }])
                   offerUndo(`${res.added} ${res.added === 1 ? 'item' : 'items'} for ${r.name} on the list`, res.undo)
                 },
               }]} />

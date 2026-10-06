@@ -243,7 +243,13 @@ Types, then every check that needs nothing but Node. CI runs the same command.
 - `foodreplaced` — a phone catching up with replaced foods: ingredients, meals, stock, ticks and waiting edits moved
   to the replacement, chains of replacements followed, nothing else touched.
 - `recipe` — recipes: roles (ready meals included), the one search over names and ingredients, the sorts, scaling to
-  portions, figures with what is missing, variation names, what to buy against stock, ready meals.
+  portions, figures with what is missing, variation names, ready meals.
+- `recipeshop` — recipes onto the shopping list (v22, REC-08, recipe-shop-rules.ts): servings (each recipe's own by
+  default, the quiet −/+ stepper, in words), asked only when needed; the needs worked out the meal plan's way (scaled,
+  cooked weights bought raw, counts in one unit, free text left out); what is at home left out only when asked (and a
+  Stock minimum never added); amounts as the list keeps them (whole packs, whole ones, g or kg, ml or l); fitting onto
+  the list (the same unit or g/kg adds; another unit is a line of its own; ticked, removed, planned and other lists'
+  rows never added to); the aisle and shop of the last purchase, the "For …" note, and the one line said after.
 - `recipeio` — recipe import and export: schema.org JSON-LD from a page, Hemlo's own file and CSV, ISO durations and
   yields, ingredient lines read into amount, unit and food, and lines matched to foods or kept as text.
 - `repeat` — the one repeat control's choices: the rule each stands for from a first day (the 2nd or last Wednesday,

@@ -1,11 +1,11 @@
 /** Recipes as rules with no database and no React: what a recipe is for,
  *  how the list is searched and sorted, a recipe scaled to a number of
- *  portions, a variation's name, what to buy for it after the cupboard, and a
- *  ready meal. Checked in plain Node (src/test/recipe.check.mjs). */
+ *  portions, a variation's name and a ready meal (what to buy for one is in
+ *  recipe-shop-rules.ts). Checked in plain Node (src/test/recipe.check.mjs). */
 
 import { rawGrams } from './calc.ts'
 import { figureOf, type LabelKey } from './eu-label-rules.ts'
-import { boughtGrams, countOf as unitCount, findUnit, readUnits, type Count } from './units-rules.ts'
+import { countOf as unitCount, readUnits, type Count } from './units-rules.ts'
 import type { Food, Recipe, RecipeLine } from './types'
 
 // ---- what a recipe is for -----------------------------------------------------------
@@ -167,57 +167,8 @@ export function variationName(name: string, taken: string[]): string {
   return `${base.slice(0, 100)} (variation)`
 }
 
-// ---- what to buy for it (REC-20) ----------------------------------------------------------
-
-export interface BuyLine {
-  food_id: string | null
-  name: string
-  /** Grams still to buy, as bought (peel and all where the unit says). */
-  grams: number | null
-  /** Whole ones to buy when every line counted it in one unit. */
-  count: { qty: number; unit: string } | null
-  /** What the cupboard already has, taken off. */
-  from_stock: number
-  aisle: string | null
-}
-
-/** A recipe's ingredients for a number of portions, with what is in stock
- *  taken off (the cupboard in grams), and counted foods rounded up to whole
- *  ones and weighed as bought. Free-text lines ("salt to taste") are left for
- *  the person to add, and lines already covered by stock drop out. */
-export function toBuy(lines: ScaledLine[], stock: Map<string, number>): { buy: BuyLine[]; inStock: string[] } {
-  const buy: BuyLine[] = []
-  const inStock: string[] = []
-  const at = new Map<string, number>()
-  for (const l of lines) {
-    if (!l.food || l.grams == null) continue
-    const raw = l.state === 'cooked' && (l.food.cook_yield ?? 0) > 0 ? l.grams / Number(l.food.cook_yield) : l.grams
-    const i = at.get(l.food.id)
-    if (i === undefined) {
-      at.set(l.food.id, buy.length)
-      buy.push({ food_id: l.food.id, name: l.food.name, grams: raw, count: l.count ? { qty: l.count.qty, unit: l.count.unit.name } : null, from_stock: 0, aisle: l.food.store_section ?? null })
-    } else {
-      const was = buy[i]
-      was.grams = (was.grams ?? 0) + raw
-      was.count = was.count && l.count && was.count.unit === l.count.unit.name ? { qty: was.count.qty + l.count.qty, unit: was.count.unit } : null
-    }
-  }
-  const out: BuyLine[] = []
-  for (const b of buy) {
-    const have = b.food_id ? stock.get(b.food_id) ?? 0 : 0
-    const need = Math.max(0, (b.grams ?? 0) - have)
-    if (need <= 0.5) { inStock.push(b.name); continue }
-    const food = lines.find((l) => l.food?.id === b.food_id)?.food ?? null
-    const unit = b.count && food ? findUnit(readUnits(food.units), b.count.unit) : undefined
-    if (b.count && unit) {
-      const qty = Math.max(1, Math.ceil(need / unit.g - 0.01))
-      out.push({ ...b, count: { qty, unit: unit.name }, grams: boughtGrams(qty, unit), from_stock: Math.round(have) })
-    } else {
-      out.push({ ...b, count: null, grams: Math.round(need), from_stock: Math.round(have) })
-    }
-  }
-  return { buy: out, inStock }
-}
+// What to buy for a recipe (REC-08, REC-20) is worked out the meal plan's way
+// in recipe-shop-rules.ts, the one path from recipes to the shopping list.
 
 // ---- a ready meal (REC-21) -------------------------------------------------------------
 

@@ -726,7 +726,7 @@ function RecipesSheet({ profile, list, onClose }: { profile: Profile; list: stri
   const ids = Object.keys(picked)
 
   async function add() {
-    const r = await addRecipesToList(profile, ids.map((id) => ({ recipe_id: id, portions: picked[id] })), list)
+    const r = await addRecipesToList(profile, ids.map((id) => ({ recipe_id: id, servings: picked[id] })), list)
     setSaid(`${r.added} ${r.added === 1 ? 'item' : 'items'} added${r.covered ? `; ${r.covered} already in stock` : ''}.`)
     offerUndo(`Ingredients of ${ids.length} ${ids.length === 1 ? 'recipe' : 'recipes'} added`, r.undo)
     setPicked({})

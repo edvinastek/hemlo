@@ -8,14 +8,17 @@ import './undo.css'
 
 const SHOW_MS = 8000
 
-interface UndoOffer { id: number; label: string; undo: () => unknown; action?: string }
+interface UndoOffer { id: number; label: string; undo: () => unknown; action?: string; also?: AlsoStep }
+/** A second, quiet step beside Undo ("Open"), which goes to where the
+ *  change was made (REC-08: "12 items added to Shopping · Undo · Open"). */
+export interface AlsoStep { label: string; run: () => unknown }
 interface UndoState { offer: UndoOffer | null; busy: boolean }
 
 const useUndo = create<UndoState>(() => ({ offer: null, busy: false }))
 let next = 1
 
-export function offerUndo(label: string, undo: () => unknown) {
-  useUndo.setState({ offer: { id: next++, label, undo }, busy: false })
+export function offerUndo(label: string, undo: () => unknown, also?: AlsoStep) {
+  useUndo.setState({ offer: { id: next++, label, undo, also }, busy: false })
 }
 
 /** The same bar offering one next step instead of Undo ("Put in stock"),
@@ -88,9 +91,13 @@ export function UndoBar() {
 
   return (
     <div className="undo-live" aria-live="polite">
-      <div className={`undo-bar${sheetTop !== null ? ' is-over-sheet' : ''}${offer.action ? ' is-offer' : ''}`} role="status" style={placeOver(sheetTop)}>
+      <div className={`undo-bar${sheetTop !== null ? ' is-over-sheet' : ''}${offer.action || offer.also ? ' is-offer' : ''}`} role="status" style={placeOver(sheetTop)}>
         <span className="undo-label">{offer.label}</span>
         <button type="button" className="undo-btn" disabled={busy} onClick={() => void run()}>{offer.action ?? 'Undo'}</button>
+        {offer.also && (
+          <button type="button" className="undo-btn undo-also" disabled={busy}
+            onClick={() => { const step = offer.also!; clearUndo(); void step.run() }}>{offer.also.label}</button>
+        )}
         <button type="button" className="undo-close" aria-label="Dismiss" onClick={clearUndo}>×</button>
       </div>
     </div>

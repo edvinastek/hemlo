@@ -20,11 +20,10 @@ import { RecipeView } from '../ui/RecipeView'
 import { RecipeEditor } from '../ui/RecipeEditor'
 import { useExport } from '../ui/ExportLink'
 import { ScanIcon } from '../ui/BarcodeScan'
-import { offerUndo } from '../ui/Undo'
-import { stockMap } from '../lib/stock'
-import { addToShoppingList } from '../lib/recipe-actions'
+import { RecipeShopSheet, useRecipesToList } from '../ui/RecipeShop'
+import { defaultServings } from '../lib/recipe-shop-rules'
 import {
-  SORTS, recipeFigures, recipeOrder, recipeSearchText, roleLabel, scaleLines, toBuy, usage, variationName, type RecipeSort,
+  SORTS, recipeFigures, recipeOrder, recipeSearchText, roleLabel, usage, variationName, type RecipeSort,
 } from '../lib/recipe-rules'
 import { statusOf, type RecipeDraft } from '../lib/sharing-rules'
 import '../ui/recipes.css'
@@ -145,15 +144,13 @@ export function RecipesTab({ openId, onOpened }: { openId?: string | null; onOpe
     })
   }
 
-  async function addSelectedToList(picked: Recipe[], say: (t: string, bad?: boolean) => void) {
-    if (!profile) return
-    const stock = await stockMap(profile.household_id)
-    const scaled = picked.flatMap((r) => scaleLines(r.id, lines, foodMap, Number(r.portions_per_batch) || 1))
-    const { buy, inStock } = toBuy(scaled, stock)
-    if (buy.length === 0) { say(inStock.length ? 'Everything they need is in the cupboard already.' : 'These recipes have no ingredients to buy.'); return }
-    const { count, undo } = await addToShoppingList(buy, profile.household_id, profile.id, picked.length === 1 ? `For ${picked[0].name}` : `For ${picked.length} recipes`)
-    offerUndo('Added to the shopping list', undo)
-    say(`${count} ${count === 1 ? 'item' : 'items'} on the shopping list, a batch of each${inStock.length ? `; ${inStock.length} already in the cupboard` : ''}.`)
+  // Add to shopping list (REC-08): the ticked recipes, each for its own
+  // servings, asked in one small sheet.
+  const toList = useRecipesToList()
+  function addSelectedToList(picked: Recipe[], say: (t: string, bad?: boolean) => void) {
+    const withFood = picked.filter((r) => lines.some((l) => l.recipe_id === r.id && l.food_id))
+    if (withFood.length === 0) { say(picked.length === 1 ? 'This recipe has no ingredients to buy.' : 'These recipes have no ingredients to buy.', true); return }
+    void toList.start(withFood.map((r) => ({ recipe: r, servings: defaultServings(r) })), false)
   }
 
   return (
@@ -178,7 +175,7 @@ export function RecipesTab({ openId, onOpened }: { openId?: string | null; onOpe
         openLabel={(row) => `Open ${row.name}`}
         actions={profile ? (picked, say) => (
           <button type="button" className="btn" disabled={picked.length === 0}
-            onClick={() => void addSelectedToList(picked as unknown as Recipe[], say)}>Add to shopping list</button>
+            onClick={() => addSelectedToList(picked as unknown as Recipe[], say)}>Add to shopping list</button>
         ) : undefined}
         emptyNote={search.trim() ? `No recipe matches “${search.trim()}”.` : 'No recipes yet.'}
         menu={[
@@ -199,6 +196,7 @@ export function RecipesTab({ openId, onOpened }: { openId?: string | null; onOpe
           </>
         )}
       />
+      {toList.asking && <RecipeShopSheet picks={toList.asking} onAdd={toList.add} onClose={() => toList.setAsking(null)} />}
       {userId && !editing && !open && (
         <button type="button" className="fab" aria-label="New recipe" onClick={() => setEditing({ recipe: null })}>+</button>
       )}

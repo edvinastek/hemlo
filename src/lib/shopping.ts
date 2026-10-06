@@ -4,19 +4,19 @@ import { queueChange } from './sync'
 import { edit } from './write'
 import { readSettings, type Shop } from './settings'
 import { addStock, stockFor } from './stock'
-import { mealNeeds } from './stock-rules'
 import { enabledModules } from './day'
 import { blankTask, saveTask } from './tasks'
 import { uuidV5 } from './sync-rules'
 import { findUnit, readUnits } from './units-rules'
 import {
-  amountText, boughtFor, doneGrams, entryGrams, guessAisle, itemKey, listName, listNames, listWindow, matchFood,
+  amountText, boughtFor, doneGrams, entryGrams, guessAisle, itemKey, listNames, listWindow, matchFood,
   mergeAmounts, nextSort, planNeeds, plannedLines, planTrip, readShoppingModule, recentTiles, resolveAisle,
   sameShop, isTripTask, type FoodChoice, type ListItem, type ParsedItem, type RecentTile, type ShoppingModuleSettings,
 } from './shopping-rules'
 import type { ShopPrice } from './shopping-types'
 import type { Food, ModuleInstance, Profile, RecipeLine, ShoppingEntry, Stock, Task } from './types'
 import { planToday } from './day-edge'
+import { planRecipeAdd, type RecipePick } from './recipe-shop-rules'
 
 /** The household's shopping list, read from and written to the local copy
  *  first, so it works in a shop with no signal, then queued for the server
@@ -274,55 +274,61 @@ export function addRecent(profile: Profile, tile: RecentTile, list: string | nul
   })
 }
 
-/** Recipes' ingredients onto the list (SHOP-14), for the portions chosen,
- *  less what is in the cupboard, in whole packs or whole ones where that is
- *  known. Each food is one item; one already on the list takes the amount on
- *  top. Lines without a food (a pinch of salt) are left out. */
-export async function addRecipesToList(profile: Profile, picks: { recipe_id: string; portions: number }[], list: string | null = null):
-  Promise<{ added: number; covered: number; undo: Undo }> {
-  const needs = new Map<string, number>()
-  const said = new Map<string, string>()
-  const counts = new Map<string, { qty: number; unit: string } | null>()
-  for (const pick of picks) {
-    const lines = await db.recipe_line.where('recipe_id').equals(pick.recipe_id).toArray()
-    const ids = [...new Set(lines.map((l) => l.food_id).filter((id): id is string => !!id))]
-    const foods = new Map((await db.food.bulkGet(ids)).filter((f): f is Food => !!f).map((f) => [f.id, f]))
-    for (const [id, g] of mealNeeds(lines, foods, pick.portions)) needs.set(id, (needs.get(id) ?? 0) + g)
-    for (const l of lines) {
-      if (!l.food_id) continue
-      if (l.raw_text && !said.has(l.food_id)) said.set(l.food_id, listName(l.raw_text))
-      const c = l.unit && l.unit_qty ? { qty: Number(l.unit_qty) * pick.portions, unit: l.unit } : null
-      const had = counts.get(l.food_id)
-      counts.set(l.food_id, had === undefined ? c : had && c && had.unit === c.unit ? { qty: had.qty + c.qty, unit: c.unit } : null)
-    }
-  }
-  const stock = new Map((await stockFor(profile.household_id)).map((s) => [s.food_id, Number(s.grams_on_hand) || 0]))
-  const foods = new Map((await db.food.bulkGet([...needs.keys()])).filter((f): f is Food => !!f).map((f) => [f.id, f]))
-  const undos: Undo[] = []
-  let added = 0
-  let covered = 0
-  for (const [id, g] of needs) {
-    const buy = Math.round(Math.max(0, g - (stock.get(id) ?? 0)) * 10) / 10
-    if (buy <= 0) { covered++; continue }
-    const food = foods.get(id)
-    const pack = food?.pack_size_g ? Number(food.pack_size_g) : null
-    const c = counts.get(id)
-    const unit = c ? findUnit(readUnits(food?.units), c.unit) : undefined
-    let amount: Pick<ParsedItem, 'qty' | 'unit' | 'grams'>
-    if (pack) {
-      const packs = Math.ceil(buy / pack - 1e-9)
-      amount = { qty: packs, unit: 'pack', grams: Math.round(packs * pack * 10) / 10 }
-    } else if (c && unit) {
-      const n = Math.max(1, Math.ceil(buy / unit.g - 0.01))
-      amount = { qty: n, unit: unit.name, grams: Math.round(n * unit.g * 10) / 10 }
+/** What the device holds for putting recipes on the list: their lines and
+ *  names, the foods, what is at home and the list as it is. */
+async function recipeAddInput(householdId: string, picks: RecipePick[]) {
+  const ids = [...new Set(picks.map((p) => p.recipe_id))]
+  const [lines, recipes, stockRows, entries] = await Promise.all([
+    ids.length ? db.recipe_line.where('recipe_id').anyOf(ids).toArray() : Promise.resolve([] as RecipeLine[]),
+    db.recipe.bulkGet(ids),
+    stockFor(householdId),
+    db.shopping_entry.where('household_id').equals(householdId).toArray(),
+  ])
+  const linesByRecipe = new Map<string, RecipeLine[]>()
+  for (const l of lines) linesByRecipe.set(l.recipe_id, [...(linesByRecipe.get(l.recipe_id) ?? []), l])
+  const foodIds = [...new Set(lines.map((l) => l.food_id).filter((id): id is string => !!id))]
+  const foods = new Map((await db.food.bulkGet(foodIds)).filter((f): f is Food => !!f).map((f) => [f.id, f]))
+  const recipeNames = new Map(recipes.filter((r) => !!r).map((r) => [r!.id, r!.name]))
+  const stock = new Map(stockRows.map((s) => [s.food_id, Number(s.grams_on_hand) || 0]))
+  return { linesByRecipe, foods, recipeNames, stock, entries }
+}
+
+/** What adding recipes would do, without doing it: for the small sheet that
+ *  asks for servings (how many items, what is at home). */
+export async function previewRecipesAdd(householdId: string, picks: RecipePick[], list: string | null = null, skipHome = true) {
+  const input = await recipeAddInput(householdId, picks)
+  return planRecipeAdd({ ...input, picks, skipHome, entries: input.entries, list })
+}
+
+/** Recipes' ingredients onto the list (REC-08, SHOP-14): for the servings
+ *  chosen, worked out the meal plan's way (recipe-shop-rules.ts), in whole
+ *  packs or whole ones where that is known, less what is at home unless the
+ *  person keeps it in. A food already on the list in the same unit takes the
+ *  amount on top; in another unit it is a line of its own. Lines without a
+ *  food (a pinch of salt) are left out. One Undo takes the whole batch back. */
+export async function addRecipesToList(profile: Profile, picks: RecipePick[], list: string | null = null, skipHome = true):
+  Promise<{ added: number; covered: number; atHome: string[]; undo: Undo }> {
+  const input = await recipeAddInput(profile.household_id, picks)
+  const plan = planRecipeAdd({ ...input, picks, skipHome, entries: input.entries, list })
+  const befores: { id: string; row: ShoppingEntry | null }[] = []
+  let order = nextSort(input.entries.filter((e) => !e.deleted_at && !e.plan_key))
+  for (const op of plan.ops) {
+    if (op.kind === 'more') {
+      const row = await db.shopping_entry.get(op.entry_id)
+      if (!row) continue
+      befores.push({ id: row.id, row })
+      await updateEntry(row, { qty: op.amount.qty, unit: op.amount.unit, grams: op.amount.grams })
     } else {
-      amount = buy >= 1000 ? { qty: Math.round(buy) / 1000, unit: 'kg', grams: Math.round(buy) } : { qty: Math.round(buy), unit: 'g', grams: Math.round(buy) }
+      const a = op.item
+      const row = await putNew(blankEntry(profile.household_id, profile.id, {
+        name: a.name, food_id: a.food_id, qty: a.qty, unit: a.unit, grams: a.grams, aisle: a.aisle, shop: a.shop,
+        note: a.note, list, sort_order: order,
+      }))
+      order += 10
+      befores.push({ id: row.id, row: null })
     }
-    const r = await addItem(profile, { name: said.get(id) ?? food?.name ?? 'Unknown food', food_id: id, ...amount, list })
-    undos.push(r.undo)
-    added++
   }
-  return { added, covered, undo: async () => { for (const u of undos.reverse()) await u() } }
+  return { added: plan.ops.length, covered: plan.covered, atHome: plan.atHome, undo: undoFor(befores) }
 }
 
 // ---- ticking, moving, removing ---------------------------------------------------------

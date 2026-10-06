@@ -14,15 +14,14 @@ import { rawGrams } from '../lib/calc'
 import { formatCount, gramsLabel, readQty } from '../lib/units-rules'
 import { readSharing, statusOf } from '../lib/sharing-rules'
 import {
-  isReady, readyProduct, recipeFigures, roleLabel, scaleLines, toBuy, type ScaledLine,
+  isReady, readyProduct, recipeFigures, roleLabel, scaleLines, type ScaledLine,
 } from '../lib/recipe-rules'
 import { toCsv, toHemloJson, toSchemaOrg, type ExportRecipe } from '../lib/recipe-io-rules'
 import { recipeToNote } from '../lib/recipe-note-rules'
 import { blankTask, saveTask } from '../lib/tasks'
 import { addItems, removeItems } from '../lib/meals'
-import { stockMap } from '../lib/stock'
 import { saveFile } from '../lib/native'
-import { addToShoppingList } from '../lib/recipe-actions'
+import { RecipeShopChoices, useRecipesToList } from './RecipeShop'
 import { search } from '../lib/search-rules'
 import { SharingStatus } from './SharingChoice'
 import { RecipeCook } from './RecipeCook'
@@ -92,8 +91,12 @@ export function RecipeView({ recipe: given, lines, foods, userId, onClose, onEdi
   const batch = Number(recipe.portions_per_batch) > 0 ? Number(recipe.portions_per_batch) : 1
   const [portionsText, setPortionsText] = useState(String(batch))
   const portions = readQty(portionsText) || batch
-  const [panel, setPanel] = useState<Panel>(null)
+  const [chosenPanel, setPanel] = useState<Panel>(null)
   const [done, setDone] = useState<string | null>(null)
+  // Add to shopping list (REC-08): straight in for the portions shown, or
+  // the choices in place of the page when something is at home.
+  const toList = useRecipesToList()
+  const panel: Panel = toList.asking ? 'shop' : chosenPanel
   const prefs = useNutritionPrefs()
   const titleId = useId()
   const mine = !!userId && recipe.owner_id === userId
@@ -119,7 +122,7 @@ export function RecipeView({ recipe: given, lines, foods, userId, onClose, onEdi
 
   const step = (by: number) => setPortionsText(qtyText(Math.max(0.25, Math.min(999, Math.round((portions + by) * 4) / 4))))
   const sharing = readSharing(recipe)
-  const back = () => setPanel(null)
+  const back = () => { setPanel(null); toList.setAsking(null) }
   const close = (said: string) => { setDone(said); setPanel(null) }
 
   return (
@@ -135,7 +138,7 @@ export function RecipeView({ recipe: given, lines, foods, userId, onClose, onEdi
               mine && { label: recipe.photo_path ? 'Change photo…' : 'Add a photo…', onSelect: () => setPanel('photo') },
               !!userId && { label: 'Make a variation', onSelect: () => onVariation(recipe) },
               !!profile && { label: 'Add to a task’s note', onSelect: () => setPanel('task') },
-              !!profile && !isReady(recipe) && { label: 'Add to shopping list', onSelect: () => setPanel('shop') },
+              !!profile && own.some((l) => l.food_id) && { label: 'Add to shopping list', onSelect: () => void toList.start([{ recipe, servings: portions }], true) },
               { label: 'Export…', onSelect: () => setPanel('export') },
             ]} />
           )}
@@ -153,7 +156,12 @@ export function RecipeView({ recipe: given, lines, foods, userId, onClose, onEdi
 
         {panel === 'task' && profile && <TaskPanel recipe={recipe} scaled={scaled} portions={portions} figures={perPortion} keys={keys} profileId={profile.id} onBack={back} onDone={close} />}
         {panel === 'meal' && profile && <MealPanel recipe={recipe} profileId={profile.id} onBack={back} onDone={close} />}
-        {panel === 'shop' && profile && <ShopPanel recipe={recipe} scaled={scaled} portions={portions} profile={profile} onBack={back} onDone={close} />}
+        {panel === 'shop' && toList.asking && (
+          <>
+            <p className="rcp-section">To buy for {qtyText(portions)} {portions === 1 ? 'portion' : 'portions'}</p>
+            <RecipeShopChoices start={toList.asking} servingsKnown onAdd={toList.add} onCancel={back} />
+          </>
+        )}
         {panel === 'export' && <ExportPanel shape={exportShape(recipe, lines, foods, ['kcal', ...keys])} attribution={attribution} onBack={back} onDone={close} />}
 
         {!panel && (
@@ -426,53 +434,6 @@ function MealPanel({ recipe, profileId, onBack, onDone }: { recipe: Recipe; prof
       <div className="sheet-actions">
         <button type="button" className="btn" onClick={onBack}>Back</button>
         <button type="button" className="btn btn-primary grow" disabled={!n || n <= 0} onClick={() => void plan()}>Plan it</button>
-      </div>
-    </div>
-  )
-}
-
-/** What the recipe needs for the portions shown, less what is in the
- *  cupboard, onto the household's shopping list (REC-20). A food already
- *  on the list (not ticked) gets the amount added to it. */
-function ShopPanel({ recipe, scaled, portions, profile, onBack, onDone }: {
-  recipe: Recipe; scaled: ScaledLine[]; portions: number; profile: { id: string; household_id: string }
-  onBack: () => void; onDone: (said: string) => void
-}) {
-  const stock = useLiveQuery(() => stockMap(profile.household_id), [profile.household_id])
-  const plan = stock ? toBuy(scaled, stock) : null
-  const text = scaled.filter((l) => !l.food && l.name)
-
-  async function add() {
-    if (!plan) return
-    const { count: n, undo } = await addToShoppingList(plan.buy, profile.household_id, profile.id, `For ${recipe.name}`)
-    offerUndo('Added to the shopping list', undo)
-    onDone(`${n} ${n === 1 ? 'item' : 'items'} on the shopping list${plan.inStock.length ? `; ${plan.inStock.length} already in the cupboard` : ''}.`)
-  }
-
-  return (
-    <div className="rcp-choice">
-      <p className="rcp-section">To buy for {qtyText(portions)} {portions === 1 ? 'portion' : 'portions'}</p>
-      {!plan ? <p className="fe-note">Looking in the cupboard…</p> : (
-        <>
-          {plan.buy.length === 0 ? <p className="fe-note">Everything is in the cupboard already.</p> : (
-            <ul className="rcp-list">
-              {plan.buy.map((b) => (
-                <li key={b.food_id ?? b.name}>
-                  <span>{b.name}</span>
-                  <span>{b.count ? `${b.count.qty} × ${b.count.unit} (${gramsLabel(b.grams ?? 0)})` : gramsLabel(b.grams ?? 0)}{b.from_stock ? ` · ${gramsLabel(b.from_stock)} in stock` : ''}</span>
-                </li>
-              ))}
-            </ul>
-          )}
-          {plan.inStock.length > 0 && <p className="fe-note">In the cupboard already: {plan.inStock.join(', ')}.</p>}
-          {text.length > 0 && <p className="fe-note">Not added, as they have no food: {text.map((l) => l.name).join(', ')}.</p>}
-        </>
-      )}
-      <div className="sheet-actions">
-        <button type="button" className="btn" onClick={onBack}>Back</button>
-        <button type="button" className="btn btn-primary grow" disabled={!plan || plan.buy.length === 0} onClick={() => void add()}>
-          Add {plan?.buy.length ?? ''} to the list
-        </button>
       </div>
     </div>
   )

@@ -1,10 +1,10 @@
 // Checks the recipe rules: what a recipe is for (ready meals included), the
 // search text and the sorts of the Recipes tab, a recipe scaled to a number
 // of portions and its figures for any label line (unknown never counted as
-// 0), a variation's name, what to buy after the cupboard, and a ready meal.
+// 0), a variation's name and a ready meal.
 import {
   ROLES, roleLabel, rolesFor, isReady, recipeSearchText, usage, recipeOrder, scaleLines, recipeFigures, variationName,
-  toBuy, readyProduct,
+  readyProduct,
 } from '../lib/recipe-rules.ts'
 import { search } from '../lib/search-rules.ts'
 
@@ -80,13 +80,7 @@ is('a second variation', variationName('Chicken curry', ['Chicken curry', 'Chick
 is('a variation of a variation', variationName('Chicken curry (variation)', ['Chicken curry (variation)']), 'Chicken curry (variation 2)')
 is('never past 120 characters', variationName('x'.repeat(120), []).length <= 120, true)
 
-// To buy, minus stock (REC-20).
-const { buy, inStock } = toBuy(two, new Map([['oats', 500], ['egg', 100]]))
-is('stock covers the oats', inStock, ['Oat flakes'])
-is('eggs still to buy: two, in whole eggs', buy.find((b) => b.food_id === 'egg'), { food_id: 'egg', name: 'Egg average, raw', grams: 100, count: { qty: 2, unit: 'egg' }, from_stock: 100, aisle: null })
-is('an onion is bought whole, weighed as bought', buy.find((b) => b.food_id === 'onion'), { food_id: 'onion', name: 'Onions, raw', grams: 100, count: { qty: 1, unit: 'onion' }, from_stock: 0, aisle: 'Vegetables' })
-is('free text is not bought by itself', buy.some((b) => b.name === 'Salt to taste'), false)
-is('cooked oats are bought raw', Math.round(toBuy(scaleLines('r1', cookedOats, foods, 1), new Map()).buy[0].grams), 40)
+// To buy, minus stock (REC-20): see recipeshop.check.mjs (v22, the meal plan's way).
 
 // A ready meal (REC-21).
 const ready = { id: 'rm', role: 'ready' }
