@@ -1,4 +1,4 @@
-import { need, sql, checks, open, signIn, profileOf, today, localCount, modulesOn, moduleHere } from './e2e.mjs'
+import { need, sql, checks, open, signIn, profileOf, today, localCount, modulesOn, moduleHere, drained } from './e2e.mjs'
 
 // Works with the network cut: ticks and pushes offline, survives a reload with
 // no connection, then reconnects and checks the changes reached Postgres and
@@ -22,7 +22,9 @@ const { b, ctx, p } = await open()
 await signIn(p, email)
 // A task in the Training section belongs to Training, and a switched-off
 // module's tasks are not shown (GEN-01). Switched on after signing in, so a
-// first-run wizard (Minimal planner) cannot switch it off again.
+// first-run wizard (Minimal planner) cannot switch it off again, once what
+// the wizard wrote has gone up.
+await drained(p)
 await modulesOn(email, ['training'])
 await p.waitForFunction(() => navigator.serviceWorker?.controller != null, { timeout: 15000 })
   .catch(() => console.log('note: service worker did not take control in time'))
