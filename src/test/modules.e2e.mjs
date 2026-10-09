@@ -125,6 +125,8 @@ await p.getByRole('button', exact('Save')).click()
 await settle(p)
 await p.getByRole('button', exact('Back')).click()
 await p.getByRole('button', exact('Add event')).click()
+// v18 (CALM-08): Where is not needed to make an event, so it waits under More options.
+await p.locator('.bottom-sheet .mo-toggle').click()
 is('the renamed field is on the form', await p.getByLabel('Place').count(), 1)
 await p.getByRole('button', exact('Cancel')).click()
 r = await one(`select settings->'overlay'->'labels'->>'calendar_event.location' l from public.module_instance where ${mine} and module_key = 'agenda'`)

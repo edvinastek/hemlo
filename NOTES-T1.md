@@ -26,3 +26,5 @@ Branch v23/t1 from main cbc1008. Harness port 5541 (throwaway, deleted at the en
 - transfer: test. The second "Close" was the policy notice's × (aria-label Close), not a second sheet: no
   CALM-10 sheet-on-sheet. Fix: Close looked up inside the Export dialog (role dialog, name Export). Harness:
   whole test's UI steps pass with the notice showing (only the Postgres row check fails there, no server).
+- modules: test. Since v18 (CALM-08) the Agenda event form keeps Where under More options; the renamed field
+  is there (harness: 0 before opening More options, 1 after). Fix: open More options first, as section 4 does.
