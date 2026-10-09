@@ -1,3 +1,4 @@
+import { existsSync } from 'node:fs'
 import { chromium } from 'playwright'
 
 // Shared by the browser checks. Accounts are throwaway ones given in the
@@ -39,7 +40,11 @@ export function checks() {
 }
 
 export async function open(options = {}) {
-  const b = await chromium.launch({ executablePath: '/opt/pw-browsers/chromium-1194/chrome-linux/chrome' })
+  // Here the sandbox's own Chromium; on GitHub (the Live tests workflow) the one
+  // Playwright installs, or CHROMIUM when set.
+  const local = '/opt/pw-browsers/chromium-1194/chrome-linux/chrome'
+  const executablePath = process.env.CHROMIUM || (existsSync(local) ? local : undefined)
+  const b = await chromium.launch(executablePath ? { executablePath } : {})
   const ctx = await b.newContext({ viewport: { width: 390, height: 844 }, ...options })
   const p = await ctx.newPage()
   const errors = []

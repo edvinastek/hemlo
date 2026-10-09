@@ -194,3 +194,17 @@ Steps 5 and 6 can run on GitHub instead of your computer:
 It never runs on a push, and it does not set secrets (step 7 stays on your
 computer). Delete the repository secret and revoke the token when you no
 longer want GitHub to be able to change the database.
+
+## Live tests (after a release)
+
+The browser tests run on GitHub against the live project, with throwaway
+accounts that are deleted at the end:
+
+1. Supabase → Account → Access Tokens → a token for the project with Database
+   and Auth read and write, expiring in a day.
+2. Repository → Settings → Secrets and variables → Actions → New repository
+   secret: `SUPABASE_ACCESS_TOKEN`, the token.
+3. Actions → **Live tests** → Run workflow → `main`. It takes about an hour;
+   the run's summary lists each test as passed or failed, and the logs are
+   under Artifacts (`e2e-logs`).
+4. Afterwards delete the token in Supabase (the secret then does nothing).

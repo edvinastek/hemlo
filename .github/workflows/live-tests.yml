@@ -1,0 +1,82 @@
+name: Live tests
+
+# The browser tests against the live project, run by hand after a release
+# (Actions → Live tests → Run workflow). Throwaway accounts e2e-*@example.invalid
+# are made with a fresh random password, used, and always deleted at the end,
+# with everything they owned. The Supabase token lives only in the repository
+# secret SUPABASE_ACCESS_TOKEN; nothing secret is printed.
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: live-tests
+  cancel-in-progress: false
+
+jobs:
+  e2e:
+    name: Browser tests on the live project
+    runs-on: ubuntu-24.04
+    timeout-minutes: 150
+    env:
+      VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
+      VITE_SUPABASE_PUBLISHABLE_KEY: ${{ secrets.VITE_SUPABASE_PUBLISHABLE_KEY }}
+      VITE_CONTROLLER_NAME: ${{ secrets.VITE_CONTROLLER_NAME }}
+      VITE_CONTACT_EMAIL: ${{ secrets.VITE_CONTACT_EMAIL }}
+      SB: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+      TEST_EMAIL: e2e-a@example.invalid
+      TEST_NEW_EMAIL: e2e-b@example.invalid
+      TEST_FEAT_EMAIL: e2e-c@example.invalid
+      TEST_ONBOARD_EMAIL: e2e-d@example.invalid
+      TEST_MODULES_EMAIL: e2e-e@example.invalid
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 22, cache: npm }
+      - name: The token is there
+        run: |
+          if [ -z "$SB" ]; then echo "::error::Add the repository secret SUPABASE_ACCESS_TOKEN (docs/release.md, Live tests)."; exit 1; fi
+      - run: npm ci
+      - run: npx playwright install --with-deps chromium
+      - run: npm run build
+      - name: Serve the built app on :4173
+        run: |
+          nohup npx vite preview --port 4173 --host 127.0.0.1 > preview.log 2>&1 &
+          for i in $(seq 1 30); do curl -sf http://127.0.0.1:4173/ > /dev/null && exit 0; sleep 2; done
+          echo "::error::The app did not start"; cat preview.log; exit 1
+      - name: A fresh password for this run only
+        run: |
+          pw="$(openssl rand -hex 16)Aa1"
+          echo "::add-mask::$pw"
+          echo "TEST_PASSWORD=$pw" >> "$GITHUB_ENV"
+      - name: Make the throwaway accounts
+        run: node scripts/test-accounts.mjs create $TEST_EMAIL $TEST_NEW_EMAIL $TEST_FEAT_EMAIL $TEST_ONBOARD_EMAIL $TEST_MODULES_EMAIL
+      - name: Run every browser test
+        id: run
+        run: |
+          mkdir -p e2e-logs
+          echo "| Test | Result |" >> "$GITHUB_STEP_SUMMARY"
+          echo "| --- | --- |" >> "$GITHUB_STEP_SUMMARY"
+          failed=""
+          for t in onboarding features offline privacy tracking widget tasksheet repeat plan reorder food stock daytabs modules views nav holidays stats transfer books sharing accounts calendarlinks products units food-units landscape layout tour; do
+            if timeout 900 node src/test/$t.e2e.mjs > e2e-logs/$t.log 2>&1; then
+              echo "| $t | passed |" >> "$GITHUB_STEP_SUMMARY"
+            else
+              echo "| $t | **FAILED** |" >> "$GITHUB_STEP_SUMMARY"
+              failed="$failed $t"
+              echo "::group::$t (failed)"; tail -40 e2e-logs/$t.log; echo "::endgroup::"
+            fi
+          done
+          echo "failed=$failed" >> "$GITHUB_OUTPUT"
+      - name: Delete the throwaway accounts and all they owned
+        if: always()
+        run: node scripts/test-accounts.mjs delete $TEST_EMAIL $TEST_NEW_EMAIL $TEST_FEAT_EMAIL $TEST_ONBOARD_EMAIL $TEST_MODULES_EMAIL
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with: { name: e2e-logs, path: e2e-logs, retention-days: 14 }
+      - name: Result
+        run: |
+          if [ -n "${{ steps.run.outputs.failed }}" ]; then echo "::error::Failed:${{ steps.run.outputs.failed }}"; exit 1; fi
+          echo "Every browser test passed."
