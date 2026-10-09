@@ -38,3 +38,8 @@ Branch v23/t1 from main cbc1008. Harness port 5541 (throwaway, deleted at the en
   taskModule/shows, since v16). It passed before on a long-lived account with Training on. Harness: training
   off → 0 rows, on → 1 row; the tick and the 30-minute push through "Open here" work (17:00). Fix: switch
   Training on after signing in (modulesOn) and wait for it on the device (moduleHere) before looking.
+- tasksheet: environment + app bug. Live it failed because the policy notice covered the note page's Back
+  (fixed twice: accounts as sign-up makes them; notice z-index 19 under pages). Harness with the notice on:
+  Back is hit (elementFromPoint = .np-back at 360x740 and 844x390) and the whole test's UI steps pass, with
+  and without the notice. Also made "the sheet did not grow" measure after the sheet settles: with Projects on,
+  More options adds Project and Goal a moment later (harness: 820 then 895 px), a flake waiting to happen.

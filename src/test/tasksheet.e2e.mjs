@@ -32,6 +32,18 @@ const offScreen = () => p.evaluate(() => {
     .map((el) => `${el.tagName.toLowerCase()}.${[...el.classList].join('.')}`).slice(0, 5)
 })
 const sheetHeight = () => p.locator('.bottom-sheet .form-grid').evaluate((el) => Math.round(el.getBoundingClientRect().height))
+/** The height once the sheet has settled: More options adds Project and Goal
+ *  a moment after it opens when those modules are on. */
+const settledHeight = async () => {
+  let last = await sheetHeight()
+  for (let i = 0; i < 20; i++) {
+    await p.waitForTimeout(250)
+    const now = await sheetHeight()
+    if (now === last) return now
+    last = now
+  }
+  return last
+}
 // v17: "Until" is "End time instead of minutes", inside More options.
 const UNTIL = '.bottom-sheet .ts-check:has-text("End time instead") input'
 const moreOptions = async () => {
@@ -49,7 +61,7 @@ await addTask()
 await p.fill('.bottom-sheet input[placeholder="Mobility"]', 'Sheet late shift')
 await p.fill('.bottom-sheet input[type=time]', '22:30')
 await moreOptions()
-const before = await sheetHeight()
+const before = await settledHeight()
 await p.click(UNTIL)
 is('ticking Until swaps Minutes for an end time', await p.locator('.bottom-sheet input[aria-label="End time"]').count(), 1)
 is('and the Minutes field is gone', await p.locator('.bottom-sheet label', { hasText: /^Minutes/ }).count(), 0)
