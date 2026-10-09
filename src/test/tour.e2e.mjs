@@ -1,5 +1,4 @@
-import { chromium } from 'playwright'
-import { signIn, modulesOn, ALL_MODULES, toPage } from './e2e.mjs'
+import { open, signIn, modulesOn, ALL_MODULES, toPage } from './e2e.mjs'
 
 // Credentials come from the environment and are never committed: an account
 // whose password sits in the repository is an account anyone can sign in to.
@@ -7,11 +6,8 @@ if (!process.env.TEST_EMAIL || !process.env.TEST_PASSWORD) {
   console.error('Set TEST_EMAIL and TEST_PASSWORD for a throwaway test account.')
   process.exit(2)
 }
-const b = await chromium.launch({ executablePath: '/opt/pw-browsers/chromium-1194/chrome-linux/chrome' })
-const ctx = await b.newContext({ viewport: { width: 390, height: 844 }, deviceScaleFactor: 2 })
-const p = await ctx.newPage()
-const errors = []
-p.on('pageerror', e => errors.push(String(e).slice(0, 160)))
+// The shared open(): the sandbox's Chromium here, Playwright's own on GitHub.
+const { b, p, errors } = await open({ viewport: { width: 390, height: 844 }, deviceScaleFactor: 2 })
 p.on('console', m => { if (m.type() === 'error' && !m.text().includes('favicon')) errors.push(m.text().slice(0, 160)) })
 await p.goto('http://127.0.0.1:4173/', { waitUntil: 'networkidle' })
 // This check needs these pages, whichever check used the account before it.

@@ -1,5 +1,4 @@
-import { chromium } from 'playwright'
-import { completeWizard, drained, openSettings } from './e2e.mjs'
+import { open, completeWizard, drained, openSettings } from './e2e.mjs'
 
 // Three things the security review fixed, checked in a real browser:
 //  1. A row created on the device (the wizard's targets and weigh-in) reaches
@@ -26,9 +25,8 @@ const is = (label, got, want) => {
 }
 const email = process.env.TEST_NEW_EMAIL
 
-const b = await chromium.launch({ executablePath: '/opt/pw-browsers/chromium-1194/chrome-linux/chrome' })
-const ctx = await b.newContext({ viewport: { width: 390, height: 844 } })
-const p = await ctx.newPage()
+// The shared open(): the sandbox's Chromium here, Playwright's own on GitHub.
+const { b, p } = await open({ viewport: { width: 390, height: 844 } })
 const localCount = () => p.evaluate(async () => {
   const open = indexedDB.open('getit')
   const db = await new Promise((r) => { open.onsuccess = () => r(open.result) })

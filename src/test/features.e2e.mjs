@@ -1,5 +1,4 @@
-import { chromium } from 'playwright'
-import { signIn, addTask, openSettings, toPage } from './e2e.mjs'
+import { open, signIn, addTask, openSettings, toPage } from './e2e.mjs'
 
 // What a closed-test tester will do in the first ten minutes, end to end:
 // add, edit and delete a task; plan meals and size the main one; eat one;
@@ -27,11 +26,8 @@ await sql(`delete from public.meal_plan_slot where profile_id in (select pr.id f
            delete from public.food_log where profile_id in (select pr.id from public.profile pr join auth.users u on u.id = pr.user_id where u.email = '${email}');
            delete from public.task where profile_id in (select pr.id from public.profile pr join auth.users u on u.id = pr.user_id where u.email = '${email}');`)
 
-const b = await chromium.launch({ executablePath: '/opt/pw-browsers/chromium-1194/chrome-linux/chrome' })
-const ctx = await b.newContext({ viewport: { width: 390, height: 844 }, permissions: ['notifications'] })
-const p = await ctx.newPage()
-const errors = []
-p.on('pageerror', (e) => errors.push(String(e).slice(0, 200)))
+// The shared open(): the sandbox's Chromium here, Playwright's own on GitHub.
+const { b, p, errors } = await open({ viewport: { width: 390, height: 844 }, permissions: ['notifications'] })
 
 // Sign-up asks for consent to health data before anything else.
 await p.goto('http://127.0.0.1:4173/', { waitUntil: 'networkidle' })

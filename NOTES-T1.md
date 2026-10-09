@@ -43,3 +43,11 @@ Branch v23/t1 from main cbc1008. Harness port 5541 (throwaway, deleted at the en
   Back is hit (elementFromPoint = .np-back at 360x740 and 844x390) and the whole test's UI steps pass, with
   and without the notice. Also made "the sheet did not grow" measure after the sheet settles: with Projects on,
   More options adds Project and Goal a moment later (harness: 820 then 895 px), a flake waiting to happen.
+- features, privacy, tour: environment. They launched Chromium at the sandbox's own path
+  (/opt/pw-browsers/chromium-1194), which does not exist on GitHub. Fix: they use the shared open() from
+  e2e.mjs (the sandbox's Chromium here, Playwright's own on GitHub, CHROMIUM when set). These three have not
+  run against v19-23 at all, so their steps were dry-run on the harness: features' sign-up screen part
+  (signed-out harness mode), tasks, meals (with the catalogue's recipes put into the local copy), Today's
+  figure, Shop, Reminders and the policy all pass (one harness-only difference: the demo dinner is listed
+  first); tour runs to the end with no page errors; privacy's Data page steps (one Sign out, Delete waits for
+  the word) behave as the test expects. The server counts and the two-account steps need the live run.
