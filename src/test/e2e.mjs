@@ -75,6 +75,10 @@ export async function signIn(p, email, password = process.env.TEST_PASSWORD, wiz
   if (await first.count()) await completeWizard(p, wizard)
   await p.waitForTimeout(3000)
   await dismissWhatMoved(p)
+  // An account made as sign-up makes one has agreed to the current policy
+  // (scripts/test-accounts.mjs). If the "policy changed" line shows anyway,
+  // every page sits 56 px lower and it can cover things: say so in the log.
+  if (await p.locator('.policy-notice').count()) console.log('note: the "privacy policy changed" line is showing for this account')
 }
 
 /** Accounts made before a release are shown "What moved where" once; the
