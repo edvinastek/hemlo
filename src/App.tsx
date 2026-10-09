@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type ReactNode } from 'react'
+import { useEffect, useState, type ReactNode } from 'react'
 import { useLiveQuery } from 'dexie-react-hooks'
 import type { Session } from '@supabase/supabase-js'
 import { Navigate, Route, Routes, useLocation, useNavigate, useParams } from 'react-router-dom'
@@ -41,10 +41,11 @@ export default function App() {
   // The pages the open profile has (from its modules), shared by the bar,
   // the routes and the swipe between pages.
   const pages = usePages()
-  const appRef = useRef<HTMLDivElement>(null)
+  // A state, not a ref, so the swipe is set up when the frame mounts (useSwipe.ts).
+  const [appEl, setAppEl] = useState<HTMLDivElement | null>(null)
   const navigate = useNavigate()
   const { pathname } = useLocation()
-  useSwipe(appRef, {
+  useSwipe(appEl, {
     enabled: !!pages?.nav.swipe,
     onSwipe: (dir) => {
       const to = pages ? neighbour(pages, pageForPath(pathname), dir) : null
@@ -182,7 +183,7 @@ export default function App() {
   }
 
   return (
-    <div className="app" ref={appRef}>
+    <div className="app" ref={setAppEl}>
       <Routes>
         <Route path="/" element={<Today />} />
         <Route path="/plan" element={<Plan />} />

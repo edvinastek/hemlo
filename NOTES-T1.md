@@ -15,3 +15,11 @@ Branch v23/t1 from main cbc1008. Harness port 5541 (throwaway, deleted at the en
 - App bug found on the way (tasksheet): the notice (z-index 35) sat over the note page (.np, z 30), covering its
   Back button (elementFromPoint at .np-back = the notice, at 360x740 and 844x390). Fix: notice z-index 19, part of
   the page; sheets, the note page and the fan cover it.
+- nav: two causes. (1) Test: the swipe back from Plan started at Today's row height, which on today's Plan
+  is the section tabs (Chromium also moves a touch to the nearest tab when it lands just under one); tabs keep
+  a swipe by design (useSwipe LEAVE_ALONE). Harness: touchstart target = .tabs although elementFromPoint said
+  .plan-bar. Fix: start the swipe back below Plan's head, tabs and strip, measured on Plan (plus a check that
+  there is room). (2) App bug found while reproducing: useSwipe's effect was keyed on a ref; the app frame
+  (.app) mounts after the pages are known (wizard / "Setting up your profile"), so in some runs the listeners
+  were never attached and swiping between pages did nothing for the whole session (harness: 2 of 6 runs, no
+  listener attached). Fix: the element is held in state (callback ref) and passed to useSwipe. After: 7 of 7.

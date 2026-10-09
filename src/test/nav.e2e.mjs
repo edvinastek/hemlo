@@ -163,7 +163,17 @@ const start = await p.evaluate(() => {
 })
 await drag(start.x, start.y, Math.max(4, start.x - 190), start.y + 6)
 is('a swipe left on Today reaches Plan', path(), '/plan')
-await drag(60, start.y, 300, start.y + 6)
+// Back from Plan's own content, found on Plan as above: Today's row height
+// can land on Plan's tabs or week strip, which keep a swipe to themselves
+// (a finger is also taken to the nearest tab when it lands just under one).
+await p.waitForTimeout(500)
+const back = await p.evaluate(() => {
+  const above = [...document.querySelectorAll('.page-head, .page .tabs, .page [role=tablist], .page .week-strip')]
+    .map((el) => el.getBoundingClientRect().bottom)
+  return Math.max(...above) + 48
+})
+is('Plan has room for a swipe below its tabs', back < (await p.evaluate(() => window.innerHeight)) - 140, true)
+await drag(60, back, 300, back + 6)
 is('a swipe right goes back to Today', path(), '/')
 
 // 5. Nobody's choice: the app picks; with many pages the hub, five at most.

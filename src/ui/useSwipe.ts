@@ -1,4 +1,4 @@
-import { useEffect, useRef, type RefObject } from 'react'
+import { useEffect, useRef } from 'react'
 
 /** Swipe sideways on a page to reach the next or previous page on the bar.
  *
@@ -48,13 +48,16 @@ export function ownsSwipe(target: EventTarget | null, root: HTMLElement): boolea
 const reducedMotion = () =>
   typeof window !== 'undefined' && window.matchMedia('(prefers-reduced-motion: reduce)').matches
 
-export function useSwipe(rootRef: RefObject<HTMLElement>, { enabled, onSwipe }: Options) {
+/** `root` is the element itself, not a ref: the app's frame mounts after
+ *  the pages are known (a new account's wizard, "Setting up your profile"
+ *  first), and an effect keyed on a ref never ran again once it did, so
+ *  swiping stayed off until the app was opened again. */
+export function useSwipe(root: HTMLElement | null, { enabled, onSwipe }: Options) {
   // The latest callback without re-adding listeners on every render.
   const swipe = useRef(onSwipe)
   swipe.current = onSwipe
 
   useEffect(() => {
-    const root = rootRef.current
     if (!root || !enabled) return
 
     let start: { x: number; y: number; t: number } | null = null
@@ -134,5 +137,5 @@ export function useSwipe(rootRef: RefObject<HTMLElement>, { enabled, onSwipe }: 
       root.removeEventListener('touchend', up)
       root.removeEventListener('touchcancel', cancel)
     }
-  }, [rootRef, enabled])
+  }, [root, enabled])
 }
