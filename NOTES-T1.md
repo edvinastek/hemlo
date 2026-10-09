@@ -23,3 +23,6 @@ Branch v23/t1 from main cbc1008. Harness port 5541 (throwaway, deleted at the en
   (.app) mounts after the pages are known (wizard / "Setting up your profile"), so in some runs the listeners
   were never attached and swiping between pages did nothing for the whole session (harness: 2 of 6 runs, no
   listener attached). Fix: the element is held in state (callback ref) and passed to useSwipe. After: 7 of 7.
+- transfer: test. The second "Close" was the policy notice's × (aria-label Close), not a second sheet: no
+  CALM-10 sheet-on-sheet. Fix: Close looked up inside the Export dialog (role dialog, name Export). Harness:
+  whole test's UI steps pass with the notice showing (only the Postgres row check fails there, no server).

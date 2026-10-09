@@ -39,7 +39,9 @@ await download.saveAs(csvPath)
 const csv = readFileSync(csvPath, 'utf8')
 is('CSV starts with the byte-order mark', csv.charCodeAt(0), 0xfeff)
 is('CSV has the entry, comma quoted', csv.includes(`"${memo}"`) && csv.includes('Groceries'), true)
-await p.getByRole('button', { name: 'Close' }).click()
+// The Export sheet's own Close: anything else on the screen may say Close too
+// (the policy notice's ×, a tip's).
+await p.getByRole('dialog', { name: 'Export' }).getByRole('button', { name: 'Close', exact: true }).click()
 
 // 3. The file, with its note changed so it is a new row, read back in through Settings.
 const again = `${memo}-back`
