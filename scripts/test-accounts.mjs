@@ -3,6 +3,8 @@
 // owned. Needs SB (a Supabase access token) and TEST_PASSWORD.
 //   node scripts/test-accounts.mjs create a@example.invalid b@example.invalid
 //   node scripts/test-accounts.mjs delete a@example.invalid b@example.invalid
+import { readFileSync } from 'node:fs'
+
 const REF = 'lphysuemxnmcuukzsoya'
 const sql = async (query) => {
   const r = await (await fetch(`https://api.supabase.com/v1/projects/${REF}/database/query`, {
@@ -16,6 +18,13 @@ const [cmd, ...emails] = process.argv.slice(2)
 if (!process.env.SB || (cmd === 'create' && !process.env.TEST_PASSWORD)) { console.error('Set SB and TEST_PASSWORD.'); process.exit(2) }
 if (emails.some((e) => !/^[a-z0-9._+-]+@[a-z0-9.-]+$/i.test(e))) { console.error('Plain email addresses only.'); process.exit(2) }
 const pw = (process.env.TEST_PASSWORD ?? '').replace(/'/g, "''")
+// What the app's own sign-up keeps with a new account (src/screens/Auth.tsx):
+// consent to health data and the policy version agreed to. Without it the
+// account looks older than the current policy and the app shows its "policy
+// changed" line, which moves every page down and is not what a new person sees.
+const policy = /POLICY_VERSION = '(\d{4}-\d{2}-\d{2})'/.exec(readFileSync(new URL('../src/legal/policy.ts', import.meta.url), 'utf8'))
+if (!policy) { console.error('No POLICY_VERSION in src/legal/policy.ts.'); process.exit(2) }
+const signedUp = JSON.stringify({ health_consent_at: new Date().toISOString(), privacy_version: policy[1] })
 for (const e of emails) {
   if (cmd === 'create') {
     await sql(`insert into private.signup_allowlist(email) values ('${e}') on conflict do nothing;
@@ -26,7 +35,7 @@ for (const e of emails) {
           phone_change, phone_change_token, reauthentication_token)
         values ('00000000-0000-0000-0000-000000000000', gen_random_uuid(), 'authenticated', 'authenticated', '${e}',
           extensions.crypt('${pw}', extensions.gen_salt('bf')), now(),
-          '{"provider":"email","providers":["email"]}', '{}', now(), now(), '', '', '', '', '', '', '', '')
+          '{"provider":"email","providers":["email"]}', '${signedUp}', now(), now(), '', '', '', '', '', '', '', '')
         returning id, email)
       insert into auth.identities (id, user_id, provider_id, identity_data, provider, created_at, updated_at, last_sign_in_at)
         select gen_random_uuid(), id, id::text, jsonb_build_object('sub', id::text, 'email', email, 'email_verified', true), 'email', now(), now(), now() from u;`)

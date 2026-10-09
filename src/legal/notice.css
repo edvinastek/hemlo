@@ -1,7 +1,10 @@
 /* The privacy policy notice (G2 #16): one slim tinted line, like a tip, at
-   the top of the screen; the app moves down under it so nothing is covered. */
+   the top of the screen; the app moves down under it so nothing is covered.
+   It belongs to the page, so whatever opens over the page (a sheet, a note
+   opened as a page, the fan) covers it in turn: above those it hid the note
+   page's Back button. */
 .policy-notice {
-  position: fixed; z-index: 35; left: var(--space-4); right: var(--space-4);
+  position: fixed; z-index: 19; left: var(--space-4); right: var(--space-4);
   top: calc(var(--safe-area-inset-top, env(safe-area-inset-top, 0px)) + var(--space-2));
   display: flex; align-items: center; gap: var(--space-2);
   min-height: 40px; padding: 0 2px 0 var(--space-3); box-sizing: border-box;
