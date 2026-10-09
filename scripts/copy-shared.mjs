@@ -42,7 +42,8 @@ function cutTypes(text) {
 
 /** Every file to write, by name, with its content. Nothing is written here. */
 export function generate() {
-  const read = (f) => readFileSync(join(SRC, f), 'utf8')
+  // Windows checkouts may have CRLF line endings; the copies are always LF.
+  const read = (f) => readFileSync(join(SRC, f), 'utf8').replace(/\r\n/g, '\n')
   const files = {
     'types.ts': header('types.ts (only the types the rules use)') + cutTypes(read('types.ts')),
     // Deno wants the extension on every relative import.
@@ -64,7 +65,7 @@ export function generate() {
 export function stale() {
   const want = generate()
   return Object.keys(want).filter((name) => {
-    try { return readFileSync(join(OUT, name), 'utf8') !== want[name] } catch { return true }
+    try { return readFileSync(join(OUT, name), 'utf8').replace(/\r\n/g, '\n') !== want[name] } catch { return true }
   })
 }
 
