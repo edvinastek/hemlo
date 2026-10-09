@@ -33,3 +33,8 @@ Branch v23/t1 from main cbc1008. Harness port 5541 (throwaway, deleted at the en
   Mobility" is not on screen. Fix: open that list when Archive is not in sight (the row is still open there).
   Harness (Friday): passes that step and every later UI step through the Excel import and Export (two-phone
   step and the second account need the server; skipped there).
+- offline: test / environment. The fresh account's first sign-in ran the wizard (Minimal planner: Agenda only),
+  so Training was off and the 'Training' task Calisthenics A is hidden by design (GEN-01, day-items-rules
+  taskModule/shows, since v16). It passed before on a long-lived account with Training on. Harness: training
+  off → 0 rows, on → 1 row; the tick and the 30-minute push through "Open here" work (17:00). Fix: switch
+  Training on after signing in (modulesOn) and wait for it on the device (moduleHere) before looking.
