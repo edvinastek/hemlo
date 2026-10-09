@@ -51,3 +51,16 @@ Branch v23/t1 from main cbc1008. Harness port 5541 (throwaway, deleted at the en
   figure, Shop, Reminders and the policy all pass (one harness-only difference: the demo dinner is listed
   first); tour runs to the end with no page errors; privacy's Data page steps (one Sign out, Delete waits for
   the word) behave as the test expects. The server counts and the two-account steps need the live run.
+- Passing logs: no page errors, warnings or notes in any of the 19.
+- Workflow: no change needed (Playwright installs its Chromium with --with-deps; open() falls back to it).
+
+## Verification (all on the throwaway harness at :5541: built app, stubbed sign-in, seeded Dexie, no network)
+- npx tsc -b, npm run check, npx vite build: pass. node --check on every changed .mjs: pass.
+- test-accounts.mjs create: the SQL now carries {"health_consent_at": ..., "privacy_version": "2026-10-08"}
+  (checked with fetch stood in; noticeDue is false for it).
+- Live tests dry-run on the harness (sql stood in by nothing, so server-count checks fail there by design):
+  nav 33/33 three runs; landscape 109/109; layout all; modules, transfer, tasksheet (with and without the
+  notice), tracking (to the Excel import / Export), features (from sign-up to the policy), tour: every UI step.
+- Screenshots: shots23/t1/ — today with and without the policy line, the task sheet over it, the note page with
+  Back free, at 360 and 844x390, light and dark.
+- Harness deleted.
