@@ -481,7 +481,12 @@ node scripts/test-accounts.mjs delete $TEST_EMAIL $TEST_NEW_EMAIL $TEST_FEAT_EMA
 ```
 
 Never commit the password or the token. Every query in these checks is scoped
-to the test accounts, because they run against the live project.
+to the test accounts, because they run against the live project. The accounts
+are made as the app's sign-up makes them (consent to health data, the current
+policy version agreed to), so the "privacy policy changed" line does not show;
+`signIn` says so in the log if it does. The browser is the sandbox's Chromium
+when it is there, else Playwright's own (or `CHROMIUM=<path>`): every check
+opens it through `open()` in `e2e.mjs`.
 
 - `onboarding` — the first-run wizard as a planner: where you are, work and commute, a template
   suggested from typed words, no body targets; then work hours changed and turned off in More.
