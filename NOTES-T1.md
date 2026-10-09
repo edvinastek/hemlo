@@ -28,3 +28,8 @@ Branch v23/t1 from main cbc1008. Harness port 5541 (throwaway, deleted at the en
   whole test's UI steps pass with the notice showing (only the Postgres row check fails there, no server).
 - modules: test. Since v18 (CALM-08) the Agenda event form keeps Where under More options; the renamed field
   is there (harness: 0 before opening More options, 1 after). Fix: open More options first, as section 4 does.
+- tracking: test, date-dependent. Last green on 3/4 Oct 2026 (a weekend). On a weekday, after Mobility is
+  changed to Weekends it is no longer due and moves into the closed "Not due today" list, so "More for
+  Mobility" is not on screen. Fix: open that list when Archive is not in sight (the row is still open there).
+  Harness (Friday): passes that step and every later UI step through the Excel import and Export (two-phone
+  step and the second account need the server; skipped there).

@@ -110,10 +110,16 @@ await p.click('.track-sheet [role=option]:has-text("Weekends")')
 await p.click('.track-sheet button[type=submit]')
 await settle(p)
 is('the schedule can be changed later', (await one(`select rule from public.habit where ${mine} and name = 'Mobility'`)).rule, 'weekends')
-// The row may still be open from Edit (on a weekend day it is now due and
-// in sight); open it only if it is not.
-if (!(await p.locator('.track-open button:has-text("Archive")').count())) await p.click('button[aria-label="More for Mobility"]')
-await p.click('.track-open button:has-text("Archive")')
+// The row stays open after Edit. On a weekend it is still due and in sight;
+// on a weekday it has moved into the closed "Not due today" list, which is
+// opened to reach it (it is still open there).
+const archive = p.locator('.track-open button:has-text("Archive")')
+if (!(await archive.count())) {
+  const fold = p.locator('.track-fold[aria-expanded="false"]', { hasText: 'Not due' })
+  if (await fold.count()) await fold.click()
+}
+if (!(await archive.count())) await p.click('button[aria-label="More for Mobility"]')
+await archive.click()
 await settle(p)
 
 await modulesOn(email, ['household'])
